@@ -33,7 +33,7 @@ func setFlags(cmd *cobra.Command) {
 		dirFlag,
 		fmt.Sprintf("./%s", command.DefaultGenesisFileName),
 		fmt.Sprintf(
-			"the directory for the Polygon Edge genesis data. Default: %s",
+			"the directory for the DogeChain-Lab Jury genesis data. Default: %s",
 			fmt.Sprintf("./%s", command.DefaultGenesisFileName),
 		),
 	)

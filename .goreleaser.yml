@@ -66,7 +66,7 @@ archives:
 #nfpms:
 #  - vendor: 0xPolygon
 #    homepage: https://polygon.technology
-#    maintainer: Polygon Edge Team <edge@polygon.technology>
+#    maintainer: DogeChain-Lab Team <edge@polygon.technology>
 #    description:  A Framework for Building Ethereum-compatible Blockchain Networks
 #    license: GPLv3 LGPLv3
 #
