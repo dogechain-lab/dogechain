@@ -7,7 +7,6 @@ config*.json
 bin/
 
 test-chain*
-polygon-edge-chain*
 jury-chain*
 .idea
 
