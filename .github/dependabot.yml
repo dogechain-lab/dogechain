@@ -9,6 +9,5 @@ updates:
     pull-request-branch-name:
       separator: "-"
     reviewers:
-      - "lazartravica"
-      - "Kourin1996"
-      - "zivkovicmilos"
+      - "abrahamcruise321"
+      - "DarianShawn"
