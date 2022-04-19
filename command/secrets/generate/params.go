@@ -24,7 +24,7 @@ const (
 )
 
 const (
-	defaultNodeName       = "polygon-edge-node"
+	defaultNodeName       = "jury-node"
 	defaultConfigFileName = "./secretsManagerConfig.json"
 	defaultNamespace      = "admin"
 )

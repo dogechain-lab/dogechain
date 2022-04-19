@@ -83,7 +83,7 @@ var dirPaths = []string{
 // NewServer creates a new Minimal server, using the passed in configuration
 func NewServer(config *Config) (*Server, error) {
 	logger := hclog.New(&hclog.LoggerOptions{
-		Name:  "polygon",
+		Name:  "jury",
 		Level: config.LogLevel,
 	})
 
@@ -103,10 +103,10 @@ func NewServer(config *Config) (*Server, error) {
 	}
 
 	if config.Telemetry.PrometheusAddr != nil {
-		m.serverMetrics = metricProvider("polygon", config.Chain.Name, true)
+		m.serverMetrics = metricProvider("jury", config.Chain.Name, true)
 		m.prometheusServer = m.startPrometheusServer(config.Telemetry.PrometheusAddr)
 	} else {
-		m.serverMetrics = metricProvider("polygon", config.Chain.Name, false)
+		m.serverMetrics = metricProvider("jury", config.Chain.Name, false)
 	}
 
 	// Set up the secrets manager
@@ -592,7 +592,7 @@ type Entry struct {
 	Config  map[string]interface{}
 }
 
-// SetupDataDir sets up the polygon-edge data directory and sub-folders
+// SetupDataDir sets up the jury data directory and sub-folders
 func SetupDataDir(dataDir string, paths []string) error {
 	if err := createDir(dataDir); err != nil {
 		return fmt.Errorf("failed to create data dir: (%s): %w", dataDir, err)

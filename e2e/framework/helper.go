@@ -335,7 +335,7 @@ func MethodSig(name string) []byte {
 
 // tempDir returns directory path in tmp with random directory name
 func tempDir() (string, error) {
-	return ioutil.TempDir("/tmp", "polygon-edge-e2e-")
+	return ioutil.TempDir("/tmp", "jury-e2e-")
 }
 
 func ToLocalIPv4LibP2pAddr(port int, nodeID string) string {

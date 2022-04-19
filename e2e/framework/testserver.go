@@ -46,7 +46,7 @@ type TestServerConfigCallback func(*TestServerConfig)
 const (
 	serverIP    = "127.0.0.1"
 	initialPort = 12000
-	binaryName  = "polygon-edge"
+	binaryName  = "jury"
 )
 
 type TestServer struct {

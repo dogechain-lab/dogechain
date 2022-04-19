@@ -4,7 +4,7 @@ import "github.com/dogechain-lab/jury/server"
 
 const (
 	DefaultGenesisFileName = "genesis.json"
-	DefaultChainName       = "polygon-edge"
+	DefaultChainName       = "jury"
 	DefaultChainID         = 100
 	DefaultPremineBalance  = "0x3635C9ADC5DEA00000" // 1000 ETH
 	DefaultConsensus       = server.IBFTConsensus
