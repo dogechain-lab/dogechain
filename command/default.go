@@ -1,6 +1,6 @@
 package command
 
-import "github.com/0xPolygon/polygon-edge/server"
+import "github.com/dogechain-lab/jury/server"
 
 const (
 	DefaultGenesisFileName = "genesis.json"

@@ -1,8 +1,8 @@
 package version
 
 import (
-	"github.com/0xPolygon/polygon-edge/command"
-	"github.com/0xPolygon/polygon-edge/versioning"
+	"github.com/dogechain-lab/jury/command"
+	"github.com/dogechain-lab/jury/versioning"
 	"github.com/spf13/cobra"
 )
 

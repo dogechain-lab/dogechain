@@ -2,13 +2,14 @@ package staking
 
 import (
 	"fmt"
-	"github.com/0xPolygon/polygon-edge/helper/common"
 	"math/big"
 
-	"github.com/0xPolygon/polygon-edge/chain"
-	"github.com/0xPolygon/polygon-edge/helper/hex"
-	"github.com/0xPolygon/polygon-edge/helper/keccak"
-	"github.com/0xPolygon/polygon-edge/types"
+	"github.com/dogechain-lab/jury/helper/common"
+
+	"github.com/dogechain-lab/jury/chain"
+	"github.com/dogechain-lab/jury/helper/hex"
+	"github.com/dogechain-lab/jury/helper/keccak"
+	"github.com/dogechain-lab/jury/types"
 )
 
 var (

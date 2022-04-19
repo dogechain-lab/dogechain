@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/0xPolygon/polygon-edge/network"
+	"github.com/dogechain-lab/jury/network"
 
 	"github.com/hashicorp/hcl"
 )

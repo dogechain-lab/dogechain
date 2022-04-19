@@ -2,12 +2,13 @@ package status
 
 import (
 	"context"
-	"github.com/0xPolygon/polygon-edge/command"
+
+	"github.com/dogechain-lab/jury/command"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/spf13/cobra"
 
-	"github.com/0xPolygon/polygon-edge/command/helper"
-	"github.com/0xPolygon/polygon-edge/server/proto"
+	"github.com/dogechain-lab/jury/command/helper"
+	"github.com/dogechain-lab/jury/server/proto"
 )
 
 func GetCommand() *cobra.Command {

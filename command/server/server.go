@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/0xPolygon/polygon-edge/command"
+	"github.com/dogechain-lab/jury/command"
 	"github.com/spf13/cobra"
 
-	"github.com/0xPolygon/polygon-edge/command/helper"
-	"github.com/0xPolygon/polygon-edge/network"
-	"github.com/0xPolygon/polygon-edge/server"
+	"github.com/dogechain-lab/jury/command/helper"
+	"github.com/dogechain-lab/jury/network"
+	"github.com/dogechain-lab/jury/server"
 )
 
 func GetCommand() *cobra.Command {
