@@ -77,8 +77,8 @@ func getStorageIndexes(address types.Address, index int64) *StorageIndexes {
 
 // PredeployParams contains the values used to predeploy the PoS staking contract
 type PredeployParams struct {
-	Validators []types.Address
 	Owner      types.Address
+	Validators []types.Address
 }
 
 // StorageIndexes is a wrapper for different storage indexes that

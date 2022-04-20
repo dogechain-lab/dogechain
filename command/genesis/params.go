@@ -24,6 +24,7 @@ const (
 	epochSizeFlag           = "epoch-size"
 	blockGasLimitFlag       = "block-gas-limit"
 	posFlag                 = "pos"
+	stakingOwner            = "staking-owner"
 )
 
 // Legacy flags that need to be preserved for running clients
@@ -38,7 +39,6 @@ var (
 var (
 	errValidatorsNotSpecified         = errors.New("validator information not specified")
 	errValidatorsSpecifiedIncorrectly = errors.New("validator information specified through mutually exclusive flags")
-	errValidatorNumberExceedsMax      = errors.New("validator number exceeds max validator number")
 	errUnsupportedConsensus           = errors.New("specified consensusRaw not supported")
 	errMissingBootnode                = errors.New("at least 1 bootnode is required")
 	errInvalidEpochSize               = errors.New("epoch size must be greater than 1")
@@ -59,6 +59,8 @@ type genesisParams struct {
 	epochSize     uint64
 	blockGasLimit uint64
 	isPos         bool
+
+	stakingOwner string
 
 	extraData []byte
 	consensus server.ConsensusType
@@ -285,8 +287,8 @@ func (p *genesisParams) shouldPredeployStakingSC() bool {
 func (p *genesisParams) predeployStakingSC() (*chain.GenesisAccount, error) {
 	stakingAccount, predeployErr := stakingHelper.PredeployStakingSC(
 		stakingHelper.PredeployParams{
+			Owner:      types.StringToAddress(p.stakingOwner),
 			Validators: p.ibftValidators,
-			Owner:      types.ZeroAddress,
 		})
 	if predeployErr != nil {
 		return nil, predeployErr

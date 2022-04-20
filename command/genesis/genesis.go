@@ -127,6 +127,12 @@ func setFlags(cmd *cobra.Command) {
 			command.DefaultGenesisGasLimit,
 		),
 	)
+	cmd.Flags().StringVar(
+		&params.stakingOwner,
+		stakingOwner,
+		"",
+		"the system staking contract owner address",
+	)
 }
 
 // setLegacyFlags sets the legacy flags to preserve backwards compatibility
