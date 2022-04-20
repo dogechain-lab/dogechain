@@ -82,6 +82,15 @@ func Test_decodeValidators(t *testing.T) {
 			succeed: false,
 		},
 		{
+			name: "should succeed with empty array",
+			value: appendAll(
+				leftPad([]byte{0x20}, 32), // Offset of the beginning of array
+				leftPad([]byte{0x00}, 32), // Number of addresses
+			),
+			succeed:  true,
+			expected: []types.Address{},
+		},
+		{
 			name: "should succeed",
 			value: appendAll(
 				leftPad([]byte{0x20}, 32), // Offset of the beginning of array
@@ -101,7 +110,6 @@ func Test_decodeValidators(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			method := abis.StakingABI.Methods["validators"]
 			assert.NotNil(t, method)
-
 			res, err := DecodeValidators(method, tt.value)
 			if tt.succeed {
 				assert.NoError(t, err)
