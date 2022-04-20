@@ -148,6 +148,21 @@ const StakingJSONABI = `[
     {
         "inputs":
         [],
+        "name": "minimum",
+        "outputs":
+        [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs":
+        [],
         "name": "owner",
         "outputs":
         [
@@ -189,7 +204,7 @@ const StakingJSONABI = `[
         [
             {
                 "internalType": "uint256",
-                "name": "minimum",
+                "name": "number",
                 "type": "uint256"
             }
         ],
@@ -204,7 +219,7 @@ const StakingJSONABI = `[
         [
             {
                 "internalType": "uint256",
-                "name": "threshold",
+                "name": "amount",
                 "type": "uint256"
             }
         ],
@@ -248,6 +263,21 @@ const StakingJSONABI = `[
         "inputs":
         [],
         "name": "stakedAmount",
+        "outputs":
+        [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs":
+        [],
+        "name": "threshold",
         "outputs":
         [
             {
