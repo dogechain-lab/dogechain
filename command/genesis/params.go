@@ -24,8 +24,6 @@ const (
 	epochSizeFlag           = "epoch-size"
 	blockGasLimitFlag       = "block-gas-limit"
 	posFlag                 = "pos"
-	minValidatorCount       = "min-validator-count"
-	maxValidatorCount       = "max-validator-count"
 )
 
 // Legacy flags that need to be preserved for running clients
@@ -61,9 +59,6 @@ type genesisParams struct {
 	epochSize     uint64
 	blockGasLimit uint64
 	isPos         bool
-
-	minNumValidators uint64
-	maxNumValidators uint64
 
 	extraData []byte
 	consensus server.ConsensusType
@@ -109,11 +104,6 @@ func (p *genesisParams) validateFlags() error {
 		// Otherwise, every block would be an endblock (meaning it will not have any transactions).
 		// Check is placed here to avoid additional parsing if epochSize < 2
 		return errInvalidEpochSize
-	}
-
-	// Validate min and max validators number
-	if err := command.ValidateMinMaxValidatorsNumber(p.minNumValidators, p.maxNumValidators); err != nil {
-		return err
 	}
 
 	return nil
@@ -188,16 +178,7 @@ func (p *genesisParams) initValidatorSet() error {
 
 	p.setValidatorSetFromCli()
 
-	// Validate if validator number exceeds max number
-	if ok := p.isValidatorNumberValid(); !ok {
-		return errValidatorNumberExceedsMax
-	}
-
 	return nil
-}
-
-func (p *genesisParams) isValidatorNumberValid() bool {
-	return uint64(len(p.ibftValidators)) <= p.maxNumValidators
 }
 
 func (p *genesisParams) initIBFTExtraData() {
@@ -302,10 +283,10 @@ func (p *genesisParams) shouldPredeployStakingSC() bool {
 }
 
 func (p *genesisParams) predeployStakingSC() (*chain.GenesisAccount, error) {
-	stakingAccount, predeployErr := stakingHelper.PredeployStakingSC(p.ibftValidators,
+	stakingAccount, predeployErr := stakingHelper.PredeployStakingSC(
 		stakingHelper.PredeployParams{
-			MinValidatorCount: p.minNumValidators,
-			MaxValidatorCount: p.maxNumValidators,
+			Validators: p.ibftValidators,
+			Owner:      types.ZeroAddress,
 		})
 	if predeployErr != nil {
 		return nil, predeployErr
