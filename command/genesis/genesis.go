@@ -6,7 +6,6 @@ import (
 	"github.com/dogechain-lab/jury/command"
 	"github.com/dogechain-lab/jury/command/helper"
 	"github.com/dogechain-lab/jury/consensus/ibft"
-	"github.com/dogechain-lab/jury/helper/common"
 	"github.com/spf13/cobra"
 )
 
@@ -127,18 +126,6 @@ func setFlags(cmd *cobra.Command) {
 			"the maximum amount of gas used by all transactions in a block. Default: %d",
 			command.DefaultGenesisGasLimit,
 		),
-	)
-	cmd.Flags().Uint64Var(
-		&params.minNumValidators,
-		minValidatorCount,
-		1,
-		"the minimum number of validators in the validator set for PoS",
-	)
-	cmd.Flags().Uint64Var(
-		&params.maxNumValidators,
-		maxValidatorCount,
-		common.MaxSafeJSInt,
-		"the maximum number of validators in the validator set for PoS",
 	)
 }
 
