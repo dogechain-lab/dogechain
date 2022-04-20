@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -81,86 +80,6 @@ func validateValidatorSet(
 			foundInValidatorSet(validatorSet, address),
 			"expected address to not be present in the validator set",
 		)
-	}
-}
-
-func TestPoS_ValidatorBoundaries(t *testing.T) {
-	accounts := []struct {
-		key     *ecdsa.PrivateKey
-		address types.Address
-	}{}
-	stakeAmount := framework.EthToWei(1)
-	numGenesisValidators := IBFTMinNodes
-	minValidatorCount := uint64(1)
-	maxValidatorCount := uint64(numGenesisValidators + 1)
-	numNewStakers := 2
-
-	for i := 0; i < numNewStakers; i++ {
-		k, a := tests.GenerateKeyAndAddr(t)
-
-		accounts = append(accounts, struct {
-			key     *ecdsa.PrivateKey
-			address types.Address
-		}{
-			key:     k,
-			address: a,
-		})
-	}
-
-	defaultBalance := framework.EthToWei(100)
-	ibftManager := framework.NewIBFTServersManager(
-		t,
-		numGenesisValidators,
-		IBFTDirPrefix,
-		func(i int, config *framework.TestServerConfig) {
-			config.SetSeal(true)
-			config.SetEpochSize(2)
-			config.PremineValidatorBalance(defaultBalance)
-			for j := 0; j < numNewStakers; j++ {
-				config.Premine(accounts[j].address, defaultBalance)
-			}
-			config.SetIBFTPoS(true)
-			config.SetMinValidatorCount(minValidatorCount)
-			config.SetMaxValidatorCount(maxValidatorCount)
-		})
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	defer cancel()
-	ibftManager.StartServers(ctx)
-
-	srv := ibftManager.GetServer(0)
-
-	client := srv.JSONRPC()
-
-	testCases := []struct {
-		name              string
-		address           types.Address
-		key               *ecdsa.PrivateKey
-		expectedExistence bool
-		expectedSize      int
-	}{
-		{
-			name:              "Can add a 5th validator",
-			address:           accounts[0].address,
-			key:               accounts[0].key,
-			expectedExistence: true,
-			expectedSize:      numGenesisValidators + 1,
-		},
-		{
-			name:              "Can not add a 6th validator",
-			address:           accounts[1].address,
-			key:               accounts[1].key,
-			expectedExistence: false,
-			expectedSize:      numGenesisValidators + 1,
-		},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			err := framework.StakeAmount(tt.address, tt.key, stakeAmount, srv)
-			assert.NoError(t, err)
-			validateValidatorSet(t, tt.address, client, tt.expectedExistence, tt.expectedSize)
-		})
 	}
 }
 
