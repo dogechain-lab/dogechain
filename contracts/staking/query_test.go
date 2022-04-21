@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/dogechain-lab/jury/contracts/abis"
+	"github.com/dogechain-lab/jury/contracts/systemcontracts"
 	"github.com/dogechain-lab/jury/state/runtime"
 	"github.com/dogechain-lab/jury/types"
 	"github.com/stretchr/testify/assert"
@@ -154,7 +155,7 @@ func TestQueryValidators(t *testing.T) {
 				addr: addr1,
 				tx: &types.Transaction{
 					From:     addr1,
-					To:       &AddrStakingContract,
+					To:       &systemcontracts.AddrStakingContract,
 					Value:    big.NewInt(0),
 					Input:    method.ID(),
 					GasPrice: big.NewInt(0),
@@ -180,7 +181,7 @@ func TestQueryValidators(t *testing.T) {
 				addr: addr1,
 				tx: &types.Transaction{
 					From:     addr1,
-					To:       &AddrStakingContract,
+					To:       &systemcontracts.AddrStakingContract,
 					Value:    big.NewInt(0),
 					Input:    method.ID(),
 					GasPrice: big.NewInt(0),
