@@ -8,8 +8,10 @@ import (
 	"github.com/dogechain-lab/jury/command"
 	"github.com/dogechain-lab/jury/command/helper"
 	"github.com/dogechain-lab/jury/consensus/ibft"
+	"github.com/dogechain-lab/jury/contracts"
 	"github.com/dogechain-lab/jury/contracts/staking"
 	stakingHelper "github.com/dogechain-lab/jury/helper/staking"
+	vaultHelper "github.com/dogechain-lab/jury/helper/vault"
 	"github.com/dogechain-lab/jury/server"
 	"github.com/dogechain-lab/jury/types"
 )
@@ -25,6 +27,7 @@ const (
 	blockGasLimitFlag       = "block-gas-limit"
 	posFlag                 = "pos"
 	stakingOwner            = "staking-owner"
+	vaultOwner              = "vault-owner"
 )
 
 // Legacy flags that need to be preserved for running clients
@@ -61,6 +64,7 @@ type genesisParams struct {
 	isPos         bool
 
 	stakingOwner string
+	vaultOwner   string
 
 	extraData []byte
 	consensus server.ConsensusType
@@ -268,6 +272,16 @@ func (p *genesisParams) initGenesisConfig() error {
 		chainConfig.Genesis.Alloc[staking.AddrStakingContract] = stakingAccount
 	}
 
+	// Predeploy vault contract if needed
+	if p.shouldPredeployStakingSC() {
+		vaultAccount, err := p.predeployVaultSC()
+		if err != nil {
+			return err
+		}
+
+		chainConfig.Genesis.Alloc[contracts.AddrVaultContract] = vaultAccount
+	}
+
 	// Premine accounts
 	if err := fillPremineMap(chainConfig.Genesis.Alloc, p.premine); err != nil {
 		return err
@@ -295,6 +309,14 @@ func (p *genesisParams) predeployStakingSC() (*chain.GenesisAccount, error) {
 	}
 
 	return stakingAccount, nil
+}
+
+func (p *genesisParams) predeployVaultSC() (*chain.GenesisAccount, error) {
+	return vaultHelper.PredeployVaultSC(
+		vaultHelper.PredeployParams{
+			Owner: types.StringToAddress(p.vaultOwner),
+		},
+	)
 }
 
 func (p *genesisParams) getResult() command.CommandResult {

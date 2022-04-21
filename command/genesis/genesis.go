@@ -127,11 +127,19 @@ func setFlags(cmd *cobra.Command) {
 			command.DefaultGenesisGasLimit,
 		),
 	)
+
 	cmd.Flags().StringVar(
 		&params.stakingOwner,
 		stakingOwner,
 		"",
 		"the system staking contract owner address",
+	)
+
+	cmd.Flags().StringVar(
+		&params.vaultOwner,
+		vaultOwner,
+		"",
+		"the system vault contract owner address",
 	)
 }
 
