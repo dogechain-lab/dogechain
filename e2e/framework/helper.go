@@ -16,6 +16,7 @@ import (
 
 	"github.com/dogechain-lab/jury/contracts/abis"
 	"github.com/dogechain-lab/jury/contracts/staking"
+	"github.com/dogechain-lab/jury/contracts/systemcontracts"
 	"github.com/dogechain-lab/jury/crypto"
 	"github.com/dogechain-lab/jury/helper/hex"
 	"github.com/dogechain-lab/jury/helper/tests"
@@ -60,7 +61,7 @@ func GetValidatorSet(from types.Address, rpcClient *jsonrpc.Client) ([]types.Add
 		return nil, errors.New("validators method doesn't exist in Staking contract ABI")
 	}
 
-	toAddress := web3.Address(staking.AddrStakingContract)
+	toAddress := web3.Address(systemcontracts.AddrStakingContract)
 	selector := validatorsMethod.ID()
 	response, err := rpcClient.Eth().Call(
 		&web3.CallMsg{
@@ -95,7 +96,7 @@ func StakeAmount(
 	// Stake Balance
 	txn := &PreparedTransaction{
 		From:     from,
-		To:       &staking.AddrStakingContract,
+		To:       &systemcontracts.AddrStakingContract,
 		GasPrice: big.NewInt(10000),
 		Gas:      1000000,
 		Value:    amount,
@@ -123,7 +124,7 @@ func UnstakeAmount(
 	// Stake Balance
 	txn := &PreparedTransaction{
 		From:     from,
-		To:       &staking.AddrStakingContract,
+		To:       &systemcontracts.AddrStakingContract,
 		GasPrice: big.NewInt(DefaultGasPrice),
 		Gas:      DefaultGasLimit,
 		Value:    big.NewInt(0),
@@ -149,7 +150,7 @@ func GetStakedAmount(from types.Address, rpcClient *jsonrpc.Client) (*big.Int, e
 		return nil, errors.New("stakedAmount method doesn't exist in Staking contract ABI")
 	}
 
-	toAddress := web3.Address(staking.AddrStakingContract)
+	toAddress := web3.Address(systemcontracts.AddrStakingContract)
 	selector := stakedAmountMethod.ID()
 	response, err := rpcClient.Eth().Call(
 		&web3.CallMsg{

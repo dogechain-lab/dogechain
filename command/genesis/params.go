@@ -8,8 +8,7 @@ import (
 	"github.com/dogechain-lab/jury/command"
 	"github.com/dogechain-lab/jury/command/helper"
 	"github.com/dogechain-lab/jury/consensus/ibft"
-	"github.com/dogechain-lab/jury/contracts"
-	"github.com/dogechain-lab/jury/contracts/staking"
+	"github.com/dogechain-lab/jury/contracts/systemcontracts"
 	stakingHelper "github.com/dogechain-lab/jury/helper/staking"
 	vaultHelper "github.com/dogechain-lab/jury/helper/vault"
 	"github.com/dogechain-lab/jury/server"
@@ -269,7 +268,7 @@ func (p *genesisParams) initGenesisConfig() error {
 			return err
 		}
 
-		chainConfig.Genesis.Alloc[staking.AddrStakingContract] = stakingAccount
+		chainConfig.Genesis.Alloc[systemcontracts.AddrStakingContract] = stakingAccount
 	}
 
 	// Predeploy vault contract if needed
@@ -279,7 +278,7 @@ func (p *genesisParams) initGenesisConfig() error {
 			return err
 		}
 
-		chainConfig.Genesis.Alloc[contracts.AddrVaultContract] = vaultAccount
+		chainConfig.Genesis.Alloc[systemcontracts.AddrVaultContract] = vaultAccount
 	}
 
 	// Premine accounts

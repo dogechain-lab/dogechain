@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/dogechain-lab/jury/contracts/abis"
+	"github.com/dogechain-lab/jury/contracts/systemcontracts"
 	"github.com/dogechain-lab/jury/state/runtime"
 	"github.com/dogechain-lab/jury/types"
 	"github.com/umbracle/go-web3"
@@ -12,9 +13,6 @@ import (
 )
 
 var (
-	// staking contract address
-	AddrStakingContract = types.StringToAddress("1001")
-
 	// Gas limit used when querying the validator set
 	queryGasLimit uint64 = 100000
 )
@@ -58,7 +56,7 @@ func QueryValidators(t TxQueryHandler, from types.Address) ([]types.Address, err
 	selector := method.ID()
 	res, err := t.Apply(&types.Transaction{
 		From:     from,
-		To:       &AddrStakingContract,
+		To:       &systemcontracts.AddrStakingContract,
 		Value:    big.NewInt(0),
 		Input:    selector,
 		GasPrice: big.NewInt(0),

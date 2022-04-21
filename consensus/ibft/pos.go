@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/dogechain-lab/jury/contracts/staking"
+	"github.com/dogechain-lab/jury/contracts/systemcontracts"
 	stakingHelper "github.com/dogechain-lab/jury/helper/staking"
 	"github.com/dogechain-lab/jury/state"
 	"github.com/dogechain-lab/jury/types"
@@ -154,7 +155,7 @@ func (pos *PoSMechanism) preStateCommitHook(rawParams interface{}) error {
 		return err
 	}
 
-	if err := params.txn.SetAccountDirectly(staking.AddrStakingContract, contractState); err != nil {
+	if err := params.txn.SetAccountDirectly(systemcontracts.AddrStakingContract, contractState); err != nil {
 		return err
 	}
 

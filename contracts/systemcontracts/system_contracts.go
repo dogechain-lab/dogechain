@@ -1,4 +1,4 @@
-package contracts
+package systemcontracts
 
 import "github.com/dogechain-lab/jury/types"
 
