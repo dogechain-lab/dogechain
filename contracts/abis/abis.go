@@ -6,11 +6,11 @@ import (
 
 // Predeployed system contract ABI
 var (
-	// staking contract (0x0000000000000000000000000000000000001001) abi
+	// staking contract abi
 	StakingABI = abi.MustNewABI(StakingJSONABI)
-	// bridge contract (0x0000000000000000000000000000000000001002) abi
+	// bridge contract abi
 	BridgeABI = abi.MustNewABI(BridgeJSONABI)
-	// vault contract (0x0000000000000000000000000000000000001003) abi
+	// vault contract abi
 	VaultABI = abi.MustNewABI(VaultJSONABI)
 )
 

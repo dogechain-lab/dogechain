@@ -143,7 +143,7 @@ func setFlags(cmd *cobra.Command) {
 	)
 
 	cmd.Flags().StringArrayVar(
-		&params.bridgeSigners,
+		&params.bridgeSignersRaw,
 		bridgeSigner,
 		[]string{},
 		"the system bridge contract signer address. This flag can be used multiple times",

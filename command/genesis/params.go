@@ -9,6 +9,7 @@ import (
 	"github.com/dogechain-lab/jury/command/helper"
 	"github.com/dogechain-lab/jury/consensus/ibft"
 	"github.com/dogechain-lab/jury/contracts/systemcontracts"
+	bridgeHelper "github.com/dogechain-lab/jury/helper/bridge"
 	stakingHelper "github.com/dogechain-lab/jury/helper/staking"
 	vaultHelper "github.com/dogechain-lab/jury/helper/vault"
 	"github.com/dogechain-lab/jury/server"
@@ -64,10 +65,11 @@ type genesisParams struct {
 	blockGasLimit uint64
 	isPos         bool
 
-	stakingOwner  string
-	bridgeOwner   string
-	bridgeSigners []string
-	vaultOwner    string
+	stakingOwner     string
+	bridgeOwner      string
+	bridgeSignersRaw []string
+	bridgeSigners    []types.Address
+	vaultOwner       string
 
 	extraData []byte
 	consensus server.ConsensusType
@@ -143,6 +145,7 @@ func (p *genesisParams) initRawParams() error {
 		return err
 	}
 
+	p.initBridgeSigners()
 	p.initIBFTExtraData()
 	p.initConsensusEngineConfig()
 
@@ -275,6 +278,13 @@ func (p *genesisParams) initGenesisConfig() error {
 		chainConfig.Genesis.Alloc[systemcontracts.AddrStakingContract] = stakingAccount
 	}
 
+	// Predeploy bridge contract
+	if bridgeAccount, err := p.predeployBridgeSC(); err != nil {
+		return err
+	} else {
+		chainConfig.Genesis.Alloc[systemcontracts.AddrBridgeContract] = bridgeAccount
+	}
+
 	// Predeploy vault contract if needed
 	if p.shouldPredeployStakingSC() {
 		vaultAccount, err := p.predeployVaultSC()
@@ -326,4 +336,21 @@ func (p *genesisParams) getResult() command.CommandResult {
 	return &GenesisResult{
 		Message: fmt.Sprintf("Genesis written to %s\n", p.genesisPath),
 	}
+}
+
+func (p *genesisParams) initBridgeSigners() {
+	p.bridgeSigners = make([]types.Address, 0, len(p.bridgeSignersRaw))
+
+	for _, signer := range p.bridgeSignersRaw {
+		p.bridgeSigners = append(p.bridgeSigners, types.StringToAddress(signer))
+	}
+}
+
+func (p *genesisParams) predeployBridgeSC() (*chain.GenesisAccount, error) {
+	return bridgeHelper.PredeployBridgeSC(
+		bridgeHelper.PredeployParams{
+			Owner:   types.StringToAddress(p.bridgeOwner),
+			Signers: p.bridgeSigners,
+		},
+	)
 }
