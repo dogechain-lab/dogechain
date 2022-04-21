@@ -1,4 +1,4 @@
-package staking
+package validatorset
 
 import (
 	"errors"
@@ -48,7 +48,7 @@ type TxQueryHandler interface {
 }
 
 func QueryValidators(t TxQueryHandler, from types.Address) ([]types.Address, error) {
-	method, ok := abis.StakingABI.Methods["validators"]
+	method, ok := abis.ValidatorSetABI.Methods["validators"]
 	if !ok {
 		return nil, errors.New("validators method doesn't exist in Staking contract ABI")
 	}
@@ -56,7 +56,7 @@ func QueryValidators(t TxQueryHandler, from types.Address) ([]types.Address, err
 	selector := method.ID()
 	res, err := t.Apply(&types.Transaction{
 		From:     from,
-		To:       &systemcontracts.AddrStakingContract,
+		To:       &systemcontracts.AddrValidatorSetContract,
 		Value:    big.NewInt(0),
 		Input:    selector,
 		GasPrice: big.NewInt(0),

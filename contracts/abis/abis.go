@@ -6,8 +6,8 @@ import (
 
 // Predeployed system contract ABI
 var (
-	// staking contract abi
-	StakingABI = abi.MustNewABI(StakingJSONABI)
+	// ValidatorSet contract abi
+	ValidatorSetABI = abi.MustNewABI(ValidatorSetJSONABI)
 	// bridge contract abi
 	BridgeABI = abi.MustNewABI(BridgeJSONABI)
 	// vault contract abi

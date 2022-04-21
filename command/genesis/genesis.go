@@ -129,10 +129,10 @@ func setFlags(cmd *cobra.Command) {
 	)
 
 	cmd.Flags().StringVar(
-		&params.stakingOwner,
-		stakingOwner,
+		&params.validatorsetOwner,
+		validatorsetOwner,
 		"",
-		"the system staking contract owner address",
+		"the system ValidatorSet contract owner address",
 	)
 
 	cmd.Flags().StringVar(

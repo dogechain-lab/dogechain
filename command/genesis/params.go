@@ -10,7 +10,7 @@ import (
 	"github.com/dogechain-lab/jury/consensus/ibft"
 	"github.com/dogechain-lab/jury/contracts/systemcontracts"
 	bridgeHelper "github.com/dogechain-lab/jury/helper/bridge"
-	stakingHelper "github.com/dogechain-lab/jury/helper/staking"
+	validatorsetHelper "github.com/dogechain-lab/jury/helper/validatorset"
 	vaultHelper "github.com/dogechain-lab/jury/helper/vault"
 	"github.com/dogechain-lab/jury/server"
 	"github.com/dogechain-lab/jury/types"
@@ -26,7 +26,7 @@ const (
 	epochSizeFlag           = "epoch-size"
 	blockGasLimitFlag       = "block-gas-limit"
 	posFlag                 = "pos"
-	stakingOwner            = "staking-owner"
+	validatorsetOwner       = "validatorset-owner"
 	bridgeOwner             = "bridge-owner"
 	bridgeSigner            = "bridge-signer"
 	vaultOwner              = "vault-owner"
@@ -65,11 +65,11 @@ type genesisParams struct {
 	blockGasLimit uint64
 	isPos         bool
 
-	stakingOwner     string
-	bridgeOwner      string
-	bridgeSignersRaw []string
-	bridgeSigners    []types.Address
-	vaultOwner       string
+	validatorsetOwner string
+	bridgeOwner       string
+	bridgeSignersRaw  []string
+	bridgeSigners     []types.Address
+	vaultOwner        string
 
 	extraData []byte
 	consensus server.ConsensusType
@@ -268,14 +268,14 @@ func (p *genesisParams) initGenesisConfig() error {
 		Bootnodes: p.bootnodes,
 	}
 
-	// Predeploy staking smart contract if needed
-	if p.shouldPredeployStakingSC() {
-		stakingAccount, err := p.predeployStakingSC()
+	// Predeploy ValidatorSet smart contract if needed
+	if p.shouldPredeployValidatorSetSC() {
+		account, err := p.predeployValidatorSetSC()
 		if err != nil {
 			return err
 		}
 
-		chainConfig.Genesis.Alloc[systemcontracts.AddrStakingContract] = stakingAccount
+		chainConfig.Genesis.Alloc[systemcontracts.AddrValidatorSetContract] = account
 	}
 
 	// Predeploy bridge contract
@@ -286,7 +286,7 @@ func (p *genesisParams) initGenesisConfig() error {
 	}
 
 	// Predeploy vault contract if needed
-	if p.shouldPredeployStakingSC() {
+	if p.shouldPredeployValidatorSetSC() {
 		vaultAccount, err := p.predeployVaultSC()
 		if err != nil {
 			return err
@@ -305,23 +305,23 @@ func (p *genesisParams) initGenesisConfig() error {
 	return nil
 }
 
-func (p *genesisParams) shouldPredeployStakingSC() bool {
+func (p *genesisParams) shouldPredeployValidatorSetSC() bool {
 	// If the consensus selected is IBFT / Dev and the mechanism is Proof of Stake,
-	// deploy the Staking SC
+	// deploy the ValidatorSet SC
 	return p.isPos && (p.consensus == server.IBFTConsensus || p.consensus == server.DevConsensus)
 }
 
-func (p *genesisParams) predeployStakingSC() (*chain.GenesisAccount, error) {
-	stakingAccount, predeployErr := stakingHelper.PredeployStakingSC(
-		stakingHelper.PredeployParams{
-			Owner:      types.StringToAddress(p.stakingOwner),
+func (p *genesisParams) predeployValidatorSetSC() (*chain.GenesisAccount, error) {
+	account, predeployErr := validatorsetHelper.PredeploySC(
+		validatorsetHelper.PredeployParams{
+			Owner:      types.StringToAddress(p.validatorsetOwner),
 			Validators: p.ibftValidators,
 		})
 	if predeployErr != nil {
 		return nil, predeployErr
 	}
 
-	return stakingAccount, nil
+	return account, nil
 }
 
 func (p *genesisParams) predeployVaultSC() (*chain.GenesisAccount, error) {

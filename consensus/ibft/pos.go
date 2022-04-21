@@ -4,9 +4,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/dogechain-lab/jury/contracts/staking"
 	"github.com/dogechain-lab/jury/contracts/systemcontracts"
-	stakingHelper "github.com/dogechain-lab/jury/helper/staking"
+	"github.com/dogechain-lab/jury/contracts/validatorset"
+	validatorsetHelper "github.com/dogechain-lab/jury/helper/validatorset"
 	"github.com/dogechain-lab/jury/state"
 	"github.com/dogechain-lab/jury/types"
 )
@@ -15,7 +15,7 @@ import (
 type PoSMechanism struct {
 	BaseConsensusMechanism
 	// Params
-	ContractDeployment uint64 // The height when deploying staking contract
+	ContractDeployment uint64 // The height when deploying ValidatorSet contract
 }
 
 // PoSFactory initializes the required data
@@ -146,8 +146,8 @@ func (pos *PoSMechanism) preStateCommitHook(rawParams interface{}) error {
 		return ErrInvalidHookParam
 	}
 
-	// Deploy Staking contract
-	contractState, err := stakingHelper.PredeployStakingSC(stakingHelper.PredeployParams{
+	// Deploy ValidatorSet contract
+	contractState, err := validatorsetHelper.PredeploySC(validatorsetHelper.PredeployParams{
 		Owner:      types.ZeroAddress,
 		Validators: nil,
 	})
@@ -155,7 +155,7 @@ func (pos *PoSMechanism) preStateCommitHook(rawParams interface{}) error {
 		return err
 	}
 
-	if err := params.txn.SetAccountDirectly(systemcontracts.AddrStakingContract, contractState); err != nil {
+	if err := params.txn.SetAccountDirectly(systemcontracts.AddrValidatorSetContract, contractState); err != nil {
 		return err
 	}
 
@@ -191,14 +191,14 @@ func (pos *PoSMechanism) ShouldWriteTransactions(blockNumber uint64) bool {
 }
 
 // getNextValidators is a helper function for fetching the validator set
-// from the Staking SC
+// from the ValidatorSet SC
 func (pos *PoSMechanism) getNextValidators(header *types.Header) (ValidatorSet, error) {
 	transition, err := pos.ibft.executor.BeginTxn(header.StateRoot, header, types.ZeroAddress)
 	if err != nil {
 		return nil, err
 	}
 
-	return staking.QueryValidators(transition, pos.ibft.validatorKeyAddr)
+	return validatorset.QueryValidators(transition, pos.ibft.validatorKeyAddr)
 }
 
 // updateSnapshotValidators updates validators in snapshot at given height

@@ -1,6 +1,6 @@
 package abis
 
-const StakingJSONABI = `[
+const ValidatorSetJSONABI = `[
     {
         "inputs":
         [],
