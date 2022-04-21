@@ -26,6 +26,8 @@ const (
 	blockGasLimitFlag       = "block-gas-limit"
 	posFlag                 = "pos"
 	stakingOwner            = "staking-owner"
+	bridgeOwner             = "bridge-owner"
+	bridgeSigner            = "bridge-signer"
 	vaultOwner              = "vault-owner"
 )
 
@@ -62,8 +64,10 @@ type genesisParams struct {
 	blockGasLimit uint64
 	isPos         bool
 
-	stakingOwner string
-	vaultOwner   string
+	stakingOwner  string
+	bridgeOwner   string
+	bridgeSigners []string
+	vaultOwner    string
 
 	extraData []byte
 	consensus server.ConsensusType

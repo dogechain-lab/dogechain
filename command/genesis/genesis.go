@@ -136,6 +136,20 @@ func setFlags(cmd *cobra.Command) {
 	)
 
 	cmd.Flags().StringVar(
+		&params.bridgeOwner,
+		bridgeOwner,
+		"",
+		"the system bridge contract owner address",
+	)
+
+	cmd.Flags().StringArrayVar(
+		&params.bridgeSigners,
+		bridgeSigner,
+		[]string{},
+		"the system bridge contract signer address. This flag can be used multiple times",
+	)
+
+	cmd.Flags().StringVar(
 		&params.vaultOwner,
 		vaultOwner,
 		"",
