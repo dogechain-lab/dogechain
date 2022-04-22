@@ -15,7 +15,7 @@ func TestFilterLog(t *testing.T) {
 	m := NewFilterManager(hclog.NewNullLogger(), store)
 	go m.Run()
 
-	id := m.addFilter(&LogFilter{
+	id := m.addFilter(&LogQuery{
 		Topics: [][]types.Hash{
 			{hash1},
 		},

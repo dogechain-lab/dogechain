@@ -25,7 +25,7 @@ type Filter struct {
 	logs []*Log
 
 	// log filter
-	logFilter *LogFilter
+	logFilter *LogQuery
 
 	// index of the filter in the timer array
 	index int
@@ -360,11 +360,11 @@ func (f *FilterManager) NewBlockFilter(ws wsConn) string {
 	return f.addFilter(nil, ws)
 }
 
-func (f *FilterManager) NewLogFilter(logFilter *LogFilter, ws wsConn) string {
+func (f *FilterManager) NewLogFilter(logFilter *LogQuery, ws wsConn) string {
 	return f.addFilter(logFilter, ws)
 }
 
-func (f *FilterManager) addFilter(logFilter *LogFilter, ws wsConn) string {
+func (f *FilterManager) addFilter(logFilter *LogQuery, ws wsConn) string {
 	f.lock.Lock()
 
 	filter := &Filter{
