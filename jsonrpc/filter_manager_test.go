@@ -160,24 +160,7 @@ func TestFilterWebsocket(t *testing.T) {
 
 	// we cannot call get filter changes for a websocket filter
 	_, err := m.GetFilterChanges(id)
-	assert.Equal(t, err, ErrFilterDoesNotExists)
-
-	// emit two events
-	store.emitEvent(&mockEvent{
-		NewChain: []*mockHeader{
-			{
-				header: &types.Header{
-					Hash: types.StringToHash("1"),
-				},
-			},
-		},
-	})
-
-	select {
-	case <-mock.msgCh:
-	case <-time.After(2 * time.Second):
-		t.Fatal("bad")
-	}
+	assert.Equal(t, err, ErrWSFilterDoesNotSupportGetChanges)
 }
 
 type mockWsConn struct {
