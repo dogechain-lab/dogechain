@@ -118,6 +118,7 @@ func formatFilterResponse(id interface{}, resp string) (string, Error) {
 		return "", NewInvalidRequestError("Invalid json request")
 	}
 }
+
 func (d *Dispatcher) handleSubscribe(req Request, conn wsConn) (string, Error) {
 	var params []interface{}
 	if err := json.Unmarshal(req.Params, &params); err != nil {

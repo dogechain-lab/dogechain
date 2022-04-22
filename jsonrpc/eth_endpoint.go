@@ -867,7 +867,9 @@ func (e *Eth) NewBlockFilter() (interface{}, error) {
 	return e.filterManager.NewBlockFilter(nil), nil
 }
 
-// GetFilterChanges is a polling method for a filter, which returns an array of logs which occurred since last poll.
+// GetFilterChanges is a polling method for a filter, which returns an array of logs
+// which occurred since last poll. WebSocket polling log filter changes would not be
+// accepted anymore.
 func (e *Eth) GetFilterChanges(id string) (interface{}, error) {
 	return e.filterManager.GetFilterChanges(id)
 }
