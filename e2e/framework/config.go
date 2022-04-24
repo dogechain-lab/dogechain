@@ -47,6 +47,8 @@ type TestServerConfig struct {
 	ShowsLog       bool                 // Flag specifying if logs are shown
 	IsPos          bool                 // Specifies the mechanism used for IBFT (PoA / PoS)
 	Signer         *crypto.EIP155Signer // Signer used for transactions
+	BridgeOwner    types.Address        // bridge contract owner
+	BridgeSigners  []types.Address      // bridge contract signers
 }
 
 // DataDir returns path of data directory server uses
@@ -154,4 +156,12 @@ func (t *TestServerConfig) SetShowsLog(f bool) {
 // It controls the rate at which the validator set is updated
 func (t *TestServerConfig) SetEpochSize(epochSize uint64) {
 	t.EpochSize = epochSize
+}
+
+func (t *TestServerConfig) SetBridgeOwner(owner types.Address) {
+	t.BridgeOwner = owner
+}
+
+func (t *TestServerConfig) SetBridgeSigners(signers []types.Address) {
+	t.BridgeSigners = signers
 }

@@ -292,6 +292,16 @@ func (t *TestServer) GenerateGenesis() error {
 	blockGasLimit := strconv.FormatUint(t.Config.BlockGasLimit, 10)
 	args = append(args, "--block-gas-limit", blockGasLimit)
 
+	// add bridge contract owner
+	if t.Config.BridgeOwner != types.ZeroAddress {
+		args = append(args, "--bridge-owner", t.Config.BridgeOwner.String())
+	}
+
+	// add bridge contract signers
+	for _, signer := range t.Config.BridgeSigners {
+		args = append(args, "--bridge-signer", signer.String())
+	}
+
 	cmd := exec.Command(binaryName, args...)
 	cmd.Dir = t.Config.RootDir
 

@@ -421,6 +421,9 @@ func NewTestServers(t *testing.T, num int, conf func(*TestServerConfig)) []*Test
 	// This method needs to be standardized in the future
 	bootnodes := []string{tests.GenerateTestMultiAddr(t).String()}
 
+	// It is safe to set contract configs here, since this init method is called for Dev consensus modes.
+	owner, signers := tests.GenerateTestBridgeAssociatedAddress(t, 1)
+
 	for i := 0; i < num; i++ {
 		dataDir, err := tempDir()
 		if err != nil {
@@ -429,6 +432,9 @@ func NewTestServers(t *testing.T, num int, conf func(*TestServerConfig)) []*Test
 
 		srv := NewTestServer(t, dataDir, conf)
 		srv.Config.SetBootnodes(bootnodes)
+		// do not forget to set the must options
+		srv.Config.SetBridgeOwner(owner)
+		srv.Config.SetBridgeSigners(signers)
 
 		if genesisErr := srv.GenerateGenesis(); genesisErr != nil {
 			t.Fatal(genesisErr)

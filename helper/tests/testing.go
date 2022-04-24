@@ -60,6 +60,40 @@ func GenerateTestMultiAddr(t *testing.T) multiaddr.Multiaddr {
 	return addr
 }
 
+func GenerateTestBridgeAssociatedAddress(t *testing.T, signerCount int) (owner types.Address, signers []types.Address) {
+	t.Helper()
+
+	if signerCount <= 0 {
+		t.Fatalf("Bridge contract must have signers")
+	}
+
+	ownerKey, err := crypto.GenerateKey()
+	if err != nil {
+		t.Fatalf("Unable to generate private key, %v", err)
+	}
+
+	owner, err = crypto.GetAddressFromKey(ownerKey)
+	if err != nil {
+		t.Fatalf("Unable to get address from private key, %v", err)
+	}
+
+	for i := 0; i < signerCount; i++ {
+		priv, err := crypto.GenerateKey()
+		if err != nil {
+			t.Fatalf("Unable to generate private key, %v", err)
+		}
+
+		address, err := crypto.GetAddressFromKey(priv)
+		if err != nil {
+			t.Fatalf("Unable to get address from private key, %v", err)
+		}
+
+		signers = append(signers, address)
+	}
+
+	return owner, signers
+}
+
 func RetryUntilTimeout(ctx context.Context, f func() (interface{}, bool)) (interface{}, error) {
 	type result struct {
 		data interface{}
