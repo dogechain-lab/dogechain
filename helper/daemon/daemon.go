@@ -9,7 +9,9 @@ import (
 	"time"
 )
 
-const EnvName = "XW_DAEMON_IDX"
+const EnvDaemonIdx = "XW_DAEMON_IDX"
+const DaemonLog = "daemon.log"
+const MaxCount = 5
 
 // The number of times background was called at runtime
 var runIdx int = 0
@@ -39,7 +41,7 @@ func Background(logFile string, priKey string, isExit bool) (*exec.Cmd, error) {
 	// Check whether the child process or the parent process
 	runIdx++
 
-	envIdx, err := strconv.Atoi(os.Getenv(EnvName))
+	envIdx, err := strconv.Atoi(os.Getenv(EnvDaemonIdx))
 
 	if err != nil {
 		envIdx = 0
@@ -51,7 +53,7 @@ func Background(logFile string, priKey string, isExit bool) (*exec.Cmd, error) {
 
 	// Setting child process environment variables
 	env := os.Environ()
-	env = append(env, fmt.Sprintf("%s=%d", EnvName, runIdx))
+	env = append(env, fmt.Sprintf("%s=%d", EnvDaemonIdx, runIdx))
 
 	// Start child process
 	cmd, err := startProc(os.Args, env, logFile, priKey)

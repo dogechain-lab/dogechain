@@ -1,8 +1,10 @@
 package server
 
 import (
+	"bufio"
 	"fmt"
 	"github.com/dogechain-lab/jury/command"
+	"github.com/dogechain-lab/jury/crypto"
 	"github.com/dogechain-lab/jury/helper/daemon"
 	"github.com/howeyc/gopass"
 	"github.com/spf13/cobra"
@@ -10,6 +12,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/dogechain-lab/jury/command/helper"
 	"github.com/dogechain-lab/jury/network"
@@ -246,6 +249,42 @@ func isConfigFileSpecified(cmd *cobra.Command) bool {
 	return cmd.Flags().Changed(configFlag)
 }
 
+func askForConfirmation() string {
+	reader := bufio.NewReader(os.Stdin)
+
+	for {
+		privateKeyRaw, err := gopass.GetPasswdPrompt("Enter ValidatorKey:", true, os.Stdin, os.Stdout)
+		if err != nil {
+			log.Println("Parent process ", os.Getpid(), " passwd prompt err:", err)
+		}
+
+		privateKey, err := crypto.BytesToPrivateKey(privateKeyRaw)
+		if err != nil {
+			log.Println("Parent process ", os.Getpid(), " input to private key, err:", err)
+		}
+
+		validatorKeyAddr := crypto.PubKeyToAddress(&privateKey.PublicKey)
+
+		log.Println("Parent process ", os.Getpid(), " passwd prompt, ValidatorKey len:", len(params.validatorKey),
+			", ValidatorKeyAddr: ", validatorKeyAddr.String())
+
+		fmt.Printf("ValidatorKey Address: %s [y/n]: ", validatorKeyAddr.String())
+
+		response, err := reader.ReadString('\n')
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		response = strings.ToLower(strings.TrimSpace(response))
+
+		if response == "y" || response == "yes" {
+			return string(privateKeyRaw)
+		} else if response == "n" || response == "no" {
+			continue
+		}
+	}
+}
+
 func runCommand(cmd *cobra.Command, _ []string) {
 	outputter := command.InitializeOutputter(cmd)
 
@@ -253,16 +292,10 @@ func runCommand(cmd *cobra.Command, _ []string) {
 
 	// Launch daemons
 	if params.isDaemon {
-		// First time, err is not empty
-		_, err := strconv.Atoi(os.Getenv(daemon.EnvName))
-		if err != nil {
-			input, err := gopass.GetPasswdPrompt("Enter ValidatorKey:", true, os.Stdin, os.Stdout)
-			if err != nil {
-				log.Println("Parent process ", os.Getpid(), " passwd prompt err:", err)
-			}
-
-			params.validatorKey = string(input)
-			log.Println("Parent process ", os.Getpid(), " passwd prompt, ValidatorKey:", len(params.validatorKey))
+		// First time, daemonIdx is empty
+		daemonIdx := os.Getenv(daemon.EnvDaemonIdx)
+		if len(daemonIdx) == 0 {
+			params.validatorKey = askForConfirmation()
 		} else {
 			data, err := ioutil.ReadAll(os.Stdin)
 			if err != nil {
@@ -274,18 +307,19 @@ func runCommand(cmd *cobra.Command, _ []string) {
 		}
 
 		// Create a daemon object
-		logFile := "daemon.log"
-		newDaemon := daemon.NewDaemon(logFile)
-		newDaemon.MaxCount = 5
+		newDaemon := daemon.NewDaemon(daemon.DaemonLog)
+		newDaemon.MaxCount = daemon.MaxCount
 		newDaemon.ValidatorKey = params.validatorKey
 
 		// Execute daemon mode
 		newDaemon.Run()
 
-		//当 *d = true 时以下代码只有最终子进程会执行, 主进程和守护进程都不会执行
+		// When params.isDaemon = true,
+		// the following code will only be executed by the final child process,
+		// and neither the main process nor the daemon will execute
 		log.Println("Child process ", os.Getpid(), "start...")
 		log.Println("Child process ", os.Getpid(), "isDaemon: ", params.isDaemon)
-		log.Println("Child process ", os.Getpid(), "ValidatorKey: ", len(params.validatorKey))
+		log.Println("Child process ", os.Getpid(), "ValidatorKey len: ", len(params.validatorKey))
 	}
 
 	if err := runServerLoop(params.generateConfig(), outputter); err != nil {
