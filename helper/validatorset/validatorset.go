@@ -93,7 +93,6 @@ type StorageIndexes struct {
 	AddressToStakedAmountIndex   []byte // mapping(address => uint256)
 	AddressToValidatorIndexIndex []byte // mapping(address => uint256)
 	StakedAmountIndex            []byte // uint256
-	GovernorIndex                []byte // address
 }
 
 // Slot definitions for SC storage
@@ -106,7 +105,6 @@ const (
 	addressToStakedAmountSlot
 	addressToValidatorIndexSlot
 	stakedAmountSlot
-	// governorSlot
 )
 
 const (
