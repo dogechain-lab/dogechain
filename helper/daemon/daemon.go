@@ -161,8 +161,7 @@ func startProc(args, env []string, logFile string, pipeData string) (*exec.Cmd, 
 	_, _ = cmdIn.Write([]byte(pipeData))
 	_ = cmdIn.Close()
 
-	err := cmd.Start()
-	if err != nil {
+	if err := cmd.Start(); err != nil {
 		return nil, err
 	}
 
