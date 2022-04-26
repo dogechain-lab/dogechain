@@ -2,7 +2,6 @@ package validatorset
 
 import (
 	"errors"
-	"fmt"
 	"math/big"
 
 	"github.com/dogechain-lab/jury/chain"
@@ -123,14 +122,6 @@ func PredeploySC(params PredeployParams) (*chain.GenesisAccount, error) {
 		Code: scHex,
 	}
 
-	// Parse the default staked balance value into *big.Int
-	val := DefaultStakedBalance
-	bigDefaultStakedBalance, err := types.ParseUint256orHex(&val)
-
-	if err != nil {
-		return nil, fmt.Errorf("unable to generate DefaultStatkedBalance, %w", err)
-	}
-
 	if params.Owner == types.ZeroAddress {
 		return nil, errors.New("contract owner should not be empty")
 	}
@@ -142,19 +133,12 @@ func PredeploySC(params PredeployParams) (*chain.GenesisAccount, error) {
 	stakedAmount := big.NewInt(0)
 
 	for indx, validator := range params.Validators {
-		// Update the total staked amount
-		stakedAmount.Add(stakedAmount, bigDefaultStakedBalance)
-
 		// Get the storage indexes
 		storageIndexes := getStorageIndexes(validator, int64(indx))
 
 		// Set the value for the owner
 		storageMap[types.BytesToHash(storageIndexes.OwnerIndex)] =
 			types.BytesToHash(params.Owner.Bytes())
-
-		// Set the value for the threshold
-		storageMap[types.BytesToHash(storageIndexes.ThresholdIndex)] =
-			types.BytesToHash(bigDefaultStakedBalance.Bytes())
 
 		// Set the value for the owner
 		storageMap[types.BytesToHash(storageIndexes.MinimumIndex)] =
@@ -169,10 +153,6 @@ func PredeploySC(params PredeployParams) (*chain.GenesisAccount, error) {
 		// Set the value for the address -> validator array index mapping
 		storageMap[types.BytesToHash(storageIndexes.AddressToIsValidatorIndex)] =
 			types.BytesToHash(bigTrueValue.Bytes())
-
-		// Set the value for the address -> staked amount mapping
-		storageMap[types.BytesToHash(storageIndexes.AddressToStakedAmountIndex)] =
-			types.StringToHash(hex.EncodeBig(bigDefaultStakedBalance))
 
 		// Set the value for the address -> validator index mapping
 		storageMap[types.BytesToHash(storageIndexes.AddressToValidatorIndexIndex)] =
