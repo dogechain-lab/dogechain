@@ -425,8 +425,18 @@ func (e *Eth) GetStorageAt(
 
 // GasPrice returns the average gas price based on the last x blocks
 func (e *Eth) GasPrice() (interface{}, error) {
+	var avgGasPrice string
+
 	// Grab the average gas price and convert it to a hex value
-	avgGasPrice := hex.EncodeBig(e.store.GetAvgGasPrice())
+	minGasPrice := new(big.Int).Mul(
+		big.NewInt(50),
+		new(big.Int).Exp(big.NewInt(10), big.NewInt(9), nil))
+
+	if e.store.GetAvgGasPrice().Cmp(minGasPrice) == -1 {
+		avgGasPrice = hex.EncodeBig(minGasPrice)
+	} else {
+		avgGasPrice = hex.EncodeBig(e.store.GetAvgGasPrice())
+	}
 
 	return avgGasPrice, nil
 }
