@@ -1268,11 +1268,6 @@ func (i *Ibft) VerifyHeader(parent, header *types.Header) error {
 		return err
 	}
 
-	// process the new block in order to update the snapshot
-	if err := i.processHeaders([]*types.Header{header}); err != nil {
-		return err
-	}
-
 	return nil
 }
 

@@ -701,6 +701,11 @@ func (b *Blockchain) WriteBlock(block *types.Block) error {
 		return err
 	}
 
+	//	update snapshot
+	if err := b.consensus.ProcessHeaders([]*types.Header{header}); err != nil {
+		return err
+	}
+
 	b.dispatchEvent(evnt)
 
 	// Update the average gas price
