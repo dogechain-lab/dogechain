@@ -57,6 +57,7 @@ type gasPriceAverage struct {
 
 type Verifier interface {
 	VerifyHeader(parent, header *types.Header) error
+	ProcessHeaders(headers []*types.Header) error
 	GetBlockCreator(header *types.Header) (types.Address, error)
 	PreStateCommit(header *types.Header, txn *state.Transition) error
 }

@@ -1276,6 +1276,10 @@ func (i *Ibft) VerifyHeader(parent, header *types.Header) error {
 	return nil
 }
 
+func (i *Ibft) ProcessHeaders(headers []*types.Header) error {
+	return i.processHeaders(headers)
+}
+
 // GetBlockCreator retrieves the block signer from the extra data field
 func (i *Ibft) GetBlockCreator(header *types.Header) (types.Address, error) {
 	return ecrecoverFromHeader(header)
