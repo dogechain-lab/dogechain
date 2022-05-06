@@ -586,6 +586,37 @@ func (p *TxPool) addTx(origin txOrigin, tx *types.Transaction) error {
 
 	// check for overflow
 	if p.gauge.read()+slotsRequired(tx) > p.gauge.max {
+		// Remove all future transactions to give more space
+		allPromoted, allEnqueued := p.accounts.allTxs(true)
+
+		// maximum capacity
+		needDropTxs := make([]*types.Transaction, 0, len(allEnqueued)-len(allPromoted))
+
+		for accountAddress, enqueuedTxs := range allEnqueued {
+			promotedTxs, ok := allPromoted[accountAddress]
+
+			if !ok || len(promotedTxs) == 0 {
+				// all enqueued txs are future transactions, drop it
+				needDropTxs = append(needDropTxs, enqueuedTxs...)
+
+				continue
+			}
+
+			for _, enqueuedTx := range enqueuedTxs {
+				promotedTxLen := len(promotedTxs)
+
+				if enqueuedTx.Nonce < promotedTxs[0].Nonce {
+					// remove too old tx
+					needDropTxs = append(needDropTxs, enqueuedTx)
+				} else if enqueuedTx.Nonce > promotedTxs[promotedTxLen-1].Nonce {
+					// remove future tx
+					needDropTxs = append(needDropTxs, enqueuedTx)
+				}
+			}
+		}
+
+		p.logger.Debug("overflow transactions need to be dropped", "len", len(needDropTxs))
+
 		return ErrTxPoolOverflow
 	}
 

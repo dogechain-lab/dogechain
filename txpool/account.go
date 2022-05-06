@@ -103,6 +103,8 @@ func (m *accountsMap) promoted() (total uint64) {
 }
 
 // allTxs returns all promoted and all enqueued transactions, depending on the flag.
+//
+// FIXME: might crash to visit these slices in different goroutine
 func (m *accountsMap) allTxs(includeEnqueued bool) (
 	allPromoted, allEnqueued map[types.Address][]*types.Transaction,
 ) {
