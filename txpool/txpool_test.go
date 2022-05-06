@@ -2141,3 +2141,40 @@ func TestGetTxs(t *testing.T) {
 		})
 	}
 }
+
+func TestTxpool_ReplaceEnqueuedTransactions(t *testing.T) {
+	testCase := struct {
+		txs      []*types.Transaction
+		expected uint64
+	}{
+		txs: []*types.Transaction{
+			newTx(addr1, 2, 1),
+			newTx(addr1, 2, 1),
+		},
+		expected: 1,
+	}
+
+	pool, err := newTestPool()
+	assert.NoError(t, err)
+	pool.SetSigner(&mockSigner{})
+
+	pool.Start()
+	defer pool.Close()
+
+	promotedSubscription := pool.eventManager.subscribe(
+		[]proto.EventType{
+			proto.EventType_PROMOTED,
+		},
+	)
+
+	for _, tx := range testCase.txs {
+		assert.NoError(t, pool.addTx(local, tx))
+	}
+
+	ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancelFn()
+
+	// All txns should get added
+	assert.Len(t, waitForEvents(ctx, promotedSubscription, int(testCase.expected)), int(testCase.expected))
+	pool.eventManager.cancelSubscription(promotedSubscription.subscriptionID)
+}
