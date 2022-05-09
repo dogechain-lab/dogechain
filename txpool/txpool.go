@@ -386,6 +386,14 @@ func (p *TxPool) Drop(tx *types.Transaction) {
 	)
 }
 
+// Drop clears the entire account associated with the given transaction
+// and reverts its next (expected) nonce.
+func (p *TxPool) DropTransactions(txs []*types.Transaction) {
+	for _, tx := range txs {
+		p.Drop(tx)
+	}
+}
+
 // Demote excludes an account from being further processed during block building
 // due to a recoverable error.
 //
@@ -615,9 +623,14 @@ func (p *TxPool) addTx(origin txOrigin, tx *types.Transaction) error {
 			}
 		}
 
+		// could not add tx, for there is no future transaction
+		if len(needDropTxs) == 0 {
+			return ErrTxPoolOverflow
+		}
+
 		p.logger.Debug("overflow transactions need to be dropped", "len", len(needDropTxs))
 
-		return ErrTxPoolOverflow
+		p.DropTransactions(needDropTxs)
 	}
 
 	tx.ComputeHash()
