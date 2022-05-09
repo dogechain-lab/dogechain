@@ -594,6 +594,11 @@ func (p *TxPool) addTx(origin txOrigin, tx *types.Transaction) error {
 
 	// check for overflow
 	if p.gauge.read()+slotsRequired(tx) > p.gauge.max {
+		// if it is not from local, just reject it when pool overflow.
+		if origin == gossip {
+			return ErrTxPoolOverflow
+		}
+
 		// Remove all future transactions to give more space
 		allPromoted, allEnqueued := p.accounts.allTxs(true)
 
