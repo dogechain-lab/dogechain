@@ -826,6 +826,13 @@ func (i *Ibft) runAcceptState() { // start new round
 			continue
 		}
 
+		if msg.Proposal == nil {
+			// A malicious node conducted a DoS attack
+			i.logger.Error("proposal data in msg is nil")
+
+			continue
+		}
+
 		// retrieve the block proposal
 		block := &types.Block{}
 		if err := block.UnmarshalRLP(msg.Proposal.Value); err != nil {
@@ -904,6 +911,13 @@ func (i *Ibft) runValidateState() {
 				"sequence", i.state.view.Sequence, "round", i.state.view.Round+1)
 			i.state.unlock()
 			i.setState(RoundChangeState)
+
+			continue
+		}
+
+		if msg.View == nil {
+			// A malicious node conducted a DoS attack
+			i.logger.Error("view data in msg is nil")
 
 			continue
 		}
