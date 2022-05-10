@@ -1126,6 +1126,13 @@ func (i *Ibft) runRoundChangeState() {
 			continue
 		}
 
+		if msg.View == nil {
+			// A malicious node conducted a DoS attack
+			i.logger.Error("view data in msg is nil")
+
+			continue
+		}
+
 		// we only expect RoundChange messages right now
 		num := i.state.AddRoundMessage(msg)
 
