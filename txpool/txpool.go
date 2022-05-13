@@ -24,7 +24,7 @@ const (
 
 	//	maximum allowed number of times an account
 	//	was excluded from block building (ibft.writeTransactions)
-	maxAccountDemotions = uint(10)
+	defaultMaxAccountDemotions = uint64(10)
 )
 
 // errors
@@ -391,7 +391,7 @@ func (p *TxPool) Drop(tx *types.Transaction) {
 // If an account has been demoted too many times (maxAccountDemotions), it is Dropped instead.
 func (p *TxPool) Demote(tx *types.Transaction) {
 	account := p.accounts.get(tx.From)
-	if account.demotions == maxAccountDemotions {
+	if account.demotions == defaultMaxAccountDemotions {
 		p.logger.Debug(
 			"Demote: threshold reached - dropping account",
 			"addr", tx.From.String(),
