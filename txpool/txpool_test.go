@@ -18,9 +18,10 @@ import (
 )
 
 const (
-	defaultPriceLimit uint64 = 1
-	defaultMaxSlots   uint64 = 4096
-	validGasLimit     uint64 = 4712350
+	defaultPriceLimit          uint64 = 1
+	defaultMaxSlots            uint64 = 4096
+	defaultMaxAccountDemotions uint64 = 10
+	validGasLimit              uint64 = 4712350
 )
 
 var (

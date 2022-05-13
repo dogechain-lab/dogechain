@@ -21,10 +21,6 @@ const (
 	txSlotSize  = 32 * 1024  // 32kB
 	txMaxSize   = 128 * 1024 //128Kb
 	topicNameV1 = "txpool/0.1"
-
-	//	maximum allowed number of times an account
-	//	was excluded from block building (ibft.writeTransactions)
-	defaultMaxAccountDemotions = uint64(10)
 )
 
 // errors
@@ -396,7 +392,7 @@ func (p *TxPool) Drop(tx *types.Transaction) {
 // If an account has been demoted too many times (maxAccountDemotions), it is Dropped instead.
 func (p *TxPool) Demote(tx *types.Transaction) {
 	account := p.accounts.get(tx.From)
-	if account.demotions == defaultMaxAccountDemotions {
+	if account.demotions == p.maxAccountDemotions {
 		p.logger.Debug(
 			"Demote: threshold reached - dropping account",
 			"addr", tx.From.String(),
