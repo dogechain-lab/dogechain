@@ -326,7 +326,7 @@ func TestEth_Syncing(t *testing.T) {
 
 func TestEth_GasPrice(t *testing.T) {
 	store := newMockBlockStore()
-	store.averageGasPrice = 9999
+	store.averageGasPrice, _ = strconv.ParseInt(defaultMinGasPrice, 0, 64)
 	eth := newTestEthEndpoint(store)
 
 	res, err := eth.GasPrice()

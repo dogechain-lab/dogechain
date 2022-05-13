@@ -15,6 +15,10 @@ import (
 	"github.com/umbracle/fastrlp"
 )
 
+const (
+	defaultMinGasPrice = "0Xba43b7400" // 50 GWei
+)
+
 type ethTxPoolStore interface {
 	// GetNonce returns the next nonce for this address
 	GetNonce(addr types.Address) uint64
@@ -428,9 +432,7 @@ func (e *Eth) GasPrice() (interface{}, error) {
 	var avgGasPrice string
 
 	// Grab the average gas price and convert it to a hex value
-	minGasPrice := new(big.Int).Mul(
-		big.NewInt(50),
-		new(big.Int).Exp(big.NewInt(10), big.NewInt(9), nil))
+	minGasPrice, _ := new(big.Int).SetString(defaultMinGasPrice, 0)
 
 	if e.store.GetAvgGasPrice().Cmp(minGasPrice) == -1 {
 		avgGasPrice = hex.EncodeBig(minGasPrice)
