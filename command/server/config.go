@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"strings"
 
+	"github.com/dogechain-lab/jury/command"
 	"github.com/dogechain-lab/jury/network"
 
 	"github.com/hashicorp/hcl"
@@ -47,8 +48,9 @@ type Network struct {
 
 // TxPool defines the TxPool configuration params
 type TxPool struct {
-	PriceLimit uint64 `json:"price_limit"`
-	MaxSlots   uint64 `json:"max_slots"`
+	PriceLimit          uint64 `json:"price_limit"`
+	MaxSlots            uint64 `json:"max_slots"`
+	MaxAccountDemotions uint64 `json:"max_account_demotions"`
 }
 
 // Headers defines the HTTP response headers required to enable CORS.
@@ -76,8 +78,9 @@ func DefaultConfig() *Config {
 		Telemetry:  &Telemetry{},
 		ShouldSeal: false,
 		TxPool: &TxPool{
-			PriceLimit: 0,
-			MaxSlots:   4096,
+			PriceLimit:          0,
+			MaxSlots:            4096,
+			MaxAccountDemotions: command.DefaultMaxAccountDemotions,
 		},
 		LogLevel:    "INFO",
 		RestoreFile: "",

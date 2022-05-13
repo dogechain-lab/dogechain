@@ -173,6 +173,7 @@ func NewServer(config *Config) (*Server, error) {
 				Sealing:    m.config.Seal,
 				MaxSlots:   m.config.MaxSlots,
 				PriceLimit: m.config.PriceLimit,
+				MaxAccountDemotions: m.config.MaxAccountDemotions,
 			},
 		)
 		if err != nil {

@@ -182,16 +182,17 @@ func NewTxPool(
 	config *Config,
 ) (*TxPool, error) {
 	pool := &TxPool{
-		logger:      logger.Named("txpool"),
-		forks:       forks,
-		store:       store,
-		metrics:     metrics,
-		accounts:    accountsMap{},
-		executables: newPricedQueue(),
-		index:       lookupMap{all: make(map[types.Hash]*types.Transaction)},
-		gauge:       slotGauge{height: 0, max: config.MaxSlots},
-		priceLimit:  config.PriceLimit,
-		sealing:     config.Sealing,
+		logger:              logger.Named("txpool"),
+		forks:               forks,
+		store:               store,
+		metrics:             metrics,
+		accounts:            accountsMap{},
+		executables:         newPricedQueue(),
+		index:               lookupMap{all: make(map[types.Hash]*types.Transaction)},
+		gauge:               slotGauge{height: 0, max: config.MaxSlots},
+		priceLimit:          config.PriceLimit,
+		sealing:             config.Sealing,
+		maxAccountDemotions: config.MaxAccountDemotions,
 	}
 
 	// Attach the event manager

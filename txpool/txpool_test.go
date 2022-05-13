@@ -87,9 +87,10 @@ func newTestPoolWithSlots(maxSlots uint64, mockStore ...store) (*TxPool, error) 
 		nil,
 		nilMetrics,
 		&Config{
-			PriceLimit: defaultPriceLimit,
-			MaxSlots:   maxSlots,
-			Sealing:    false,
+			PriceLimit:          defaultPriceLimit,
+			MaxSlots:            maxSlots,
+			Sealing:             false,
+			MaxAccountDemotions: defaultMaxAccountDemotions,
 		},
 	)
 }

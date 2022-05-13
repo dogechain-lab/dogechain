@@ -2,8 +2,9 @@ package server
 
 import (
 	"errors"
-	"github.com/hashicorp/go-hclog"
 	"net"
+
+	"github.com/hashicorp/go-hclog"
 
 	"github.com/dogechain-lab/jury/chain"
 	"github.com/dogechain-lab/jury/network"
@@ -13,27 +14,28 @@ import (
 )
 
 const (
-	configFlag            = "config"
-	genesisPathFlag       = "chain"
-	dataDirFlag           = "data-dir"
-	libp2pAddressFlag     = "libp2p"
-	prometheusAddressFlag = "prometheus"
-	natFlag               = "nat"
-	dnsFlag               = "dns"
-	sealFlag              = "seal"
-	maxPeersFlag          = "max-peers"
-	maxInboundPeersFlag   = "max-inbound-peers"
-	maxOutboundPeersFlag  = "max-outbound-peers"
-	priceLimitFlag        = "price-limit"
-	maxSlotsFlag          = "max-slots"
-	blockGasTargetFlag    = "block-gas-target"
-	secretsConfigFlag     = "secrets-config"
-	restoreFlag           = "restore"
-	blockTimeFlag         = "block-time"
-	devIntervalFlag       = "dev-interval"
-	devFlag               = "dev"
-	corsOriginFlag        = "access-control-allow-origins"
-	daemonFlag            = "daemon"
+	configFlag              = "config"
+	genesisPathFlag         = "chain"
+	dataDirFlag             = "data-dir"
+	libp2pAddressFlag       = "libp2p"
+	prometheusAddressFlag   = "prometheus"
+	natFlag                 = "nat"
+	dnsFlag                 = "dns"
+	sealFlag                = "seal"
+	maxPeersFlag            = "max-peers"
+	maxInboundPeersFlag     = "max-inbound-peers"
+	maxOutboundPeersFlag    = "max-outbound-peers"
+	priceLimitFlag          = "price-limit"
+	maxSlotsFlag            = "max-slots"
+	MaxAccountDemotionsFlag = "max-account-demotions"
+	blockGasTargetFlag      = "block-gas-target"
+	secretsConfigFlag       = "secrets-config"
+	restoreFlag             = "restore"
+	blockTimeFlag           = "block-time"
+	devIntervalFlag         = "dev-interval"
+	devFlag                 = "dev"
+	corsOriginFlag          = "access-control-allow-origins"
+	daemonFlag              = "daemon"
 )
 
 const (
@@ -155,15 +157,16 @@ func (p *serverParams) generateConfig() *server.Config {
 			MaxOutboundPeers: p.rawConfig.Network.MaxOutboundPeers,
 			Chain:            p.genesisConfig,
 		},
-		DataDir:        p.rawConfig.DataDir,
-		Seal:           p.rawConfig.ShouldSeal,
-		PriceLimit:     p.rawConfig.TxPool.PriceLimit,
-		MaxSlots:       p.rawConfig.TxPool.MaxSlots,
-		SecretsManager: p.secretsConfig,
-		RestoreFile:    p.getRestoreFilePath(),
-		BlockTime:      p.rawConfig.BlockTime,
-		LogLevel:       hclog.LevelFromString(p.rawConfig.LogLevel),
-		Daemon:         p.isDaemon,
-		ValidatorKey:   p.validatorKey,
+		DataDir:             p.rawConfig.DataDir,
+		Seal:                p.rawConfig.ShouldSeal,
+		PriceLimit:          p.rawConfig.TxPool.PriceLimit,
+		MaxSlots:            p.rawConfig.TxPool.MaxSlots,
+		MaxAccountDemotions: p.rawConfig.TxPool.MaxAccountDemotions,
+		SecretsManager:      p.secretsConfig,
+		RestoreFile:         p.getRestoreFilePath(),
+		BlockTime:           p.rawConfig.BlockTime,
+		LogLevel:            hclog.LevelFromString(p.rawConfig.LogLevel),
+		Daemon:              p.isDaemon,
+		ValidatorKey:        p.validatorKey,
 	}
 }

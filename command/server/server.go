@@ -3,16 +3,17 @@ package server
 import (
 	"bufio"
 	"fmt"
-	"github.com/dogechain-lab/jury/command"
-	"github.com/dogechain-lab/jury/crypto"
-	"github.com/dogechain-lab/jury/helper/daemon"
-	"github.com/howeyc/gopass"
-	"github.com/spf13/cobra"
 	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/dogechain-lab/jury/command"
+	"github.com/dogechain-lab/jury/crypto"
+	"github.com/dogechain-lab/jury/helper/daemon"
+	"github.com/howeyc/gopass"
+	"github.com/spf13/cobra"
 
 	"github.com/dogechain-lab/jury/command/helper"
 	"github.com/dogechain-lab/jury/network"
@@ -174,6 +175,13 @@ func setFlags(cmd *cobra.Command) {
 		maxSlotsFlag,
 		command.DefaultMaxSlots,
 		"maximum slots in the pool",
+	)
+
+	cmd.Flags().Uint64Var(
+		&params.rawConfig.TxPool.MaxAccountDemotions,
+		MaxAccountDemotionsFlag,
+		command.DefaultMaxAccountDemotions,
+		"maximum account demontion counter limit in the pool",
 	)
 
 	cmd.Flags().Uint64Var(
