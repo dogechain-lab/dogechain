@@ -78,9 +78,10 @@ type signer interface {
 }
 
 type Config struct {
-	PriceLimit uint64
-	MaxSlots   uint64
-	Sealing    bool
+	PriceLimit          uint64
+	MaxSlots            uint64
+	Sealing             bool
+	MaxAccountDemotions uint64
 }
 
 /* All requests are passed to the main loop
@@ -165,6 +166,9 @@ type TxPool struct {
 
 	// indicates which txpool operator commands should be implemented
 	proto.UnimplementedTxnPoolOperatorServer
+
+	// maximum account demotion count. when reach, drop all transactions of this account
+	maxAccountDemotions uint64
 }
 
 // NewTxPool returns a new pool for processing incoming transactions.

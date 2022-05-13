@@ -1090,7 +1090,7 @@ func TestDemote(t *testing.T) {
 		assert.Equal(t, uint64(1), pool.accounts.get(addr1).promoted.length())
 
 		//	set counter to max allowed demotions
-		pool.accounts.get(addr1).demotions = defaultMaxAccountDemotions
+		pool.accounts.get(addr1).demotions = pool.maxAccountDemotions
 
 		//	call demote
 		pool.Prepare()
