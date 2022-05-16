@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/dogechain-lab/jury/consensus/ibft/proto"
+	"github.com/dogechain-lab/jury/crypto"
 	"github.com/dogechain-lab/jury/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -75,11 +76,20 @@ func TestSign_CommittedSeals(t *testing.T) {
 	assert.Error(t, buildCommittedSeal([]string{"A"}))
 }
 
+func TestSign_EmptyMessages(t *testing.T) {
+	err := validateMsg(&proto.MessageReq{})
+	if assert.Error(t, err) {
+		assert.Equal(t, crypto.ErrEmptySignature, err)
+	}
+}
+
 func TestSign_Messages(t *testing.T) {
 	pool := newTesterAccountPool()
 	pool.add("A")
 
-	msg := &proto.MessageReq{}
+	msg := &proto.MessageReq{
+		Type: proto.MessageReq_RoundChange,
+	}
 	assert.NoError(t, signMsg(pool.get("A").priv, msg))
 	assert.NoError(t, validateMsg(msg))
 
