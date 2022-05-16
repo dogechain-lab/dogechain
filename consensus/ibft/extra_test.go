@@ -25,6 +25,13 @@ func TestExtraEncoding(t *testing.T) {
 				},
 			},
 		},
+		{
+			data: &IstanbulExtra{
+				Validators:    []types.Address{},
+				Seal:          nil,
+				CommittedSeal: [][]byte{},
+			},
+		},
 	}
 
 	for _, c := range cases {
