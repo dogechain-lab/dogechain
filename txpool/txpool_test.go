@@ -390,6 +390,27 @@ func TestDropKnownGossipTx(t *testing.T) {
 	assert.Equal(t, uint64(1), pool.accounts.get(addr1).enqueued.length())
 }
 
+func TestAddGossipTx_ShouldNotCrash(t *testing.T) {
+	pool, err := newTestPool()
+	assert.NoError(t, err)
+	pool.SetSigner(&mockSigner{})
+
+	assert.NotPanics(t, func() {
+		// type assertion
+		pool.addGossipTx(&types.Block{Header: &types.Header{Number: 10}})
+	})
+
+	assert.Nil(t, pool.accounts.get(addr1), "addr in txpool should be nil")
+
+	mightPanicTx := newTx(addr1, 1, 1)
+
+	assert.NotPanics(t, func() {
+		pool.addGossipTx(mightPanicTx)
+	})
+
+	assert.Nil(t, pool.accounts.get(addr1), "addr in txpool should be nil")
+}
+
 func TestAddHandler(t *testing.T) {
 	t.Run("enqueue new tx with higher nonce", func(t *testing.T) {
 		pool, err := newTestPool()
