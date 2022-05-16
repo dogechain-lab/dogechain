@@ -14,6 +14,10 @@ import (
 	empty "google.golang.org/protobuf/types/known/emptypb"
 )
 
+var (
+	ErrNilRawRequest = errors.New("notify request raw is nil")
+)
+
 // serviceV1 is the GRPC server implementation for the v1 protocol
 type serviceV1 struct {
 	proto.UnimplementedV1Server
@@ -30,6 +34,11 @@ type rlpObject interface {
 }
 
 func (s *serviceV1) Notify(ctx context.Context, req *proto.NotifyReq) (*empty.Empty, error) {
+	if req.Raw == nil || len(req.Raw.Value) == 0 {
+		// malicious node conducted denial of service
+		return nil, ErrNilRawRequest
+	}
+
 	var id peer.ID
 
 	if ctx, ok := ctx.(*grpc.Context); ok {
