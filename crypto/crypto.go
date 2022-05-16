@@ -21,6 +21,10 @@ import (
 )
 
 var (
+	ErrEmptySignature = errors.New("empty signature")
+)
+
+var (
 	big1 = big.NewInt(1)
 )
 
@@ -138,6 +142,11 @@ func Ecrecover(hash, sig []byte) ([]byte, error) {
 // RecoverPubkey verifies the compact signature "signature" of "hash" for the
 // secp256k1 curve.
 func RecoverPubkey(signature, hash []byte) (*ecdsa.PublicKey, error) {
+	if len(signature) == 0 {
+		// would not handle invalid signature and hash, which might from faulty nodes
+		return nil, ErrEmptySignature
+	}
+
 	size := len(signature)
 	term := byte(27)
 
