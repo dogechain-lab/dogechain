@@ -680,11 +680,13 @@ func (p *TxPool) addGossipTx(obj interface{}) {
 	raw, ok := obj.(*proto.Txn)
 	if !ok {
 		p.logger.Warn("gossip tx(%+v) is not a transaction", obj)
+
 		return
 	}
 
 	if raw.Raw == nil || len(raw.Raw.Value) == 0 {
 		p.logger.Info("gossip tx raw data is empty")
+
 		return
 	}
 
