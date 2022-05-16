@@ -145,6 +145,11 @@ func Factory(
 		}
 
 		epochSize = uint64(readSize)
+
+		if epochSize == 0 {
+			// epoch size should never be zero.
+			epochSize = DefaultEpochSize
+		}
 	}
 
 	p := &Ibft{
