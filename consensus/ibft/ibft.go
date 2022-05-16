@@ -1243,8 +1243,13 @@ func (i *Ibft) isSealing() bool {
 // verifyHeaderImpl implements the actual header verification logic
 func (i *Ibft) verifyHeaderImpl(snap *Snapshot, parent, header *types.Header) error {
 	// ensure the extra data is correctly formatted
-	if _, err := getIbftExtra(header); err != nil {
+	extract, err := getIbftExtra(header)
+	if err != nil {
 		return err
+	}
+	// ensure validatorset exists in extra data
+	if len(extract.Validators) == 0 {
+		return fmt.Errorf("empty extract validatorset")
 	}
 
 	if hookErr := i.runHook(VerifyHeadersHook, header.Number, header.Nonce); hookErr != nil {
