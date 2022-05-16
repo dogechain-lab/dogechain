@@ -2,10 +2,15 @@ package protocol
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/dogechain-lab/jury/protocol/proto"
 	"github.com/dogechain-lab/jury/types"
+)
+
+var (
+	ErrNilHeaderRequest = errors.New("header request spec is nil")
 )
 
 func getHeaders(clt proto.V1Client, req *proto.GetHeadersRequest) ([]*types.Header, error) {
@@ -17,6 +22,11 @@ func getHeaders(clt proto.V1Client, req *proto.GetHeadersRequest) ([]*types.Head
 	headers := []*types.Header{}
 
 	for _, obj := range resp.Objs {
+		if obj.Spec == nil {
+			// this nil header comes from a faulty node, reject all blocks of it.
+			return nil, ErrNilHeaderRequest
+		}
+
 		header := &types.Header{}
 		if err := header.UnmarshalRLP(obj.Spec.Value); err != nil {
 			return nil, err
