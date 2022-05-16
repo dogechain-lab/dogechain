@@ -22,7 +22,7 @@ func getHeaders(clt proto.V1Client, req *proto.GetHeadersRequest) ([]*types.Head
 	headers := []*types.Header{}
 
 	for _, obj := range resp.Objs {
-		if obj.Spec == nil {
+		if obj == nil || obj.Spec == nil {
 			// this nil header comes from a faulty node, reject all blocks of it.
 			return nil, ErrNilHeaderRequest
 		}

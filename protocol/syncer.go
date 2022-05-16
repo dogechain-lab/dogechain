@@ -725,13 +725,15 @@ func getHeader(clt proto.V1Client, num *uint64, hash *types.Hash) (*types.Header
 		return nil, ErrTooManyHeaders
 	}
 
-	if resp.Objs[0].Spec == nil || len(resp.Objs[0].Spec.Value) == 0 {
+	obj := resp.Objs[0]
+
+	if obj == nil || obj.Spec == nil || len(obj.Spec.Value) == 0 {
 		return nil, ErrNilHeaderRequest
 	}
 
 	header := &types.Header{}
 
-	if err := header.UnmarshalRLP(resp.Objs[0].Spec.Value); err != nil {
+	if err := header.UnmarshalRLP(obj.Spec.Value); err != nil {
 		return nil, err
 	}
 
