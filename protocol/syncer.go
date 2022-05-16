@@ -345,6 +345,7 @@ func (s *Syncer) Broadcast(b *types.Block) {
 
 // Start starts the syncer protocol
 func (s *Syncer) Start() {
+	// TODO: why not derived logger instead of null one?
 	s.serviceV1 = &serviceV1{syncer: s, logger: hclog.NewNullLogger(), store: s.blockchain}
 
 	// Get the current status of the syncer
