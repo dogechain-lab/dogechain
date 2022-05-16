@@ -722,6 +722,10 @@ func getHeader(clt proto.V1Client, num *uint64, hash *types.Hash) (*types.Header
 		return nil, fmt.Errorf("unexpected more than 1 result")
 	}
 
+	if resp.Objs[0].Spec == nil || len(resp.Objs[0].Spec.Value) == 0 {
+		return nil, ErrNilHeaderRequest
+	}
+
 	header := &types.Header{}
 
 	if err := header.UnmarshalRLP(resp.Objs[0].Spec.Value); err != nil {
