@@ -15,7 +15,8 @@ import (
 )
 
 var (
-	ErrNilRawRequest = errors.New("notify request raw is nil")
+	ErrNilRawRequest    = errors.New("notify request raw is nil")
+	ErrNilStatusRequest = errors.New("notify request status is nil")
 )
 
 // serviceV1 is the GRPC server implementation for the v1 protocol
@@ -37,6 +38,10 @@ func (s *serviceV1) Notify(ctx context.Context, req *proto.NotifyReq) (*empty.Em
 	if req.Raw == nil || len(req.Raw.Value) == 0 {
 		// malicious node conducted denial of service
 		return nil, ErrNilRawRequest
+	}
+
+	if req.Status == nil {
+		return nil, ErrNilStatusRequest
 	}
 
 	var id peer.ID
