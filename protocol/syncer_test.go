@@ -14,6 +14,7 @@ import (
 	"github.com/dogechain-lab/jury/types"
 	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/assert"
+	anypb "google.golang.org/protobuf/types/known/anypb"
 )
 
 func TestHandleNewPeer(t *testing.T) {
@@ -317,16 +318,25 @@ func TestWatchSyncWithPeer(t *testing.T) {
 
 func TestNilPointerAttackFromFaultyPeer(t *testing.T) {
 	tests := []struct {
-		name         string
-		headers      []*types.Header
-		peerHeaders  []*types.Header
-		numNewBlocks int
+		name              string
+		headers           []*types.Header
+		peerHeaders       []*types.Header
+		numNewBlocks      int
+		testBroadcastFunc func(s *Syncer, b *types.Block)
 	}{
 		{
-			name:         "should not crash even notify is nil",
-			headers:      blockchain.NewTestHeaderChainWithSeed(nil, 10, 0),
-			peerHeaders:  blockchain.NewTestHeaderChainWithSeed(nil, 1, 0),
-			numNewBlocks: 2,
+			name:              "should not crash even notify raw data is nil",
+			headers:           blockchain.NewTestHeaderChainWithSeed(nil, 3, 0),
+			peerHeaders:       blockchain.NewTestHeaderChainWithSeed(nil, 1, 0),
+			numNewBlocks:      1,
+			testBroadcastFunc: broadcastNilRawData,
+		},
+		{
+			name:              "should not crash even notify status is nil",
+			headers:           blockchain.NewTestHeaderChainWithSeed(nil, 5, 0),
+			peerHeaders:       blockchain.NewTestHeaderChainWithSeed(nil, 1, 0),
+			numNewBlocks:      1,
+			testBroadcastFunc: broadcastNilStatusData,
 		},
 	}
 
@@ -345,14 +355,14 @@ func TestNilPointerAttackFromFaultyPeer(t *testing.T) {
 
 			for _, b := range newBlocks {
 				assert.NotPanics(t, func() {
-					peerSyncer.broadcastNilRawData(b)
+					tt.testBroadcastFunc(peerSyncer, b)
 				})
 			}
 		})
 	}
 }
 
-func (s *Syncer) broadcastNilRawData(b *types.Block) {
+func broadcastNilRawData(s *Syncer, b *types.Block) {
 	// Get the chain difficulty associated with block
 	td, ok := s.blockchain.GetTD(b.Hash())
 	if !ok {
@@ -370,6 +380,24 @@ func (s *Syncer) broadcastNilRawData(b *types.Block) {
 			Difficulty: td.String(),
 		},
 		Raw: nil,
+	}
+
+	s.peers.Range(func(peerID, peer interface{}) bool {
+		if _, err := peer.(*SyncPeer).client.Notify(context.Background(), req); err != nil {
+			s.logger.Error("failed to notify", "err", err)
+		}
+
+		return true
+	})
+}
+
+func broadcastNilStatusData(s *Syncer, b *types.Block) {
+	// broadcast the new block to all the peers
+	req := &proto.NotifyReq{
+		Status: nil,
+		Raw: &anypb.Any{
+			Value: b.MarshalRLP(),
+		},
 	}
 
 	s.peers.Range(func(peerID, peer interface{}) bool {
