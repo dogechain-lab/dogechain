@@ -940,7 +940,8 @@ func (i *Ibft) runValidateState() {
 			i.state.addCommitted(msg)
 
 		default:
-			panic(fmt.Sprintf("BUG: %s", reflect.TypeOf(msg.Type)))
+			i.logger.Error("BUG: %s, validate state don't not handle type.msg: %d",
+				reflect.TypeOf(msg.Type), msg.Type)
 		}
 
 		if i.state.numPrepared() > i.state.NumValid() {
