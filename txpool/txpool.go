@@ -677,7 +677,17 @@ func (p *TxPool) addGossipTx(obj interface{}) {
 		return
 	}
 
-	raw := obj.(*proto.Txn) // nolint:forcetypeassert
+	raw, ok := obj.(*proto.Txn)
+	if !ok {
+		p.logger.Warn("gossip tx(%+v) is not a transaction", obj)
+		return
+	}
+
+	if raw.Raw == nil || len(raw.Raw.Value) == 0 {
+		p.logger.Info("gossip tx raw data is empty")
+		return
+	}
+
 	tx := new(types.Transaction)
 
 	// decode tx
