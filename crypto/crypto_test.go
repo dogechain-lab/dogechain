@@ -90,9 +90,9 @@ func TestCreate2(t *testing.T) {
 	for _, c := range cases {
 		t.Run("", func(t *testing.T) {
 			address := types.StringToAddress(c.address)
-			initCode := hex.MustDecodeHex(c.initCode)
+			initCode, _ := hex.MustDecodeHex(c.initCode)
 
-			saltRaw := hex.MustDecodeHex(c.salt)
+			saltRaw, _ := hex.MustDecodeHex(c.salt)
 			if len(saltRaw) != 32 {
 				t.Fatal("Salt length must be 32 bytes")
 			}

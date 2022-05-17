@@ -304,13 +304,14 @@ func (t *stTransaction) At(i indexes) (*types.Transaction, error) {
 		return nil, fmt.Errorf("value index %d out of bounds (%d)", i.Value, len(t.Value))
 	}
 
+	input, _ := hex.MustDecodeHex(t.Data[i.Data])
 	msg := &types.Transaction{
 		To:       t.To,
 		Nonce:    t.Nonce,
 		Value:    new(big.Int).Set(t.Value[i.Value]),
 		Gas:      t.GasLimit[i.Gas],
 		GasPrice: new(big.Int).Set(t.GasPrice),
-		Input:    hex.MustDecodeHex(t.Data[i.Data]),
+		Input:    input,
 	}
 
 	msg.From = t.From

@@ -62,7 +62,11 @@ func (n *Nonce) Scan(src interface{}) error {
 		return errors.New("invalid type assert")
 	}
 
-	nn := hex.MustDecodeHex(string(stringVal))
+	nn, err := hex.MustDecodeHex(string(stringVal))
+	if err != nil {
+		return fmt.Errorf("decode hex err: %w", err)
+	}
+
 	copy(n[:], nn[:])
 
 	return nil

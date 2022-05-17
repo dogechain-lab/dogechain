@@ -997,9 +997,17 @@ func (i *Ibft) updateMetrics(block *types.Block) {
 }
 func (i *Ibft) insertBlock(block *types.Block) error {
 	committedSeals := [][]byte{}
+
 	for _, commit := range i.state.committed {
 		// no need to check the format of seal here because writeCommittedSeals will check
-		committedSeals = append(committedSeals, hex.MustDecodeHex(commit.Seal))
+		seal, err := hex.MustDecodeHex(commit.Seal)
+		if err != nil {
+			i.logger.Error("block insert, seal data decode hex err: ", err)
+
+			return err
+		}
+
+		committedSeals = append(committedSeals, seal)
 	}
 
 	header, err := writeCommittedSeals(block.Header, committedSeals)

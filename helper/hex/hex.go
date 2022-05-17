@@ -45,13 +45,13 @@ func DecodeHex(str string) ([]byte, error) {
 }
 
 // MustDecodeHex type-checks and converts a hex string to a byte array
-func MustDecodeHex(str string) []byte {
+func MustDecodeHex(str string) ([]byte, error) {
 	buf, err := DecodeHex(str)
 	if err != nil {
-		panic(fmt.Errorf("could not decode hex: %w", err))
+		return nil, err
 	}
 
-	return buf
+	return buf, nil
 }
 
 // EncodeUint64 encodes a number as a hex string with 0x prefix.
