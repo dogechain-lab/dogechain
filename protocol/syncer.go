@@ -728,7 +728,7 @@ func getHeader(clt proto.V1Client, num *uint64, hash *types.Hash) (*types.Header
 	obj := resp.Objs[0]
 
 	if obj == nil || obj.Spec == nil || len(obj.Spec.Value) == 0 {
-		return nil, ErrNilHeaderRequest
+		return nil, ErrNilHeaderResponse
 	}
 
 	header := &types.Header{}
