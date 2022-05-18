@@ -15,6 +15,7 @@ import (
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 const (
@@ -402,13 +403,26 @@ func TestAddGossipTx_ShouldNotCrash(t *testing.T) {
 
 	assert.Nil(t, pool.accounts.get(addr1), "addr in txpool should be nil")
 
-	mightPanicTx := newTx(addr1, 1, 1)
-
 	assert.NotPanics(t, func() {
-		pool.addGossipTx(mightPanicTx)
+		pool.addGossipTx(createNilRawTxn())
+		pool.addGossipTx(createNilRawDataTxn())
 	})
 
 	assert.Nil(t, pool.accounts.get(addr1), "addr in txpool should be nil")
+}
+
+func createNilRawTxn() *proto.Txn {
+	return &proto.Txn{
+		Raw: nil,
+	}
+}
+
+func createNilRawDataTxn() *proto.Txn {
+	return &proto.Txn{
+		Raw: &anypb.Any{
+			Value: nil,
+		},
+	}
 }
 
 func TestAddHandler(t *testing.T) {
