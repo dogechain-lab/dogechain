@@ -1000,7 +1000,7 @@ func (i *Ibft) insertBlock(block *types.Block) error {
 
 	for _, commit := range i.state.committed {
 		// no need to check the format of seal here because writeCommittedSeals will check
-		seal, err := hex.MustDecodeHex(commit.Seal)
+		seal, err := hex.DecodeHex(commit.Seal)
 		if err != nil {
 			i.logger.Error("block insert, seal data decode hex err: ", err)
 

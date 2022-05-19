@@ -203,7 +203,7 @@ func (e *Eth) BlockNumber() (interface{}, error) {
 
 // SendRawTransaction sends a raw transaction
 func (e *Eth) SendRawTransaction(input string) (interface{}, error) {
-	buf, err := hex.MustDecodeHex(input)
+	buf, err := hex.DecodeHex(input)
 	if err != nil {
 		return nil, fmt.Errorf("raw tx input decode hex err: %w", err)
 	}

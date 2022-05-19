@@ -28,7 +28,7 @@ var (
 var S256 = btcec.S256()
 
 var (
-	secp256k1N, _ = hex.MustDecodeHex("0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141")
+	secp256k1N, _ = hex.DecodeHex("0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141")
 	one           = []byte{0x01}
 )
 

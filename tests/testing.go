@@ -304,7 +304,7 @@ func (t *stTransaction) At(i indexes) (*types.Transaction, error) {
 		return nil, fmt.Errorf("value index %d out of bounds (%d)", i.Value, len(t.Value))
 	}
 
-	input, _ := hex.MustDecodeHex(t.Data[i.Data])
+	input, _ := hex.DecodeHex(t.Data[i.Data])
 	msg := &types.Transaction{
 		To:       t.To,
 		Nonce:    t.Nonce,

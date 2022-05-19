@@ -71,7 +71,7 @@ func (b *Bloom) Scan(src interface{}) error {
 		return errors.New("invalid type assert")
 	}
 
-	bb, err := hex.MustDecodeHex(string(stringVal))
+	bb, err := hex.DecodeHex(string(stringVal))
 	if err != nil {
 		return fmt.Errorf("decode hex err: %w", err)
 	}
