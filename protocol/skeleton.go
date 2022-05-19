@@ -73,7 +73,8 @@ func (s *skeleton) fillSlot(indx uint64, clt proto.V1Client) error {
 		return err
 	}
 
-	slot.blocks = []*types.Block{}
+	// alloc the slice capacity once and for all
+	slot.blocks = make([]*types.Block, 0, len(resp))
 
 	for _, h := range resp {
 		slot.blocks = append(slot.blocks, &types.Block{
@@ -82,8 +83,9 @@ func (s *skeleton) fillSlot(indx uint64, clt proto.V1Client) error {
 	}
 
 	// for each header with body we request it
-	bodyHashes := []types.Hash{}
-	bodyIndex := []int{}
+	// alloc the slice capacity  once and for al
+	bodyHashes := make([]types.Hash, 0, len(resp))
+	bodyIndex := make([]int, 0, len(resp))
 
 	for indx, h := range resp {
 		if h.TxRoot != types.EmptyRootHash {
