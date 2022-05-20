@@ -688,12 +688,6 @@ func (b *Blockchain) WriteBlock(block *types.Block) error {
 		return err
 	}
 
-	// Write the header to the chain
-	evnt := &Event{}
-	if err := b.writeHeaderImpl(evnt, header); err != nil {
-		return err
-	}
-
 	// write the receipts, do it only after the header has been written.
 	// Otherwise, a client might ask for a header once the receipt is valid
 	// but before it is written into the storage
@@ -703,6 +697,12 @@ func (b *Blockchain) WriteBlock(block *types.Block) error {
 
 	//	update snapshot
 	if err := b.consensus.ProcessHeaders([]*types.Header{header}); err != nil {
+		return err
+	}
+
+	// Write the header to the chain
+	evnt := &Event{}
+	if err := b.writeHeaderImpl(evnt, header); err != nil {
 		return err
 	}
 
@@ -915,16 +915,6 @@ func (b *Blockchain) dispatchEvent(evnt *Event) {
 func (b *Blockchain) writeHeaderImpl(evnt *Event, header *types.Header) error {
 	currentHeader := b.Header()
 
-	// Write the data
-	if header.ParentHash == currentHeader.Hash {
-		// Fast path to save the new canonical header
-		return b.writeCanonicalHeader(evnt, header)
-	}
-
-	if err := b.db.WriteHeader(header); err != nil {
-		return err
-	}
-
 	currentTD, ok := b.readTotalDifficulty(currentHeader.Hash)
 	if !ok {
 		panic("failed to get header difficulty")
@@ -949,6 +939,17 @@ func (b *Blockchain) writeHeaderImpl(evnt *Event, header *types.Header) error {
 		),
 	); err != nil {
 		return err
+	}
+
+	// Write header
+	if err := b.db.WriteHeader(header); err != nil {
+		return err
+	}
+
+	// Write canonical header
+	if header.ParentHash == currentHeader.Hash {
+		// Fast path to save the new canonical header
+		return b.writeCanonicalHeader(evnt, header)
 	}
 
 	// Update the headers cache
