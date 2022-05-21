@@ -32,7 +32,7 @@ type Config struct {
 	DataDir     string
 	RestoreFile *string
 
-	Seal bool
+	Seal           bool
 	SecretsManager *secrets.SecretsManagerConfig
 
 	LogLevel    hclog.Level
