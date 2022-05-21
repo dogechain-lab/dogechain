@@ -28,6 +28,7 @@ type Config struct {
 	RestoreFile       string     `json:"restore_file"`
 	BlockTime         uint64     `json:"block_time_s"`
 	Headers           *Headers   `json:"headers"`
+	LogFilePath       string     `json:"log_to"`
 }
 
 // Telemetry holds the config details for metric services.
@@ -88,6 +89,7 @@ func DefaultConfig() *Config {
 		Headers: &Headers{
 			AccessControlAllowOrigins: []string{"*"},
 		},
+		LogFilePath: "",
 	}
 }
 

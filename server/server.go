@@ -74,18 +74,63 @@ type Server struct {
 	restoreProgression *progress.ProgressionWrapper
 }
 
+const (
+	loggerDomainName = "jury"
+)
+
 var dirPaths = []string{
 	"blockchain",
 	"keystore",
 	"trie",
 }
 
-// NewServer creates a new Minimal server, using the passed in configuration
-func NewServer(config *Config) (*Server, error) {
-	logger := hclog.New(&hclog.LoggerOptions{
-		Name:  "jury",
+// newFileLogger returns logger instance that writes all logs to a specified file.
+//
+// If log file can't be created, it returns an error
+func newFileLogger(config *Config) (hclog.Logger, error) {
+	logFileWriter, err := os.Create(config.LogFilePath)
+	if err != nil {
+		return nil, fmt.Errorf("could not create log file, %w", err)
+	}
+
+	return hclog.New(&hclog.LoggerOptions{
+		Name:   loggerDomainName,
+		Level:  config.LogLevel,
+		Output: logFileWriter,
+	}), nil
+}
+
+// newCLILogger returns minimal logger instance that sends all logs to standard output
+func newCLILogger(config *Config) hclog.Logger {
+	return hclog.New(&hclog.LoggerOptions{
+		Name:  loggerDomainName,
 		Level: config.LogLevel,
 	})
+}
+
+// newLoggerFromConfig creates a new logger which logs to a specified file.
+//
+// If log file is not set it outputs to standard output ( console ).
+// If log file is specified, and it can't be created the server command will error out
+func newLoggerFromConfig(config *Config) (hclog.Logger, error) {
+	if config.LogFilePath != "" {
+		fileLoggerInstance, err := newFileLogger(config)
+		if err != nil {
+			return nil, err
+		}
+
+		return fileLoggerInstance, nil
+	}
+
+	return newCLILogger(config), nil
+}
+
+// NewServer creates a new Minimal server, using the passed in configuration
+func NewServer(config *Config) (*Server, error) {
+	logger, err := newLoggerFromConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("could not setup new logger instance, %w", err)
+	}
 
 	m := &Server{
 		logger:             logger,

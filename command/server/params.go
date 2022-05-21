@@ -36,6 +36,7 @@ const (
 	devFlag                 = "dev"
 	corsOriginFlag          = "access-control-allow-origins"
 	daemonFlag              = "daemon"
+	logFileLocationFlag     = "log-to"
 )
 
 const (
@@ -78,6 +79,8 @@ type serverParams struct {
 
 	genesisConfig *chain.Chain
 	secretsConfig *secrets.SecretsManagerConfig
+
+	logFileLocation string
 }
 
 func (p *serverParams) validateFlags() error {
@@ -87,6 +90,10 @@ func (p *serverParams) validateFlags() error {
 	}
 
 	return nil
+}
+
+func (p *serverParams) isLogFileLocationSet() bool {
+	return p.rawConfig.LogFilePath != ""
 }
 
 func (p *serverParams) isMaxPeersSet() bool {
@@ -166,6 +173,7 @@ func (p *serverParams) generateConfig() *server.Config {
 		RestoreFile:         p.getRestoreFilePath(),
 		BlockTime:           p.rawConfig.BlockTime,
 		LogLevel:            hclog.LevelFromString(p.rawConfig.LogLevel),
+		LogFilePath:         p.logFileLocation,
 		Daemon:              p.isDaemon,
 		ValidatorKey:        p.validatorKey,
 	}

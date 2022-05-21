@@ -38,13 +38,32 @@ func (p *serverParams) initRawParams() error {
 		return err
 	}
 
+	if err := p.initDataDirLocation(); err != nil {
+		return err
+	}
+
 	if p.isDevMode {
 		p.initDevMode()
 	}
 
 	p.initPeerLimits()
+	p.initLogFileLocation()
 
 	return p.initAddresses()
+}
+
+func (p *serverParams) initDataDirLocation() error {
+	if p.rawConfig.DataDir == "" {
+		return fmt.Errorf("data directory not defined")
+	}
+
+	return nil
+}
+
+func (p *serverParams) initLogFileLocation() {
+	if p.isLogFileLocationSet() {
+		p.logFileLocation = p.rawConfig.LogFilePath
+	}
 }
 
 func (p *serverParams) initBlockGasTarget() error {

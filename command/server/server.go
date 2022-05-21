@@ -205,6 +205,13 @@ func setFlags(cmd *cobra.Command) {
 		"the flag indicating that the server ran as daemon",
 	)
 
+	cmd.Flags().StringVar(
+		&params.rawConfig.LogFilePath,
+		logFileLocationFlag,
+		defaultConfig.LogFilePath,
+		"write all logs to the file at specified location instead of writing them to console",
+	)
+
 	setDevFlags(cmd)
 }
 
@@ -230,7 +237,7 @@ func setDevFlags(cmd *cobra.Command) {
 
 func runPreRun(cmd *cobra.Command, _ []string) error {
 	// Set the grpc and json ip:port bindings
-	// The config file will have presedence over --flag
+	// The config file will have precedence over --flag
 	params.setRawGRPCAddress(helper.GetGRPCAddress(cmd))
 	params.setRawJSONRPCAddress(helper.GetJSONRPCAddress(cmd))
 
