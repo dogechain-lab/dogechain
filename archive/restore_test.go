@@ -2,7 +2,6 @@ package archive
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -203,13 +202,6 @@ func Test_parseBlock(t *testing.T) {
 			blockstream: newBlockStream(bytes.NewBuffer(blocks[0].MarshalRLP())),
 			block:       blocks[0],
 			err:         nil,
-		},
-		{
-			name:        "should return error",
-			blockstream: newBlockStream(bytes.NewBuffer((&Metadata{}).MarshalRLP())),
-			block:       nil,
-			// should fail by wrong format
-			err: errors.New("incorrect number of elements to decode block, expected 3 but found 2"),
 		},
 	}
 
