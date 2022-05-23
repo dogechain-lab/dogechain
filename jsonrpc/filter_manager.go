@@ -275,6 +275,7 @@ func (f *FilterManager) Run() {
 
 	var timeoutCh <-chan time.Time
 
+OUT_LOOP:
 	for {
 		// check for the next filter to be removed
 		filterBase := f.nextTimeoutFilter()
@@ -293,6 +294,13 @@ func (f *FilterManager) Run() {
 
 		case <-timeoutCh:
 			// timeout for filter
+			// might be nil
+			if filterBase == nil {
+				f.logger.Warn("timeout filterBase is nil")
+
+				continue OUT_LOOP
+			}
+
 			if !f.Uninstall(filterBase.id) {
 				f.logger.Error("failed to uninstall filter", "id", filterBase.id)
 			}
