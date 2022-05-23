@@ -3,7 +3,7 @@ module github.com/dogechain-lab/jury
 go 1.16
 
 require (
-	github.com/btcsuite/btcd v0.22.0-beta
+	github.com/btcsuite/btcd v0.22.1
 	github.com/containerd/cgroups v1.0.2 // indirect
 	//github.com/umbracle/fastrlp v0.0.0-20220529195328-c1416904ae17
 	github.com/dogechain-lab/fastrlp v0.0.0-20220523073019-b0c60fc6bb7a
