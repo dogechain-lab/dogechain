@@ -4,12 +4,12 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 
+	"github.com/dogechain-lab/fastrlp"
 	"github.com/dogechain-lab/jury/consensus/ibft/proto"
 	"github.com/dogechain-lab/jury/crypto"
 	"github.com/dogechain-lab/jury/helper/hex"
 	"github.com/dogechain-lab/jury/helper/keccak"
 	"github.com/dogechain-lab/jury/types"
-	"github.com/umbracle/fastrlp"
 )
 
 func commitMsg(b []byte) []byte {

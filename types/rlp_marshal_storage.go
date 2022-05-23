@@ -1,6 +1,6 @@
 package types
 
-import "github.com/umbracle/fastrlp"
+import "github.com/dogechain-lab/fastrlp"
 
 type RLPStoreMarshaler interface {
 	MarshalStoreRLPTo(dst []byte) []byte

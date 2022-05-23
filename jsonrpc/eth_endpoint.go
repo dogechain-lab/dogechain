@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/dogechain-lab/fastrlp"
 	"github.com/dogechain-lab/jury/chain"
 	"github.com/dogechain-lab/jury/helper/hex"
 	"github.com/dogechain-lab/jury/helper/progress"
@@ -12,7 +13,6 @@ import (
 	"github.com/dogechain-lab/jury/state/runtime"
 	"github.com/dogechain-lab/jury/types"
 	"github.com/hashicorp/go-hclog"
-	"github.com/umbracle/fastrlp"
 )
 
 const (

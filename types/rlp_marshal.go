@@ -1,7 +1,7 @@
 package types
 
 import (
-	"github.com/umbracle/fastrlp"
+	"github.com/dogechain-lab/fastrlp"
 )
 
 type RLPMarshaler interface {

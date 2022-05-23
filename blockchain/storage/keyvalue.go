@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/dogechain-lab/fastrlp"
 	"github.com/dogechain-lab/jury/types"
 	"github.com/hashicorp/go-hclog"
-	"github.com/umbracle/fastrlp"
 )
 
 // Prefixes for the key-value store

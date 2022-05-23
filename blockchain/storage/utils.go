@@ -1,8 +1,8 @@
 package storage
 
 import (
+	"github.com/dogechain-lab/fastrlp"
 	"github.com/dogechain-lab/jury/types"
-	"github.com/umbracle/fastrlp"
 )
 
 type Forks []types.Hash

@@ -3,11 +3,11 @@ package itrie
 import (
 	"fmt"
 
+	"github.com/dogechain-lab/fastrlp"
 	"github.com/dogechain-lab/jury/helper/hex"
 	"github.com/dogechain-lab/jury/types"
 	"github.com/hashicorp/go-hclog"
 	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/umbracle/fastrlp"
 )
 
 var parserPool fastrlp.ParserPool

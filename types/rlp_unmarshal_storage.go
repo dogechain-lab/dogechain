@@ -3,7 +3,7 @@ package types
 import (
 	"fmt"
 
-	"github.com/umbracle/fastrlp"
+	"github.com/dogechain-lab/fastrlp"
 )
 
 type RLPStoreUnmarshaler interface {

@@ -9,7 +9,7 @@ import (
 	"github.com/dogechain-lab/jury/chain"
 	"github.com/dogechain-lab/jury/helper/keccak"
 	"github.com/dogechain-lab/jury/types"
-	"github.com/umbracle/fastrlp"
+	"github.com/dogechain-lab/fastrlp"
 )
 
 // TxSigner is a utility interface used to recover data from a transaction

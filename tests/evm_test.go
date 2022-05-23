@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/dogechain-lab/fastrlp"
 	"github.com/dogechain-lab/jury/chain"
 	"github.com/dogechain-lab/jury/crypto"
 	"github.com/dogechain-lab/jury/helper/hex"
@@ -16,7 +17,6 @@ import (
 	"github.com/dogechain-lab/jury/state/runtime/evm"
 	"github.com/dogechain-lab/jury/types"
 	"github.com/hashicorp/go-hclog"
-	"github.com/umbracle/fastrlp"
 )
 
 var mainnetChainConfig = chain.Params{

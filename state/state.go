@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/dogechain-lab/fastrlp"
 	iradix "github.com/hashicorp/go-immutable-radix"
-	"github.com/umbracle/fastrlp"
 
 	"github.com/dogechain-lab/jury/crypto"
 	"github.com/dogechain-lab/jury/types"

@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"fmt"
 
+	"github.com/dogechain-lab/fastrlp"
 	"github.com/dogechain-lab/jury/state"
 	"github.com/dogechain-lab/jury/types"
-	"github.com/umbracle/fastrlp"
 	"golang.org/x/crypto/sha3"
 )
 

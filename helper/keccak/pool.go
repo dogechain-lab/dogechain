@@ -3,7 +3,7 @@ package keccak
 import (
 	"sync"
 
-	"github.com/umbracle/fastrlp"
+	"github.com/dogechain-lab/fastrlp"
 )
 
 // DefaultKeccakPool is a default pool

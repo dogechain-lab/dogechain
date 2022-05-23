@@ -17,7 +17,7 @@ import (
 	"github.com/dogechain-lab/jury/types"
 	"golang.org/x/crypto/sha3"
 
-	"github.com/umbracle/fastrlp"
+	"github.com/dogechain-lab/fastrlp"
 )
 
 var (
