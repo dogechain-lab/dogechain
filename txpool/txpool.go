@@ -28,7 +28,7 @@ var (
 	ErrIntrinsicGas        = errors.New("intrinsic gas too low")
 	ErrBlockLimitExceeded  = errors.New("exceeds block gas limit")
 	ErrNegativeValue       = errors.New("negative value")
-	ErrNonEncryptedTx      = errors.New("non-encrypted transaction")
+	ErrExtractSignature    = errors.New("cannot extract signature")
 	ErrInvalidSender       = errors.New("invalid sender")
 	ErrTxPoolOverflow      = errors.New("txpool is full")
 	ErrUnderpriced         = errors.New("transaction underpriced")
@@ -511,7 +511,7 @@ func (p *TxPool) validateTx(tx *types.Transaction) error {
 	// Extract the sender
 	from, signerErr := p.signer.Sender(tx)
 	if signerErr != nil {
-		return ErrInvalidSender
+		return ErrExtractSignature
 	}
 
 	// If the from field is set, check that
