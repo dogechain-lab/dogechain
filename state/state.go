@@ -64,8 +64,9 @@ func (a *Account) UnmarshalRlp(b []byte) error {
 		return err
 	}
 
-	if len(elems) != 4 {
-		return fmt.Errorf("bad")
+	if len(elems) < 4 {
+		return fmt.Errorf("incorrect number of elements to decode account, expected at least 4 but found %d",
+			len(elems))
 	}
 
 	// nonce
