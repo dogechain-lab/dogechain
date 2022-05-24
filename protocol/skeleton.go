@@ -134,7 +134,6 @@ func (s *skeleton) addSkeleton(headers []*types.Header) error {
 		slot := &slot{
 			hash:   header.Hash,
 			number: header.Number,
-			blocks: make([]*types.Block, diff),
 		}
 		s.slots[indx] = slot
 	}
