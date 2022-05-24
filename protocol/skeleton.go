@@ -56,7 +56,11 @@ func (s *skeleton) build(clt proto.V1Client, ancestor types.Hash) error {
 	if err != nil {
 		return err
 	}
-	s.addSkeleton(headers) // nolint
+
+	err = s.addSkeleton(headers)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
