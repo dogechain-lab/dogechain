@@ -142,8 +142,15 @@ func (p *serverParams) setRawJSONRPCAddress(jsonRPCAddress string) {
 }
 
 func (p *serverParams) generateConfig() *server.Config {
+	chainCfg := p.genesisConfig
+
+	// Replace block gas limit
+	if p.blockGasTarget > 0 {
+		chainCfg.Params.BlockGasTarget = p.blockGasTarget
+	}
+
 	return &server.Config{
-		Chain: p.genesisConfig,
+		Chain: chainCfg,
 		JSONRPC: &server.JSONRPC{
 			JSONRPCAddr:              p.jsonRPCAddress,
 			AccessControlAllowOrigin: p.corsAllowedOrigins,
