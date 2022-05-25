@@ -386,11 +386,10 @@ func (p *TxPool) Drop(tx *types.Transaction) {
 	)
 }
 
-// Drop clears the entire account associated with the given transaction
-// and reverts its next (expected) nonce.
-func (p *TxPool) DropTransactions(txs []*types.Transaction) {
+// DemoteTransactions would Demote all the transaction account.
+func (p *TxPool) DemoteTransactions(txs []*types.Transaction) {
 	for _, tx := range txs {
-		p.Drop(tx)
+		p.Demote(tx)
 	}
 }
 
@@ -635,7 +634,7 @@ func (p *TxPool) addTx(origin txOrigin, tx *types.Transaction) error {
 
 		p.logger.Debug("overflow transactions need to be dropped", "len", len(needDropTxs))
 
-		p.DropTransactions(needDropTxs)
+		p.DemoteTransactions(needDropTxs)
 	}
 
 	tx.ComputeHash()
