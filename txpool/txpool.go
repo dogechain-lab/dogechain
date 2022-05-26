@@ -595,46 +595,28 @@ func (p *TxPool) addTx(origin txOrigin, tx *types.Transaction) error {
 	if p.gauge.read()+slotsRequired(tx) > p.gauge.max {
 		// if it is not from local, just reject it when pool overflow.
 		if origin == gossip {
+			p.logger.Debug("txpool overflow, would not accept gossip tx now")
+
 			return ErrTxPoolOverflow
 		}
 
-		// Remove all future transactions to give more space
-		allPromoted, allEnqueued := p.accounts.allTxs(true)
+		// Demote and drop future transactions to give more space
+		needDemoteTxs := p.getDemoteTransactions()
+		if len(needDemoteTxs) == 0 {
+			p.logger.Debug("txpool overflow but no future transactions for space")
 
-		// maximum capacity
-		needDropTxs := make([]*types.Transaction, 0, len(allEnqueued)-len(allPromoted))
-
-		for accountAddress, enqueuedTxs := range allEnqueued {
-			promotedTxs, ok := allPromoted[accountAddress]
-
-			if !ok || len(promotedTxs) == 0 {
-				// all enqueued txs are future transactions, drop it
-				needDropTxs = append(needDropTxs, enqueuedTxs...)
-
-				continue
-			}
-
-			for _, enqueuedTx := range enqueuedTxs {
-				promotedTxLen := len(promotedTxs)
-
-				if enqueuedTx.Nonce < promotedTxs[0].Nonce {
-					// remove too old tx
-					needDropTxs = append(needDropTxs, enqueuedTx)
-				} else if enqueuedTx.Nonce > promotedTxs[promotedTxLen-1].Nonce {
-					// remove future tx
-					needDropTxs = append(needDropTxs, enqueuedTx)
-				}
-			}
-		}
-
-		// could not add tx, for there is no future transaction
-		if len(needDropTxs) == 0 {
 			return ErrTxPoolOverflow
 		}
 
-		p.logger.Debug("overflow transactions need to be dropped", "len", len(needDropTxs))
+		p.logger.Debug("demote future transactions when overflow", "len", len(needDemoteTxs))
 
-		p.DemoteTransactions(needDropTxs)
+		p.DemoteTransactions(needDemoteTxs)
+
+		if p.gauge.read()+slotsRequired(tx) > p.gauge.max {
+			p.logger.Debug("txpool slot still not enough after demote transactions", "len", len(needDemoteTxs))
+
+			return ErrTxPoolOverflow
+		}
 	}
 
 	tx.ComputeHash()
@@ -665,6 +647,38 @@ func (p *TxPool) addTx(origin txOrigin, tx *types.Transaction) error {
 	p.eventManager.signalEvent(proto.EventType_ADDED, tx.Hash)
 
 	return nil
+}
+
+func (p *TxPool) getDemoteTransactions() []*types.Transaction {
+	allPromoted, allEnqueued := p.accounts.allTxs(true)
+
+	// maximum capacity
+	needDemoteTxs := make([]*types.Transaction, 0, len(allEnqueued)-len(allPromoted))
+
+	for accountAddress, enqueuedTxs := range allEnqueued {
+		promotedTxs, ok := allPromoted[accountAddress]
+
+		if !ok || len(promotedTxs) == 0 {
+			// all enqueued txs are future transactions, demote them
+			needDemoteTxs = append(needDemoteTxs, enqueuedTxs...)
+
+			continue
+		}
+
+		for _, enqueuedTx := range enqueuedTxs {
+			promotedTxLen := len(promotedTxs)
+
+			if enqueuedTx.Nonce < promotedTxs[0].Nonce {
+				// remove too old tx
+				needDemoteTxs = append(needDemoteTxs, enqueuedTx)
+			} else if enqueuedTx.Nonce > promotedTxs[promotedTxLen-1].Nonce {
+				// remove future tx
+				needDemoteTxs = append(needDemoteTxs, enqueuedTx)
+			}
+		}
+	}
+
+	return needDemoteTxs
 }
 
 // handleEnqueueRequest attempts to enqueue the transaction
