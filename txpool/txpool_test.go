@@ -2141,3 +2141,76 @@ func TestGetTxs(t *testing.T) {
 		})
 	}
 }
+
+func TestAddTx_OverflowRecoverable(t *testing.T) {
+	poolSigner := crypto.NewEIP155Signer(100)
+
+	// Generate a private key and address
+	defaultKey, defaultAddr := tests.GenerateKeyAndAddr(t)
+
+	setupPool := func() *TxPool {
+		pool, err := newTestPool()
+		if err != nil {
+			t.Fatalf("cannot create txpool - err: %v\n", err)
+		}
+
+		pool.SetSigner(poolSigner)
+
+		return pool
+	}
+
+	newSignedTx := func(nonce, slots uint64) *types.Transaction {
+		tx := newTx(defaultAddr, nonce, 1)
+
+		signedTx, signErr := poolSigner.SignTx(tx, defaultKey)
+		if signErr != nil {
+			t.Fatalf("Unable to sign transaction, %v", signErr)
+		}
+
+		return signedTx
+	}
+
+	t.Run("TxPool Overflow recoverable", func(t *testing.T) {
+		pool := setupPool()
+
+		pool.Start()
+		defer pool.Close()
+
+		// reduce the demotion limit for faster trigging
+		pool.maxAccountDemotions = 2
+		// fill the pool, leaving only the last slot
+		pool.gauge.increase(defaultMaxSlots - 1)
+
+		futureTx1 := newSignedTx(100, 1)
+		futureTx2 := newSignedTx(101, 1)
+		futureTx3 := newSignedTx(102, 1)
+		futureTx4 := newSignedTx(103, 1)
+
+		subscription := pool.eventManager.subscribe([]proto.EventType{proto.EventType_ENQUEUED})
+
+		ctx, cancelFunc := context.WithTimeout(context.Background(), time.Second*10)
+		defer cancelFunc()
+
+		// 1st time, no error
+		assert.NoError(t, pool.addTx(local, futureTx1))
+		// expectTxs(pool, 0, 1)
+
+		// 2nd time, overflow
+		assert.ErrorIs(t, pool.addTx(local, futureTx2), ErrTxPoolOverflow)
+
+		// 3rd time, overflow
+		assert.ErrorIs(t, pool.addTx(local, futureTx3), ErrTxPoolOverflow)
+
+		// 4th, recover
+		assert.NoError(t, pool.addTx(local, futureTx4))
+		// wait a little bit for the tx to be enqueued
+		waitForEvents(ctx, subscription, 2)
+
+		// only the newer transaction exists
+		_, enqueuedTxs := pool.GetTxs(true)
+		queue, ok := enqueuedTxs[defaultAddr]
+		assert.True(t, ok)
+		assert.Equal(t, 1, len(queue))
+		assert.Equal(t, futureTx4, queue[0])
+	})
+}
