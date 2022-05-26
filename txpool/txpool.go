@@ -592,7 +592,7 @@ func (p *TxPool) addTx(origin txOrigin, tx *types.Transaction) error {
 	}
 
 	// check for overflow
-	if p.gauge.read()+slotsRequired(tx) > p.gauge.max {
+	if !p.slotEnough(tx) {
 		// if it is not from local, just reject it when pool overflow.
 		if origin == gossip {
 			p.logger.Debug("txpool overflow, would not accept gossip tx now")
@@ -612,7 +612,7 @@ func (p *TxPool) addTx(origin txOrigin, tx *types.Transaction) error {
 
 		p.DemoteTransactions(needDemoteTxs)
 
-		if p.gauge.read()+slotsRequired(tx) > p.gauge.max {
+		if !p.slotEnough(tx) {
 			p.logger.Debug("txpool slot still not enough after demote transactions", "len", len(needDemoteTxs))
 
 			return ErrTxPoolOverflow
@@ -647,6 +647,10 @@ func (p *TxPool) addTx(origin txOrigin, tx *types.Transaction) error {
 	p.eventManager.signalEvent(proto.EventType_ADDED, tx.Hash)
 
 	return nil
+}
+
+func (p *TxPool) slotEnough(tx *types.Transaction) bool {
+	return p.gauge.read()+slotsRequired(tx) <= p.gauge.max
 }
 
 func (p *TxPool) getDemoteTransactions() []*types.Transaction {
