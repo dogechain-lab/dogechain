@@ -576,11 +576,13 @@ func (p *TxPool) validateTx(tx *types.Transaction) error {
 	return nil
 }
 
-// addTx is the main entry point to the pool
-// for all new transactions. If the call is
-// successful, an account is created for this address
+// addTx is the main entry point to the pool for all new transactions.
+//
+// If the call is successful, an account is created for this address
 // (only once) and an enqueueRequest is signaled.
 func (p *TxPool) addTx(origin txOrigin, tx *types.Transaction) error {
+	// The local tx might not have hash, but we would compute its hash only when we could
+	// add it to txpool. Early returns for not valid tx or txpool overflow.
 	p.logger.Debug("add tx",
 		"origin", origin.String(),
 		"hash", tx.Hash.String(),
