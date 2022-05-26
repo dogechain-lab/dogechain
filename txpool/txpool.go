@@ -593,13 +593,6 @@ func (p *TxPool) addTx(origin txOrigin, tx *types.Transaction) error {
 
 	// check for overflow
 	if !p.slotEnough(tx) {
-		// if it is not from local, just reject it when pool overflow.
-		if origin == gossip {
-			p.logger.Debug("txpool overflow, would not accept gossip tx now")
-
-			return ErrTxPoolOverflow
-		}
-
 		// Demote and drop future transactions to give more space
 		needDemoteTxs := p.getDemoteTransactions()
 		if len(needDemoteTxs) == 0 {
@@ -612,6 +605,7 @@ func (p *TxPool) addTx(origin txOrigin, tx *types.Transaction) error {
 
 		p.DemoteTransactions(needDemoteTxs)
 
+		// double check space
 		if !p.slotEnough(tx) {
 			p.logger.Debug("txpool slot still not enough after demote transactions", "len", len(needDemoteTxs))
 
