@@ -591,8 +591,10 @@ func (p *TxPool) addTx(origin txOrigin, tx *types.Transaction) error {
 		return err
 	}
 
+	txSlots := slotsRequired(tx)
+
 	// check for overflow
-	if !p.slotEnough(tx) {
+	if !p.slotEnough(txSlots) {
 		// Demote and drop future transactions to give more space
 		needDemoteTxs := p.getDemoteTransactions()
 		if len(needDemoteTxs) == 0 {
@@ -606,7 +608,7 @@ func (p *TxPool) addTx(origin txOrigin, tx *types.Transaction) error {
 		p.DemoteTransactions(needDemoteTxs)
 
 		// double check space
-		if !p.slotEnough(tx) {
+		if !p.slotEnough(txSlots) {
 			p.logger.Debug("txpool slot still not enough after demote transactions", "len", len(needDemoteTxs))
 
 			return ErrTxPoolOverflow
@@ -643,8 +645,8 @@ func (p *TxPool) addTx(origin txOrigin, tx *types.Transaction) error {
 	return nil
 }
 
-func (p *TxPool) slotEnough(tx *types.Transaction) bool {
-	return p.gauge.read()+slotsRequired(tx) <= p.gauge.max
+func (p *TxPool) slotEnough(txSlots uint64) bool {
+	return p.gauge.read()+txSlots <= p.gauge.max
 }
 
 func (p *TxPool) getDemoteTransactions() []*types.Transaction {
