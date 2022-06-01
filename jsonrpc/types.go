@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/dogechain-lab/jury/helper/hex"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/helper/hex"
+	"github.com/dogechain-lab/dogechain/types"
 )
 
 // For union type of transaction and types.Hash

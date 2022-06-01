@@ -1,6 +1,6 @@
 package systemcontracts
 
-import "github.com/dogechain-lab/jury/types"
+import "github.com/dogechain-lab/dogechain/types"
 
 var (
 	// ValidatorSet contract address

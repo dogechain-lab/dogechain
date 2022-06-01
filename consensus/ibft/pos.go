@@ -4,11 +4,11 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/dogechain-lab/jury/contracts/systemcontracts"
-	"github.com/dogechain-lab/jury/contracts/validatorset"
-	validatorsetHelper "github.com/dogechain-lab/jury/helper/validatorset"
-	"github.com/dogechain-lab/jury/state"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/contracts/systemcontracts"
+	"github.com/dogechain-lab/dogechain/contracts/validatorset"
+	validatorsetHelper "github.com/dogechain-lab/dogechain/helper/validatorset"
+	"github.com/dogechain-lab/dogechain/state"
+	"github.com/dogechain-lab/dogechain/types"
 )
 
 // PoSMechanism defines specific hooks for the Proof of Stake IBFT mechanism

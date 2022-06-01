@@ -5,7 +5,7 @@ import (
 
 	"math"
 
-	"github.com/dogechain-lab/jury/chain"
+	"github.com/dogechain-lab/dogechain/chain"
 )
 
 type modExp struct {

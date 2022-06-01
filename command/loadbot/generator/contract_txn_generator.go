@@ -5,7 +5,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/types"
 )
 
 type ContractTxnsGenerator struct {

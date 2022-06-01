@@ -4,10 +4,10 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/dogechain-lab/jury/chain"
-	"github.com/dogechain-lab/jury/crypto"
-	"github.com/dogechain-lab/jury/state/runtime"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/chain"
+	"github.com/dogechain-lab/dogechain/crypto"
+	"github.com/dogechain-lab/dogechain/state/runtime"
+	"github.com/dogechain-lab/dogechain/types"
 	"github.com/stretchr/testify/assert"
 )
 

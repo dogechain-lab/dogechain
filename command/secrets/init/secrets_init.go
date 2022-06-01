@@ -1,7 +1,7 @@
 package init
 
 import (
-	"github.com/dogechain-lab/jury/command"
+	"github.com/dogechain-lab/dogechain/command"
 	"github.com/spf13/cobra"
 )
 

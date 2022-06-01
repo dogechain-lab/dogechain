@@ -4,16 +4,16 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/dogechain-lab/jury/chain"
-	"github.com/dogechain-lab/jury/command"
-	"github.com/dogechain-lab/jury/command/helper"
-	"github.com/dogechain-lab/jury/consensus/ibft"
-	"github.com/dogechain-lab/jury/contracts/systemcontracts"
-	bridgeHelper "github.com/dogechain-lab/jury/helper/bridge"
-	validatorsetHelper "github.com/dogechain-lab/jury/helper/validatorset"
-	vaultHelper "github.com/dogechain-lab/jury/helper/vault"
-	"github.com/dogechain-lab/jury/server"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/chain"
+	"github.com/dogechain-lab/dogechain/command"
+	"github.com/dogechain-lab/dogechain/command/helper"
+	"github.com/dogechain-lab/dogechain/consensus/ibft"
+	"github.com/dogechain-lab/dogechain/contracts/systemcontracts"
+	bridgeHelper "github.com/dogechain-lab/dogechain/helper/bridge"
+	validatorsetHelper "github.com/dogechain-lab/dogechain/helper/validatorset"
+	vaultHelper "github.com/dogechain-lab/dogechain/helper/vault"
+	"github.com/dogechain-lab/dogechain/server"
+	"github.com/dogechain-lab/dogechain/types"
 )
 
 const (

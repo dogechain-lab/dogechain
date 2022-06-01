@@ -1,12 +1,12 @@
 package dummy
 
 import (
-	"github.com/dogechain-lab/jury/blockchain"
-	"github.com/dogechain-lab/jury/consensus"
-	"github.com/dogechain-lab/jury/helper/progress"
-	"github.com/dogechain-lab/jury/state"
-	"github.com/dogechain-lab/jury/txpool"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/blockchain"
+	"github.com/dogechain-lab/dogechain/consensus"
+	"github.com/dogechain-lab/dogechain/helper/progress"
+	"github.com/dogechain-lab/dogechain/state"
+	"github.com/dogechain-lab/dogechain/txpool"
+	"github.com/dogechain-lab/dogechain/types"
 	"github.com/hashicorp/go-hclog"
 )
 

@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/dogechain-lab/jury/command/helper"
-	ibftHelper "github.com/dogechain-lab/jury/command/ibft/helper"
-	ibftOp "github.com/dogechain-lab/jury/consensus/ibft/proto"
+	"github.com/dogechain-lab/dogechain/command/helper"
+	ibftHelper "github.com/dogechain-lab/dogechain/command/ibft/helper"
+	ibftOp "github.com/dogechain-lab/dogechain/consensus/ibft/proto"
 )
 
 type IBFTCandidate struct {

@@ -6,8 +6,8 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/dogechain-lab/jury/command"
-	"github.com/dogechain-lab/jury/network"
+	"github.com/dogechain-lab/dogechain/command"
+	"github.com/dogechain-lab/dogechain/network"
 
 	"github.com/hashicorp/hcl"
 )

@@ -6,10 +6,10 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 
-	"github.com/dogechain-lab/jury/chain"
-	"github.com/dogechain-lab/jury/network"
-	"github.com/dogechain-lab/jury/secrets"
-	"github.com/dogechain-lab/jury/server"
+	"github.com/dogechain-lab/dogechain/chain"
+	"github.com/dogechain-lab/dogechain/network"
+	"github.com/dogechain-lab/dogechain/secrets"
+	"github.com/dogechain-lab/dogechain/server"
 	"github.com/multiformats/go-multiaddr"
 )
 

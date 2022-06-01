@@ -3,7 +3,7 @@ package ibft
 import (
 	"testing"
 
-	"github.com/dogechain-lab/jury/consensus/ibft/proto"
+	"github.com/dogechain-lab/dogechain/consensus/ibft/proto"
 	"github.com/stretchr/testify/assert"
 )
 

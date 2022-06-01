@@ -3,7 +3,7 @@ package txpool
 import (
 	"sync"
 
-	"github.com/dogechain-lab/jury/txpool/proto"
+	"github.com/dogechain-lab/dogechain/txpool/proto"
 )
 
 type eventQueue struct {

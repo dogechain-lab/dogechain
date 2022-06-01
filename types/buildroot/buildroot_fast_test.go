@@ -6,7 +6,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/dogechain-lab/jury/helper/keccak"
+	"github.com/dogechain-lab/dogechain/helper/keccak"
 )
 
 func BenchmarkFast(b *testing.B) {

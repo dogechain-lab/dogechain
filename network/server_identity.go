@@ -1,11 +1,11 @@
 package network
 
 import (
-	"github.com/dogechain-lab/jury/network/common"
-	peerEvent "github.com/dogechain-lab/jury/network/event"
-	"github.com/dogechain-lab/jury/network/grpc"
-	"github.com/dogechain-lab/jury/network/identity"
-	"github.com/dogechain-lab/jury/network/proto"
+	"github.com/dogechain-lab/dogechain/network/common"
+	peerEvent "github.com/dogechain-lab/dogechain/network/event"
+	"github.com/dogechain-lab/dogechain/network/grpc"
+	"github.com/dogechain-lab/dogechain/network/identity"
+	"github.com/dogechain-lab/dogechain/network/proto"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	rawGrpc "google.golang.org/grpc"

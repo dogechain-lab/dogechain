@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/dogechain-lab/jury/command"
-	"github.com/dogechain-lab/jury/helper/common"
+	"github.com/dogechain-lab/dogechain/command"
+	"github.com/dogechain-lab/dogechain/helper/common"
 	"github.com/spf13/cobra"
 
-	"github.com/dogechain-lab/jury/command/helper"
-	"github.com/dogechain-lab/jury/server/proto"
+	"github.com/dogechain-lab/dogechain/command/helper"
+	"github.com/dogechain-lab/dogechain/server/proto"
 	empty "google.golang.org/protobuf/types/known/emptypb"
 )
 

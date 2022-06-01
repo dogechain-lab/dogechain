@@ -3,7 +3,7 @@ package memory
 import (
 	"testing"
 
-	"github.com/dogechain-lab/jury/blockchain/storage"
+	"github.com/dogechain-lab/dogechain/blockchain/storage"
 )
 
 func TestStorage(t *testing.T) {

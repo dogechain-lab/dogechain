@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dogechain-lab/jury/e2e/framework"
-	"github.com/dogechain-lab/jury/jsonrpc"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/e2e/framework"
+	"github.com/dogechain-lab/dogechain/jsonrpc"
+	"github.com/dogechain-lab/dogechain/types"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 )

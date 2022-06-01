@@ -6,9 +6,9 @@ import (
 	"math"
 	"sort"
 
-	"github.com/dogechain-lab/jury/command/helper"
-	"github.com/dogechain-lab/jury/command/loadbot/generator"
-	"github.com/dogechain-lab/jury/helper/common"
+	"github.com/dogechain-lab/dogechain/command/helper"
+	"github.com/dogechain-lab/dogechain/command/loadbot/generator"
+	"github.com/dogechain-lab/dogechain/helper/common"
 	"github.com/umbracle/go-web3"
 )
 

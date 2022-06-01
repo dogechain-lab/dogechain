@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dogechain-lab/jury/consensus/ibft"
-	"github.com/dogechain-lab/jury/e2e/framework"
-	"github.com/dogechain-lab/jury/helper/tests"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/consensus/ibft"
+	"github.com/dogechain-lab/dogechain/e2e/framework"
+	"github.com/dogechain-lab/dogechain/helper/tests"
+	"github.com/dogechain-lab/dogechain/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/umbracle/go-web3"
 )

@@ -3,8 +3,8 @@ package evm
 import (
 	"errors"
 
-	"github.com/dogechain-lab/jury/chain"
-	"github.com/dogechain-lab/jury/state/runtime"
+	"github.com/dogechain-lab/dogechain/chain"
+	"github.com/dogechain-lab/dogechain/state/runtime"
 )
 
 var _ runtime.Runtime = &EVM{}

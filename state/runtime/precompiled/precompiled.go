@@ -3,9 +3,9 @@ package precompiled
 import (
 	"encoding/binary"
 
-	"github.com/dogechain-lab/jury/chain"
-	"github.com/dogechain-lab/jury/state/runtime"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/chain"
+	"github.com/dogechain-lab/dogechain/state/runtime"
+	"github.com/dogechain-lab/dogechain/types"
 )
 
 var _ runtime.Runtime = &Precompiled{}

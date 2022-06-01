@@ -5,9 +5,9 @@ import (
 	"math/big"
 	"path/filepath"
 
-	"github.com/dogechain-lab/jury/consensus/ibft"
-	"github.com/dogechain-lab/jury/crypto"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/consensus/ibft"
+	"github.com/dogechain-lab/dogechain/crypto"
+	"github.com/dogechain-lab/dogechain/types"
 )
 
 type ConsensusType int

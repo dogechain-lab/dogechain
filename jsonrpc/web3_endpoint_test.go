@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/dogechain-lab/jury/versioning"
+	"github.com/dogechain-lab/dogechain/versioning"
 	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/assert"
 )

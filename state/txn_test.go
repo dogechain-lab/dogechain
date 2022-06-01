@@ -7,9 +7,9 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/dogechain-lab/dogechain/helper/hex"
+	"github.com/dogechain-lab/dogechain/types"
 	"github.com/dogechain-lab/fastrlp"
-	"github.com/dogechain-lab/jury/helper/hex"
-	"github.com/dogechain-lab/jury/types"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/sha3"
 )

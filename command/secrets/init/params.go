@@ -4,10 +4,10 @@ import (
 	"crypto/ecdsa"
 	"errors"
 
-	"github.com/dogechain-lab/jury/command"
-	"github.com/dogechain-lab/jury/crypto"
-	"github.com/dogechain-lab/jury/secrets"
-	"github.com/dogechain-lab/jury/secrets/helper"
+	"github.com/dogechain-lab/dogechain/command"
+	"github.com/dogechain-lab/dogechain/crypto"
+	"github.com/dogechain-lab/dogechain/secrets"
+	"github.com/dogechain-lab/dogechain/secrets/helper"
 	libp2pCrypto "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 )

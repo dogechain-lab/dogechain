@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 
-	"github.com/dogechain-lab/jury/command"
-	"github.com/dogechain-lab/jury/command/helper"
-	"github.com/dogechain-lab/jury/server/proto"
+	"github.com/dogechain-lab/dogechain/command"
+	"github.com/dogechain-lab/dogechain/command/helper"
+	"github.com/dogechain-lab/dogechain/server/proto"
 )
 
 var (

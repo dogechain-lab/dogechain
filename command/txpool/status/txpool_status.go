@@ -3,11 +3,11 @@ package status
 import (
 	"context"
 
-	"github.com/dogechain-lab/jury/command"
-	"github.com/dogechain-lab/jury/command/helper"
+	"github.com/dogechain-lab/dogechain/command"
+	"github.com/dogechain-lab/dogechain/command/helper"
 	"github.com/spf13/cobra"
 
-	txpoolOp "github.com/dogechain-lab/jury/txpool/proto"
+	txpoolOp "github.com/dogechain-lab/dogechain/txpool/proto"
 	empty "google.golang.org/protobuf/types/known/emptypb"
 )
 

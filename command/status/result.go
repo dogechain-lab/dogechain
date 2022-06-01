@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/dogechain-lab/jury/command/helper"
+	"github.com/dogechain-lab/dogechain/command/helper"
 )
 
 type StatusResult struct {

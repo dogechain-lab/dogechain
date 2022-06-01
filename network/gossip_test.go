@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	testproto "github.com/dogechain-lab/jury/network/proto"
+	testproto "github.com/dogechain-lab/dogechain/network/proto"
 )
 
 func NumSubscribers(srv *Server, topic string) int {

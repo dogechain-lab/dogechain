@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/dogechain-lab/jury/crypto"
+	"github.com/dogechain-lab/dogechain/crypto"
 )
 
 // call ERC20 contract method and encode parameters

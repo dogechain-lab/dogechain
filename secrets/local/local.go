@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/dogechain-lab/jury/helper/common"
-	"github.com/dogechain-lab/jury/secrets"
+	"github.com/dogechain-lab/dogechain/helper/common"
+	"github.com/dogechain-lab/dogechain/secrets"
 	"github.com/hashicorp/go-hclog"
 )
 

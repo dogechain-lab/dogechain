@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/types"
 )
 
 // LogQuery is a query to filter	 logs

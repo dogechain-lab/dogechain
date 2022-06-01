@@ -11,7 +11,7 @@
 # go get github.com/google/go-licenses
 
 # Constants
-PACKAGE="github.com/dogechain-lab/jury"
+PACKAGE="github.com/dogechain-lab/dogechain"
 
 # Arguments
 licenses=( `echo $1 | tr -s ',' ' '`)

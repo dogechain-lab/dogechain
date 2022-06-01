@@ -5,13 +5,13 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/dogechain-lab/jury/chain"
-	"github.com/dogechain-lab/jury/state"
-	itrie "github.com/dogechain-lab/jury/state/immutable-trie"
+	"github.com/dogechain-lab/dogechain/chain"
+	"github.com/dogechain-lab/dogechain/state"
+	itrie "github.com/dogechain-lab/dogechain/state/immutable-trie"
 	"github.com/hashicorp/go-hclog"
 
-	"github.com/dogechain-lab/jury/types"
-	"github.com/dogechain-lab/jury/types/buildroot"
+	"github.com/dogechain-lab/dogechain/types"
+	"github.com/dogechain-lab/dogechain/types/buildroot"
 )
 
 var (

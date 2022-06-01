@@ -1,7 +1,7 @@
 package proto
 
 import (
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/types"
 	"google.golang.org/protobuf/proto"
 )
 

@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/dogechain-lab/dogechain/types"
 	"github.com/dogechain-lab/fastrlp"
-	"github.com/dogechain-lab/jury/types"
 	"github.com/hashicorp/go-hclog"
 )
 

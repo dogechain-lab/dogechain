@@ -5,8 +5,8 @@ import (
 	"math/big"
 	"sync/atomic"
 
-	"github.com/dogechain-lab/jury/crypto"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/crypto"
+	"github.com/dogechain-lab/dogechain/types"
 )
 
 type TransferGenerator struct {

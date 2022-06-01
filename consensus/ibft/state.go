@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	"github.com/dogechain-lab/jury/consensus/ibft/proto"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/consensus/ibft/proto"
+	"github.com/dogechain-lab/dogechain/types"
 )
 
 type IbftState uint32

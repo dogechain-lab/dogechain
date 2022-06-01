@@ -3,10 +3,10 @@ package backup
 import (
 	"errors"
 
-	"github.com/dogechain-lab/jury/archive"
-	"github.com/dogechain-lab/jury/command"
-	"github.com/dogechain-lab/jury/command/helper"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/archive"
+	"github.com/dogechain-lab/dogechain/command"
+	"github.com/dogechain-lab/dogechain/command/helper"
+	"github.com/dogechain-lab/dogechain/types"
 	"github.com/hashicorp/go-hclog"
 )
 

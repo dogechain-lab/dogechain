@@ -1,7 +1,7 @@
 package txpool
 
 import (
-	"github.com/dogechain-lab/jury/txpool/proto"
+	"github.com/dogechain-lab/dogechain/txpool/proto"
 )
 
 type subscriptionID int32

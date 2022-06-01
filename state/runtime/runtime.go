@@ -4,8 +4,8 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/dogechain-lab/jury/chain"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/chain"
+	"github.com/dogechain-lab/dogechain/types"
 )
 
 // TxContext is the context of the transaction

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/types"
 )
 
 // txPoolStore provides access to the methods needed for txpool endpoint

@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/dogechain-lab/jury/command/helper"
-	txpoolProto "github.com/dogechain-lab/jury/txpool/proto"
+	"github.com/dogechain-lab/dogechain/command/helper"
+	txpoolProto "github.com/dogechain-lab/dogechain/txpool/proto"
 )
 
 type TxPoolEventResult struct {

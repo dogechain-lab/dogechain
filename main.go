@@ -3,8 +3,8 @@ package main
 import (
 	_ "embed"
 
-	"github.com/dogechain-lab/jury/command/root"
-	"github.com/dogechain-lab/jury/licenses"
+	"github.com/dogechain-lab/dogechain/command/root"
+	"github.com/dogechain-lab/dogechain/licenses"
 )
 
 var (

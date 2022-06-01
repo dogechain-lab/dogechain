@@ -4,7 +4,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/dogechain-lab/jury/helper/tests"
+	"github.com/dogechain-lab/dogechain/helper/tests"
 
 	"github.com/hashicorp/go-hclog"
 )

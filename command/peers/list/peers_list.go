@@ -3,9 +3,9 @@ package list
 import (
 	"context"
 
-	"github.com/dogechain-lab/jury/command"
-	"github.com/dogechain-lab/jury/command/helper"
-	"github.com/dogechain-lab/jury/server/proto"
+	"github.com/dogechain-lab/dogechain/command"
+	"github.com/dogechain-lab/dogechain/command/helper"
+	"github.com/dogechain-lab/dogechain/server/proto"
 	"github.com/spf13/cobra"
 	empty "google.golang.org/protobuf/types/known/emptypb"
 )

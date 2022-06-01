@@ -7,11 +7,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/dogechain-lab/jury/chain"
-	"github.com/dogechain-lab/jury/command"
-	"github.com/dogechain-lab/jury/consensus/ibft"
-	"github.com/dogechain-lab/jury/crypto"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/chain"
+	"github.com/dogechain-lab/dogechain/command"
+	"github.com/dogechain-lab/dogechain/consensus/ibft"
+	"github.com/dogechain-lab/dogechain/crypto"
+	"github.com/dogechain-lab/dogechain/types"
 )
 
 const (

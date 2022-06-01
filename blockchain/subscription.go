@@ -4,7 +4,7 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/types"
 )
 
 type void struct{}

@@ -3,8 +3,8 @@ package loadbot
 import (
 	"fmt"
 
-	"github.com/dogechain-lab/jury/command"
-	"github.com/dogechain-lab/jury/command/helper"
+	"github.com/dogechain-lab/dogechain/command"
+	"github.com/dogechain-lab/dogechain/command/helper"
 	"github.com/spf13/cobra"
 )
 

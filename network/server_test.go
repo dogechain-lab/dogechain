@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dogechain-lab/jury/network/common"
-	peerEvent "github.com/dogechain-lab/jury/network/event"
+	"github.com/dogechain-lab/dogechain/network/common"
+	peerEvent "github.com/dogechain-lab/dogechain/network/event"
 
-	"github.com/dogechain-lab/jury/helper/tests"
+	"github.com/dogechain-lab/dogechain/helper/tests"
 
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/network"

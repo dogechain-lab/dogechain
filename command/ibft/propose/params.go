@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 
-	"github.com/dogechain-lab/jury/command"
-	"github.com/dogechain-lab/jury/command/helper"
-	ibftOp "github.com/dogechain-lab/jury/consensus/ibft/proto"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/command"
+	"github.com/dogechain-lab/dogechain/command/helper"
+	ibftOp "github.com/dogechain-lab/dogechain/consensus/ibft/proto"
+	"github.com/dogechain-lab/dogechain/types"
 )
 
 const (

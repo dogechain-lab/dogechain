@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dogechain-lab/jury/e2e/framework"
+	"github.com/dogechain-lab/dogechain/e2e/framework"
 )
 
 func TestClusterBlockSync(t *testing.T) {

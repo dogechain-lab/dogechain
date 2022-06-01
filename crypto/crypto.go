@@ -11,10 +11,10 @@ import (
 	"math/big"
 
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/dogechain-lab/jury/helper/hex"
-	"github.com/dogechain-lab/jury/helper/keystore"
-	"github.com/dogechain-lab/jury/secrets"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/helper/hex"
+	"github.com/dogechain-lab/dogechain/helper/keystore"
+	"github.com/dogechain-lab/dogechain/secrets"
+	"github.com/dogechain-lab/dogechain/types"
 	"golang.org/x/crypto/sha3"
 
 	"github.com/dogechain-lab/fastrlp"

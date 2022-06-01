@@ -1,4 +1,4 @@
-module github.com/dogechain-lab/jury
+module github.com/dogechain-lab/dogechain
 
 go 1.16
 

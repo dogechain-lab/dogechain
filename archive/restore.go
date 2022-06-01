@@ -7,10 +7,10 @@ import (
 	"math/big"
 	"os"
 
-	"github.com/dogechain-lab/jury/blockchain"
-	"github.com/dogechain-lab/jury/helper/common"
-	"github.com/dogechain-lab/jury/helper/progress"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/blockchain"
+	"github.com/dogechain-lab/dogechain/helper/common"
+	"github.com/dogechain-lab/dogechain/helper/progress"
+	"github.com/dogechain-lab/dogechain/types"
 )
 
 type blockchainInterface interface {

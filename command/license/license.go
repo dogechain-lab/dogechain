@@ -1,10 +1,10 @@
 package license
 
 import (
-	"github.com/dogechain-lab/jury/command"
+	"github.com/dogechain-lab/dogechain/command"
 	"github.com/spf13/cobra"
 
-	"github.com/dogechain-lab/jury/licenses"
+	"github.com/dogechain-lab/dogechain/licenses"
 )
 
 func GetCommand() *cobra.Command {

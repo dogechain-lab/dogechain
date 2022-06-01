@@ -6,8 +6,8 @@ import (
 
 	lru "github.com/hashicorp/golang-lru"
 
-	"github.com/dogechain-lab/jury/state"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/state"
+	"github.com/dogechain-lab/dogechain/types"
 )
 
 type State struct {

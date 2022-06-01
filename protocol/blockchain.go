@@ -3,8 +3,8 @@ package protocol
 import (
 	"math/big"
 
-	"github.com/dogechain-lab/jury/blockchain"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/blockchain"
+	"github.com/dogechain-lab/dogechain/types"
 )
 
 // Blockchain is the interface required by the syncer to connect to the blockchain

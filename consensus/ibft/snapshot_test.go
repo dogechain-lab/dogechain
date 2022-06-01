@@ -7,12 +7,12 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/dogechain-lab/jury/blockchain"
-	"github.com/dogechain-lab/jury/chain"
-	"github.com/dogechain-lab/jury/consensus"
-	"github.com/dogechain-lab/jury/crypto"
-	"github.com/dogechain-lab/jury/helper/common"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/blockchain"
+	"github.com/dogechain-lab/dogechain/chain"
+	"github.com/dogechain-lab/dogechain/consensus"
+	"github.com/dogechain-lab/dogechain/crypto"
+	"github.com/dogechain-lab/dogechain/helper/common"
+	"github.com/dogechain-lab/dogechain/types"
 	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/assert"
 )

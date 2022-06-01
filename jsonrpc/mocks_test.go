@@ -5,9 +5,9 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/dogechain-lab/jury/blockchain"
-	"github.com/dogechain-lab/jury/state"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/blockchain"
+	"github.com/dogechain-lab/dogechain/state"
+	"github.com/dogechain-lab/dogechain/types"
 )
 
 type mockAccount struct {

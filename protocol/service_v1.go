@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/dogechain-lab/jury/network/grpc"
-	"github.com/dogechain-lab/jury/protocol/proto"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/network/grpc"
+	"github.com/dogechain-lab/dogechain/protocol/proto"
+	"github.com/dogechain-lab/dogechain/types"
 	"github.com/hashicorp/go-hclog"
 	"github.com/libp2p/go-libp2p-core/peer"
 	anypb "google.golang.org/protobuf/types/known/anypb"

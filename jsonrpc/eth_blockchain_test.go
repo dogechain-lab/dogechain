@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/dogechain-lab/jury/helper/progress"
-	"github.com/dogechain-lab/jury/state/runtime"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/helper/progress"
+	"github.com/dogechain-lab/dogechain/state/runtime"
+	"github.com/dogechain-lab/dogechain/types"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -1,6 +1,6 @@
 package command
 
-import "github.com/dogechain-lab/jury/server"
+import "github.com/dogechain-lab/dogechain/server"
 
 const (
 	DefaultGenesisFileName     = "genesis.json"

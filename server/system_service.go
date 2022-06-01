@@ -6,10 +6,10 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/dogechain-lab/jury/blockchain"
-	"github.com/dogechain-lab/jury/network/common"
-	"github.com/dogechain-lab/jury/server/proto"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/blockchain"
+	"github.com/dogechain-lab/dogechain/network/common"
+	"github.com/dogechain-lab/dogechain/server/proto"
+	"github.com/dogechain-lab/dogechain/types"
 	"github.com/libp2p/go-libp2p-core/peer"
 	empty "google.golang.org/protobuf/types/known/emptypb"
 )

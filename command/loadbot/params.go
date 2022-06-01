@@ -6,8 +6,8 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/dogechain-lab/jury/command/loadbot/generator"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/command/loadbot/generator"
+	"github.com/dogechain-lab/dogechain/types"
 	"github.com/umbracle/go-web3/abi"
 )
 

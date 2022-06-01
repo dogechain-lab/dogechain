@@ -4,7 +4,7 @@ import (
 	"container/heap"
 	"sync"
 
-	"github.com/dogechain-lab/jury/network/common"
+	"github.com/dogechain-lab/dogechain/network/common"
 
 	"github.com/libp2p/go-libp2p-core/peer"
 )

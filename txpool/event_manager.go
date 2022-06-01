@@ -5,8 +5,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/dogechain-lab/jury/txpool/proto"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/txpool/proto"
+	"github.com/dogechain-lab/dogechain/types"
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-hclog"
 )

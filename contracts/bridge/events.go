@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/dogechain-lab/jury/contracts/abis"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/contracts/abis"
+	"github.com/dogechain-lab/dogechain/types"
 	"github.com/umbracle/go-web3"
 )
 

@@ -1,9 +1,9 @@
 package ibft
 
 import (
+	"github.com/dogechain-lab/dogechain/helper/keccak"
+	"github.com/dogechain-lab/dogechain/types"
 	"github.com/dogechain-lab/fastrlp"
-	"github.com/dogechain-lab/jury/helper/keccak"
-	"github.com/dogechain-lab/jury/types"
 )
 
 // istanbulHeaderHash defines the custom implementation for getting the header hash,

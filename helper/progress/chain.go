@@ -3,7 +3,7 @@ package progress
 import (
 	"sync"
 
-	"github.com/dogechain-lab/jury/blockchain"
+	"github.com/dogechain-lab/dogechain/blockchain"
 )
 
 type ChainSyncType string

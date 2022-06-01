@@ -8,12 +8,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dogechain-lab/jury/chain"
-	"github.com/dogechain-lab/jury/helper/hex"
-	"github.com/dogechain-lab/jury/state"
-	"github.com/dogechain-lab/jury/state/runtime/evm"
-	"github.com/dogechain-lab/jury/state/runtime/precompiled"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/chain"
+	"github.com/dogechain-lab/dogechain/helper/hex"
+	"github.com/dogechain-lab/dogechain/state"
+	"github.com/dogechain-lab/dogechain/state/runtime/evm"
+	"github.com/dogechain-lab/dogechain/state/runtime/precompiled"
+	"github.com/dogechain-lab/dogechain/types"
 	"github.com/hashicorp/go-hclog"
 )
 

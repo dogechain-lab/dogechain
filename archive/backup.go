@@ -7,9 +7,9 @@ import (
 	"io"
 	"os"
 
-	"github.com/dogechain-lab/jury/helper/common"
-	"github.com/dogechain-lab/jury/server/proto"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/helper/common"
+	"github.com/dogechain-lab/dogechain/server/proto"
+	"github.com/dogechain-lab/dogechain/types"
 	"github.com/hashicorp/go-hclog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"

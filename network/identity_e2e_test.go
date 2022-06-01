@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dogechain-lab/jury/chain"
+	"github.com/dogechain-lab/dogechain/chain"
 	"github.com/stretchr/testify/assert"
 )
 

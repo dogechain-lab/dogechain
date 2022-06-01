@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/types"
 )
 
 var emptyAddr types.Address

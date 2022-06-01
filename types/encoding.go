@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/dogechain-lab/jury/helper/hex"
+	"github.com/dogechain-lab/dogechain/helper/hex"
 )
 
 func ParseUint64orHex(val *string) (uint64, error) {

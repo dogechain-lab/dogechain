@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/dogechain-lab/jury/helper/hex"
+	"github.com/dogechain-lab/dogechain/helper/hex"
 )
 
 type TestCase struct {

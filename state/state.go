@@ -8,8 +8,8 @@ import (
 	"github.com/dogechain-lab/fastrlp"
 	iradix "github.com/hashicorp/go-immutable-radix"
 
-	"github.com/dogechain-lab/jury/crypto"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/crypto"
+	"github.com/dogechain-lab/dogechain/types"
 )
 
 type State interface {

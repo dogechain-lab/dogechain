@@ -6,10 +6,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/dogechain-lab/jury/command/loadbot/generator"
-	"github.com/dogechain-lab/jury/helper/tests"
-	txpoolOp "github.com/dogechain-lab/jury/txpool/proto"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/command/loadbot/generator"
+	"github.com/dogechain-lab/dogechain/helper/tests"
+	txpoolOp "github.com/dogechain-lab/dogechain/txpool/proto"
+	"github.com/dogechain-lab/dogechain/types"
 
 	"github.com/umbracle/go-web3/jsonrpc"
 )

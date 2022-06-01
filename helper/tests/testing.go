@@ -13,9 +13,9 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
 
-	"github.com/dogechain-lab/jury/crypto"
-	txpoolOp "github.com/dogechain-lab/jury/txpool/proto"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/crypto"
+	txpoolOp "github.com/dogechain-lab/dogechain/txpool/proto"
+	"github.com/dogechain-lab/dogechain/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/umbracle/go-web3"
 	"github.com/umbracle/go-web3/jsonrpc"

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/dogechain-lab/jury/state/runtime"
+	"github.com/dogechain-lab/dogechain/state/runtime"
 	"github.com/umbracle/go-web3/abi"
 )
 

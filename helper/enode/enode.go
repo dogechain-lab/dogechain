@@ -9,8 +9,8 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/dogechain-lab/jury/crypto"
-	"github.com/dogechain-lab/jury/helper/hex"
+	"github.com/dogechain-lab/dogechain/crypto"
+	"github.com/dogechain-lab/dogechain/helper/hex"
 )
 
 const nodeIDBytes = 512 / 8

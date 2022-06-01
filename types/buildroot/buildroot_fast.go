@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"sync"
 
-	"github.com/dogechain-lab/jury/helper/keccak"
+	"github.com/dogechain-lab/dogechain/helper/keccak"
 )
 
 func min(i, j int) int {

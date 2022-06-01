@@ -1,8 +1,8 @@
 package consensus
 
 import (
-	"github.com/dogechain-lab/jury/types"
-	"github.com/dogechain-lab/jury/types/buildroot"
+	"github.com/dogechain-lab/dogechain/types"
+	"github.com/dogechain-lab/dogechain/types/buildroot"
 )
 
 // BuildBlockParams are parameters passed into the BuildBlock helper method

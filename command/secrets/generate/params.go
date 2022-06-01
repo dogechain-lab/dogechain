@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/dogechain-lab/jury/command"
-	"github.com/dogechain-lab/jury/secrets"
+	"github.com/dogechain-lab/dogechain/command"
+	"github.com/dogechain-lab/dogechain/secrets"
 )
 
 var (

@@ -5,14 +5,14 @@ import (
 	"math"
 	"net"
 
-	"github.com/dogechain-lab/jury/network/common"
+	"github.com/dogechain-lab/dogechain/network/common"
 
-	"github.com/dogechain-lab/jury/chain"
-	"github.com/dogechain-lab/jury/command/helper"
-	"github.com/dogechain-lab/jury/network"
-	"github.com/dogechain-lab/jury/secrets"
-	"github.com/dogechain-lab/jury/server"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/chain"
+	"github.com/dogechain-lab/dogechain/command/helper"
+	"github.com/dogechain-lab/dogechain/network"
+	"github.com/dogechain-lab/dogechain/secrets"
+	"github.com/dogechain-lab/dogechain/server"
+	"github.com/dogechain-lab/dogechain/types"
 )
 
 func (p *serverParams) initConfigFromFile() error {

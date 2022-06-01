@@ -3,7 +3,7 @@ package generator
 import (
 	"sync"
 
-	"github.com/dogechain-lab/jury/crypto"
+	"github.com/dogechain-lab/dogechain/crypto"
 )
 
 type BaseGenerator struct {

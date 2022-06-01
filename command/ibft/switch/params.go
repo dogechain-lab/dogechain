@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/dogechain-lab/jury/chain"
-	"github.com/dogechain-lab/jury/command"
-	"github.com/dogechain-lab/jury/command/helper"
-	"github.com/dogechain-lab/jury/consensus/ibft"
-	"github.com/dogechain-lab/jury/helper/common"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/chain"
+	"github.com/dogechain-lab/dogechain/command"
+	"github.com/dogechain-lab/dogechain/command/helper"
+	"github.com/dogechain-lab/dogechain/consensus/ibft"
+	"github.com/dogechain-lab/dogechain/helper/common"
+	"github.com/dogechain-lab/dogechain/types"
 )
 
 const (

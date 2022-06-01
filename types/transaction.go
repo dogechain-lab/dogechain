@@ -4,7 +4,7 @@ import (
 	"math/big"
 	"sync/atomic"
 
-	"github.com/dogechain-lab/jury/helper/keccak"
+	"github.com/dogechain-lab/dogechain/helper/keccak"
 )
 
 type Transaction struct {

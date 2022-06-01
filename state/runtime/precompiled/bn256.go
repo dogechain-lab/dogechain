@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/dogechain-lab/jury/chain"
+	"github.com/dogechain-lab/dogechain/chain"
 	bn256 "github.com/umbracle/go-eth-bn256"
 )
 

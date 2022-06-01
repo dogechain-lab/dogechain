@@ -7,8 +7,8 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/dogechain-lab/jury/helper/hex"
-	"github.com/dogechain-lab/jury/helper/keccak"
+	"github.com/dogechain-lab/dogechain/helper/hex"
+	"github.com/dogechain-lab/dogechain/helper/keccak"
 )
 
 var ZeroAddress = Address{}

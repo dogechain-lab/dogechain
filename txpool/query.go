@@ -1,6 +1,6 @@
 package txpool
 
-import "github.com/dogechain-lab/jury/types"
+import "github.com/dogechain-lab/dogechain/types"
 
 /* QUERY methods */
 // Used to query the pool for specific state info.

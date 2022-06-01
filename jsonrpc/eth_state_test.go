@@ -7,12 +7,12 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/dogechain-lab/dogechain/chain"
+	"github.com/dogechain-lab/dogechain/helper/hex"
+	"github.com/dogechain-lab/dogechain/state"
+	"github.com/dogechain-lab/dogechain/state/runtime"
+	"github.com/dogechain-lab/dogechain/types"
 	"github.com/dogechain-lab/fastrlp"
-	"github.com/dogechain-lab/jury/chain"
-	"github.com/dogechain-lab/jury/helper/hex"
-	"github.com/dogechain-lab/jury/state"
-	"github.com/dogechain-lab/jury/state/runtime"
-	"github.com/dogechain-lab/jury/types"
 	"github.com/stretchr/testify/assert"
 )
 

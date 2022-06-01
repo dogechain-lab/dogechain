@@ -3,10 +3,10 @@ package generate
 import (
 	"fmt"
 
-	"github.com/dogechain-lab/jury/command"
+	"github.com/dogechain-lab/dogechain/command"
 	"github.com/spf13/cobra"
 
-	"github.com/dogechain-lab/jury/secrets"
+	"github.com/dogechain-lab/dogechain/secrets"
 )
 
 func GetCommand() *cobra.Command {

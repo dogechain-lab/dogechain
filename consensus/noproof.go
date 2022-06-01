@@ -3,8 +3,8 @@ package consensus
 import (
 	"context"
 
-	"github.com/dogechain-lab/jury/state"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/state"
+	"github.com/dogechain-lab/dogechain/types"
 )
 
 // NoProof is a consensus algorithm that validates everything

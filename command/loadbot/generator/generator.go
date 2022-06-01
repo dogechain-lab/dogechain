@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"math/big"
 
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/types"
 	"github.com/umbracle/go-web3"
 	"github.com/umbracle/go-web3/abi"
 )

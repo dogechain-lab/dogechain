@@ -10,13 +10,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dogechain-lab/jury/chain"
-	"github.com/dogechain-lab/jury/crypto"
-	"github.com/dogechain-lab/jury/helper/hex"
-	"github.com/dogechain-lab/jury/state"
-	itrie "github.com/dogechain-lab/jury/state/immutable-trie"
-	"github.com/dogechain-lab/jury/state/runtime"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/chain"
+	"github.com/dogechain-lab/dogechain/crypto"
+	"github.com/dogechain-lab/dogechain/helper/hex"
+	"github.com/dogechain-lab/dogechain/state"
+	itrie "github.com/dogechain-lab/dogechain/state/immutable-trie"
+	"github.com/dogechain-lab/dogechain/state/runtime"
+	"github.com/dogechain-lab/dogechain/types"
 )
 
 // TESTS is the default location of the tests folder

@@ -1,9 +1,9 @@
 package server
 
 import (
-	"github.com/dogechain-lab/jury/consensus"
-	"github.com/dogechain-lab/jury/network"
-	"github.com/dogechain-lab/jury/txpool"
+	"github.com/dogechain-lab/dogechain/consensus"
+	"github.com/dogechain-lab/dogechain/network"
+	"github.com/dogechain-lab/dogechain/txpool"
 )
 
 // serverMetrics holds the metric instances of all sub systems

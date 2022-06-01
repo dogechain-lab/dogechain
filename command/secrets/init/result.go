@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/dogechain-lab/jury/command/helper"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/command/helper"
+	"github.com/dogechain-lab/dogechain/types"
 )
 
 type SecretsInitResult struct {

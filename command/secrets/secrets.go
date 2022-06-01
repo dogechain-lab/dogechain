@@ -1,9 +1,9 @@
 package secrets
 
 import (
-	"github.com/dogechain-lab/jury/command/helper"
-	"github.com/dogechain-lab/jury/command/secrets/generate"
-	initCmd "github.com/dogechain-lab/jury/command/secrets/init"
+	"github.com/dogechain-lab/dogechain/command/helper"
+	"github.com/dogechain-lab/dogechain/command/secrets/generate"
+	initCmd "github.com/dogechain-lab/dogechain/command/secrets/init"
 	"github.com/spf13/cobra"
 )
 

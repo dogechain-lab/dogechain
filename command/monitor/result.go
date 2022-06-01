@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/dogechain-lab/jury/command/helper"
-	"github.com/dogechain-lab/jury/server/proto"
+	"github.com/dogechain-lab/dogechain/command/helper"
+	"github.com/dogechain-lab/dogechain/server/proto"
 )
 
 const (

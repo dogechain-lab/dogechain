@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/dogechain-lab/jury/licenses"
+	"github.com/dogechain-lab/dogechain/licenses"
 )
 
 type LicenseResult struct {

@@ -1,12 +1,12 @@
 package ibft
 
 import (
-	"github.com/dogechain-lab/jury/command/helper"
-	"github.com/dogechain-lab/jury/command/ibft/candidates"
-	"github.com/dogechain-lab/jury/command/ibft/propose"
-	"github.com/dogechain-lab/jury/command/ibft/snapshot"
-	"github.com/dogechain-lab/jury/command/ibft/status"
-	_switch "github.com/dogechain-lab/jury/command/ibft/switch"
+	"github.com/dogechain-lab/dogechain/command/helper"
+	"github.com/dogechain-lab/dogechain/command/ibft/candidates"
+	"github.com/dogechain-lab/dogechain/command/ibft/propose"
+	"github.com/dogechain-lab/dogechain/command/ibft/snapshot"
+	"github.com/dogechain-lab/dogechain/command/ibft/status"
+	_switch "github.com/dogechain-lab/dogechain/command/ibft/switch"
 	"github.com/spf13/cobra"
 )
 

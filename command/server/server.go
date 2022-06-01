@@ -9,15 +9,15 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/dogechain-lab/jury/command"
-	"github.com/dogechain-lab/jury/crypto"
-	"github.com/dogechain-lab/jury/helper/daemon"
+	"github.com/dogechain-lab/dogechain/command"
+	"github.com/dogechain-lab/dogechain/crypto"
+	"github.com/dogechain-lab/dogechain/helper/daemon"
 	"github.com/howeyc/gopass"
 	"github.com/spf13/cobra"
 
-	"github.com/dogechain-lab/jury/command/helper"
-	"github.com/dogechain-lab/jury/network"
-	"github.com/dogechain-lab/jury/server"
+	"github.com/dogechain-lab/dogechain/command/helper"
+	"github.com/dogechain-lab/dogechain/network"
+	"github.com/dogechain-lab/dogechain/server"
 )
 
 func GetCommand() *cobra.Command {

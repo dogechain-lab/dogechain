@@ -3,9 +3,9 @@ package ibft
 import (
 	"testing"
 
-	"github.com/dogechain-lab/jury/consensus/ibft/proto"
-	"github.com/dogechain-lab/jury/crypto"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/consensus/ibft/proto"
+	"github.com/dogechain-lab/dogechain/crypto"
+	"github.com/dogechain-lab/dogechain/types"
 	"github.com/stretchr/testify/assert"
 )
 

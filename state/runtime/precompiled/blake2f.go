@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math/bits"
 
-	"github.com/dogechain-lab/jury/chain"
+	"github.com/dogechain-lab/dogechain/chain"
 )
 
 type blake2f struct {

@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/dogechain-lab/jury/txpool/proto"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/txpool/proto"
+	"github.com/dogechain-lab/dogechain/types"
 	empty "google.golang.org/protobuf/types/known/emptypb"
 )
 

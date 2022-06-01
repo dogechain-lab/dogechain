@@ -6,13 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dogechain-lab/jury/command"
+	"github.com/dogechain-lab/dogechain/command"
 
-	"github.com/dogechain-lab/jury/crypto"
-	"github.com/dogechain-lab/jury/e2e/framework"
-	"github.com/dogechain-lab/jury/helper/tests"
-	txpoolOp "github.com/dogechain-lab/jury/txpool/proto"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/crypto"
+	"github.com/dogechain-lab/dogechain/e2e/framework"
+	"github.com/dogechain-lab/dogechain/helper/tests"
+	txpoolOp "github.com/dogechain-lab/dogechain/txpool/proto"
+	"github.com/dogechain-lab/dogechain/types"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/stretchr/testify/assert"
 )

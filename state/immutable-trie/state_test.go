@@ -3,7 +3,7 @@ package itrie
 import (
 	"testing"
 
-	"github.com/dogechain-lab/jury/state"
+	"github.com/dogechain-lab/dogechain/state"
 )
 
 func TestState(t *testing.T) {

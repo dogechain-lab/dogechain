@@ -1,9 +1,9 @@
 package txpool
 
 import (
-	"github.com/dogechain-lab/jury/command/helper"
-	"github.com/dogechain-lab/jury/command/txpool/status"
-	"github.com/dogechain-lab/jury/command/txpool/subscribe"
+	"github.com/dogechain-lab/dogechain/command/helper"
+	"github.com/dogechain-lab/dogechain/command/txpool/status"
+	"github.com/dogechain-lab/dogechain/command/txpool/subscribe"
 	"github.com/spf13/cobra"
 )
 

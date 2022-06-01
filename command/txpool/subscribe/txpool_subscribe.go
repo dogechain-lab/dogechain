@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/dogechain-lab/jury/command"
-	"github.com/dogechain-lab/jury/command/helper"
-	"github.com/dogechain-lab/jury/helper/common"
-	txpoolProto "github.com/dogechain-lab/jury/txpool/proto"
+	"github.com/dogechain-lab/dogechain/command"
+	"github.com/dogechain-lab/dogechain/command/helper"
+	"github.com/dogechain-lab/dogechain/helper/common"
+	txpoolProto "github.com/dogechain-lab/dogechain/txpool/proto"
 	"github.com/spf13/cobra"
 )
 

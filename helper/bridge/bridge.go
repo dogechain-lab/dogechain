@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/dogechain-lab/jury/chain"
-	"github.com/dogechain-lab/jury/helper/common"
-	"github.com/dogechain-lab/jury/helper/hex"
-	"github.com/dogechain-lab/jury/helper/keccak"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/chain"
+	"github.com/dogechain-lab/dogechain/helper/common"
+	"github.com/dogechain-lab/dogechain/helper/hex"
+	"github.com/dogechain-lab/dogechain/helper/keccak"
+	"github.com/dogechain-lab/dogechain/types"
 )
 
 var (
@@ -45,7 +45,7 @@ func getIndexWithOffset(keccakHash []byte, offset int64) []byte {
 // of the storage slots which need to be modified during bootstrap.
 //
 // It is SC dependant, and based on the SC located at:
-// https://github.com/dogechain-lab/jury-contracts/
+// https://github.com/dogechain-lab/dogechain-contracts/
 func getStorageIndexes(address types.Address, index int64) *StorageIndexes {
 	storageIndexes := StorageIndexes{}
 
@@ -110,7 +110,7 @@ const (
 // using the passed in owner and signers as pre-defined accounts.
 func PredeployBridgeSC(params PredeployParams) (*chain.GenesisAccount, error) {
 	// Set the code for the bridge smart contract
-	// Code retrieved from https://github.com/dogechain-lab/jury-contracts
+	// Code retrieved from https://github.com/dogechain-lab/dogechain-contracts
 	scHex, _ := hex.DecodeHex(BridgeSCBytecode)
 	bridgeAccount := &chain.GenesisAccount{
 		Code: scHex,

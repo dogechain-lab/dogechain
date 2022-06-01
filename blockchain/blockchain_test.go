@@ -7,10 +7,10 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/dogechain-lab/jury/blockchain/storage"
-	"github.com/dogechain-lab/jury/blockchain/storage/memory"
-	"github.com/dogechain-lab/jury/chain"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/blockchain/storage"
+	"github.com/dogechain-lab/dogechain/blockchain/storage/memory"
+	"github.com/dogechain-lab/dogechain/chain"
+	"github.com/dogechain-lab/dogechain/types"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/dogechain-lab/jury/protocol/proto"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/protocol/proto"
+	"github.com/dogechain-lab/dogechain/types"
 )
 
 var (

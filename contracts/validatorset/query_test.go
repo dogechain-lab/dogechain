@@ -5,10 +5,10 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/dogechain-lab/jury/contracts/abis"
-	"github.com/dogechain-lab/jury/contracts/systemcontracts"
-	"github.com/dogechain-lab/jury/state/runtime"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/contracts/abis"
+	"github.com/dogechain-lab/dogechain/contracts/systemcontracts"
+	"github.com/dogechain-lab/dogechain/state/runtime"
+	"github.com/dogechain-lab/dogechain/types"
 	"github.com/stretchr/testify/assert"
 )
 

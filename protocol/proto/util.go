@@ -1,6 +1,6 @@
 package proto
 
-import "github.com/dogechain-lab/jury/types"
+import "github.com/dogechain-lab/dogechain/types"
 
 // DecodeHashes decode to types Hash in the request
 func (h *HashRequest) DecodeHashes() ([]types.Hash, error) {

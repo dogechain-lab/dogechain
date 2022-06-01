@@ -1,10 +1,10 @@
 package backup
 
 import (
-	"github.com/dogechain-lab/jury/command"
+	"github.com/dogechain-lab/dogechain/command"
 	"github.com/spf13/cobra"
 
-	"github.com/dogechain-lab/jury/command/helper"
+	"github.com/dogechain-lab/dogechain/command/helper"
 )
 
 func GetCommand() *cobra.Command {

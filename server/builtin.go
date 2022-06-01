@@ -1,14 +1,14 @@
 package server
 
 import (
-	"github.com/dogechain-lab/jury/consensus"
-	consensusDev "github.com/dogechain-lab/jury/consensus/dev"
-	consensusDummy "github.com/dogechain-lab/jury/consensus/dummy"
-	consensusIBFT "github.com/dogechain-lab/jury/consensus/ibft"
-	"github.com/dogechain-lab/jury/secrets"
-	"github.com/dogechain-lab/jury/secrets/awsssm"
-	"github.com/dogechain-lab/jury/secrets/hashicorpvault"
-	"github.com/dogechain-lab/jury/secrets/local"
+	"github.com/dogechain-lab/dogechain/consensus"
+	consensusDev "github.com/dogechain-lab/dogechain/consensus/dev"
+	consensusDummy "github.com/dogechain-lab/dogechain/consensus/dummy"
+	consensusIBFT "github.com/dogechain-lab/dogechain/consensus/ibft"
+	"github.com/dogechain-lab/dogechain/secrets"
+	"github.com/dogechain-lab/dogechain/secrets/awsssm"
+	"github.com/dogechain-lab/dogechain/secrets/hashicorpvault"
+	"github.com/dogechain-lab/dogechain/secrets/local"
 )
 
 type ConsensusType string

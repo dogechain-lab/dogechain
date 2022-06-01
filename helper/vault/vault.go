@@ -3,16 +3,16 @@ package vault
 import (
 	"math/big"
 
-	"github.com/dogechain-lab/jury/chain"
-	"github.com/dogechain-lab/jury/helper/hex"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/chain"
+	"github.com/dogechain-lab/dogechain/helper/hex"
+	"github.com/dogechain-lab/dogechain/types"
 )
 
 // getStorageIndexes is a helper function for getting the correct indexes
 // of the storage slots which need to be modified during bootstrap.
 //
 // It is SC dependant, and based on the SC located at:
-// https://github.com/dogechain-lab/jury-contracts
+// https://github.com/dogechain-lab/dogechain-contracts
 func getStorageIndexes() *StorageIndexes {
 	storageIndexes := StorageIndexes{}
 
@@ -48,7 +48,7 @@ const (
 // using the passed in owner and signers as pre-defined accounts.
 func PredeployVaultSC(params PredeployParams) (*chain.GenesisAccount, error) {
 	// Set the code for the smart contract
-	// Code retrieved from https://github.com/dogechain-lab/jury-contracts
+	// Code retrieved from https://github.com/dogechain-lab/dogechain-contracts
 	scHex, _ := hex.DecodeHex(VaultSCBytecode)
 	contractAccount := &chain.GenesisAccount{
 		Code: scHex,

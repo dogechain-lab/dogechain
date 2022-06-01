@@ -1,6 +1,6 @@
 package subscribe
 
-import "github.com/dogechain-lab/jury/txpool/proto"
+import "github.com/dogechain-lab/dogechain/txpool/proto"
 
 var (
 	params = &subscribeParams{}

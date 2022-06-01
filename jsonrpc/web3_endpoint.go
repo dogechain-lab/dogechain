@@ -3,9 +3,9 @@ package jsonrpc
 import (
 	"fmt"
 
-	"github.com/dogechain-lab/jury/helper/hex"
-	"github.com/dogechain-lab/jury/helper/keccak"
-	"github.com/dogechain-lab/jury/versioning"
+	"github.com/dogechain-lab/dogechain/helper/hex"
+	"github.com/dogechain-lab/dogechain/helper/keccak"
+	"github.com/dogechain-lab/dogechain/versioning"
 )
 
 // Web3 is the web3 jsonrpc endpoint

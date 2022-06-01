@@ -3,7 +3,7 @@ package txpool
 import (
 	"sync"
 
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/types"
 )
 
 // Lookup map used to find transactions present in the pool

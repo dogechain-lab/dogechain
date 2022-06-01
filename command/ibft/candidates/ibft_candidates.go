@@ -3,9 +3,9 @@ package candidates
 import (
 	"context"
 
-	"github.com/dogechain-lab/jury/command"
-	"github.com/dogechain-lab/jury/command/helper"
-	ibftOp "github.com/dogechain-lab/jury/consensus/ibft/proto"
+	"github.com/dogechain-lab/dogechain/command"
+	"github.com/dogechain-lab/dogechain/command/helper"
+	ibftOp "github.com/dogechain-lab/dogechain/consensus/ibft/proto"
 	"github.com/spf13/cobra"
 	empty "google.golang.org/protobuf/types/known/emptypb"
 )

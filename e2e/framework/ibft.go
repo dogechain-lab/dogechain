@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/types"
 )
 
 type IBFTServersManager struct {

@@ -19,6 +19,6 @@ jobs:
           PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         with:
           path-to-signatures: "cla.json"
-          path-to-document: "https://github.com/dogechain-lab/jury/blob/dev/CLA.md"
+          path-to-document: "https://github.com/dogechain-lab/dogechain/blob/dev/CLA.md"
           branch: "cla-signatures"
           allowlist: dependabot[bot],dependabot-preview[bot]

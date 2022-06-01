@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dogechain-lab/jury/helper/tests"
-	"github.com/dogechain-lab/jury/txpool/proto"
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/helper/tests"
+	"github.com/dogechain-lab/dogechain/txpool/proto"
+	"github.com/dogechain-lab/dogechain/types"
 	"github.com/stretchr/testify/assert"
 )
 

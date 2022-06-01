@@ -3,8 +3,8 @@ package network
 import (
 	"net"
 
-	"github.com/dogechain-lab/jury/chain"
-	"github.com/dogechain-lab/jury/secrets"
+	"github.com/dogechain-lab/dogechain/chain"
+	"github.com/dogechain-lab/dogechain/secrets"
 	"github.com/multiformats/go-multiaddr"
 )
 

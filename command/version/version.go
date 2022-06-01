@@ -1,8 +1,8 @@
 package version
 
 import (
-	"github.com/dogechain-lab/jury/command"
-	"github.com/dogechain-lab/jury/versioning"
+	"github.com/dogechain-lab/dogechain/command"
+	"github.com/dogechain-lab/dogechain/versioning"
 	"github.com/spf13/cobra"
 )
 

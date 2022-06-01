@@ -3,7 +3,7 @@ package txpool
 import (
 	"sync/atomic"
 
-	"github.com/dogechain-lab/jury/types"
+	"github.com/dogechain-lab/dogechain/types"
 )
 
 // Gauge for measuring pool capacity in slots

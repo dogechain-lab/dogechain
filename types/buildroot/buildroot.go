@@ -1,10 +1,10 @@
 package buildroot
 
 import (
+	"github.com/dogechain-lab/dogechain/helper/keccak"
+	itrie "github.com/dogechain-lab/dogechain/state/immutable-trie"
+	"github.com/dogechain-lab/dogechain/types"
 	"github.com/dogechain-lab/fastrlp"
-	"github.com/dogechain-lab/jury/helper/keccak"
-	itrie "github.com/dogechain-lab/jury/state/immutable-trie"
-	"github.com/dogechain-lab/jury/types"
 )
 
 var arenaPool fastrlp.ArenaPool

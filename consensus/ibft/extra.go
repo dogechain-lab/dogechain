@@ -3,8 +3,8 @@ package ibft
 import (
 	"fmt"
 
+	"github.com/dogechain-lab/dogechain/types"
 	"github.com/dogechain-lab/fastrlp"
-	"github.com/dogechain-lab/jury/types"
 )
 
 var (

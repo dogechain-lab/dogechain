@@ -3,7 +3,7 @@ package ibft
 import (
 	"fmt"
 
-	"github.com/dogechain-lab/jury/helper/common"
+	"github.com/dogechain-lab/dogechain/helper/common"
 )
 
 // Define the type of the IBFT consensus

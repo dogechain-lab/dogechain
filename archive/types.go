@@ -3,8 +3,8 @@ package archive
 import (
 	"fmt"
 
+	"github.com/dogechain-lab/dogechain/types"
 	"github.com/dogechain-lab/fastrlp"
-	"github.com/dogechain-lab/jury/types"
 )
 
 // Metadata is the data stored in the beginning of backup
