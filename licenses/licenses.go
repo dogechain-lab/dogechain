@@ -14,7 +14,7 @@ type DepLicense struct {
 }
 
 var (
-	// DogeChain-Lab DogeChain License
+	// Dogechain-Lab Dogechain License
 	License string
 
 	// Dependency Licenses

@@ -244,7 +244,7 @@ func (j *JSONRPC) handle(w http.ResponseWriter, req *http.Request) {
 
 	if req.Method == "GET" {
 		//nolint
-		w.Write([]byte("DogeChain-Lab DogeChain JSON-RPC"))
+		w.Write([]byte("Dogechain-Lab Dogechain JSON-RPC"))
 
 		return
 	}

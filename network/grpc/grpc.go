@@ -37,7 +37,7 @@ type Context struct {
 }
 
 // interceptor is the middleware function that wraps
-// gRPC peer data to custom DogeChain-Lab DogeChain structures
+// gRPC peer data to custom Dogechain-Lab Dogechain structures
 func interceptor(
 	ctx context.Context,
 	req interface{},

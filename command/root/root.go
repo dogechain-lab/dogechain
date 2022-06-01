@@ -27,7 +27,7 @@ type RootCommand struct {
 func NewRootCommand() *RootCommand {
 	rootCommand := &RootCommand{
 		baseCmd: &cobra.Command{
-			Short: "DogeChain-Lab DogeChain is a framework for building Ethereum-compatible Blockchain networks",
+			Short: "Dogechain-Lab Dogechain is a framework for building Ethereum-compatible Blockchain networks",
 		},
 	}
 

@@ -1,12 +1,12 @@
-## DogeChain
+## Dogechain
 
-DogeChain-Lab DogeChain is a modular and extensible framework for building Ethereum-compatible blockchain networks, which forks from 0xPolygon's Polygon Edge project.
+Dogechain-Lab Dogechain is a modular and extensible framework for building Ethereum-compatible blockchain networks, which forks from 0xPolygon's Polygon Edge project.
 
 To find out more about Polygon, read [this README](./README-PolygonEdge.md).
 
 ---
 
-Copyright 2022 DogeChain-Lab
+Copyright 2022 Dogechain-Lab
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

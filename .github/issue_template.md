@@ -7,7 +7,7 @@ Describe your issue in as much detail as possible here
 ### Your environment
 
 * OS and version
-* version of the DogeChain
+* version of the Dogechain
 * branch that causes this issue
 
 ### Steps to reproduce
