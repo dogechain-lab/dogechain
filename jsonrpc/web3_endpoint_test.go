@@ -36,5 +36,5 @@ func TestWeb3EndpointClientVersion(t *testing.T) {
 	var res string
 
 	assert.NoError(t, expectJSONResult(resp, &res))
-	assert.Contains(t, res, fmt.Sprintf("jury [%v]", versioning.Version))
+	assert.Contains(t, res, fmt.Sprintf("dogechain [%v]", versioning.Version))
 }

@@ -1,4 +1,4 @@
-project_name: jury
+project_name: dogechain
 
 release:
   disable: false
@@ -8,7 +8,7 @@ release:
 builds:
   - id: darwin-amd64
     main: ./main.go
-    binary: jury
+    binary: dogechain
     goos:
       - darwin
     goarch:
@@ -20,7 +20,7 @@ builds:
 
   - id: darwin-arm64
     main: ./main.go
-    binary: jury
+    binary: dogechain
     goos:
       - darwin
     goarch:
@@ -32,7 +32,7 @@ builds:
 
   - id: linux-amd64
     main: ./main.go
-    binary: jury
+    binary: dogechain
     goos:
       - linux
     goarch:
@@ -46,7 +46,7 @@ builds:
 
   - id: linux-arm64
     main: ./main.go
-    binary: jury
+    binary: dogechain
     goos:
       - linux
     goarch:

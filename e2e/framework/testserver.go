@@ -45,7 +45,7 @@ type TestServerConfigCallback func(*TestServerConfig)
 const (
 	serverIP    = "127.0.0.1"
 	initialPort = 12000
-	binaryName  = "jury"
+	binaryName  = "dogechain"
 )
 
 type TestServer struct {

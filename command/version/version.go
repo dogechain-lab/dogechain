@@ -9,7 +9,7 @@ import (
 func GetCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
-		Short: "Returns the current DogeChain-Lab Jury version",
+		Short: "Returns the current DogeChain-Lab DogeChain version",
 		Args:  cobra.NoArgs,
 		Run:   runCommand,
 	}

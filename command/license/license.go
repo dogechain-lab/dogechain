@@ -10,7 +10,7 @@ import (
 func GetCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "license",
-		Short: "Returns DogeChain-Lab Jury license and dependency attributions",
+		Short: "Returns DogeChain-Lab DogeChain license and dependency attributions",
 		Args:  cobra.NoArgs,
 		Run:   runCommand,
 	}

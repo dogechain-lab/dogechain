@@ -13,7 +13,7 @@ type Web3 struct{}
 
 // ClientVersion returns the version of the web3 client (web3_clientVersion)
 func (w *Web3) ClientVersion() (interface{}, error) {
-	return fmt.Sprintf("jury [%s]", versioning.Version), nil
+	return fmt.Sprintf("dogechain [%s]", versioning.Version), nil
 }
 
 // Sha3 returns Keccak-256 (not the standardized SHA3-256) of the given data

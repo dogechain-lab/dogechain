@@ -68,7 +68,7 @@ func DefaultConfig() *Config {
 
 	return &Config{
 		GenesisPath:    "./genesis.json",
-		DataDir:        "./jury-chain",
+		DataDir:        "./dogechain-chain",
 		BlockGasTarget: "0x0", // Special value signaling the parent gas limit should be applied
 		Network: &Network{
 			NoDiscover:       defaultNetworkConfig.NoDiscover,

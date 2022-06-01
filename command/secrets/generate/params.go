@@ -24,7 +24,7 @@ const (
 )
 
 const (
-	defaultNodeName       = "jury-node"
+	defaultNodeName       = "dogechain-node"
 	defaultConfigFileName = "./secretsManagerConfig.json"
 	defaultNamespace      = "admin"
 )

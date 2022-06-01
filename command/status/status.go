@@ -14,7 +14,7 @@ import (
 func GetCommand() *cobra.Command {
 	statusCmd := &cobra.Command{
 		Use:   "status",
-		Short: "Returns the status of the DogeChain-Lab Jury client",
+		Short: "Returns the status of the DogeChain-Lab DogeChain client",
 		Args:  cobra.NoArgs,
 		Run:   runCommand,
 	}

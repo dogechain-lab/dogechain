@@ -4,7 +4,7 @@ RUN set -x \
     && apk add --update --no-cache \
     ca-certificates \
     && rm -rf /var/cache/apk/*
-COPY jury /usr/local/bin/
+COPY dogechain /usr/local/bin/
 
 EXPOSE 8545 9632 1478
-ENTRYPOINT ["jury"]
+ENTRYPOINT ["dogechain"]

@@ -8,7 +8,7 @@ import (
 func GetCommand() *cobra.Command {
 	secretsInitCmd := &cobra.Command{
 		Use: "init",
-		Short: "Initializes private keys for the DogeChain-Lab Jury (Validator + Networking) " +
+		Short: "Initializes private keys for the DogeChain-Lab DogeChain (Validator + Networking) " +
 			"to the specified Secrets Manager",
 		PreRunE: runPreRun,
 		Run:     runCommand,
@@ -24,7 +24,7 @@ func setFlags(cmd *cobra.Command) {
 		&params.dataDir,
 		dataDirFlag,
 		"",
-		"the directory for the DogeChain-Lab Jury data if the local FS is used",
+		"the directory for the DogeChain-Lab DogeChain data if the local FS is used",
 	)
 
 	cmd.Flags().StringVar(

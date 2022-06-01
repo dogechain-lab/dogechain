@@ -75,7 +75,7 @@ type Server struct {
 }
 
 const (
-	loggerDomainName = "jury"
+	loggerDomainName = "dogechain"
 )
 
 var dirPaths = []string{
@@ -148,10 +148,10 @@ func NewServer(config *Config) (*Server, error) {
 	}
 
 	if config.Telemetry.PrometheusAddr != nil {
-		m.serverMetrics = metricProvider("jury", config.Chain.Name, true)
+		m.serverMetrics = metricProvider("dogechain", config.Chain.Name, true)
 		m.prometheusServer = m.startPrometheusServer(config.Telemetry.PrometheusAddr)
 	} else {
-		m.serverMetrics = metricProvider("jury", config.Chain.Name, false)
+		m.serverMetrics = metricProvider("dogechain", config.Chain.Name, false)
 	}
 
 	// Set up the secrets manager
@@ -644,7 +644,7 @@ type Entry struct {
 	Config  map[string]interface{}
 }
 
-// SetupDataDir sets up the jury data directory and sub-folders
+// SetupDataDir sets up the dogechain data directory and sub-folders
 func SetupDataDir(dataDir string, paths []string) error {
 	if err := createDir(dataDir); err != nil {
 		return fmt.Errorf("failed to create data dir: (%s): %w", dataDir, err)

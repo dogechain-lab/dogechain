@@ -1,6 +1,6 @@
-## Jury
+## DogeChain
 
-DogeChain-Lab Jury is a modular and extensible framework for building Ethereum-compatible blockchain networks, which forks from 0xPolygon's Polygon Edge project.
+DogeChain-Lab DogeChain is a modular and extensible framework for building Ethereum-compatible blockchain networks, which forks from 0xPolygon's Polygon Edge project.
 
 To find out more about Polygon, read [this README](./README-PolygonEdge.md).
 

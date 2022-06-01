@@ -1,35 +1,35 @@
 # E2E tests
 
-The implemented E2E tests start a local instance of jury.
+The implemented E2E tests start a local instance of dogechain.
 
-As such, they require the binary 'jury' to be available in the $PATH variable.<br />
+As such, they require the binary 'dogechain' to be available in the $PATH variable.<br />
 Typically, the actual directory added to the $PATH variable would be the `go/bin` folder.
 
-## Step 1: Build the jury
+## Step 1: Build the dogechain
 
 ```bash
-go build -o $HOME/go/bin/jury ./main.go
+go build -o $HOME/go/bin/dogechain ./main.go
 ```
 
 ## Step 2: Run the tests
 
-Now that the jury binary is in the `go/bin` folder, the e2e test server is able to locate it when running tests.
+Now that the dogechain binary is in the `go/bin` folder, the e2e test server is able to locate it when running tests.
 
 ## Manual checks if things are acting funny
 
-### Check if the jury process is running
+### Check if the dogechain process is running
 
-If you've stopped the tests abruptly, chances are the jury process is still running on your machine. <br/ >
+If you've stopped the tests abruptly, chances are the dogechain process is still running on your machine. <br/ >
 In order for the tests to function normally, please kill the process.
 
-### Check if the jury-* folders are present in /tmp/
+### Check if the dogechain-* folders are present in /tmp/
 
-While running, the e2e server stores data needed for running in the /tmp/jury* folders. <br />
+While running, the e2e server stores data needed for running in the /tmp/dogechain* folders. <br />
 To clean up these folders, simply run:
 
 ````bash
 cd /tmp/
-rm -rf jury-*
+rm -rf dogechain-*
 ````
 
 ### Clean the golang test cache
