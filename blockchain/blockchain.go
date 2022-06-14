@@ -608,6 +608,10 @@ func (b *Blockchain) WriteHeadersWithBodies(headers []*types.Header) error {
 	return nil
 }
 
+func (b *Blockchain) VerifyFinalizedBlock(block *types.Block) error {
+	return nil
+}
+
 // WriteBlock writes a single block
 func (b *Blockchain) WriteBlock(block *types.Block) error {
 	// Check the param

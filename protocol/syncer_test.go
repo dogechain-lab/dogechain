@@ -586,6 +586,10 @@ func (m *mockBlockStore) WriteBlock(block *types.Block) error {
 	return nil
 }
 
+func (m *mockBlockStore) VerifyFinalizedBlock(block *types.Block) error {
+	return nil
+}
+
 func (m *mockBlockStore) CurrentTD() *big.Int {
 	return m.td
 }

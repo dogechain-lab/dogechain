@@ -55,6 +55,10 @@ func (m *mockChain) WriteBlock(block *types.Block) error {
 	return nil
 }
 
+func (m *mockChain) VerifyFinalizedBlock(block *types.Block) error {
+	return nil
+}
+
 func (m *mockChain) SubscribeEvents() blockchain.Subscription {
 	return protocol.NewMockSubscription()
 }
