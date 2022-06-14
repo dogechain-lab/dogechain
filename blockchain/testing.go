@@ -2,7 +2,6 @@ package blockchain
 
 import (
 	"fmt"
-	"math/big"
 	"testing"
 
 	"github.com/dogechain-lab/dogechain/chain"
@@ -11,7 +10,6 @@ import (
 	"github.com/hashicorp/go-hclog"
 
 	"github.com/dogechain-lab/dogechain/types"
-	"github.com/dogechain-lab/dogechain/types/buildroot"
 )
 
 var (
@@ -79,74 +77,6 @@ func HeadersToBlocks(headers []*types.Header) []*types.Block {
 	}
 
 	return blocks
-}
-
-// NewTestBodyChain creates a test blockchain with headers, body and receipts
-func NewTestBodyChain(n int) ([]*types.Header, []*types.Block, [][]*types.Receipt) {
-	genesis := &types.Block{
-		Header: &types.Header{
-			Number:   0,
-			GasLimit: uint64(0),
-		},
-	}
-	genesis.Header.ComputeHash()
-
-	blocks := []*types.Block{genesis}
-	receipts := [][]*types.Receipt{nil} // genesis does not have tx
-
-	for i := 1; i < n; i++ {
-		header := &types.Header{
-			ParentHash: blocks[i-1].Hash(),
-			Number:     uint64(i),
-			Difficulty: uint64(i),
-			ExtraData:  []byte{},
-		}
-		header.ComputeHash()
-
-		// -- txs ---
-
-		addr0 := types.StringToAddress("00")
-		t0 := &types.Transaction{
-			Nonce:    uint64(i),
-			To:       &addr0,
-			Value:    big.NewInt(0),
-			Gas:      0,
-			GasPrice: big.NewInt(0),
-			Input:    header.Hash.Bytes(),
-			V:        big.NewInt(27),
-		}
-		t0.ComputeHash()
-
-		txs := []*types.Transaction{t0}
-
-		// -- receipts --
-		r0 := &types.Receipt{
-			GasUsed: uint64(i),
-			//TxHash:            t0.Hash,
-			CumulativeGasUsed: uint64(i), // this value changes the rlpHash
-		}
-		localReceipts := []*types.Receipt{r0}
-
-		header.TxRoot = buildroot.CalculateTransactionsRoot(txs)
-		header.ReceiptsRoot = buildroot.CalculateReceiptsRoot(localReceipts)
-		header.LogsBloom = types.CreateBloom(localReceipts)
-		header.Sha3Uncles = types.EmptyUncleHash
-
-		block := &types.Block{
-			Header:       header,
-			Transactions: txs,
-		}
-
-		blocks = append(blocks, block)
-		receipts = append(receipts, localReceipts)
-	}
-
-	headers := []*types.Header{}
-	for _, block := range blocks {
-		headers = append(headers, block.Header)
-	}
-
-	return headers, blocks, receipts
 }
 
 // NewTestBlockchain creates a new dummy blockchain for testing
