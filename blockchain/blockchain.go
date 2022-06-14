@@ -988,64 +988,6 @@ func (b *Blockchain) ReadTxLookup(hash types.Hash) (types.Hash, bool) {
 	return v, ok
 }
 
-// processBlock Processes the block, and does validation
-func (b *Blockchain) processBlock(block *types.Block) (*BlockResult, error) {
-	header := block.Header
-
-	// Process the block
-	parent, ok := b.readHeader(header.ParentHash)
-	if !ok {
-		return nil, fmt.Errorf("unknown ancestor")
-	}
-
-	blockCreator, err := b.consensus.GetBlockCreator(header)
-	if err != nil {
-		return nil, err
-	}
-
-	txn, err := b.executor.ProcessBlock(parent.StateRoot, block, blockCreator)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := b.consensus.PreStateCommit(header, txn); err != nil {
-		return nil, err
-	}
-
-	_, root := txn.Commit()
-	receipts := txn.Receipts()
-	totalGas := txn.TotalGas()
-
-	if len(receipts) != len(block.Transactions) {
-		return nil, fmt.Errorf("bad size of receipts and transactions")
-	}
-
-	// Validate the fields
-	if root != header.StateRoot {
-		return nil, fmt.Errorf("invalid merkle root")
-	}
-
-	if totalGas != header.GasUsed {
-		return nil, fmt.Errorf("gas used is different")
-	}
-
-	receiptSha := buildroot.CalculateReceiptsRoot(receipts)
-	if receiptSha != header.ReceiptsRoot {
-		return nil, fmt.Errorf("invalid receipts root")
-	}
-
-	// Make sure the gas limit is within correct bounds
-	if gasLimitErr := b.verifyGasLimit(header, parent); gasLimitErr != nil {
-		return nil, fmt.Errorf("invalid gas limit, %w", gasLimitErr)
-	}
-
-	return &BlockResult{
-		Root:     root,
-		Receipts: receipts,
-		TotalGas: totalGas,
-	}, nil
-}
-
 // verifyGasLimit is a helper function for validating a gas limit in a header
 func (b *Blockchain) verifyGasLimit(header, parentHeader *types.Header) error {
 	if header.GasUsed > header.GasLimit {
