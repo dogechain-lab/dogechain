@@ -137,7 +137,7 @@ func NewRandomChain(t *testing.T, height int) blockchainShim {
 
 	return blockchain.NewTestBlockchain(
 		t,
-		blockchain.NewTestHeaderChainWithSeed(
+		blockchain.NewTestHeadersWithSeed(
 			nil,
 			height,
 			randNum.Uint64(),

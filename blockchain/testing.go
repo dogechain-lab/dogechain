@@ -19,8 +19,8 @@ var (
 	defaultBlockGasTarget uint64 = 8000000
 )
 
-// NewTestHeaderChainWithSeed creates a new chain with a seed factor
-func NewTestHeaderChainWithSeed(genesis *types.Header, n int, seed uint64) []*types.Header {
+// NewTestHeadersWithSeed creates a new chain with a seed factor
+func NewTestHeadersWithSeed(genesis *types.Header, n int, seed uint64) []*types.Header {
 	head := func(i int64) *types.Header {
 		return &types.Header{
 			Number:       uint64(i),
@@ -51,9 +51,9 @@ func NewTestHeaderChainWithSeed(genesis *types.Header, n int, seed uint64) []*ty
 	return headers
 }
 
-// NewTestHeaderChain creates a chain of valid headers
-func NewTestHeaderChain(n int) []*types.Header {
-	return NewTestHeaderChainWithSeed(nil, n, 0)
+// NewTestHeaders creates a chain of valid headers
+func NewTestHeaders(n int) []*types.Header {
+	return NewTestHeadersWithSeed(nil, n, 0)
 }
 
 // NewTestHeaderFromChain creates n new headers from an already existing chain
@@ -64,7 +64,7 @@ func NewTestHeaderFromChain(headers []*types.Header, n int) []*types.Header {
 // NewTestHeaderFromChainWithSeed creates n new headers from an already existing chain
 func NewTestHeaderFromChainWithSeed(headers []*types.Header, n int, seed uint64) []*types.Header {
 	// We do +1 because the first header will be the genesis we supplied
-	newHeaders := NewTestHeaderChainWithSeed(headers[len(headers)-1], n+1, seed)
+	newHeaders := NewTestHeadersWithSeed(headers[len(headers)-1], n+1, seed)
 
 	preHeaders := make([]*types.Header, len(headers))
 	copy(preHeaders, headers)

@@ -525,7 +525,7 @@ func TestInsertHeaders(t *testing.T) {
 func TestForkUnknownParents(t *testing.T) {
 	b := NewTestBlockchain(t, nil)
 
-	h0 := NewTestHeaderChain(10)
+	h0 := NewTestHeaders(10)
 	h1 := NewTestHeaderFromChain(h0[:5], 10)
 
 	// Write genesis
