@@ -119,6 +119,26 @@ func TestFilterDecode(t *testing.T) {
 				toBlock:   LatestBlockNumber,
 			},
 		},
+		{
+			`{
+				"fromBlock": "0",
+				"toBlock": "1000"
+			}`,
+			&LogQuery{
+				fromBlock: 0,
+				toBlock:   1000,
+			},
+		},
+		{
+			`{
+				"fromBlock": "0x0",
+				"toBlock": "0x3e8"
+			}`,
+			&LogQuery{
+				fromBlock: 0,
+				toBlock:   1000,
+			},
+		},
 	}
 
 	for indx, c := range cases {
