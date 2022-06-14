@@ -28,6 +28,7 @@ const (
 
 var (
 	ErrNoBlock              = errors.New("no block data passed in")
+	ErrNoBlockHeader        = errors.New("no block header data passed in")
 	ErrParentNotFound       = errors.New("parent block not found")
 	ErrInvalidParentHash    = errors.New("parent block hash is invalid")
 	ErrParentHashMismatch   = errors.New("invalid parent block hash")
@@ -53,6 +54,17 @@ type Blockchain struct {
 
 	headersCache    *lru.Cache // LRU cache for the headers
 	difficultyCache *lru.Cache // LRU cache for the difficulty
+
+	// We need to keep track of block receipts between the verification phase
+	// and the insertion phase of a new block coming in. To avoid having to
+	// execute the transactions twice, we save the receipts from the initial execution
+	// in a cache, so we can grab it later when inserting the block.
+	// This is of course not an optimal solution - a better one would be to add
+	// the receipts to the proposed block (like we do with Transactions and Uncles), but
+	// that is currently not possible because it would break backwards compatibility due to
+	// insane conditionals in the RLP unmarshal methods for the Block structure, which prevent
+	// any new fields from being added
+	receiptsCache *lru.Cache // LRU cache for the block receipts
 
 	currentHeader     atomic.Value // The current header
 	currentDifficulty atomic.Value // The current difficulty of the chain (total difficulty)
@@ -205,13 +217,36 @@ func NewBlockchain(
 
 	b.db = db
 
-	b.headersCache, _ = lru.New(100)
-	b.difficultyCache, _ = lru.New(100)
+	if err := b.initCaches(defaultCacheSize); err != nil {
+		return nil, err
+	}
 
 	// Push the initial event to the stream
 	b.stream.push(&Event{})
 
 	return b, nil
+}
+
+// initCaches initializes the blockchain caches with the specified size
+func (b *Blockchain) initCaches(size int) error {
+	var err error
+
+	b.headersCache, err = lru.New(size)
+	if err != nil {
+		return fmt.Errorf("unable to create headers cache, %w", err)
+	}
+
+	b.difficultyCache, err = lru.New(size)
+	if err != nil {
+		return fmt.Errorf("unable to create difficulty cache, %w", err)
+	}
+
+	b.receiptsCache, err = lru.New(size)
+	if err != nil {
+		return fmt.Errorf("unable to create receipts cache, %w", err)
+	}
+
+	return nil
 }
 
 // ComputeGenesis computes the genesis hash, and updates the blockchain reference
@@ -626,6 +661,14 @@ func (b *Blockchain) WriteHeadersWithBodies(headers []*types.Header) error {
 // VerifyFinalizedBlock verifies that the block is valid by performing a series of checks.
 // It is assumed that the block status is sealed (committed)
 func (b *Blockchain) VerifyFinalizedBlock(block *types.Block) error {
+	if block == nil {
+		return ErrNoBlock
+	}
+
+	if block.Header == nil {
+		return ErrNoBlockHeader
+	}
+
 	// Make sure the consensus layer verifies this block header
 	if err := b.consensus.VerifyHeader(block.Header); err != nil {
 		return fmt.Errorf("failed to verify the header: %w", err)
@@ -805,6 +848,9 @@ func (b *Blockchain) executeBlockTransactions(block *types.Block) (*BlockResult,
 
 	_, root := txn.Commit()
 
+	// Append the receipts to the receipts cache
+	b.receiptsCache.Add(header.Hash, txn.Receipts())
+
 	return &BlockResult{
 		Root:     root,
 		Receipts: txn.Receipts(),
@@ -814,11 +860,6 @@ func (b *Blockchain) executeBlockTransactions(block *types.Block) (*BlockResult,
 
 // WriteBlock writes a single block
 func (b *Blockchain) WriteBlock(block *types.Block) error {
-	// Check the param
-	if block == nil {
-		return fmt.Errorf("the passed in block is empty")
-	}
-
 	// Log the information
 	b.logger.Info(
 		"write block",
@@ -828,74 +869,23 @@ func (b *Blockchain) WriteBlock(block *types.Block) error {
 		block.ParentHash(),
 	)
 
-	parent, ok := b.readHeader(block.ParentHash())
-	if !ok {
-		return fmt.Errorf(
-			"parent of %s (%d) not found: %s",
-			block.Hash().String(),
-			block.Number(),
-			block.ParentHash(),
-		)
-	}
-
-	if parent.Hash == types.ZeroHash {
-		return fmt.Errorf("parent not found")
-	}
-
-	// Validate the chain
-	// Check the parent numbers
-	if block.Number()-1 != parent.Number {
-		return fmt.Errorf(
-			"number sequence not correct at %d and %d",
-			block.Number(),
-			parent.Number,
-		)
-	}
-
-	// Check the parent hash
-	if block.ParentHash() != parent.Hash {
-		return fmt.Errorf("parent hash not correct")
-	}
-
-	// Verify the header
-	if err := b.consensus.VerifyHeader(block.Header); err != nil {
-		return fmt.Errorf("failed to verify the header: %w", err)
-	}
-
-	// Verify body data
-	if hash := buildroot.CalculateUncleRoot(block.Uncles); hash != block.Header.Sha3Uncles {
-		return fmt.Errorf(
-			"uncle root hash mismatch: have %s, want %s",
-			hash,
-			block.Header.Sha3Uncles,
-		)
-	}
-
-	if hash := buildroot.CalculateTransactionsRoot(block.Transactions); hash != block.Header.TxRoot {
-		return fmt.Errorf(
-			"transaction root hash mismatch: have %s, want %s",
-			hash,
-			block.Header.TxRoot,
-		)
-	}
-
-	// Checks are passed, write the chain
+	// nil checked by verify functions
 	header := block.Header
-
-	// Process and validate the block
-	res, err := b.processBlock(block)
-	if err != nil {
-		return err
-	}
 
 	if err := b.writeBody(block); err != nil {
 		return err
 	}
 
+	// Fetch the block receipts
+	blockReceipts, receiptsErr := b.extractBlockReceipts(block)
+	if receiptsErr != nil {
+		return receiptsErr
+	}
+
 	// write the receipts, do it only after the header has been written.
-	// Otherwise, a client might ask for a header once the receipt is valid
+	// Otherwise, a client might ask for a header once the receipt is valid,
 	// but before it is written into the storage
-	if err := b.db.WriteReceipts(block.Hash(), res.Receipts); err != nil {
+	if err := b.db.WriteReceipts(block.Hash(), blockReceipts); err != nil {
 		return err
 	}
 
@@ -929,6 +919,29 @@ func (b *Blockchain) WriteBlock(block *types.Block) error {
 	b.logger.Info("new block", logArgs...)
 
 	return nil
+}
+
+// extractBlockReceipts extracts the receipts from the passed in block
+func (b *Blockchain) extractBlockReceipts(block *types.Block) ([]*types.Receipt, error) {
+	// Check the cache for the block receipts
+	receipts, ok := b.receiptsCache.Get(block.Header.Hash)
+	if !ok {
+		// No receipts found in the cache, execute the transactions from the block
+		// and fetch them
+		blockResult, err := b.executeBlockTransactions(block)
+		if err != nil {
+			return nil, err
+		}
+
+		return blockResult.Receipts, nil
+	}
+
+	extractedReceipts, ok := receipts.([]*types.Receipt)
+	if !ok {
+		return nil, errors.New("invalid type assertion for receipts")
+	}
+
+	return extractedReceipts, nil
 }
 
 // updateGasPriceAvgWithBlock extracts the gas price information from the

@@ -1300,7 +1300,7 @@ func (i *Ibft) VerifyHeader(header *types.Header) error {
 			header.Number,
 		)
 	}
-	
+
 	snap, err := i.getSnapshot(parent.Number)
 	if err != nil {
 		return err
