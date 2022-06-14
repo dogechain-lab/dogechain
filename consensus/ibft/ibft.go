@@ -38,6 +38,7 @@ type blockchainInterface interface {
 	Header() *types.Header
 	GetHeaderByNumber(i uint64) (*types.Header, bool)
 	WriteBlock(block *types.Block) error
+	VerifyPotentialBlock(block *types.Block) error
 	CalculateGasLimit(number uint64) (uint64, error)
 }
 
@@ -586,9 +587,6 @@ func (i *Ibft) buildBlock(snap *Snapshot, parent *types.Header) (*types.Block, e
 		i.logger.Error(fmt.Sprintf("Unable to run hook %s, %v", CandidateVoteHook, hookErr))
 	}
 
-	// calculate millisecond values from consensus custom functions in utils.go file
-	// to preserve go backward compatibility as time.UnixMili is available as of go 17
-
 	// set the timestamp
 	parentTime := time.Unix(int64(parent.Timestamp), 0)
 	headerTime := parentTime.Add(i.blockTime)
@@ -865,6 +863,14 @@ func (i *Ibft) runAcceptState() { // start new round
 				continue
 			}
 
+			// Verify other block params
+			if err := i.blockchain.VerifyPotentialBlock(block); err != nil {
+				i.logger.Error("block verification failed", "err", err)
+				i.handleStateErr(errBlockVerificationFailed)
+
+				continue
+			}
+
 			if hookErr := i.runHook(VerifyBlockHook, block.Number(), block); hookErr != nil {
 				if errors.As(hookErr, &errBlockVerificationFailed) {
 					i.logger.Error("block verification failed, block at the end of epoch has transactions")
@@ -1002,7 +1008,8 @@ func (i *Ibft) updateMetrics(block *types.Block) {
 	i.metrics.NumTxs.Set(float64(len(block.Body().Transactions)))
 }
 func (i *Ibft) insertBlock(block *types.Block) error {
-	committedSeals := [][]byte{}
+	// Gather the committed seals for the block
+	committedSeals := make([][]byte, 0)
 
 	for _, commit := range i.state.committed {
 		// no need to check the format of seal here because writeCommittedSeals will check
@@ -1016,15 +1023,22 @@ func (i *Ibft) insertBlock(block *types.Block) error {
 		committedSeals = append(committedSeals, seal)
 	}
 
+	// Push the committed seals to the header
 	header, err := writeCommittedSeals(block.Header, committedSeals)
 	if err != nil {
 		return err
 	}
 
-	// we need to recompute the hash since we have change extra-data
+	// The hash needs to be recomputed since the extra data was changed
 	block.Header = header
 	block.Header.ComputeHash()
 
+	// Verify the header only, since the block body is already verified
+	if err := i.VerifyHeader(block.Header); err != nil {
+		return err
+	}
+
+	// Save the block locally
 	if err := i.blockchain.WriteBlock(block); err != nil {
 		return err
 	}
