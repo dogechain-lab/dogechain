@@ -1,21 +1,26 @@
 package blockchain
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"testing"
 
+	"github.com/dogechain-lab/dogechain/blockchain/storage"
 	"github.com/dogechain-lab/dogechain/chain"
 	"github.com/dogechain-lab/dogechain/state"
 	itrie "github.com/dogechain-lab/dogechain/state/immutable-trie"
-	"github.com/hashicorp/go-hclog"
-
 	"github.com/dogechain-lab/dogechain/types"
+	"github.com/hashicorp/go-hclog"
 )
 
 var (
 	// defaultBlockGasTarget is the default value for the block gas target for new blocks
 	defaultBlockGasTarget uint64 = 8000000
+)
+
+var (
+	errInvalidTypeAssertion = errors.New("invalid type assertion")
 )
 
 // NewTestHeadersWithSeed creates a new chain with a seed factor
