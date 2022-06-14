@@ -1,6 +1,8 @@
 package jsonrpc
 
 import (
+	"math/big"
+	"strconv"
 	"testing"
 	"time"
 
@@ -129,6 +131,127 @@ func TestFilterBlock(t *testing.T) {
 
 	if _, fetchErr := m.GetFilterChanges(id); fetchErr != nil {
 		t.Fatalf("Unable to get filter changes, %v", fetchErr)
+	}
+}
+
+func Test_GetLogsForQuery(t *testing.T) {
+	t.Parallel()
+
+	blockHash := types.StringToHash("1")
+
+	// Topics we're searching for
+	topic1 := types.StringToHash("4")
+	topic2 := types.StringToHash("5")
+	topic3 := types.StringToHash("6")
+
+	var topics = [][]types.Hash{{topic1}, {topic2}, {topic3}}
+
+	// setup test
+	store := &mockBlockStore{
+		topics: []types.Hash{topic1, topic2, topic3},
+	}
+	store.setupLogs()
+
+	blocks := make([]*types.Block, 5)
+
+	for i := range blocks {
+		blocks[i] = &types.Block{
+			Header: &types.Header{
+				Number: uint64(i),
+				Hash:   types.StringToHash(strconv.Itoa(i)),
+			},
+			Transactions: []*types.Transaction{
+				{
+					Value: big.NewInt(10),
+				},
+				{
+					Value: big.NewInt(11),
+				},
+				{
+					Value: big.NewInt(12),
+				},
+			},
+		}
+	}
+
+	store.appendBlocksToStore(blocks)
+
+	f := NewFilterManager(hclog.NewNullLogger(), store)
+
+	testTable := []struct {
+		name           string
+		query          *LogQuery
+		expectedLength int
+		expectedError  error
+	}{
+		{
+			"Found matching logs, fromBlock < toBlock",
+			&LogQuery{
+				fromBlock: 1,
+				toBlock:   3,
+				Topics:    topics,
+			},
+			3,
+			nil,
+		},
+		{
+			"Found matching logs, fromBlock == toBlock",
+			&LogQuery{
+				fromBlock: 2,
+				toBlock:   2,
+				Topics:    topics,
+			},
+			1,
+			nil,
+		},
+		{
+			"Found matching logs, BlockHash present",
+			&LogQuery{
+				BlockHash: &blockHash,
+				Topics:    topics,
+			},
+			1,
+			nil,
+		},
+		{
+			"No logs found",
+			&LogQuery{
+				fromBlock: 4,
+				toBlock:   5,
+				Topics:    topics,
+			},
+			0,
+			nil,
+		},
+		{
+			"Invalid block range",
+			&LogQuery{
+				fromBlock: 10,
+				toBlock:   5,
+				Topics:    topics,
+			},
+			0,
+			ErrIncorrectBlockRange,
+		},
+	}
+
+	for _, testCase := range testTable {
+		testCase := testCase
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			foundLogs, logError := f.GetLogs(testCase.query)
+
+			if (testCase.expectedError == nil) != (logError == nil) {
+				t.Fatalf("expected error %v but got %v", testCase.expectedError, logError)
+			}
+
+			if testCase.expectedError != nil {
+				assert.ErrorIs(t, logError, testCase.expectedError)
+			} else {
+				assert.Lenf(t, foundLogs, testCase.expectedLength, "Invalid number of logs found")
+			}
+		})
 	}
 }
 
