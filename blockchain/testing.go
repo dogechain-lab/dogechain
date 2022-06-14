@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"fmt"
+	"math/big"
 	"testing"
 
 	"github.com/dogechain-lab/dogechain/chain"
@@ -120,10 +121,109 @@ func NewTestBlockchain(t *testing.T, headers []*types.Header) *Blockchain {
 	return b
 }
 
+type TestCallbackType string
+
+const (
+	VerifierCallback TestCallbackType = "VerifierCallback"
+	ExecutorCallback TestCallbackType = "ExecutorCallback"
+	ChainCallback    TestCallbackType = "ChainCallback"
+	StorageCallback  TestCallbackType = "StorageCallback"
+)
+
+// NewMockBlockchain constructs a new mock blockchain
+func NewMockBlockchain(
+	callbackMap map[TestCallbackType]interface{},
+) (*Blockchain, error) {
+	var (
+		mockVerifier = &MockVerifier{}
+		executor     = &mockExecutor{}
+		config       = &chain.Chain{
+			Genesis: &chain.Genesis{
+				Number:   0,
+				GasLimit: 0,
+			},
+			Params: &chain.Params{
+				Forks: chain.AllForksEnabled,
+			},
+		}
+		mockStorage = storage.NewMockStorage()
+	)
+
+	// Set up the mocks and callbacks
+	if callbackMap != nil {
+		// Execute the verifier callback
+		if verifierCallback, ok := callbackMap[VerifierCallback]; ok {
+			callback, ok := verifierCallback.(func(verifier *MockVerifier))
+			if !ok {
+				return nil, errInvalidTypeAssertion
+			}
+
+			callback(mockVerifier)
+		}
+
+		// Execute the executor callback
+		if executorCallback, ok := callbackMap[ExecutorCallback]; ok {
+			callback, ok := executorCallback.(func(executor *mockExecutor))
+			if !ok {
+				return nil, errInvalidTypeAssertion
+			}
+
+			callback(executor)
+		}
+
+		// Execute the chain config callback
+		if chainCallback, ok := callbackMap[ChainCallback]; ok {
+			callback, ok := chainCallback.(func(chain *chain.Chain))
+			if !ok {
+				return nil, errInvalidTypeAssertion
+			}
+
+			callback(config)
+		}
+
+		// Execute the storage callback
+		if storageCallback, ok := callbackMap[StorageCallback]; ok {
+			callback, ok := storageCallback.(func(storage *storage.MockStorage))
+			if !ok {
+				return nil, errInvalidTypeAssertion
+			}
+
+			callback(mockStorage)
+		}
+	}
+
+	blockchain := &Blockchain{
+		logger:    hclog.NewNullLogger(),
+		db:        mockStorage,
+		consensus: mockVerifier,
+		executor:  executor,
+		config:    config,
+		stream:    &eventStream{},
+		gpAverage: &gasPriceAverage{
+			price: big.NewInt(0),
+			count: big.NewInt(0),
+		},
+	}
+
+	if err := blockchain.initCaches(10); err != nil {
+		return nil, err
+	}
+
+	return blockchain, nil
+}
+
+// Verifier delegators
+
 type verifyHeaderDelegate func(*types.Header) error
+type processHeadersDelegate func([]*types.Header) error
+type getBlockCreatorDelegate func(*types.Header) (types.Address, error)
+type preStateCommitDelegate func(*types.Header, *state.Transition) error
 
 type MockVerifier struct {
-	verifyHeaderFn verifyHeaderDelegate
+	verifyHeaderFn    verifyHeaderDelegate
+	processHeadersFn  processHeadersDelegate
+	getBlockCreatorFn getBlockCreatorDelegate
+	preStateCommitFn  preStateCommitDelegate
 }
 
 func (m *MockVerifier) VerifyHeader(header *types.Header) error {
@@ -139,15 +239,39 @@ func (m *MockVerifier) HookVerifyHeader(fn verifyHeaderDelegate) {
 }
 
 func (m *MockVerifier) ProcessHeaders(headers []*types.Header) error {
+	if m.processHeadersFn != nil {
+		return m.processHeadersFn(headers)
+	}
+
 	return nil
+}
+
+func (m *MockVerifier) HookProcessHeaders(fn processHeadersDelegate) {
+	m.processHeadersFn = fn
 }
 
 func (m *MockVerifier) GetBlockCreator(header *types.Header) (types.Address, error) {
+	if m.getBlockCreatorFn != nil {
+		return m.getBlockCreatorFn(header)
+	}
+
 	return header.Miner, nil
 }
 
+func (m *MockVerifier) HookGetBlockCreator(fn getBlockCreatorDelegate) {
+	m.getBlockCreatorFn = fn
+}
+
 func (m *MockVerifier) PreStateCommit(header *types.Header, txn *state.Transition) error {
+	if m.preStateCommitFn != nil {
+		return m.preStateCommitFn(header, txn)
+	}
+
 	return nil
+}
+
+func (m *MockVerifier) HookPreStateCommit(fn preStateCommitDelegate) {
+	m.preStateCommitFn = fn
 }
 
 type mockExecutor struct {
