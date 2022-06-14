@@ -20,6 +20,9 @@ var (
 	ErrFilterDoesNotExists              = errors.New("filter does not exists")
 	ErrWSFilterDoesNotSupportGetChanges = errors.New("web socket Filter doesn't support to return a batch of the changes")
 	ErrCastingFilterToLogFilter         = errors.New("casting filter object to logFilter error")
+	ErrBlockNotFound                    = errors.New("block not found")
+	ErrIncorrectBlockRange              = errors.New("incorrect range")
+	ErrPendingBlockNumber               = errors.New("pending block number is not supported")
 )
 
 // defaultTimeout is the timeout to remove the filters that don't have a web socket stream
@@ -216,6 +219,9 @@ type filterManagerStore interface {
 
 	// GetBlockByHash returns the block using the block hash
 	GetBlockByHash(hash types.Hash, full bool) (*types.Block, bool)
+
+	// GetBlockByNumber returns a block using the provided number
+	GetBlockByNumber(num uint64, full bool) (*types.Block, bool)
 }
 
 // FilterManager manages all running filters
@@ -349,6 +355,117 @@ func (f *FilterManager) Exists(id string) bool {
 	_, ok := f.filters[id]
 
 	return ok
+}
+
+func (f *FilterManager) getLogsFromBlock(query *LogQuery, block *types.Block) ([]*Log, error) {
+	receipts, err := f.store.GetReceiptsByHash(block.Header.Hash)
+	if err != nil {
+		return nil, err
+	}
+
+	logs := make([]*Log, 0)
+
+	for idx, receipt := range receipts {
+		for logIdx, log := range receipt.Logs {
+			if !query.Match(log) {
+				continue
+			}
+
+			logs = append(logs, &Log{
+				Address:     log.Address,
+				Topics:      log.Topics,
+				Data:        argBytes(log.Data),
+				BlockNumber: argUint64(block.Header.Number),
+				BlockHash:   block.Header.Hash,
+				TxHash:      block.Transactions[idx].Hash,
+				TxIndex:     argUint64(idx),
+				LogIndex:    argUint64(logIdx),
+			})
+		}
+	}
+
+	return logs, nil
+}
+
+func (f *FilterManager) getLogsFromBlocks(query *LogQuery) ([]*Log, error) {
+	latestBlockNumber := f.store.Header().Number
+
+	resolveNum := func(num BlockNumber) (uint64, error) {
+		switch num {
+		case PendingBlockNumber:
+			return 0, ErrPendingBlockNumber
+		case EarliestBlockNumber:
+			num = 0
+		case LatestBlockNumber:
+			return latestBlockNumber, nil
+		}
+
+		return uint64(num), nil
+	}
+
+	from, err := resolveNum(query.fromBlock)
+	if err != nil {
+		return nil, err
+	}
+
+	to, err := resolveNum(query.toBlock)
+	if err != nil {
+		return nil, err
+	}
+
+	if to < from {
+		return nil, ErrIncorrectBlockRange
+	}
+
+	// If from equals genesis block
+	// skip it
+	if from == 0 {
+		from = 1
+	}
+
+	logs := make([]*Log, 0)
+
+	for i := from; i <= to; i++ {
+		block, ok := f.store.GetBlockByNumber(i, true)
+		if !ok {
+			break
+		}
+
+		if len(block.Transactions) == 0 {
+			// do not check logs if no txs
+			continue
+		}
+
+		blockLogs, err := f.getLogsFromBlock(query, block)
+		if err != nil {
+			return nil, err
+		}
+
+		logs = append(logs, blockLogs...)
+	}
+
+	return logs, nil
+}
+
+// GetLogs return array of logs for given query
+func (f *FilterManager) GetLogs(query *LogQuery) ([]*Log, error) {
+	if query.BlockHash != nil {
+		//	BlockHash is set -> fetch logs from this block only
+		block, ok := f.store.GetBlockByHash(*query.BlockHash, true)
+		if !ok {
+			return nil, ErrBlockNotFound
+		}
+
+		if len(block.Transactions) == 0 {
+			// no txs in block, return empty response
+			return []*Log{}, nil
+		}
+
+		return f.getLogsFromBlock(query, block)
+	}
+
+	//	gets logs from a range of blocks
+	return f.getLogsFromBlocks(query)
 }
 
 //GetLogFilterFromID return log filter for given filterID
