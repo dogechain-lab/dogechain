@@ -1292,7 +1292,15 @@ func (i *Ibft) verifyHeaderImpl(snap *Snapshot, parent, header *types.Header) er
 }
 
 // VerifyHeader wrapper for verifying headers
-func (i *Ibft) VerifyHeader(parent, header *types.Header) error {
+func (i *Ibft) VerifyHeader(header *types.Header) error {
+	parent, ok := i.blockchain.GetHeaderByNumber(header.Number - 1)
+	if !ok {
+		return fmt.Errorf(
+			"unable to get parent header for block number %d",
+			header.Number,
+		)
+	}
+	
 	snap, err := i.getSnapshot(parent.Number)
 	if err != nil {
 		return err

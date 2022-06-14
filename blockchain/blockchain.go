@@ -56,7 +56,7 @@ type gasPriceAverage struct {
 }
 
 type Verifier interface {
-	VerifyHeader(parent, header *types.Header) error
+	VerifyHeader(header *types.Header) error
 	ProcessHeaders(headers []*types.Header) error
 	GetBlockCreator(header *types.Header) (types.Address, error)
 	PreStateCommit(header *types.Header, txn *state.Transition) error
@@ -658,7 +658,7 @@ func (b *Blockchain) WriteBlock(block *types.Block) error {
 	}
 
 	// Verify the header
-	if err := b.consensus.VerifyHeader(parent, block.Header); err != nil {
+	if err := b.consensus.VerifyHeader(block.Header); err != nil {
 		return fmt.Errorf("failed to verify the header: %w", err)
 	}
 

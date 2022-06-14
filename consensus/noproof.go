@@ -12,7 +12,7 @@ type NoProof struct {
 }
 
 // VerifyHeader verifies the header is correct
-func (n *NoProof) VerifyHeader(parent, header *types.Header, uncle, seal bool) error {
+func (n *NoProof) VerifyHeader(header *types.Header, uncle, seal bool) error {
 	return nil
 }
 

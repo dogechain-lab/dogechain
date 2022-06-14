@@ -190,11 +190,22 @@ func NewTestBlockchain(t *testing.T, headers []*types.Header) *Blockchain {
 	return b
 }
 
+type verifyHeaderDelegate func(*types.Header) error
+
 type MockVerifier struct {
+	verifyHeaderFn verifyHeaderDelegate
 }
 
-func (m *MockVerifier) VerifyHeader(parent, header *types.Header) error {
+func (m *MockVerifier) VerifyHeader(header *types.Header) error {
+	if m.verifyHeaderFn != nil {
+		return m.verifyHeaderFn(header)
+	}
+
 	return nil
+}
+
+func (m *MockVerifier) HookVerifyHeader(fn verifyHeaderDelegate) {
+	m.verifyHeaderFn = fn
 }
 
 func (m *MockVerifier) ProcessHeaders(headers []*types.Header) error {
