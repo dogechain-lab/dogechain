@@ -132,6 +132,30 @@ func TestFilterBlock(t *testing.T) {
 	}
 }
 
+func Test_GetLogFilterFromID(t *testing.T) {
+	store := newMockStore()
+
+	m := NewFilterManager(hclog.NewNullLogger(), store)
+	// filter manager should Close(), but mock one might crash on writing on a closed channel
+	defer recover()
+	defer m.Close()
+
+	go m.Run()
+
+	logFilter := &LogQuery{
+		Addresses: []types.Address{addr1},
+		toBlock:   10,
+		fromBlock: 0,
+	}
+
+	retrivedLogFilter, err := m.GetLogFilterFromID(
+		m.NewLogFilter(logFilter, &MockClosedWSConnection{}),
+	)
+
+	assert.NoError(t, err)
+	assert.Equal(t, logFilter, retrivedLogFilter.query)
+}
+
 func TestFilterTimeout(t *testing.T) {
 	store := newMockStore()
 
