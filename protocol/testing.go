@@ -185,7 +185,7 @@ func GenerateNewBlocks(t *testing.T, chain blockchainShim, num int) []*types.Blo
 		assert.Truef(t, ok, "chain should have header at %d, but empty", i)
 	}
 
-	headers := blockchain.NewTestHeaderFromChain(oldHeaders, num)
+	headers := blockchain.AppendNewTestHeaders(oldHeaders, num)
 
 	return blockchain.HeadersToBlocks(headers[currentHeight+1:])
 }

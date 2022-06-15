@@ -60,13 +60,13 @@ func NewTestHeaders(n int) []*types.Header {
 	return NewTestHeadersWithSeed(nil, n, 0)
 }
 
-// NewTestHeaderFromChain creates n new headers from an already existing chain
-func NewTestHeaderFromChain(headers []*types.Header, n int) []*types.Header {
-	return NewTestHeaderFromChainWithSeed(headers, n, 0)
+// AppendNewTestHeaders creates n new headers from an already existing chain
+func AppendNewTestHeaders(headers []*types.Header, n int) []*types.Header {
+	return AppendNewTestheadersWithSeed(headers, n, 0)
 }
 
-// NewTestHeaderFromChainWithSeed creates n new headers from an already existing chain
-func NewTestHeaderFromChainWithSeed(headers []*types.Header, n int, seed uint64) []*types.Header {
+// AppendNewTestheadersWithSeed creates n new headers from an already existing chain
+func AppendNewTestheadersWithSeed(headers []*types.Header, n int, seed uint64) []*types.Header {
 	// We do +1 because the first header will be the genesis we supplied
 	newHeaders := NewTestHeadersWithSeed(headers[len(headers)-1], n+1, seed)
 
