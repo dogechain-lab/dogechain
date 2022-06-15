@@ -857,7 +857,7 @@ func (i *Ibft) runAcceptState() { // start new round
 		} else {
 			// since it's a new block, we have to verify it first
 			if err := i.verifyHeaderImpl(snap, parent, block.Header); err != nil {
-				i.logger.Error("block verification failed", "err", err)
+				i.logger.Error("block header verification failed", "err", err)
 				i.handleStateErr(errBlockVerificationFailed)
 
 				continue
