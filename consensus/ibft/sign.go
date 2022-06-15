@@ -165,8 +165,8 @@ func verifySigner(snap *Snapshot, header *types.Header) error {
 	return nil
 }
 
-// verifyCommitedFields is checking for consensus proof in the header
-func verifyCommitedFields(snap *Snapshot, header *types.Header) error {
+// verifyCommittedFields is checking for consensus proof in the header
+func verifyCommittedFields(snap *Snapshot, header *types.Header) error {
 	extra, err := getIbftExtra(header)
 	if err != nil {
 		return err

@@ -1330,7 +1330,7 @@ func (i *Ibft) VerifyHeader(header *types.Header) error {
 	}
 
 	// verify the committed seals
-	if err := verifyCommitedFields(snap, header); err != nil {
+	if err := verifyCommittedFields(snap, header); err != nil {
 		return err
 	}
 
