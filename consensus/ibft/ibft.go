@@ -1008,9 +1008,13 @@ func (i *Ibft) insertBlock(block *types.Block) error {
 		// no need to check the format of seal here because writeCommittedSeals will check
 		seal, err := hex.DecodeHex(commit.Seal)
 		if err != nil {
-			i.logger.Error("block insert, seal data decode hex err: ", err)
+			i.logger.Error(
+				fmt.Sprintf(
+					"unable to decode committed seal from %s: %v",
+					commit.From, err,
+				))
 
-			return err
+			continue
 		}
 
 		committedSeals = append(committedSeals, seal)
