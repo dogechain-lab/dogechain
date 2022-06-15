@@ -69,7 +69,12 @@ jobs:
         run: echo "$(pwd)/artifacts" >> $GITHUB_PATH
 
       - name: Go test
-        run: go test -timeout 28m ./...
+        run: go test -coverprofile coverage.out -timeout 28m ./...
+
+      - name: Upload coverage file to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: coverage.out
 
       - name: Go build without race
         run: CGO_ENABLED=0 GOOS=linux go build -a -o artifacts/dogechain .
@@ -82,12 +87,14 @@ jobs:
         shell: bash
         run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
         id: extract_branch
+
       - name: Prepare artifact for Deployer
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v2
         with:
           name: dogechain_${{ github.sha }}_${{ steps.extract_branch.outputs.branch }}
           path: artifacts/
+
   notify-deployer:
     needs: test
     runs-on: ubuntu-latest
