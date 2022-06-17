@@ -163,6 +163,11 @@ func GetJSONRPCAddress(cmd *cobra.Command) string {
 	return cmd.Flag(command.JSONRPCFlag).Value.String()
 }
 
+// GetGraphQLAddress extracts the set GraphQL address
+func GetGraphQLAddress(cmd *cobra.Command) string {
+	return cmd.Flag(command.GraphQLAddressFlag).Value.String()
+}
+
 // RegisterJSONOutputFlag registers the --json output setting for all child commands
 func RegisterJSONOutputFlag(cmd *cobra.Command) {
 	cmd.PersistentFlags().Bool(
@@ -210,6 +215,20 @@ func RegisterJSONRPCFlag(cmd *cobra.Command) {
 // ParseJSONRPCAddress parses the passed in JSONRPC address
 func ParseJSONRPCAddress(jsonrpcAddress string) (*url.URL, error) {
 	return url.ParseRequestURI(jsonrpcAddress)
+}
+
+// RegisterGraphQLFlag registers the base GraphQL address flag for all child commands
+func RegisterGraphQLFlag(cmd *cobra.Command) {
+	cmd.PersistentFlags().String(
+		command.GraphQLAddressFlag,
+		fmt.Sprintf("%s:%d", LocalHostBinding, server.DefaultGraphQLPort),
+		"the GraphQL interface",
+	)
+}
+
+// ParseGraphQLAddress parses the passed in GraphQL address
+func ParseGraphQLAddress(graphqlAddress string) (*url.URL, error) {
+	return url.ParseRequestURI(graphqlAddress)
 }
 
 // ResolveAddr resolves the passed in TCP address

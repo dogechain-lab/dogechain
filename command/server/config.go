@@ -29,6 +29,8 @@ type Config struct {
 	BlockTime         uint64     `json:"block_time_s"`
 	Headers           *Headers   `json:"headers"`
 	LogFilePath       string     `json:"log_to"`
+	EnableGraphQL     bool       `json:"enable_graphql"`
+	GraphQLAddr       string     `json:"graphql_addr"`
 }
 
 // Telemetry holds the config details for metric services.
@@ -89,7 +91,8 @@ func DefaultConfig() *Config {
 		Headers: &Headers{
 			AccessControlAllowOrigins: []string{"*"},
 		},
-		LogFilePath: "",
+		LogFilePath:   "",
+		EnableGraphQL: false,
 	}
 }
 

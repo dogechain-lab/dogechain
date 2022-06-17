@@ -70,10 +70,10 @@ func (svc *GraphQLService) setupHTTP() error {
 	mux := http.DefaultServeMux
 
 	// The middleware factory returns a handler, so we need to wrap the handler function properly.
-	graphQLHandler := http.HandlerFunc(svc.handler.ServeHTTP)
+	graphqlHandler := http.HandlerFunc(svc.handler.ServeHTTP)
 	mux.Handle("/graphql/ui", middlewareFactory(svc.config)(http.HandlerFunc(svc.ui.ServeHTTP)))
-	mux.Handle("/graphql", middlewareFactory(svc.config)(graphQLHandler))
-	mux.Handle("/graphql/", middlewareFactory(svc.config)(graphQLHandler))
+	mux.Handle("/graphql", middlewareFactory(svc.config)(graphqlHandler))
+	mux.Handle("/graphql/", middlewareFactory(svc.config)(graphqlHandler))
 
 	srv := http.Server{
 		Handler: mux,

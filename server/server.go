@@ -15,6 +15,7 @@ import (
 	"github.com/dogechain-lab/dogechain/chain"
 	"github.com/dogechain-lab/dogechain/consensus"
 	"github.com/dogechain-lab/dogechain/crypto"
+	"github.com/dogechain-lab/dogechain/graphql"
 	"github.com/dogechain-lab/dogechain/helper/common"
 	"github.com/dogechain-lab/dogechain/helper/keccak"
 	"github.com/dogechain-lab/dogechain/helper/progress"
@@ -53,6 +54,9 @@ type Server struct {
 
 	// jsonrpc stack
 	jsonrpcServer *jsonrpc.JSONRPC
+
+	// graphql stack
+	graphqlServer *graphql.GraphQLService
 
 	// system grpc server
 	grpcServer *grpc.Server
@@ -252,6 +256,11 @@ func NewServer(config *Config) (*Server, error) {
 
 	// setup and start jsonrpc server
 	if err := m.setupJSONRPC(); err != nil {
+		return nil, err
+	}
+
+	// setup and start graphql server
+	if err := m.setupGraphQL(); err != nil {
 		return nil, err
 	}
 
@@ -572,6 +581,35 @@ func (s *Server) setupJSONRPC() error {
 	}
 
 	s.jsonrpcServer = srv
+
+	return nil
+}
+
+// setupGraphQL sets up the graphql server, using the set configuration
+func (s *Server) setupGraphQL() error {
+	hub := &jsonRPCHub{
+		state:              s.state,
+		restoreProgression: s.restoreProgression,
+		Blockchain:         s.blockchain,
+		TxPool:             s.txpool,
+		Executor:           s.executor,
+		Consensus:          s.consensus,
+		Server:             s.network,
+	}
+
+	conf := &graphql.Config{
+		Store:                    hub,
+		Addr:                     s.config.GraphQL.GraphQLAddr,
+		ChainID:                  uint64(s.config.Chain.Params.ChainID),
+		AccessControlAllowOrigin: s.config.GraphQL.AccessControlAllowOrigin,
+	}
+
+	srv, err := graphql.NewGraphQLService(s.logger, conf)
+	if err != nil {
+		return err
+	}
+
+	s.graphqlServer = srv
 
 	return nil
 }

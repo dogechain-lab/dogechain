@@ -31,6 +31,7 @@ func GetCommand() *cobra.Command {
 	helper.RegisterGRPCAddressFlag(serverCmd)
 	helper.RegisterLegacyGRPCAddressFlag(serverCmd)
 	helper.RegisterJSONRPCFlag(serverCmd)
+	helper.RegisterGraphQLFlag(serverCmd)
 
 	setFlags(serverCmd)
 
@@ -212,6 +213,13 @@ func setFlags(cmd *cobra.Command) {
 		"write all logs to the file at specified location instead of writing them to console",
 	)
 
+	cmd.Flags().BoolVar(
+		&params.rawConfig.EnableGraphQL,
+		enableGraphQLFlag,
+		false,
+		"the flag indicating that node enable graphql service",
+	)
+
 	setDevFlags(cmd)
 }
 
@@ -236,10 +244,11 @@ func setDevFlags(cmd *cobra.Command) {
 }
 
 func runPreRun(cmd *cobra.Command, _ []string) error {
-	// Set the grpc and json ip:port bindings
+	// Set the grpc, json and graphql ip:port bindings
 	// The config file will have precedence over --flag
 	params.setRawGRPCAddress(helper.GetGRPCAddress(cmd))
 	params.setRawJSONRPCAddress(helper.GetJSONRPCAddress(cmd))
+	params.setRawGraphQLAddress(helper.GetGraphQLAddress(cmd))
 
 	// Check if the config file has been specified
 	// Config file settings will override JSON-RPC and GRPC address values

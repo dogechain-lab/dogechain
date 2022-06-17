@@ -37,6 +37,7 @@ const (
 	corsOriginFlag          = "access-control-allow-origins"
 	daemonFlag              = "daemon"
 	logFileLocationFlag     = "log-to"
+	enableGraphQLFlag       = "enable-graphql"
 )
 
 const (
@@ -68,6 +69,7 @@ type serverParams struct {
 	dnsAddress        multiaddr.Multiaddr
 	grpcAddress       *net.TCPAddr
 	jsonRPCAddress    *net.TCPAddr
+	graphqlAddress    *net.TCPAddr
 
 	blockGasTarget uint64
 	devInterval    uint64
@@ -141,6 +143,10 @@ func (p *serverParams) setRawJSONRPCAddress(jsonRPCAddress string) {
 	p.rawConfig.JSONRPCAddr = jsonRPCAddress
 }
 
+func (p *serverParams) setRawGraphQLAddress(graphqlAddress string) {
+	p.rawConfig.GraphQLAddr = graphqlAddress
+}
+
 func (p *serverParams) generateConfig() *server.Config {
 	chainCfg := p.genesisConfig
 
@@ -153,6 +159,11 @@ func (p *serverParams) generateConfig() *server.Config {
 		Chain: chainCfg,
 		JSONRPC: &server.JSONRPC{
 			JSONRPCAddr:              p.jsonRPCAddress,
+			AccessControlAllowOrigin: p.corsAllowedOrigins,
+		},
+		EnableGraphQL: p.rawConfig.EnableGraphQL,
+		GraphQL: &server.GraphQL{
+			GraphQLAddr:              p.graphqlAddress,
 			AccessControlAllowOrigin: p.corsAllowedOrigins,
 		},
 		GRPCAddr:   p.grpcAddress,

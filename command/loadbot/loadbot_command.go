@@ -151,6 +151,12 @@ func runPreRun(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
+	if _, err := helper.ParseGraphQLAddress(
+		helper.GetGraphQLAddress(cmd),
+	); err != nil {
+		return err
+	}
+
 	return nil
 }
 

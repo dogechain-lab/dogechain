@@ -12,14 +12,17 @@ import (
 
 const DefaultGRPCPort int = 9632
 const DefaultJSONRPCPort int = 8545
+const DefaultGraphQLPort int = 9898
 
 // Config is used to parametrize the minimal client
 type Config struct {
 	Chain *chain.Chain
 
-	JSONRPC    *JSONRPC
-	GRPCAddr   *net.TCPAddr
-	LibP2PAddr *net.TCPAddr
+	JSONRPC       *JSONRPC
+	EnableGraphQL bool
+	GraphQL       *GraphQL
+	GRPCAddr      *net.TCPAddr
+	LibP2PAddr    *net.TCPAddr
 
 	PriceLimit          uint64
 	MaxSlots            uint64
@@ -50,5 +53,10 @@ type Telemetry struct {
 // JSONRPC holds the config details for the JSON-RPC server
 type JSONRPC struct {
 	JSONRPCAddr              *net.TCPAddr
+	AccessControlAllowOrigin []string
+}
+
+type GraphQL struct {
+	GraphQLAddr              *net.TCPAddr
 	AccessControlAllowOrigin []string
 }

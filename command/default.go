@@ -16,9 +16,10 @@ const (
 )
 
 const (
-	JSONOutputFlag  = "json"
-	GRPCAddressFlag = "grpc-address"
-	JSONRPCFlag     = "jsonrpc"
+	JSONOutputFlag     = "json"
+	GRPCAddressFlag    = "grpc-address"
+	JSONRPCFlag        = "jsonrpc"
+	GraphQLAddressFlag = "graphql-address"
 )
 
 // Legacy flag that needs to be present to preserve backwards

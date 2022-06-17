@@ -204,6 +204,10 @@ func (p *serverParams) initAddresses() error {
 		return err
 	}
 
+	if err := p.initGraphQLAddress(); err != nil {
+		return err
+	}
+
 	return p.initGRPCAddress()
 }
 
@@ -273,6 +277,19 @@ func (p *serverParams) initJSONRPCAddress() error {
 	if p.jsonRPCAddress, parseErr = helper.ResolveAddr(
 		p.rawConfig.JSONRPCAddr,
 		helper.AllInterfacesBinding,
+	); parseErr != nil {
+		return parseErr
+	}
+
+	return nil
+}
+
+func (p *serverParams) initGraphQLAddress() error {
+	var parseErr error
+
+	if p.graphqlAddress, parseErr = helper.ResolveAddr(
+		p.rawConfig.GraphQLAddr,
+		helper.LocalHostBinding,
 	); parseErr != nil {
 		return parseErr
 	}
