@@ -17,7 +17,6 @@ const schema string = `
 
     schema {
         query: Query
-        mutation: Mutation
     }
 
     # Account is an Dogechain account at a particular block.
