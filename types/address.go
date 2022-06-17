@@ -4,7 +4,6 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
-	"strings"
 	"unicode"
 
 	"github.com/dogechain-lab/dogechain/helper/hex"
@@ -12,63 +11,12 @@ import (
 )
 
 var ZeroAddress = Address{}
-var ZeroHash = Hash{}
 
 const (
-	HashLength    = 32
 	AddressLength = 20
 )
 
-type Hash [HashLength]byte
-
 type Address [AddressLength]byte
-
-func min(i, j int) int {
-	if i < j {
-		return i
-	}
-
-	return j
-}
-
-func BytesToHash(b []byte) Hash {
-	var h Hash
-
-	size := len(b)
-	min := min(size, HashLength)
-
-	copy(h[HashLength-min:], b[len(b)-min:])
-
-	return h
-}
-
-func (h Hash) Bytes() []byte {
-	return h[:]
-}
-
-func (h Hash) String() string {
-	return hex.EncodeToHex(h[:])
-}
-
-func (h Hash) Value() (driver.Value, error) {
-	return h.String(), nil
-}
-
-func (h *Hash) Scan(src interface{}) error {
-	stringVal, ok := src.([]byte)
-	if !ok {
-		return errors.New("invalid type assert")
-	}
-
-	hh, err := hex.DecodeHex(string(stringVal))
-	if err != nil {
-		return fmt.Errorf("decode hex err: %w", err)
-	}
-
-	copy(h[:], hh[:])
-
-	return nil
-}
 
 // checksumEncode returns the checksummed address with 0x prefix, as by EIP-55
 // https://github.com/ethereum/EIPs/blob/master/EIPS/eip-55.md
@@ -127,10 +75,6 @@ func (a *Address) Scan(src interface{}) error {
 	return nil
 }
 
-func StringToHash(str string) Hash {
-	return BytesToHash(stringToBytes(str))
-}
-
 func StringToAddress(str string) Address {
 	return BytesToAddress(stringToBytes(str))
 }
@@ -150,24 +94,6 @@ func BytesToAddress(b []byte) Address {
 	return a
 }
 
-func stringToBytes(str string) []byte {
-	str = strings.TrimPrefix(str, "0x")
-	if len(str)%2 == 1 {
-		str = "0" + str
-	}
-
-	b, _ := hex.DecodeString(str)
-
-	return b
-}
-
-// UnmarshalText parses a hash in hex syntax.
-func (h *Hash) UnmarshalText(input []byte) error {
-	*h = BytesToHash(stringToBytes(string(input)))
-
-	return nil
-}
-
 // UnmarshalText parses an address in hex syntax.
 func (a *Address) UnmarshalText(input []byte) error {
 	buf := stringToBytes(string(input))
@@ -180,18 +106,6 @@ func (a *Address) UnmarshalText(input []byte) error {
 	return nil
 }
 
-func (h Hash) MarshalText() ([]byte, error) {
-	return []byte(h.String()), nil
-}
-
 func (a Address) MarshalText() ([]byte, error) {
 	return []byte(a.String()), nil
 }
-
-var (
-	// EmptyRootHash is the root when there are no transactions
-	EmptyRootHash = StringToHash("0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
-
-	// EmptyUncleHash is the root when there are no uncles
-	EmptyUncleHash = StringToHash("0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")
-)
