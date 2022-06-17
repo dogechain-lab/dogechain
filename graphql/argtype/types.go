@@ -47,23 +47,45 @@ func ArgBigPtr(b *big.Int) *Big {
 	return &v
 }
 
-func (a *Big) UnmarshalText(input []byte) error {
-	buf, err := DecodeToHex(input)
+func (b *Big) UnmarshalText(input []byte) error {
+	buf, err := decodeToHex(input)
 	if err != nil {
 		return err
 	}
 
-	b := new(big.Int)
-	b.SetBytes(buf)
-	*a = Big(*b)
+	c := new(big.Int)
+	c.SetBytes(buf)
+	*b = Big(*c)
 
 	return nil
 }
 
-func (a Big) MarshalText() ([]byte, error) {
-	b := (*big.Int)(&a)
+func (b Big) MarshalText() ([]byte, error) {
+	c := (*big.Int)(&b)
 
-	return []byte("0x" + b.Text(16)), nil
+	return []byte("0x" + c.Text(16)), nil
+}
+
+// ImplementsGraphQLType returns true if Big implements the provided GraphQL type.
+func (b Big) ImplementsGraphQLType(name string) bool { return name == "BigInt" }
+
+// UnmarshalGraphQL unmarshals the provided GraphQL query data.
+func (b *Big) UnmarshalGraphQL(input interface{}) error {
+	var err error
+
+	switch input := input.(type) {
+	case string:
+		return b.UnmarshalText([]byte(input))
+	case int32:
+		var num big.Int
+
+		num.SetInt64(int64(input))
+		*b = Big(num)
+	default:
+		err = fmt.Errorf("unexpected type %T for BigInt", input)
+	}
+
+	return err
 }
 
 func AddrPtr(a types.Address) *types.Address {
@@ -103,6 +125,25 @@ func (u *Uint64) UnmarshalText(input []byte) error {
 	return nil
 }
 
+// ImplementsGraphQLType returns true if Uint64 implements the provided GraphQL type.
+func (u Uint64) ImplementsGraphQLType(name string) bool { return name == "Long" }
+
+// UnmarshalGraphQL unmarshals the provided GraphQL query data.
+func (u *Uint64) UnmarshalGraphQL(input interface{}) error {
+	var err error
+
+	switch input := input.(type) {
+	case string:
+		return u.UnmarshalText([]byte(input))
+	case int32:
+		*u = Uint64(input)
+	default:
+		err = fmt.Errorf("unexpected type %T for Long", input)
+	}
+
+	return err
+}
+
 type Bytes []byte
 
 func BytesPtr(b []byte) *Bytes {
@@ -112,11 +153,11 @@ func BytesPtr(b []byte) *Bytes {
 }
 
 func (b Bytes) MarshalText() ([]byte, error) {
-	return EncodeToHex(b), nil
+	return encodeToHex(b), nil
 }
 
 func (b *Bytes) UnmarshalText(input []byte) error {
-	hh, err := DecodeToHex(input)
+	hh, err := decodeToHex(input)
 	if err != nil {
 		return nil
 	}
@@ -128,7 +169,29 @@ func (b *Bytes) UnmarshalText(input []byte) error {
 	return nil
 }
 
-func DecodeToHex(b []byte) ([]byte, error) {
+// ImplementsGraphQLType returns true if Bytes implements the specified GraphQL type.
+func (b Bytes) ImplementsGraphQLType(name string) bool { return name == "Bytes" }
+
+// UnmarshalGraphQL unmarshals the provided GraphQL query data.
+func (b *Bytes) UnmarshalGraphQL(input interface{}) error {
+	var err error
+
+	switch input := input.(type) {
+	case string:
+		data, err := hex.DecodeString(input)
+		if err != nil {
+			return err
+		}
+
+		*b = data
+	default:
+		err = fmt.Errorf("unexpected type %T for Bytes", input)
+	}
+
+	return err
+}
+
+func decodeToHex(b []byte) ([]byte, error) {
 	str := string(b)
 	str = strings.TrimPrefix(str, "0x")
 
@@ -139,7 +202,7 @@ func DecodeToHex(b []byte) ([]byte, error) {
 	return hex.DecodeString(str)
 }
 
-func EncodeToHex(b []byte) []byte {
+func encodeToHex(b []byte) []byte {
 	str := hex.EncodeToString(b)
 	if len(str)%2 != 0 {
 		str = "0" + str

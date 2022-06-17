@@ -109,3 +109,20 @@ func (a *Address) UnmarshalText(input []byte) error {
 func (a Address) MarshalText() ([]byte, error) {
 	return []byte(a.String()), nil
 }
+
+// ImplementsGraphQLType returns true if Hash implements the specified GraphQL type.
+func (a Address) ImplementsGraphQLType(name string) bool { return name == "Address" }
+
+// UnmarshalGraphQL unmarshals the provided GraphQL query data.
+func (a *Address) UnmarshalGraphQL(input interface{}) error {
+	var err error
+
+	switch input := input.(type) {
+	case string:
+		err = a.UnmarshalText([]byte(input))
+	default:
+		err = fmt.Errorf("unexpected type %T for Address", input)
+	}
+
+	return err
+}
