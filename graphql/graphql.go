@@ -2,10 +2,14 @@ package graphql
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"math/big"
 
 	"github.com/dogechain-lab/dogechain/graphql/argtype"
 	rpc "github.com/dogechain-lab/dogechain/jsonrpc"
 	"github.com/dogechain-lab/dogechain/types"
+	"github.com/umbracle/fastrlp"
 )
 
 // Account represents an Dogechain account at a particular block.
@@ -15,24 +19,181 @@ type Account struct {
 	blockNrOrHash rpc.BlockNumberOrHash
 }
 
+// getState fetches the StateDB object for a account.
+func (a *Account) getStateRoot(ctx context.Context) (types.Hash, error) {
+	// The filter is empty, use the latest block by default
+	if a.blockNrOrHash.BlockNumber == nil && a.blockNrOrHash.BlockHash == nil {
+		a.blockNrOrHash.BlockNumber, _ = rpc.CreateBlockNumberPointer("latest")
+	}
+
+	header, err := a.getHeaderFromBlockNumberOrHash(&a.blockNrOrHash)
+	if err != nil {
+		return types.ZeroHash, fmt.Errorf("failed to get header from block hash or block number")
+	}
+
+	return header.StateRoot, nil
+}
+
+func (a *Account) getHeaderFromBlockNumberOrHash(bnh *rpc.BlockNumberOrHash) (*types.Header, error) {
+	var (
+		header *types.Header
+		err    error
+	)
+
+	if bnh.BlockNumber != nil {
+		header, err = a.getBlockHeader(*bnh.BlockNumber)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get the header of block %d: %w", *bnh.BlockNumber, err)
+		}
+	} else if bnh.BlockHash != nil {
+		block, ok := a.backend.GetBlockByHash(*bnh.BlockHash, false)
+		if !ok {
+			return nil, fmt.Errorf("could not find block referenced by the hash %s", bnh.BlockHash.String())
+		}
+
+		header = block.Header
+	}
+
+	return header, nil
+}
+
+func (a *Account) getBlockHeader(number rpc.BlockNumber) (*types.Header, error) {
+	switch number {
+	case rpc.LatestBlockNumber:
+		return a.backend.Header(), nil
+
+	case rpc.EarliestBlockNumber:
+		header, ok := a.backend.GetHeaderByNumber(uint64(0))
+		if !ok {
+			return nil, fmt.Errorf("error fetching genesis block header")
+		}
+
+		return header, nil
+
+	case rpc.PendingBlockNumber:
+		return nil, fmt.Errorf("fetching the pending header is not supported")
+
+	default:
+		// Convert the block number from hex to uint64
+		header, ok := a.backend.GetHeaderByNumber(uint64(number))
+		if !ok {
+			return nil, fmt.Errorf("error fetching block number %d header", uint64(number))
+		}
+
+		return header, nil
+	}
+}
+
 func (a *Account) Address(ctx context.Context) (types.Address, error) {
 	return a.address, nil
 }
 
 func (a *Account) Balance(ctx context.Context) (argtype.Big, error) {
-	return argtype.Big{}, nil
+	var (
+		balance        = big.NewInt(0)
+		defaultBalance = argtype.Big(*balance)
+	)
+
+	root, err := a.getStateRoot(ctx)
+	if err != nil {
+		return defaultBalance, err
+	}
+
+	// Extract the account balance
+	acc, err := a.backend.GetAccount(root, a.address)
+	if errors.Is(err, rpc.ErrStateNotFound) {
+		// Account not found, return an empty account
+		return defaultBalance, nil
+	} else if err != nil {
+		return defaultBalance, err
+	}
+
+	return argtype.Big(*acc.Balance), nil
 }
 
 func (a *Account) TransactionCount(ctx context.Context) (argtype.Uint64, error) {
-	return 0, nil
+	var (
+		defaultCount = argtype.Uint64(0)
+	)
+
+	root, err := a.getStateRoot(ctx)
+	if err != nil {
+		return defaultCount, err
+	}
+
+	// Extract the account balance
+	acc, err := a.backend.GetAccount(root, a.address)
+	if errors.Is(err, rpc.ErrStateNotFound) {
+		// Account not found, return an empty account
+		return defaultCount, nil
+	} else if err != nil {
+		return defaultCount, err
+	}
+
+	return argtype.Uint64(acc.Nonce), nil
 }
 
 func (a *Account) Code(ctx context.Context) (argtype.Bytes, error) {
-	return argtype.Bytes{}, nil
+	var (
+		defaultCode = argtype.Bytes("0x")
+		emptyCode   = argtype.Bytes{}
+	)
+
+	root, err := a.getStateRoot(ctx)
+	if err != nil {
+		return defaultCode, err
+	}
+
+	acc, err := a.backend.GetAccount(root, a.address)
+	if errors.Is(err, rpc.ErrStateNotFound) {
+		// Account not found, return default value
+		return defaultCode, nil
+	} else if err != nil {
+		return emptyCode, err
+	}
+
+	code, err := a.backend.GetCode(types.BytesToHash(acc.CodeHash))
+	if err != nil {
+		return emptyCode, nil
+	}
+
+	return argtype.Bytes(code), nil
 }
 
 func (a *Account) Storage(ctx context.Context, args struct{ Slot types.Hash }) (types.Hash, error) {
-	return types.Hash{}, nil
+	var (
+		defaultHash = types.ZeroHash
+	)
+
+	root, err := a.getStateRoot(ctx)
+	if err != nil {
+		return defaultHash, err
+	}
+
+	// Get the storage for the passed in location
+	result, err := a.backend.GetStorage(root, a.address, args.Slot)
+	if err != nil {
+		if errors.Is(err, rpc.ErrStateNotFound) {
+			return defaultHash, nil
+		}
+
+		return defaultHash, err
+	}
+
+	// Parse the RLP value
+	p := &fastrlp.Parser{}
+
+	v, err := p.Parse(result)
+	if err != nil {
+		return defaultHash, nil
+	}
+
+	data, err := v.Bytes()
+	if err != nil {
+		return defaultHash, nil
+	}
+
+	return types.BytesToHash(data), nil
 }
 
 // Log represents an individual log message. All arguments are mandatory.
@@ -211,7 +372,7 @@ func (b *Block) Number(ctx context.Context) (argtype.Long, error) {
 }
 
 func (b *Block) Hash(ctx context.Context) (types.Hash, error) {
-	return types.Hash{}, nil
+	return types.ZeroHash, nil
 }
 
 func (b *Block) GasLimit(ctx context.Context) (argtype.Long, error) {
@@ -239,19 +400,19 @@ func (b *Block) Nonce(ctx context.Context) (argtype.Bytes, error) {
 }
 
 func (b *Block) MixHash(ctx context.Context) (types.Hash, error) {
-	return types.Hash{}, nil
+	return types.ZeroHash, nil
 }
 
 func (b *Block) TransactionsRoot(ctx context.Context) (types.Hash, error) {
-	return types.Hash{}, nil
+	return types.ZeroHash, nil
 }
 
 func (b *Block) StateRoot(ctx context.Context) (types.Hash, error) {
-	return types.Hash{}, nil
+	return types.ZeroHash, nil
 }
 
 func (b *Block) ReceiptsRoot(ctx context.Context) (types.Hash, error) {
-	return types.Hash{}, nil
+	return types.ZeroHash, nil
 }
 
 func (b *Block) ExtraData(ctx context.Context) (argtype.Bytes, error) {

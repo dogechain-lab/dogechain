@@ -93,7 +93,7 @@ func (q *LogQuery) UnmarshalJSON(data []byte) error {
 	if obj.FromBlock == "" {
 		q.fromBlock = LatestBlockNumber
 	} else {
-		if q.fromBlock, err = stringToBlockNumber(obj.FromBlock); err != nil {
+		if q.fromBlock, err = StringToBlockNumber(obj.FromBlock); err != nil {
 			return err
 		}
 	}
@@ -101,7 +101,7 @@ func (q *LogQuery) UnmarshalJSON(data []byte) error {
 	if obj.ToBlock == "" {
 		q.toBlock = LatestBlockNumber
 	} else {
-		if q.toBlock, err = stringToBlockNumber(obj.ToBlock); err != nil {
+		if q.toBlock, err = StringToBlockNumber(obj.ToBlock); err != nil {
 			return err
 		}
 	}

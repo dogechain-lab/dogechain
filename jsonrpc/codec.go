@@ -120,7 +120,7 @@ func (bnh *BlockNumberOrHash) UnmarshalJSON(data []byte) error {
 
 	err := json.Unmarshal(data, &placeholder)
 	if err != nil {
-		number, err := stringToBlockNumber(string(data))
+		number, err := StringToBlockNumber(string(data))
 		if err != nil {
 			return err
 		}
@@ -141,7 +141,7 @@ func (bnh *BlockNumberOrHash) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func stringToBlockNumber(str string) (BlockNumber, error) {
+func StringToBlockNumber(str string) (BlockNumber, error) {
 	if str == "" {
 		return 0, fmt.Errorf("value is empty")
 	}
@@ -164,8 +164,8 @@ func stringToBlockNumber(str string) (BlockNumber, error) {
 	return BlockNumber(n), nil
 }
 
-func createBlockNumberPointer(str string) (*BlockNumber, error) {
-	blockNumber, err := stringToBlockNumber(str)
+func CreateBlockNumberPointer(str string) (*BlockNumber, error) {
+	blockNumber, err := StringToBlockNumber(str)
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +175,7 @@ func createBlockNumberPointer(str string) (*BlockNumber, error) {
 
 // UnmarshalJSON automatically decodes the user input for the block number, when a JSON RPC method is called
 func (b *BlockNumber) UnmarshalJSON(buffer []byte) error {
-	num, err := stringToBlockNumber(string(buffer))
+	num, err := StringToBlockNumber(string(buffer))
 	if err != nil {
 		return err
 	}
