@@ -396,7 +396,7 @@ func (e *Eth) GetStorageAt(
 
 	// The filter is empty, use the latest block by default
 	if filter.BlockNumber == nil && filter.BlockHash == nil {
-		filter.BlockNumber, _ = CreateBlockNumberPointer("latest")
+		filter.BlockNumber, _ = CreateBlockNumberPointer(LatestBlockFlag)
 	}
 
 	header, err = e.getHeaderFromBlockNumberOrHash(&filter)
@@ -455,7 +455,7 @@ func (e *Eth) Call(arg *txnArgs, filter BlockNumberOrHash) (interface{}, error) 
 
 	// The filter is empty, use the latest block by default
 	if filter.BlockNumber == nil && filter.BlockHash == nil {
-		filter.BlockNumber, _ = CreateBlockNumberPointer("latest")
+		filter.BlockNumber, _ = CreateBlockNumberPointer(LatestBlockFlag)
 	}
 
 	header, err = e.getHeaderFromBlockNumberOrHash(&filter)
@@ -703,7 +703,7 @@ func (e *Eth) GetBalance(address types.Address, filter BlockNumberOrHash) (inter
 
 	// The filter is empty, use the latest block by default
 	if filter.BlockNumber == nil && filter.BlockHash == nil {
-		filter.BlockNumber, _ = CreateBlockNumberPointer("latest")
+		filter.BlockNumber, _ = CreateBlockNumberPointer(LatestBlockFlag)
 	}
 
 	header, err = e.getHeaderFromBlockNumberOrHash(&filter)
@@ -733,7 +733,7 @@ func (e *Eth) GetTransactionCount(address types.Address, filter BlockNumberOrHas
 
 	// The filter is empty, use the latest block by default
 	if filter.BlockNumber == nil && filter.BlockHash == nil {
-		filter.BlockNumber, _ = CreateBlockNumberPointer("latest")
+		filter.BlockNumber, _ = CreateBlockNumberPointer(LatestBlockFlag)
 	}
 
 	if filter.BlockNumber == nil {
@@ -768,7 +768,7 @@ func (e *Eth) GetCode(address types.Address, filter BlockNumberOrHash) (interfac
 
 	// The filter is empty, use the latest block by default
 	if filter.BlockNumber == nil && filter.BlockHash == nil {
-		filter.BlockNumber, _ = CreateBlockNumberPointer("latest")
+		filter.BlockNumber, _ = CreateBlockNumberPointer(LatestBlockFlag)
 	}
 
 	header, err = e.getHeaderFromBlockNumberOrHash(&filter)

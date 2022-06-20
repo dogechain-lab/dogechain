@@ -94,6 +94,12 @@ func (e *ObjectError) Error() string {
 }
 
 const (
+	PendingBlockFlag  = "pending"
+	LatestBlockFlag   = "latest"
+	EarliestBlockFlag = "earliest"
+)
+
+const (
 	PendingBlockNumber  = BlockNumber(-3)
 	LatestBlockNumber   = BlockNumber(-2)
 	EarliestBlockNumber = BlockNumber(-1)
@@ -148,11 +154,11 @@ func StringToBlockNumber(str string) (BlockNumber, error) {
 
 	str = strings.Trim(str, "\"")
 	switch str {
-	case "pending":
+	case PendingBlockFlag:
 		return PendingBlockNumber, nil
-	case "latest":
+	case LatestBlockFlag:
 		return LatestBlockNumber, nil
-	case "earliest":
+	case EarliestBlockFlag:
 		return EarliestBlockNumber, nil
 	}
 
