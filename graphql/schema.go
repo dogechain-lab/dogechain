@@ -163,9 +163,15 @@ const schema string = `
         mixHash: Bytes32!
         # Difficulty is a measure of the difficulty of mining this block.
         difficulty: BigInt!
-        # TotalDifficulty is the sum of all difficulty values up to and including
-        # this block.
-        totalDifficulty: BigInt!
+        # Transactions is a list of transactions associated with this block. If
+        # transactions are unavailable for this block, this field will be null.
+        transactions: [Transaction!]
+        # TransactionAt returns the transaction at the specified index. If
+        # transactions are unavailable for this block, or if the index is out of
+        # bounds, this field will be null.
+        transactionAt(index: Int!): Transaction
+        # Logs returns a filtered set of logs from this block.
+        logs(filter: BlockFilterCriteria!): [Log!]!
         # Account fetches an Dogechain account at the current block's state.
         account(address: Address!): Account!
         # RawHeader is the RLP encoding of the block's header.
