@@ -276,13 +276,19 @@ func (t *Transaction) findSealedTx(hash types.Hash) bool {
 		return false
 	}
 
+	blockNum := rpc.BlockNumber(block.Header.Number)
+
 	t.block = &Block{
 		backend:       t.backend,
 		signer:        t.signer,
 		filterManager: t.filterManager,
 		numberOrHash: &rpc.BlockNumberOrHash{
-			BlockHash: &hash,
+			BlockNumber: &blockNum,
+			BlockHash: &blockHash,
 		},
+		hash: blockHash,
+		header: block.Header,
+		block: block,
 	}
 
 	// Find the transaction within the block
