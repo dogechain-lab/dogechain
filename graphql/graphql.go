@@ -1167,7 +1167,7 @@ func (r *Resolver) Logs(ctx context.Context, args struct{ Filter FilterCriteria 
 		end = rpc.BlockNumber(*args.Filter.ToBlock)
 	}
 
-	if begin < end {
+	if end < begin {
 		return nil, errBlockInvalidRange
 	}
 
