@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/dogechain-lab/dogechain/helper/hex"
+	rpc "github.com/dogechain-lab/dogechain/jsonrpc"
 	"github.com/dogechain-lab/dogechain/types"
 )
 
@@ -209,4 +210,30 @@ func encodeToHex(b []byte) []byte {
 	}
 
 	return []byte("0x" + str)
+}
+
+type Log struct {
+	Address     types.Address `json:"address"`
+	Topics      []types.Hash  `json:"topics"`
+	Data        Bytes         `json:"data"`
+	BlockNumber Uint64        `json:"blockNumber"`
+	TxHash      types.Hash    `json:"transactionHash"`
+	TxIndex     Uint64        `json:"transactionIndex"`
+	BlockHash   types.Hash    `json:"blockHash"`
+	LogIndex    Uint64        `json:"logIndex"`
+	Removed     bool          `json:"removed"`
+}
+
+func FromRPCLog(log *rpc.Log) *Log {
+	return &Log{
+		Address:     log.Address,
+		Topics:      log.Topics,
+		Data:        Bytes(log.Data),
+		BlockNumber: Uint64(log.BlockNumber),
+		TxHash:      log.TxHash,
+		TxIndex:     Uint64(log.TxIndex),
+		BlockHash:   log.BlockHash,
+		LogIndex:    Uint64(log.LogIndex),
+		Removed:     log.Removed,
+	}
 }

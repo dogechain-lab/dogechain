@@ -3,6 +3,7 @@ package graphql
 import (
 	"math/big"
 
+	"github.com/dogechain-lab/dogechain/blockchain"
 	"github.com/dogechain-lab/dogechain/chain"
 	"github.com/dogechain-lab/dogechain/helper/progress"
 	"github.com/dogechain-lab/dogechain/state"
@@ -34,6 +35,9 @@ type ethBlockchainStore interface {
 
 	// GetHeaderByNumber returns the header by number
 	GetHeaderByNumber(block uint64) (*types.Header, bool)
+
+	// GetHeaderByHash returns the header by hash
+	GetHeaderByHash(hash types.Hash) (*types.Header, bool)
 
 	// GetBlockByHash gets a block using the provided hash
 	GetBlockByHash(hash types.Hash, full bool) (*types.Block, bool)
@@ -77,6 +81,9 @@ type txPoolStore interface {
 type filterManagerStore interface {
 	// Header returns the current header of the chain (genesis if empty)
 	Header() *types.Header
+
+	// SubscribeEvents subscribes for chain head events
+	SubscribeEvents() blockchain.Subscription
 
 	// GetReceiptsByHash returns the receipts for a block hash
 	GetReceiptsByHash(hash types.Hash) ([]*types.Receipt, error)

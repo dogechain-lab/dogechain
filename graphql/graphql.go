@@ -1,3 +1,4 @@
+// TODO: context not used in all graphql query
 package graphql
 
 import (
@@ -6,10 +7,21 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/dogechain-lab/dogechain/chain"
+	"github.com/dogechain-lab/dogechain/crypto"
 	"github.com/dogechain-lab/dogechain/graphql/argtype"
 	rpc "github.com/dogechain-lab/dogechain/jsonrpc"
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/umbracle/fastrlp"
+)
+
+var (
+	latestBlockNum, _ = rpc.CreateBlockNumberPointer(rpc.LatestBlockFlag)
+)
+
+var (
+	errBlockInvariant = errors.New("block objects must be instantiated with at least one of num or hash")
+	errBlockNotExists = errors.New("block not exists")
 )
 
 // Account represents an Dogechain account at a particular block.
@@ -23,7 +35,7 @@ type Account struct {
 func (a *Account) getStateRoot(ctx context.Context) (types.Hash, error) {
 	// The filter is empty, use the latest block by default
 	if a.blockNrOrHash.BlockNumber == nil && a.blockNrOrHash.BlockHash == nil {
-		a.blockNrOrHash.BlockNumber, _ = rpc.CreateBlockNumberPointer("latest")
+		a.blockNrOrHash.BlockNumber = latestBlockNum
 	}
 
 	header, err := a.getHeaderFromBlockNumberOrHash(&a.blockNrOrHash)
@@ -112,72 +124,59 @@ func (a *Account) Balance(ctx context.Context) (argtype.Big, error) {
 }
 
 func (a *Account) TransactionCount(ctx context.Context) (argtype.Uint64, error) {
-	var (
-		defaultCount = argtype.Uint64(0)
-	)
-
 	root, err := a.getStateRoot(ctx)
 	if err != nil {
-		return defaultCount, err
+		return 0, err
 	}
 
 	// Extract the account balance
 	acc, err := a.backend.GetAccount(root, a.address)
 	if errors.Is(err, rpc.ErrStateNotFound) {
 		// Account not found, return an empty account
-		return defaultCount, nil
+		return 0, nil
 	} else if err != nil {
-		return defaultCount, err
+		return 0, err
 	}
 
 	return argtype.Uint64(acc.Nonce), nil
 }
 
 func (a *Account) Code(ctx context.Context) (argtype.Bytes, error) {
-	var (
-		defaultCode = argtype.Bytes("0x")
-		emptyCode   = argtype.Bytes{}
-	)
-
 	root, err := a.getStateRoot(ctx)
 	if err != nil {
-		return defaultCode, err
+		return argtype.Bytes{}, err
 	}
 
 	acc, err := a.backend.GetAccount(root, a.address)
 	if errors.Is(err, rpc.ErrStateNotFound) {
 		// Account not found, return default value
-		return defaultCode, nil
+		return argtype.Bytes{}, nil
 	} else if err != nil {
-		return emptyCode, err
+		return argtype.Bytes{}, err
 	}
 
 	code, err := a.backend.GetCode(types.BytesToHash(acc.CodeHash))
 	if err != nil {
-		return emptyCode, nil
+		return argtype.Bytes{}, nil
 	}
 
 	return argtype.Bytes(code), nil
 }
 
 func (a *Account) Storage(ctx context.Context, args struct{ Slot types.Hash }) (types.Hash, error) {
-	var (
-		defaultHash = types.ZeroHash
-	)
-
 	root, err := a.getStateRoot(ctx)
 	if err != nil {
-		return defaultHash, err
+		return types.ZeroHash, err
 	}
 
 	// Get the storage for the passed in location
 	result, err := a.backend.GetStorage(root, a.address, args.Slot)
 	if err != nil {
 		if errors.Is(err, rpc.ErrStateNotFound) {
-			return defaultHash, nil
+			return types.ZeroHash, nil
 		}
 
-		return defaultHash, err
+		return types.ZeroHash, err
 	}
 
 	// Parse the RLP value
@@ -185,12 +184,12 @@ func (a *Account) Storage(ctx context.Context, args struct{ Slot types.Hash }) (
 
 	v, err := p.Parse(result)
 	if err != nil {
-		return defaultHash, nil
+		return types.ZeroHash, nil
 	}
 
 	data, err := v.Bytes()
 	if err != nil {
-		return defaultHash, nil
+		return types.ZeroHash, nil
 	}
 
 	return types.BytesToHash(data), nil
@@ -200,7 +199,7 @@ func (a *Account) Storage(ctx context.Context, args struct{ Slot types.Hash }) (
 type Log struct {
 	backend     GraphQLStore
 	transaction *Transaction
-	log         *types.Log
+	log         *argtype.Log
 }
 
 func (l *Log) Transaction(ctx context.Context) *Transaction {
@@ -216,7 +215,7 @@ func (l *Log) Account(ctx context.Context, args BlockNumberArgs) *Account {
 }
 
 func (l *Log) Index(ctx context.Context) int32 {
-	return int32(0)
+	return int32(l.log.LogIndex)
 }
 
 func (l *Log) Topics(ctx context.Context) []types.Hash {
@@ -230,142 +229,447 @@ func (l *Log) Data(ctx context.Context) argtype.Bytes {
 // Transaction represents an Dogechain transaction.
 // backend and hash are mandatory; all others will be fetched when required.
 type Transaction struct {
-	// backend GraphQLStore
-	hash types.Hash
-	// tx   *types.Transaction
-	// block   *Block
-	// index   uint64
+	backend GraphQLStore
+	signer  crypto.TxSigner
+
+	hash  types.Hash
+	tx    *types.Transaction
+	block *Block
+	index uint64
 }
 
-// // resolve returns the internal transaction object, fetching it if needed.
-// func (t *Transaction) resolve(ctx context.Context) (*types.Transaction, error) {
-// 	return t.tx, nil
-// }
+// resolve returns the internal transaction object, fetching it if needed.
+func (t *Transaction) resolve(ctx context.Context) (*types.Transaction, error) {
+	if t.tx == nil {
+		// 1. Check the chain state for the txn
+		if t.findSealedTx(t.hash) {
+			return t.tx, nil
+		}
+
+		// 2. Check the TxPool for the txn
+		if t.findPendingTx(t.hash) {
+			return t.tx, nil
+		}
+
+		// Transaction not found in state or TxPool
+		return nil, nil
+	}
+
+	return t.tx, nil
+}
+
+// findSealedTx is a helper method for checking the world state for the transaction
+// with the provided hash
+func (t *Transaction) findSealedTx(hash types.Hash) bool {
+	// Check the chain state for the transaction
+	blockHash, ok := t.backend.ReadTxLookup(hash)
+	if !ok {
+		// Block not found in storage
+		return false
+	}
+
+	block, ok := t.backend.GetBlockByHash(blockHash, true)
+	if !ok {
+		// Block receipts not found in storage
+		return false
+	}
+
+	t.block = &Block{
+		backend: t.backend,
+		numberOrHash: &rpc.BlockNumberOrHash{
+			BlockNumber: nil,
+			BlockHash:   &hash,
+		},
+	}
+
+	// Find the transaction within the block
+	for idx, txn := range block.Transactions {
+		if txn.Hash == hash {
+			t.tx = txn
+			t.index = uint64(idx)
+
+			return true
+		}
+	}
+
+	return false
+}
+
+// findPendingTx is a helper method for checking the TxPool for the pending transaction
+// with the provided hash
+func (t *Transaction) findPendingTx(hash types.Hash) bool {
+	// Check the TxPool for the transaction if it's pending
+	if pendingTx, pendingFound := t.backend.GetPendingTx(hash); pendingFound {
+		t.tx = pendingTx
+
+		return true
+	}
+
+	// Transaction not found in the TxPool
+	return false
+}
 
 func (t *Transaction) Hash(ctx context.Context) types.Hash {
 	return t.hash
 }
 
 func (t *Transaction) InputData(ctx context.Context) (argtype.Bytes, error) {
-	return argtype.Bytes{}, nil
+	tx, err := t.resolve(ctx)
+	if err != nil || tx == nil {
+		return argtype.Bytes{}, err
+	}
+
+	return argtype.Bytes(t.tx.Input), nil
 }
 
 func (t *Transaction) Gas(ctx context.Context) (argtype.Uint64, error) {
-	return argtype.Uint64(0), nil
+	tx, err := t.resolve(ctx)
+	if err != nil || tx == nil {
+		return 0, err
+	}
+
+	return argtype.Uint64(tx.Gas), nil
 }
 
 func (t *Transaction) GasPrice(ctx context.Context) (argtype.Big, error) {
-	return argtype.Big{}, nil
+	tx, err := t.resolve(ctx)
+	if err != nil || tx == nil {
+		return argtype.Big{}, err
+	}
+
+	if tx.Value == nil {
+		return argtype.Big{}, fmt.Errorf("invalid transaction value %x", t.hash)
+	}
+
+	return argtype.Big(*tx.GasPrice), nil
 }
 
 func (t *Transaction) Value(ctx context.Context) (argtype.Big, error) {
-	return argtype.Big{}, nil
+	tx, err := t.resolve(ctx)
+	if err != nil || tx == nil || tx.Value == nil {
+		return argtype.Big{}, err
+	}
+
+	return argtype.Big(*tx.Value), nil
 }
 
 func (t *Transaction) Nonce(ctx context.Context) (argtype.Uint64, error) {
-	return argtype.Uint64(0), nil
+	tx, err := t.resolve(ctx)
+	if err != nil || tx == nil {
+		return 0, err
+	}
+
+	return argtype.Uint64(t.tx.Nonce), nil
 }
 
 func (t *Transaction) To(ctx context.Context, args BlockNumberArgs) (*Account, error) {
-	return &Account{}, nil
+	tx, err := t.resolve(ctx)
+	if err != nil || tx == nil {
+		return nil, err
+	}
+
+	to := tx.To
+	if to == nil {
+		return nil, nil
+	}
+
+	return &Account{
+		backend:       t.backend,
+		address:       *to,
+		blockNrOrHash: args.NumberOrLatest(),
+	}, nil
 }
 
 func (t *Transaction) From(ctx context.Context, args BlockNumberArgs) (*Account, error) {
-	return &Account{}, nil
+	tx, err := t.resolve(ctx)
+	if err != nil || tx == nil {
+		return nil, err
+	}
+
+	// check signer
+	from, err := t.signer.Sender(tx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Account{
+		backend:       t.backend,
+		address:       from,
+		blockNrOrHash: args.NumberOrLatest(),
+	}, nil
 }
 
 func (t *Transaction) Block(ctx context.Context) (*Block, error) {
-	return &Block{}, nil
+	if _, err := t.resolve(ctx); err != nil {
+		return nil, err
+	}
+
+	return t.block, nil
 }
 
 func (t *Transaction) Index(ctx context.Context) (*int32, error) {
-	var index = int32(0)
+	if _, err := t.resolve(ctx); err != nil {
+		return nil, err
+	}
+
+	if t.block == nil {
+		return nil, nil
+	}
+
+	var index = int32(t.index)
 
 	return &index, nil
 }
 
-// // getReceipt returns the receipt associated with this transaction, if any.
-// func (t *Transaction) getReceipt(ctx context.Context) (*types.Receipt, error) {
-// 	return &types.Receipt{}, nil
-// }
+// getReceipt returns the receipt associated with this transaction, if any.
+func (t *Transaction) getReceipt(ctx context.Context) (*types.Receipt, error) {
+	if _, err := t.resolve(ctx); err != nil {
+		return nil, err
+	}
+
+	if t.block == nil {
+		return nil, nil
+	}
+
+	receipts, err := t.block.resolveReceipts(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return receipts[t.index], nil
+}
 
 func (t *Transaction) Status(ctx context.Context) (*argtype.Long, error) {
-	var status = argtype.Long(0)
+	receipt, err := t.getReceipt(ctx)
+	if err != nil || receipt == nil {
+		return nil, err
+	}
 
-	return &status, nil
+	if receipt.Status == nil {
+		return nil, nil
+	}
+
+	ret := argtype.Long(*receipt.Status)
+
+	return &ret, nil
 }
 
 func (t *Transaction) GasUsed(ctx context.Context) (*argtype.Long, error) {
-	var gasUsed = argtype.Long(0)
+	receipt, err := t.getReceipt(ctx)
+	if err != nil || receipt == nil {
+		return nil, err
+	}
 
-	return &gasUsed, nil
+	ret := argtype.Long(receipt.GasUsed)
+
+	return &ret, nil
 }
 
 func (t *Transaction) CumulativeGasUsed(ctx context.Context) (*argtype.Long, error) {
-	var cumulativeGasUsed = argtype.Long(0)
+	receipt, err := t.getReceipt(ctx)
+	if err != nil || receipt == nil {
+		return nil, err
+	}
 
-	return &cumulativeGasUsed, nil
+	ret := argtype.Long(receipt.CumulativeGasUsed)
+
+	return &ret, nil
 }
 
 func (t *Transaction) CreatedContract(ctx context.Context, args BlockNumberArgs) (*Account, error) {
-	return &Account{}, nil
+	receipt, err := t.getReceipt(ctx)
+	if err != nil || receipt == nil ||
+		receipt.ContractAddress == nil || *receipt.ContractAddress == types.ZeroAddress {
+		return nil, err
+	}
+
+	return &Account{
+		backend:       t.backend,
+		address:       *receipt.ContractAddress,
+		blockNrOrHash: args.NumberOrLatest(),
+	}, nil
 }
 
 func (t *Transaction) Logs(ctx context.Context) (*[]*Log, error) {
-	var logs = make([]*Log, 0)
+	receipt, err := t.getReceipt(ctx)
+	if err != nil || receipt == nil {
+		return nil, err
+	}
+
+	logs := make([]*Log, len(receipt.Logs))
+	for i, elem := range receipt.Logs {
+		logs[i] = &Log{
+			backend:     t.backend,
+			transaction: t,
+			log: &argtype.Log{
+				Address:     elem.Address,
+				Topics:      elem.Topics,
+				Data:        elem.Data,
+				BlockNumber: argtype.Uint64(t.block.header.Number),
+				TxHash:      t.hash,
+				TxIndex:     argtype.Uint64(t.index),
+				BlockHash:   t.block.hash,
+				LogIndex:    argtype.Uint64(i),
+				Removed:     false,
+			},
+		}
+	}
 
 	return &logs, nil
 }
 
 func (t *Transaction) R(ctx context.Context) (argtype.Big, error) {
-	return argtype.Big{}, nil
+	tx, err := t.resolve(ctx)
+	if err != nil || tx == nil {
+		return argtype.Big{}, err
+	}
+
+	return argtype.Big(*tx.R), nil
 }
 
 func (t *Transaction) S(ctx context.Context) (argtype.Big, error) {
-	return argtype.Big{}, nil
+	tx, err := t.resolve(ctx)
+	if err != nil || tx == nil {
+		return argtype.Big{}, err
+	}
+
+	return argtype.Big(*tx.S), nil
 }
 
 func (t *Transaction) V(ctx context.Context) (argtype.Big, error) {
-	return argtype.Big{}, nil
+	tx, err := t.resolve(ctx)
+	if err != nil || tx == nil {
+		return argtype.Big{}, err
+	}
+
+	return argtype.Big(*tx.V), nil
 }
 
 func (t *Transaction) Raw(ctx context.Context) (argtype.Bytes, error) {
-	return argtype.Bytes{}, nil
+	tx, err := t.resolve(ctx)
+	if err != nil || tx == nil {
+		return argtype.Bytes{}, err
+	}
+
+	return argtype.Bytes(tx.MarshalRLP()), nil
 }
 
 func (t *Transaction) RawReceipt(ctx context.Context) (argtype.Bytes, error) {
-	return argtype.Bytes{}, nil
+	receipt, err := t.getReceipt(ctx)
+	if err != nil || receipt == nil {
+		return argtype.Bytes{}, err
+	}
+
+	return argtype.Bytes(receipt.MarshalRLP()), nil
 }
 
 // Block represents an Dogechain block.
 // backend, and numberOrHash are mandatory. All other fields are lazily fetched
 // when required.
 type Block struct {
-	// numberOrHash *rpc.BlockNumberOrHash
-	// hash         types.Hash
-	// header       *types.Header
-	// block        *types.Block
-	// receipts     []*types.Receipt
+	backend      GraphQLStore
+	numberOrHash *rpc.BlockNumberOrHash
+	hash         types.Hash
+	header       *types.Header
+	block        *types.Block
+	receipts     []*types.Receipt
 }
 
-// // resolve returns the internal Block object representing this block, fetching
-// // it if necessary.
-// func (b *Block) resolve(ctx context.Context) (*types.Block, error) {
-// 	return &types.Block{}, nil
-// }
+// resolve returns the internal Block object representing this block, fetching
+// it if necessary.
+func (b *Block) resolve(ctx context.Context) (*types.Block, error) {
+	if b.block != nil {
+		return b.block, nil
+	}
 
-// // resolveHeader returns the internal Header object for this block, fetching it
-// // if necessary. Call this function instead of `resolve` unless you need the
-// // additional data (transactions and uncles).
-// func (b *Block) resolveHeader(ctx context.Context) (*types.Header, error) {
-// 	return &types.Header{}, nil
-// }
+	if b.numberOrHash == nil {
+		b.numberOrHash = &rpc.BlockNumberOrHash{
+			BlockNumber: latestBlockNum,
+		}
+	}
 
-// // resolveReceipts returns the list of receipts for this block, fetching them
-// // if necessary.
-// func (b *Block) resolveReceipts(ctx context.Context) ([]*types.Receipt, error) {
-// 	return []*types.Receipt{}, nil
-// }
+	var exists bool
+
+	switch {
+	case b.numberOrHash.BlockNumber != nil:
+		// get block with all transactions
+		b.block, exists = b.backend.GetBlockByNumber(uint64(*b.numberOrHash.BlockNumber), true)
+		if !exists {
+			return nil, errBlockNotExists
+		}
+	case b.numberOrHash.BlockHash != nil:
+		b.block, exists = b.backend.GetBlockByHash(*b.numberOrHash.BlockHash, true)
+		if !exists {
+			return nil, errBlockNotExists
+		}
+
+		b.hash = *b.numberOrHash.BlockHash
+	default:
+		return nil, errBlockInvariant
+	}
+
+	if b.block != nil && b.header == nil {
+		b.header = b.block.Header
+
+		if b.hash == types.ZeroHash {
+			b.hash = b.block.Hash()
+		}
+	}
+
+	return b.block, nil
+}
+
+// resolveHeader returns the internal Header object for this block, fetching it
+// if necessary. Call this function instead of `resolve` unless you need the
+// additional data (transactions and uncles).
+func (b *Block) resolveHeader(ctx context.Context) (*types.Header, error) {
+	if b.numberOrHash == nil && b.hash == types.ZeroHash {
+		return nil, errBlockInvariant
+	}
+
+	var exists bool
+
+	if b.header == nil {
+		if b.hash != types.ZeroHash {
+			b.header, exists = b.backend.GetHeaderByHash(b.hash)
+			if !exists {
+				return nil, errBlockNotExists
+			}
+		} else {
+			b.header, exists = b.backend.GetHeaderByNumber(uint64(*b.numberOrHash.BlockNumber))
+			if !exists {
+				return nil, errBlockNotExists
+			}
+		}
+	}
+
+	return b.header, nil
+}
+
+// resolveReceipts returns the list of receipts for this block, fetching them if necessary.
+func (b *Block) resolveReceipts(ctx context.Context) ([]*types.Receipt, error) {
+	if b.receipts == nil {
+		hash := b.hash
+
+		if hash == types.ZeroHash {
+			header, err := b.resolveHeader(ctx)
+			if err != nil {
+				return nil, err
+			}
+
+			hash = header.Hash
+		}
+
+		receipts, err := b.backend.GetReceiptsByHash(hash)
+		if err != nil {
+			return nil, err
+		}
+
+		b.receipts = receipts
+	}
+
+	return b.receipts, nil
+}
 
 func (b *Block) Number(ctx context.Context) (argtype.Long, error) {
 	return argtype.Long(0), nil
@@ -392,7 +696,7 @@ func (b *Block) Difficulty(ctx context.Context) (argtype.Big, error) {
 }
 
 func (b *Block) Timestamp(ctx context.Context) (argtype.Uint64, error) {
-	return argtype.Uint64(0), nil
+	return 0, nil
 }
 
 func (b *Block) Nonce(ctx context.Context) (argtype.Bytes, error) {
@@ -446,13 +750,25 @@ type BlockNumberArgs struct {
 // NumberOr returns the provided block number argument, or the "current" block number or hash if none
 // was provided.
 func (a BlockNumberArgs) NumberOr(current rpc.BlockNumberOrHash) rpc.BlockNumberOrHash {
-	return rpc.BlockNumberOrHash{}
+	if a.Block != nil {
+		blockNr := rpc.BlockNumber(*a.Block)
+
+		return rpc.BlockNumberOrHash{
+			BlockNumber: &blockNr,
+			BlockHash:   nil,
+		}
+	}
+
+	return current
 }
 
 // NumberOrLatest returns the provided block number argument, or the "latest" block number if none
 // was provided.
 func (a BlockNumberArgs) NumberOrLatest() rpc.BlockNumberOrHash {
-	return rpc.BlockNumberOrHash{}
+	return a.NumberOr(rpc.BlockNumberOrHash{
+		BlockNumber: latestBlockNum,
+		BlockHash:   nil,
+	})
 }
 
 func (b *Block) Miner(ctx context.Context, args BlockNumberArgs) (*Account, error) {
@@ -488,6 +804,27 @@ type BlockFilterCriteria struct {
 	Topics *[][]types.Hash
 }
 
+// runFilter accepts a filter and executes it, returning all its results as
+// `Log` objects.
+func runFilter(ctx context.Context, backend GraphQLStore, filter *rpc.FilterManager, query *rpc.LogQuery) ([]*Log, error) {
+	logs, err := filter.GetLogs(query)
+	if err != nil || logs == nil {
+		return nil, err
+	}
+
+	ret := make([]*Log, 0, len(logs))
+
+	for _, log := range logs {
+		ret = append(ret, &Log{
+			backend:     backend,
+			transaction: &Transaction{backend: backend, hash: log.TxHash},
+			log:         argtype.FromRPCLog(log),
+		})
+	}
+
+	return ret, nil
+}
+
 func (b *Block) Logs(ctx context.Context, args struct{ Filter BlockFilterCriteria }) ([]*Log, error) {
 	return []*Log{}, nil
 }
@@ -500,26 +837,119 @@ func (b *Block) Account(ctx context.Context, args struct {
 
 // Resolver is the top-level object in the GraphQL hierarchy.
 type Resolver struct {
-	backend GraphQLStore
-	chainID argtype.Big
+	backend       GraphQLStore
+	chainID       argtype.Big
+	forksInTime   chain.ForksInTime
+	filterManager *rpc.FilterManager
+	signer        crypto.TxSigner
 }
 
 func (r *Resolver) Block(ctx context.Context, args struct {
 	Number *argtype.Long
 	Hash   *types.Hash
 }) (*Block, error) {
-	return &Block{}, nil
+	var block *Block
+
+	if args.Number != nil {
+		if *args.Number < 0 {
+			return nil, nil
+		}
+
+		number := rpc.BlockNumber(*args.Number)
+		numberOrHash := rpc.BlockNumberOrHash{BlockNumber: &number}
+		block = &Block{
+			backend:      r.backend,
+			numberOrHash: &numberOrHash,
+		}
+	} else if args.Hash != nil {
+		numberOrHash := rpc.BlockNumberOrHash{BlockHash: args.Hash}
+		block = &Block{
+			backend:      r.backend,
+			numberOrHash: &numberOrHash,
+		}
+	} else {
+		numberOrHash := rpc.BlockNumberOrHash{BlockNumber: latestBlockNum}
+		block = &Block{
+			backend:      r.backend,
+			numberOrHash: &numberOrHash,
+		}
+	}
+
+	// Resolve the header, return nil if it doesn't exist.
+	// Note we don't resolve block directly here since it will require an
+	// additional network request for light client.
+	h, err := block.resolveHeader(ctx)
+	if err != nil {
+		return nil, err
+	} else if h == nil {
+		return nil, nil
+	}
+
+	return block, nil
 }
 
 func (r *Resolver) Blocks(ctx context.Context, args struct {
 	From *argtype.Long
 	To   *argtype.Long
 }) ([]*Block, error) {
-	return []*Block{}, nil
+	var (
+		from = rpc.BlockNumber(*args.From)
+		to   rpc.BlockNumber
+	)
+
+	if args.To != nil {
+		to = rpc.BlockNumber(*args.To)
+	} else {
+		to = rpc.BlockNumber(int64(r.backend.Header().Number))
+	}
+
+	if to < from {
+		return []*Block{}, nil
+	}
+
+	ret := make([]*Block, 0, to-from+1)
+
+	for i := from; i <= to; i++ {
+		idx := i // variable copy
+
+		numberOrHash := rpc.BlockNumberOrHash{BlockNumber: &idx}
+		block := &Block{
+			backend:      r.backend,
+			numberOrHash: &numberOrHash,
+		}
+
+		// Resolve the header to check for existence.
+		// Note we don't resolve block directly here since it will require an
+		// additional network request for light client.
+		h, err := block.resolveHeader(ctx)
+		if err != nil {
+			return nil, err
+		} else if h == nil {
+			// Blocks after must be non-existent too, break.
+			break
+		}
+
+		ret = append(ret, block)
+	}
+
+	return ret, nil
 }
 
 func (r *Resolver) Transaction(ctx context.Context, args struct{ Hash types.Hash }) (*Transaction, error) {
-	return &Transaction{}, nil
+	tx := &Transaction{
+		backend: r.backend,
+		hash:    args.Hash,
+	}
+
+	// Resolve the transaction; if it doesn't exist, return nil.
+	t, err := tx.resolve(ctx)
+	if err != nil {
+		return nil, err
+	} else if t == nil {
+		return nil, nil
+	}
+
+	return tx, nil
 }
 
 // FilterCriteria encapsulates the arguments to `logs` on the root resolver object.
@@ -543,11 +973,59 @@ type FilterCriteria struct {
 }
 
 func (r *Resolver) Logs(ctx context.Context, args struct{ Filter FilterCriteria }) ([]*Log, error) {
-	return []*Log{}, nil
+	// Convert the RPC block numbers into internal representations
+	var (
+		// begin     = int64(rpc.LatestBlockNumber)
+		// end       = int64(rpc.LatestBlockNumber)
+		addresses []types.Address
+		topics    [][]types.Hash
+	)
+
+	// if args.Filter.FromBlock != nil {
+	// 	begin = int64(*args.Filter.FromBlock)
+	// }
+
+	// if args.Filter.ToBlock != nil {
+	// 	end = int64(*args.Filter.ToBlock)
+	// }
+
+	if args.Filter.Addresses != nil {
+		addresses = *args.Filter.Addresses
+	}
+
+	if args.Filter.Topics != nil {
+		topics = *args.Filter.Topics
+	}
+
+	return runFilter(ctx, r.backend, r.filterManager, &rpc.LogQuery{
+		// fromBlock : ,
+		// toBlock   : ,
+		Addresses: addresses,
+		Topics:    topics,
+	})
 }
 
+const (
+	defaultMinGasPrice = "0Xba43b7400" // 50 GWei
+)
+
 func (r *Resolver) GasPrice(ctx context.Context) (argtype.Big, error) {
-	return argtype.Big{}, nil
+	var avgGasPrice *big.Int
+
+	// Grab the average gas price and convert it to a hex value
+	minGasPrice, _ := new(big.Int).SetString(defaultMinGasPrice, 0)
+
+	if r.backend.GetAvgGasPrice().Cmp(minGasPrice) == -1 {
+		avgGasPrice = minGasPrice
+	} else {
+		avgGasPrice = r.backend.GetAvgGasPrice()
+	}
+
+	if avgGasPrice == nil {
+		return argtype.Big{}, nil
+	}
+
+	return argtype.Big(*avgGasPrice), nil
 }
 
 func (r *Resolver) ChainID(ctx context.Context) (argtype.Big, error) {
