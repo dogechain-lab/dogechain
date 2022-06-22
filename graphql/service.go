@@ -39,7 +39,7 @@ type GraphQLStore interface {
 func NewGraphQLService(logger hclog.Logger, config *Config) (*GraphQLService, error) {
 	q := Resolver{
 		backend:       config.Store,
-		chainID:       uint64(config.ChainID),
+		chainID:       config.ChainID,
 		filterManager: rpc.NewFilterManager(hclog.NewNullLogger(), config.Store),
 	}
 

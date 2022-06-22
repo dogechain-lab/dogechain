@@ -950,6 +950,7 @@ type BlockFilterCriteria struct {
 func runFilter(
 	ctx context.Context,
 	backend GraphQLStore,
+	resolver *Resolver,
 	filter *rpc.FilterManager,
 	query *rpc.LogQuery,
 ) ([]*Log, error) {
@@ -961,9 +962,14 @@ func runFilter(
 	ret := make([]*Log, 0, len(logs))
 
 	for _, log := range logs {
+		t := &Transaction{backend: backend, resolver: resolver, hash: log.TxHash}
+		if _, err := t.resolve(ctx); err != nil {
+			return nil, err
+		}
+
 		ret = append(ret, &Log{
 			backend:     backend,
-			transaction: &Transaction{backend: backend, hash: log.TxHash},
+			transaction: t,
 			log:         argtype.FromRPCLog(log),
 		})
 	}
@@ -989,7 +995,7 @@ func (b *Block) Logs(ctx context.Context, args struct{ Filter BlockFilterCriteri
 	num := rpc.BlockNumber(b.header.Number)
 
 	// Run the filter and return all the logs
-	return runFilter(ctx, b.backend, b.resolver.filterManager, &rpc.LogQuery{
+	return runFilter(ctx, b.backend, b.resolver, b.resolver.filterManager, &rpc.LogQuery{
 		FromBlock: num,
 		ToBlock:   num,
 		Addresses: addresses,
@@ -1181,7 +1187,7 @@ func (r *Resolver) Logs(ctx context.Context, args struct{ Filter FilterCriteria 
 		topics = *args.Filter.Topics
 	}
 
-	return runFilter(ctx, r.backend, r.filterManager, &rpc.LogQuery{
+	return runFilter(ctx, r.backend, r, r.filterManager, &rpc.LogQuery{
 		FromBlock: begin,
 		ToBlock:   end,
 		Addresses: addresses,
