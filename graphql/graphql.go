@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/dogechain-lab/dogechain/chain"
 	"github.com/dogechain-lab/dogechain/crypto"
 	"github.com/dogechain-lab/dogechain/graphql/argtype"
 	rpc "github.com/dogechain-lab/dogechain/jsonrpc"
@@ -230,9 +229,9 @@ func (l *Log) Data(ctx context.Context) argtype.Bytes {
 // Transaction represents an Dogechain transaction.
 // backend and hash are mandatory; all others will be fetched when required.
 type Transaction struct {
-	backend       GraphQLStore
-	signer        crypto.TxSigner
-	filterManager *rpc.FilterManager
+	backend  GraphQLStore
+	resolver *Resolver
+	signer   crypto.TxSigner
 
 	hash  types.Hash
 	tx    *types.Transaction
@@ -279,17 +278,18 @@ func (t *Transaction) findSealedTx(hash types.Hash) bool {
 	blockNum := rpc.BlockNumber(block.Header.Number)
 
 	t.block = &Block{
-		backend:       t.backend,
-		signer:        t.signer,
-		filterManager: t.filterManager,
+		backend:  t.backend,
+		resolver: t.resolver,
 		numberOrHash: &rpc.BlockNumberOrHash{
 			BlockNumber: &blockNum,
-			BlockHash: &blockHash,
+			BlockHash:   &blockHash,
 		},
-		hash: blockHash,
+		hash:   blockHash,
 		header: block.Header,
-		block: block,
+		block:  block,
 	}
+
+	t.signer = crypto.NewSigner(t.backend.GetForksInTime(block.Number()), t.resolver.chainID)
 
 	// Find the transaction within the block
 	for idx, txn := range block.Transactions {
@@ -309,6 +309,12 @@ func (t *Transaction) findSealedTx(hash types.Hash) bool {
 func (t *Transaction) findPendingTx(hash types.Hash) bool {
 	// Check the TxPool for the transaction if it's pending
 	if pendingTx, pendingFound := t.backend.GetPendingTx(hash); pendingFound {
+		header := t.backend.Header()
+		if header == nil {
+			return false
+		}
+
+		t.signer = crypto.NewSigner(t.backend.GetForksInTime(header.Number), t.resolver.chainID)
 		t.tx = pendingTx
 
 		return true
@@ -576,9 +582,8 @@ func (t *Transaction) RawReceipt(ctx context.Context) (argtype.Bytes, error) {
 // backend, and numberOrHash are mandatory. All other fields are lazily fetched
 // when required.
 type Block struct {
-	backend       GraphQLStore
-	signer        crypto.TxSigner
-	filterManager *rpc.FilterManager
+	backend  GraphQLStore
+	resolver *Resolver
 
 	numberOrHash *rpc.BlockNumberOrHash
 	hash         types.Hash
@@ -887,13 +892,12 @@ func (b *Block) Transactions(ctx context.Context) (*[]*Transaction, error) {
 	ret := make([]*Transaction, 0, len(b.block.Transactions))
 	for i, tx := range b.block.Transactions {
 		ret = append(ret, &Transaction{
-			backend:       b.backend,
-			signer:        b.signer,
-			filterManager: b.filterManager,
-			hash:          tx.Hash,
-			tx:            tx,
-			block:         b,
-			index:         uint64(i),
+			backend:  b.backend,
+			resolver: b.resolver,
+			hash:     tx.Hash,
+			tx:       tx,
+			block:    b,
+			index:    uint64(i),
 		})
 	}
 
@@ -913,13 +917,12 @@ func (b *Block) TransactionAt(ctx context.Context, args struct{ Index int32 }) (
 	tx := txs[args.Index]
 
 	return &Transaction{
-		backend:       b.backend,
-		signer:        b.signer,
-		filterManager: b.filterManager,
-		hash:          tx.Hash,
-		tx:            tx,
-		block:         b,
-		index:         uint64(args.Index),
+		backend:  b.backend,
+		resolver: b.resolver,
+		hash:     tx.Hash,
+		tx:       tx,
+		block:    b,
+		index:    uint64(args.Index),
 	}, nil
 }
 
@@ -986,7 +989,7 @@ func (b *Block) Logs(ctx context.Context, args struct{ Filter BlockFilterCriteri
 	num := rpc.BlockNumber(b.header.Number)
 
 	// Run the filter and return all the logs
-	return runFilter(ctx, b.backend, b.filterManager, &rpc.LogQuery{
+	return runFilter(ctx, b.backend, b.resolver.filterManager, &rpc.LogQuery{
 		FromBlock: num,
 		ToBlock:   num,
 		Addresses: addresses,
@@ -1011,10 +1014,8 @@ func (b *Block) Account(ctx context.Context, args struct {
 // Resolver is the top-level object in the GraphQL hierarchy.
 type Resolver struct {
 	backend       GraphQLStore
-	chainID       argtype.Big
-	forksInTime   chain.ForksInTime
+	chainID       uint64
 	filterManager *rpc.FilterManager
-	signer        crypto.TxSigner
 }
 
 func (r *Resolver) Block(ctx context.Context, args struct {
@@ -1032,26 +1033,23 @@ func (r *Resolver) Block(ctx context.Context, args struct {
 		number := rpc.BlockNumber(*args.Number)
 		numberOrHash := rpc.BlockNumberOrHash{BlockNumber: &number}
 		block = &Block{
-			backend:       r.backend,
-			signer:        r.signer,
-			filterManager: r.filterManager,
-			numberOrHash:  &numberOrHash,
+			backend:      r.backend,
+			resolver:     r,
+			numberOrHash: &numberOrHash,
 		}
 	case args.Hash != nil:
 		numberOrHash := rpc.BlockNumberOrHash{BlockHash: args.Hash}
 		block = &Block{
-			backend:       r.backend,
-			signer:        r.signer,
-			filterManager: r.filterManager,
-			numberOrHash:  &numberOrHash,
+			backend:      r.backend,
+			resolver:     r,
+			numberOrHash: &numberOrHash,
 		}
 	default:
 		numberOrHash := rpc.BlockNumberOrHash{BlockNumber: latestBlockNum}
 		block = &Block{
-			backend:       r.backend,
-			signer:        r.signer,
-			filterManager: r.filterManager,
-			numberOrHash:  &numberOrHash,
+			backend:      r.backend,
+			resolver:     r,
+			numberOrHash: &numberOrHash,
 		}
 	}
 
@@ -1094,10 +1092,9 @@ func (r *Resolver) Blocks(ctx context.Context, args struct {
 
 		numberOrHash := rpc.BlockNumberOrHash{BlockNumber: &idx}
 		block := &Block{
-			backend:       r.backend,
-			signer:        r.signer,
-			filterManager: r.filterManager,
-			numberOrHash:  &numberOrHash,
+			backend:      r.backend,
+			resolver:     r,
+			numberOrHash: &numberOrHash,
 		}
 
 		// Resolve the header to check for existence.
@@ -1119,10 +1116,9 @@ func (r *Resolver) Blocks(ctx context.Context, args struct {
 
 func (r *Resolver) Transaction(ctx context.Context, args struct{ Hash types.Hash }) (*Transaction, error) {
 	tx := &Transaction{
-		backend:       r.backend,
-		signer:        r.signer,
-		filterManager: r.filterManager,
-		hash:          args.Hash,
+		backend:  r.backend,
+		resolver: r,
+		hash:     args.Hash,
 	}
 
 	// Resolve the transaction; if it doesn't exist, return nil.
@@ -1217,5 +1213,5 @@ func (r *Resolver) GasPrice(ctx context.Context) (argtype.Big, error) {
 }
 
 func (r *Resolver) ChainID(ctx context.Context) (argtype.Big, error) {
-	return r.chainID, nil
+	return argtype.Big(*new(big.Int).SetUint64(r.chainID)), nil
 }

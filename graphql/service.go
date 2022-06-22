@@ -3,13 +3,10 @@ package graphql
 import (
 	"encoding/json"
 	"fmt"
-	"math/big"
 	"net"
 	"net/http"
 
 	"github.com/dogechain-lab/dogechain/chain"
-	"github.com/dogechain-lab/dogechain/crypto"
-	"github.com/dogechain-lab/dogechain/graphql/argtype"
 	rpc "github.com/dogechain-lab/dogechain/jsonrpc"
 	"github.com/graph-gophers/graphql-go"
 	"github.com/hashicorp/go-hclog"
@@ -25,7 +22,7 @@ type GraphQLService struct {
 type Config struct {
 	Store                    GraphQLStore
 	Addr                     *net.TCPAddr
-	ForksInTime              chain.ForksInTime
+	Forks                    chain.Forks
 	ChainID                  uint64
 	AccessControlAllowOrigin []string
 }
@@ -40,14 +37,10 @@ type GraphQLStore interface {
 
 // NewJSONRPC returns the JSONRPC http server
 func NewGraphQLService(logger hclog.Logger, config *Config) (*GraphQLService, error) {
-	chainID := big.NewInt(int64(config.ChainID))
-
 	q := Resolver{
 		backend:       config.Store,
-		chainID:       argtype.Big(*chainID),
-		forksInTime:   config.ForksInTime,
+		chainID:       uint64(config.ChainID),
 		filterManager: rpc.NewFilterManager(hclog.NewNullLogger(), config.Store),
-		signer:        crypto.NewSigner(config.ForksInTime, config.ChainID),
 	}
 
 	s, err := graphql.ParseSchema(schema, &q)
