@@ -11,7 +11,7 @@ import (
 	"github.com/dogechain-lab/dogechain/graphql/argtype"
 	rpc "github.com/dogechain-lab/dogechain/jsonrpc"
 	"github.com/dogechain-lab/dogechain/types"
-	"github.com/umbracle/fastrlp"
+	"github.com/dogechain-lab/fastrlp"
 )
 
 var (
