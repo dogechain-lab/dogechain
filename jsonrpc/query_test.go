@@ -25,8 +25,8 @@ func TestFilterDecode(t *testing.T) {
 		{
 			`{}`,
 			&LogQuery{
-				fromBlock: LatestBlockNumber,
-				toBlock:   LatestBlockNumber,
+				FromBlock: LatestBlockNumber,
+				ToBlock:   LatestBlockNumber,
 			},
 		},
 		{
@@ -40,8 +40,8 @@ func TestFilterDecode(t *testing.T) {
 				"address": "` + addr1.String() + `"
 			}`,
 			&LogQuery{
-				fromBlock: LatestBlockNumber,
-				toBlock:   LatestBlockNumber,
+				FromBlock: LatestBlockNumber,
+				ToBlock:   LatestBlockNumber,
 				Addresses: []types.Address{
 					addr1,
 				},
@@ -55,8 +55,8 @@ func TestFilterDecode(t *testing.T) {
 				]
 			}`,
 			&LogQuery{
-				fromBlock: LatestBlockNumber,
-				toBlock:   LatestBlockNumber,
+				FromBlock: LatestBlockNumber,
+				ToBlock:   LatestBlockNumber,
 				Addresses: []types.Address{
 					addr1,
 					addr2,
@@ -79,8 +79,8 @@ func TestFilterDecode(t *testing.T) {
 				]
 			}`,
 			&LogQuery{
-				fromBlock: LatestBlockNumber,
-				toBlock:   LatestBlockNumber,
+				FromBlock: LatestBlockNumber,
+				ToBlock:   LatestBlockNumber,
 				Topics: [][]types.Hash{
 					{
 						hash1,
@@ -105,8 +105,8 @@ func TestFilterDecode(t *testing.T) {
 				"toBlock": "earliest"
 			}`,
 			&LogQuery{
-				fromBlock: PendingBlockNumber,
-				toBlock:   EarliestBlockNumber,
+				FromBlock: PendingBlockNumber,
+				ToBlock:   EarliestBlockNumber,
 			},
 		},
 		{
@@ -115,8 +115,8 @@ func TestFilterDecode(t *testing.T) {
 			}`,
 			&LogQuery{
 				BlockHash: &hash1,
-				fromBlock: LatestBlockNumber,
-				toBlock:   LatestBlockNumber,
+				FromBlock: LatestBlockNumber,
+				ToBlock:   LatestBlockNumber,
 			},
 		},
 		{
@@ -125,8 +125,8 @@ func TestFilterDecode(t *testing.T) {
 				"toBlock": "1000"
 			}`,
 			&LogQuery{
-				fromBlock: 0,
-				toBlock:   1000,
+				FromBlock: 0,
+				ToBlock:   1000,
 			},
 		},
 		{
@@ -135,8 +135,8 @@ func TestFilterDecode(t *testing.T) {
 				"toBlock": "0x3e8"
 			}`,
 			&LogQuery{
-				fromBlock: 0,
-				toBlock:   1000,
+				FromBlock: 0,
+				ToBlock:   1000,
 			},
 		},
 	}

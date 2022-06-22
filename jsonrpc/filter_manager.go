@@ -403,12 +403,12 @@ func (f *FilterManager) getLogsFromBlocks(query *LogQuery) ([]*Log, error) {
 		return uint64(num), nil
 	}
 
-	from, err := resolveNum(query.fromBlock)
+	from, err := resolveNum(query.FromBlock)
 	if err != nil {
 		return nil, err
 	}
 
-	to, err := resolveNum(query.toBlock)
+	to, err := resolveNum(query.ToBlock)
 	if err != nil {
 		return nil, err
 	}

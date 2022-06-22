@@ -187,8 +187,8 @@ func Test_GetLogsForQuery(t *testing.T) {
 		{
 			"Found matching logs, fromBlock < toBlock",
 			&LogQuery{
-				fromBlock: 1,
-				toBlock:   3,
+				FromBlock: 1,
+				ToBlock:   3,
 				Topics:    topics,
 			},
 			3,
@@ -197,8 +197,8 @@ func Test_GetLogsForQuery(t *testing.T) {
 		{
 			"Found matching logs, fromBlock == toBlock",
 			&LogQuery{
-				fromBlock: 2,
-				toBlock:   2,
+				FromBlock: 2,
+				ToBlock:   2,
 				Topics:    topics,
 			},
 			1,
@@ -216,8 +216,8 @@ func Test_GetLogsForQuery(t *testing.T) {
 		{
 			"No logs found",
 			&LogQuery{
-				fromBlock: 4,
-				toBlock:   5,
+				FromBlock: 4,
+				ToBlock:   5,
 				Topics:    topics,
 			},
 			0,
@@ -226,8 +226,8 @@ func Test_GetLogsForQuery(t *testing.T) {
 		{
 			"Invalid block range",
 			&LogQuery{
-				fromBlock: 10,
-				toBlock:   5,
+				FromBlock: 10,
+				ToBlock:   5,
 				Topics:    topics,
 			},
 			0,
@@ -268,8 +268,8 @@ func Test_GetLogFilterFromID(t *testing.T) {
 
 	logFilter := &LogQuery{
 		Addresses: []types.Address{addr1},
-		toBlock:   10,
-		fromBlock: 0,
+		ToBlock:   10,
+		FromBlock: 0,
 	}
 
 	retrivedLogFilter, err := m.GetLogFilterFromID(

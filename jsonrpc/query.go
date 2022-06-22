@@ -11,8 +11,8 @@ import (
 type LogQuery struct {
 	BlockHash *types.Hash
 
-	fromBlock BlockNumber
-	toBlock   BlockNumber
+	FromBlock BlockNumber
+	ToBlock   BlockNumber
 
 	Addresses []types.Address
 	Topics    [][]types.Hash
@@ -91,17 +91,17 @@ func (q *LogQuery) UnmarshalJSON(data []byte) error {
 	q.BlockHash = obj.BlockHash
 
 	if obj.FromBlock == "" {
-		q.fromBlock = LatestBlockNumber
+		q.FromBlock = LatestBlockNumber
 	} else {
-		if q.fromBlock, err = StringToBlockNumber(obj.FromBlock); err != nil {
+		if q.FromBlock, err = StringToBlockNumber(obj.FromBlock); err != nil {
 			return err
 		}
 	}
 
 	if obj.ToBlock == "" {
-		q.toBlock = LatestBlockNumber
+		q.ToBlock = LatestBlockNumber
 	} else {
-		if q.toBlock, err = StringToBlockNumber(obj.ToBlock); err != nil {
+		if q.ToBlock, err = StringToBlockNumber(obj.ToBlock); err != nil {
 			return err
 		}
 	}
