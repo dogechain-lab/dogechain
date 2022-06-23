@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math/big"
+	"sync"
 	"testing"
 	"time"
 
@@ -250,29 +251,26 @@ func TestFindCommonAncestor(t *testing.T) {
 }
 
 func TestWatchSyncWithPeer(t *testing.T) {
-	tests := []struct {
-		name           string
-		headers        []*types.Header
-		peerHeaders    []*types.Header
-		numNewBlocks   int
-		shouldSync     bool
-		expectedHeight uint64
+	tests := []*struct {
+		name         string
+		headers      []*types.Header
+		peerHeaders  []*types.Header
+		numNewBlocks int
+		// shouldSync   bool
 	}{
 		{
-			name:           "should sync until peer's latest block",
-			headers:        blockchain.NewTestHeadersWithSeed(nil, 10, 0),
-			peerHeaders:    blockchain.NewTestHeadersWithSeed(nil, 1, 0),
-			numNewBlocks:   15,
-			shouldSync:     true,
-			expectedHeight: 15,
+			name:         "should sync until peer's latest block",
+			headers:      blockchain.NewTestHeadersWithSeed(nil, 10, 0),
+			peerHeaders:  blockchain.NewTestHeadersWithSeed(nil, 1, 0),
+			numNewBlocks: 15,
+			// shouldSync:   true,
 		},
 		{
-			name:           "shouldn't sync",
-			headers:        blockchain.NewTestHeadersWithSeed(nil, 10, 0),
-			peerHeaders:    blockchain.NewTestHeadersWithSeed(nil, 1, 0),
-			numNewBlocks:   9,
-			shouldSync:     false,
-			expectedHeight: 9,
+			name:         "shouldn't sync",
+			headers:      blockchain.NewTestHeadersWithSeed(nil, 10, 0),
+			peerHeaders:  blockchain.NewTestHeadersWithSeed(nil, 1, 0),
+			numNewBlocks: 9,
+			// shouldSync:   false,
 		},
 	}
 
@@ -297,7 +295,8 @@ func TestWatchSyncWithPeer(t *testing.T) {
 			peer := getPeer(syncer, peerSyncer.server.AddrInfo().ID)
 			assert.NotNil(t, peer)
 
-			latestBlock := newBlocks[len(newBlocks)-1]
+			blocks := make([]*types.Block, 0, len(newBlocks))
+			blockMu := new(sync.Mutex)
 			startSyncTime := time.Now()
 			endSyncTime := startSyncTime.Add(time.Second * 5)
 			syncer.WatchSyncWithPeer(peer, func(b *types.Block) bool {
@@ -305,15 +304,16 @@ func TestWatchSyncWithPeer(t *testing.T) {
 					// Timeout
 					return true
 				}
-				// sync until latest block
-				return b.Header.Number >= latestBlock.Header.Number
+
+				blockMu.Lock()
+				defer blockMu.Unlock()
+
+				blocks = append(blocks, b)
+
+				return len(blocks) >= len(newBlocks)
 			})
 
-			if tt.shouldSync {
-				assert.Equal(t, HeaderToStatus(latestBlock.Header), syncer.status)
-			}
-
-			assert.Equal(t, tt.expectedHeight, syncer.status.Number)
+			assert.Equal(t, len(blocks), len(newBlocks))
 		})
 	}
 }
