@@ -256,6 +256,23 @@ func (t *Transaction) resolve(ctx context.Context) (*types.Transaction, error) {
 		return nil, nil
 	}
 
+	if t.signer == nil {
+		var num uint64
+
+		if t.block == nil {
+			header := t.backend.Header()
+			if header == nil {
+				return nil, errBlockNotExists
+			}
+
+			num = header.Number
+		} else {
+			num = t.block.block.Number()
+		}
+
+		t.signer = crypto.NewSigner(t.backend.GetForksInTime(num), t.resolver.chainID)
+	}
+
 	return t.tx, nil
 }
 
@@ -289,8 +306,6 @@ func (t *Transaction) findSealedTx(hash types.Hash) bool {
 		block:  block,
 	}
 
-	t.signer = crypto.NewSigner(t.backend.GetForksInTime(block.Number()), t.resolver.chainID)
-
 	// Find the transaction within the block
 	for idx, txn := range block.Transactions {
 		if txn.Hash == hash {
@@ -314,7 +329,6 @@ func (t *Transaction) findPendingTx(hash types.Hash) bool {
 			return false
 		}
 
-		t.signer = crypto.NewSigner(t.backend.GetForksInTime(header.Number), t.resolver.chainID)
 		t.tx = pendingTx
 
 		return true
