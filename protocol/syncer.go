@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"container/heap"
 	"context"
 	"errors"
 	"fmt"
@@ -9,11 +10,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dogechain-lab/dogechain/network/event"
-
 	"github.com/dogechain-lab/dogechain/blockchain"
 	"github.com/dogechain-lab/dogechain/helper/progress"
 	"github.com/dogechain-lab/dogechain/network"
+	"github.com/dogechain-lab/dogechain/network/event"
 	libp2pGrpc "github.com/dogechain-lab/dogechain/network/grpc"
 	"github.com/dogechain-lab/dogechain/protocol/proto"
 	"github.com/dogechain-lab/dogechain/types"
@@ -42,6 +42,41 @@ var (
 	ErrInvalidTypeAssertion   = errors.New("invalid type assertion")
 )
 
+// blocks sorted by number (ascending)
+type minNumBlockQueue []*types.Block
+
+var _ heap.Interface = (*minNumBlockQueue)(nil)
+
+func (q *minNumBlockQueue) Len() int {
+	return len(*q)
+}
+
+func (q *minNumBlockQueue) Less(i, j int) bool {
+	return (*q)[i].Number() < (*q)[j].Number()
+}
+
+func (q *minNumBlockQueue) Swap(i, j int) {
+	(*q)[i], (*q)[j] = (*q)[j], (*q)[i]
+}
+
+func (q *minNumBlockQueue) Push(x interface{}) {
+	block, ok := x.(*types.Block)
+	if !ok {
+		return
+	}
+
+	*q = append(*q, block)
+}
+
+func (q *minNumBlockQueue) Pop() interface{} {
+	old := q
+	n := len(*old)
+	x := (*old)[n-1]
+	*q = (*old)[0 : n-1]
+
+	return x
+}
+
 // SyncPeer is a representation of the peer the node is syncing with
 type SyncPeer struct {
 	peer   peer.ID
@@ -58,7 +93,7 @@ type SyncPeer struct {
 	statusLock sync.RWMutex
 
 	enqueueLock sync.Mutex
-	enqueue     []*types.Block
+	enqueue     minNumBlockQueue
 	enqueueCh   chan struct{}
 }
 
@@ -125,12 +160,13 @@ func (s *SyncPeer) appendBlock(b *types.Block) {
 	s.enqueueLock.Lock()
 	defer s.enqueueLock.Unlock()
 
-	if len(s.enqueue) == maxEnqueueSize {
-		// pop first element
-		s.enqueue = s.enqueue[1:]
+	// append the heap
+	heap.Push(&s.enqueue, b)
+
+	if s.enqueue.Len() > maxEnqueueSize {
+		// pop elements to meet capacity
+		s.enqueue = s.enqueue[s.enqueue.Len()-maxEnqueueSize:]
 	}
-	// append to the end
-	s.enqueue = append(s.enqueue, b)
 
 	select {
 	case s.enqueueCh <- struct{}{}:
@@ -141,6 +177,16 @@ func (s *SyncPeer) appendBlock(b *types.Block) {
 func (s *SyncPeer) updateStatus(status *Status) {
 	s.statusLock.Lock()
 	defer s.statusLock.Unlock()
+
+	// // compare current status, would only update until new height meet or fork happens
+	// switch {
+	// case status.Number < s.status.Number:
+	// 	return
+	// case status.Number == s.status.Number:
+	// 	if status.Hash == s.status.Hash {
+	// 		return
+	// 	}
+	// }
 
 	s.status = status
 }

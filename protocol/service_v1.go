@@ -58,7 +58,6 @@ func (s *serviceV1) Notify(ctx context.Context, req *proto.NotifyReq) (*empty.Em
 	}
 
 	status, err := fromProto(req.Status)
-
 	if err != nil {
 		return nil, err
 	}
