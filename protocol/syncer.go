@@ -48,6 +48,12 @@ type SyncPeer struct {
 	conn   *grpc.ClientConn
 	client proto.V1Client
 
+	// Peer status might not be the latest block due to its asynchronous broadcast
+	// mechanism. The goroutine would makes the sequence unpredictable.
+	// So do not rely on its status for step by step watching syncing, especially
+	// in a bad network status.
+	// We would rather evolve the syncing protocol instead of patching too much for
+	// v1 protocol.
 	status     *Status
 	statusLock sync.RWMutex
 
