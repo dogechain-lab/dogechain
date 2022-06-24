@@ -1,12 +1,12 @@
 package protocol
 
 import (
-	"container/heap"
 	"context"
 	"errors"
 	"fmt"
 	"math"
 	"math/big"
+	"sort"
 	"sync"
 	"time"
 
@@ -45,7 +45,8 @@ var (
 // blocks sorted by number (ascending)
 type minNumBlockQueue []*types.Block
 
-var _ heap.Interface = (*minNumBlockQueue)(nil)
+// must implement sort interface
+var _ sort.Interface = (*minNumBlockQueue)(nil)
 
 func (q *minNumBlockQueue) Len() int {
 	return len(*q)
@@ -57,24 +58,6 @@ func (q *minNumBlockQueue) Less(i, j int) bool {
 
 func (q *minNumBlockQueue) Swap(i, j int) {
 	(*q)[i], (*q)[j] = (*q)[j], (*q)[i]
-}
-
-func (q *minNumBlockQueue) Push(x interface{}) {
-	block, ok := x.(*types.Block)
-	if !ok {
-		return
-	}
-
-	*q = append(*q, block)
-}
-
-func (q *minNumBlockQueue) Pop() interface{} {
-	old := q
-	n := len(*old)
-	x := (*old)[n-1]
-	*q = (*old)[0 : n-1]
-
-	return x
 }
 
 // SyncPeer is a representation of the peer the node is syncing with
@@ -160,8 +143,10 @@ func (s *SyncPeer) appendBlock(b *types.Block) {
 	s.enqueueLock.Lock()
 	defer s.enqueueLock.Unlock()
 
-	// append the heap
-	heap.Push(&s.enqueue, b)
+	// append block
+	s.enqueue = append(s.enqueue, b)
+	// sort blocks
+	sort.Stable(&s.enqueue)
 
 	if s.enqueue.Len() > maxEnqueueSize {
 		// pop elements to meet capacity
@@ -544,6 +529,7 @@ func (s *Syncer) AddPeer(peerID peer.ID) error {
 		conn:      conn,
 		client:    clt,
 		status:    status,
+		enqueue:   make(minNumBlockQueue, 0, maxEnqueueSize+1),
 		enqueueCh: make(chan struct{}),
 	})
 
