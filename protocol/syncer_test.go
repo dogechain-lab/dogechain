@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math/big"
+	"sort"
 	"sync"
 	"testing"
 	"time"
@@ -269,25 +270,28 @@ func TestFindCommonAncestor(t *testing.T) {
 
 func TestWatchSyncWithPeer(t *testing.T) {
 	tests := []*struct {
-		name         string
-		headers      []*types.Header
-		peerHeaders  []*types.Header
-		numNewBlocks int
-		// shouldSync   bool
+		name           string
+		headers        []*types.Header
+		peerHeaders    []*types.Header
+		numNewBlocks   int
+		shouldSync     bool
+		expectedHeight uint64
 	}{
 		{
-			name:         "should sync until peer's latest block",
-			headers:      blockchain.NewTestHeadersWithSeed(nil, 10, 0),
-			peerHeaders:  blockchain.NewTestHeadersWithSeed(nil, 1, 0),
-			numNewBlocks: 15,
-			// shouldSync:   true,
+			name:           "should sync until peer's latest block",
+			headers:        blockchain.NewTestHeadersWithSeed(nil, 10, 0),
+			peerHeaders:    blockchain.NewTestHeadersWithSeed(nil, 1, 0),
+			numNewBlocks:   15,
+			shouldSync:     true,
+			expectedHeight: 15,
 		},
 		{
-			name:         "shouldn't sync",
-			headers:      blockchain.NewTestHeadersWithSeed(nil, 10, 0),
-			peerHeaders:  blockchain.NewTestHeadersWithSeed(nil, 1, 0),
-			numNewBlocks: 9,
-			// shouldSync:   false,
+			name:           "shouldn't sync",
+			headers:        blockchain.NewTestHeadersWithSeed(nil, 10, 0),
+			peerHeaders:    blockchain.NewTestHeadersWithSeed(nil, 1, 0),
+			numNewBlocks:   9,
+			shouldSync:     false,
+			expectedHeight: 9,
 		},
 	}
 
@@ -314,8 +318,7 @@ func TestWatchSyncWithPeer(t *testing.T) {
 
 			blocks := make([]*types.Block, 0, len(newBlocks))
 			blockMu := new(sync.Mutex)
-			startSyncTime := time.Now()
-			endSyncTime := startSyncTime.Add(time.Second * 5)
+			endSyncTime := time.Now().Add(time.Second * 5)
 			syncer.WatchSyncWithPeer(peer, func(b *types.Block) bool {
 				if time.Now().After(endSyncTime) {
 					// Timeout
@@ -330,6 +333,31 @@ func TestWatchSyncWithPeer(t *testing.T) {
 				return len(blocks) >= len(newBlocks)
 			})
 
+			// sort the slice outside
+			sort.Slice(blocks, func(i, j int) bool {
+				return blocks[i].Number() < blocks[j].Number()
+			})
+
+			// wait a little bit for syncer status update right
+			endWriteBlockTime := time.Now().Add(time.Second * 2)
+			ticker := time.NewTicker(time.Millisecond * 2)
+
+			for range ticker.C {
+				// time out
+				if time.Now().After(endWriteBlockTime) {
+					ticker.Stop()
+					break
+				}
+				// all blocks received
+				if syncer.status.Number >= blocks[len(blocks)-1].Header.Number {
+					break
+				}
+			}
+
+			if tt.shouldSync {
+				assert.Equal(t, HeaderToStatus(blocks[len(blocks)-1].Header), syncer.status)
+			}
+			assert.Equal(t, tt.expectedHeight, syncer.status.Number)
 			assert.Equal(t, len(blocks), len(newBlocks))
 		})
 	}
