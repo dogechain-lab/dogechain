@@ -163,15 +163,15 @@ func (s *SyncPeer) updateStatus(status *Status) {
 	s.statusLock.Lock()
 	defer s.statusLock.Unlock()
 
-	// // compare current status, would only update until new height meet or fork happens
-	// switch {
-	// case status.Number < s.status.Number:
-	// 	return
-	// case status.Number == s.status.Number:
-	// 	if status.Hash == s.status.Hash {
-	// 		return
-	// 	}
-	// }
+	// compare current status, would only update until new height meet or fork happens
+	switch {
+	case status.Number < s.status.Number:
+		return
+	case status.Number == s.status.Number:
+		if status.Hash == s.status.Hash {
+			return
+		}
+	}
 
 	s.status = status
 }
@@ -296,9 +296,7 @@ func (s *Syncer) syncCurrentStatus() {
 				Number:     evnt.NewChain[0].Number,
 			}
 
-			s.statusLock.Lock()
-			s.status = status
-			s.statusLock.Unlock()
+			s.updateStatus(status)
 
 		case <-s.stopCh:
 			sub.Close()
@@ -306,6 +304,25 @@ func (s *Syncer) syncCurrentStatus() {
 			return
 		}
 	}
+}
+
+func (s *Syncer) updateStatus(status *Status) {
+	s.statusLock.Lock()
+	defer s.statusLock.Unlock()
+
+	// compare current status, would only update until new height meet or fork happens
+	switch {
+	case status.Number < s.status.Number:
+		return
+	case status.Number == s.status.Number:
+		if status.Hash == s.status.Hash {
+			return
+		}
+	}
+
+	s.logger.Debug("update syncer status", "status", status)
+
+	s.status = status
 }
 
 const syncerV1 = "/syncer/0.1"
