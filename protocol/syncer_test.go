@@ -95,7 +95,7 @@ func TestDeletePeer(t *testing.T) {
 }
 
 func TestBroadcast(t *testing.T) {
-	tests := []struct {
+	tests := []*struct {
 		name          string
 		syncerHeaders []*types.Header
 		peerHeaders   []*types.Header
@@ -128,6 +128,23 @@ func TestBroadcast(t *testing.T) {
 
 			peer := getPeer(syncer, peerSyncer.server.AddrInfo().ID)
 			assert.NotNil(t, peer)
+
+			// wait a little bit for receiving blocs
+			// do not wait too much, because the block enqueu will be purge and written during syncing
+			endSyncTime := time.Now().Add(time.Second * 3)
+			ticker := time.NewTicker(time.Millisecond * 2)
+
+			for range ticker.C {
+				// time out
+				if time.Now().After(endSyncTime) {
+					ticker.Stop()
+					break
+				}
+				// all blocks received
+				if len(peer.enqueue) >= tt.numNewBlocks {
+					break
+				}
+			}
 
 			// Check peer's queue
 			assert.Len(t, peer.enqueue, tt.numNewBlocks)
