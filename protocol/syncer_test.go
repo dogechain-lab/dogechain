@@ -139,6 +139,7 @@ func TestBroadcast(t *testing.T) {
 				// time out
 				if time.Now().After(endSyncTime) {
 					ticker.Stop()
+
 					break
 				}
 				// all blocks received
@@ -346,6 +347,7 @@ func TestWatchSyncWithPeer(t *testing.T) {
 				// time out
 				if time.Now().After(endWriteBlockTime) {
 					ticker.Stop()
+
 					break
 				}
 				// all blocks received
