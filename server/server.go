@@ -587,6 +587,10 @@ func (s *Server) setupJSONRPC() error {
 
 // setupGraphQL sets up the graphql server, using the set configuration
 func (s *Server) setupGraphQL() error {
+	if !s.config.EnableGraphQL {
+		return nil
+	}
+
 	hub := &jsonRPCHub{
 		state:              s.state,
 		restoreProgression: s.restoreProgression,
