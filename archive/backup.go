@@ -171,7 +171,7 @@ func processExportStream(
 			expectedTo = event.Latest
 		}
 
-		expectedTotal := event.Latest - targetFrom
+		expectedTotal := expectedTo - targetFrom
 		progress := 100 * (float64(event.To) - float64(targetFrom)) / float64(expectedTotal)
 
 		logger.Info(
