@@ -872,7 +872,7 @@ func (i *Ibft) runAcceptState() { // start new round
 			}
 
 			if hookErr := i.runHook(VerifyBlockHook, block.Number(), block); hookErr != nil {
-				if errors.As(hookErr, &errBlockVerificationFailed) {
+				if errors.Is(hookErr, errBlockVerificationFailed) {
 					i.logger.Error("block verification failed, block at the end of epoch has transactions")
 					i.handleStateErr(errBlockVerificationFailed)
 				} else {
@@ -1077,9 +1077,9 @@ func (i *Ibft) insertBlock(block *types.Block) error {
 }
 
 var (
-	errIncorrectBlockLocked    = fmt.Errorf("block locked is incorrect")
-	errBlockVerificationFailed = fmt.Errorf("block verification failed")
-	errFailedToInsertBlock     = fmt.Errorf("failed to insert block")
+	errIncorrectBlockLocked    = errors.New("block locked is incorrect")
+	errBlockVerificationFailed = errors.New("block verification failed")
+	errFailedToInsertBlock     = errors.New("failed to insert block")
 )
 
 func (i *Ibft) handleStateErr(err error) {

@@ -407,7 +407,7 @@ func (e *Eth) GetStorageAt(
 	// Get the storage for the passed in location
 	result, err := e.store.GetStorage(header.StateRoot, address, index)
 	if err != nil {
-		if errors.As(err, &ErrStateNotFound) {
+		if errors.Is(err, ErrStateNotFound) {
 			return argBytesPtr(types.ZeroHash[:]), nil
 		}
 
@@ -545,7 +545,7 @@ func (e *Eth) EstimateGas(arg *txnArgs, rawNum *BlockNumber) (interface{}, error
 		accountBalance := big.NewInt(0)
 		acc, err := e.store.GetAccount(header.StateRoot, transaction.From)
 
-		if err != nil && !errors.As(err, &ErrStateNotFound) {
+		if err != nil && !errors.Is(err, ErrStateNotFound) {
 			// An unrelated error occurred, return it
 			return nil, err
 		} else if err == nil {
@@ -587,7 +587,7 @@ func (e *Eth) EstimateGas(arg *txnArgs, rawNum *BlockNumber) (interface{}, error
 
 	// Checks if executor level valid gas errors occurred
 	isGasApplyError := func(err error) bool {
-		return errors.As(err, &state.ErrNotEnoughIntrinsicGas)
+		return errors.Is(err, state.ErrNotEnoughIntrinsicGas)
 	}
 
 	// Checks if EVM level valid gas errors occurred
@@ -713,7 +713,7 @@ func (e *Eth) GetBalance(address types.Address, filter BlockNumberOrHash) (inter
 
 	// Extract the account balance
 	acc, err := e.store.GetAccount(header.StateRoot, address)
-	if errors.As(err, &ErrStateNotFound) {
+	if errors.Is(err, ErrStateNotFound) {
 		// Account not found, return an empty account
 		return argUintPtr(0), nil
 	} else if err != nil {
@@ -779,7 +779,7 @@ func (e *Eth) GetCode(address types.Address, filter BlockNumberOrHash) (interfac
 	emptySlice := []byte{}
 	acc, err := e.store.GetAccount(header.StateRoot, address)
 
-	if errors.As(err, &ErrStateNotFound) {
+	if errors.Is(err, ErrStateNotFound) {
 		// If the account doesn't exist / is not initialized yet,
 		// return the default value
 		return "0x", nil
@@ -873,7 +873,7 @@ func (e *Eth) getNextNonce(address types.Address, number BlockNumber) (uint64, e
 
 	acc, err := e.store.GetAccount(header.StateRoot, address)
 
-	if errors.As(err, &ErrStateNotFound) {
+	if errors.Is(err, ErrStateNotFound) {
 		// If the account doesn't exist / isn't initialized,
 		// return a nonce value of 0
 		return 0, nil
