@@ -117,7 +117,9 @@ func (m *accountsMap) allTxs(includeEnqueued bool) (
 		defer account.promoted.unlock()
 
 		if account.promoted.length() != 0 {
-			allPromoted[addr] = account.promoted.queue
+			// slice is not thread safe, so copy it would be reasonable
+			allPromoted[addr] = make([]*types.Transaction, 0, account.promoted.length())
+			copy(allPromoted[addr], account.promoted.queue)
 		}
 
 		if includeEnqueued {
@@ -125,7 +127,9 @@ func (m *accountsMap) allTxs(includeEnqueued bool) (
 			defer account.enqueued.unlock()
 
 			if account.enqueued.length() != 0 {
-				allEnqueued[addr] = account.enqueued.queue
+				// slice is not thread safe, so copy it would be reasonable
+				allEnqueued[addr] = make([]*types.Transaction, 0, account.enqueued.length())
+				copy(allEnqueued[addr], account.enqueued.queue)
 			}
 		}
 
