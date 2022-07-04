@@ -1147,6 +1147,61 @@ func TestDemote(t *testing.T) {
 	})
 }
 
+func TestEnqueuedPruning(t *testing.T) {
+	t.Parallel()
+
+	testTable := []struct {
+		name            string
+		lastPromoted    time.Time
+		expectedTxCount uint64
+		expectedGauge   uint64
+	}{
+		{
+			"prune stale tx",
+			time.Now().Add(-1 * maxAccountInactivity),
+			0,
+			0,
+		},
+		{
+			"no stale tx to prune",
+			time.Now().Add(-5 * time.Second),
+			1,
+			1,
+		},
+	}
+
+	for _, test := range testTable {
+		test := test
+
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			pool, err := newTestPool()
+			assert.NoError(t, err)
+			pool.SetSigner(&mockSigner{})
+
+			go func() {
+				err := pool.addTx(local, newTx(addr1, 5, 1))
+				assert.NoError(t, err)
+			}()
+			pool.handleEnqueueRequest(<-pool.enqueueReqCh)
+
+			acc := pool.accounts.get(addr1)
+			acc.lastPromoted = test.lastPromoted
+
+			assert.Equal(t, uint64(1), acc.enqueued.length())
+			assert.Equal(t, uint64(1), pool.gauge.read())
+
+			//	pretend ticker ticks and triggers the pruning cycle
+			pool.pruneStaleAccounts()
+
+			//	enqueued tx is removed
+			assert.Equal(t, test.expectedTxCount, acc.enqueued.length())
+			assert.Equal(t, test.expectedGauge, pool.gauge.read())
+		})
+	}
+}
+
 /* "Integrated" tests */
 
 // The following tests ensure that the pool's inner event loop
