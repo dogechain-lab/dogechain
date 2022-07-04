@@ -167,6 +167,7 @@ type TxPool struct {
 	// maximum account demotion count. when reach, drop all transactions of this account
 	maxAccountDemotions uint64
 
+	// ticker for pruning account outdated transactions
 	pruneAccountTicker *time.Ticker
 }
 
