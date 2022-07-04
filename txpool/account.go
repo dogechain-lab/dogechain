@@ -3,8 +3,13 @@ package txpool
 import (
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/dogechain-lab/dogechain/types"
+)
+
+var (
+	maxAccountInactivity = 30 * time.Minute
 )
 
 // Thread safe map of all accounts registered by the pool.
@@ -26,6 +31,9 @@ func (m *accountsMap) initOnce(addr types.Address, nonce uint64) *account {
 
 		// set the nonce
 		newAccount.setNonce(nonce)
+
+		// set the timestamp for pruning
+		newAccount.lastPromoted = time.Now()
 
 		// update global count
 		atomic.AddUint64(&m.count, 1)
@@ -135,6 +143,32 @@ func (m *accountsMap) allTxs(includeEnqueued bool) (
 	return
 }
 
+func (m *accountsMap) pruneStaleEnqueuedTxs() []*types.Transaction {
+	pruned := make([]*types.Transaction, 0)
+
+	m.Range(func(_, value interface{}) bool {
+		account, ok := value.(*account)
+		if !ok {
+			// It shouldn't be. We just do some prevention work.
+			return false
+		}
+
+		account.enqueued.lock(true)
+		defer account.enqueued.unlock()
+
+		if time.Since(account.lastPromoted) >= maxAccountInactivity {
+			pruned = append(
+				pruned,
+				account.enqueued.clear()...,
+			)
+		}
+
+		return true
+	})
+
+	return pruned
+}
+
 // An account is the core structure for processing
 // transactions from a specific address. The nextNonce
 // field is what separates the enqueued from promoted transactions:
@@ -146,11 +180,15 @@ func (m *accountsMap) allTxs(includeEnqueued bool) (
 // a promoteRequest is signaled for this account
 // indicating the account's enqueued transaction(s)
 // are ready to be moved to the promoted queue.
+//
+// If an account is not promoted for a long time, its enqueued transactions
+// should be remove to reduce txpool stress.
 type account struct {
 	init               sync.Once
 	enqueued, promoted *accountQueue
 	nextNonce          uint64
 	demotions          uint64
+	lastPromoted       time.Time // timestamp for pruning
 }
 
 // getNonce returns the next expected nonce for this account.
@@ -277,6 +315,9 @@ func (a *account) promote() []*types.Transaction {
 	if nextNonce > currentNonce {
 		a.setNonce(nextNonce)
 	}
+
+	// update timestamp for pruning
+	a.lastPromoted = time.Now()
 
 	return promoted
 }

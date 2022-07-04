@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/hashicorp/go-hclog"
@@ -165,6 +166,8 @@ type TxPool struct {
 
 	// maximum account demotion count. when reach, drop all transactions of this account
 	maxAccountDemotions uint64
+
+	pruneAccountTicker *time.Ticker
 }
 
 // NewTxPool returns a new pool for processing incoming transactions.
@@ -227,6 +230,8 @@ func (p *TxPool) Start() {
 	// set default value of txpool pending transactions gauge
 	p.metrics.PendingTxs.Set(0)
 
+	p.pruneAccountTicker = time.NewTicker(maxAccountInactivity)
+
 	go func() {
 		for {
 			select {
@@ -236,6 +241,8 @@ func (p *TxPool) Start() {
 				go p.handleEnqueueRequest(req)
 			case req := <-p.promoteReqCh:
 				go p.handlePromoteRequest(req)
+			case <-p.pruneAccountTicker.C:
+				go p.pruneStaleAccounts()
 			}
 		}
 	}()
@@ -658,6 +665,17 @@ func (p *TxPool) handlePromoteRequest(req promoteRequest) {
 	// update metrics
 	p.metrics.PendingTxs.Add(float64(len(promoted)))
 	p.eventManager.signalEvent(proto.EventType_PROMOTED, toHash(promoted...)...)
+}
+
+// pruneStaleAccounts would find out all need-to-prune transactions,
+// remove them from txpool.
+func (p *TxPool) pruneStaleAccounts() {
+	pruned := p.accounts.pruneStaleEnqueuedTxs()
+
+	p.index.remove(pruned...)
+	p.gauge.decrease(slotsRequired(pruned...))
+
+	p.logger.Debug("pruned stale enqueued txs", "num", pruned)
 }
 
 // addGossipTx handles receiving transactions
