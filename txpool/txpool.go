@@ -250,6 +250,10 @@ func (p *TxPool) Start() {
 
 // Close shuts down the pool's main loop.
 func (p *TxPool) Close() {
+	if p.pruneAccountTicker != nil {
+		p.pruneAccountTicker.Stop()
+	}
+
 	p.eventManager.Close()
 	p.shutdownCh <- struct{}{}
 }
