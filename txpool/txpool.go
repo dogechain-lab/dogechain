@@ -703,6 +703,7 @@ func (p *TxPool) pruneStaleAccounts() {
 	p.gauge.decrease(slotsRequired(pruned...))
 
 	p.logger.Debug("pruned stale enqueued txs", "num", pruned)
+	p.eventManager.signalEvent(proto.EventType_PRUNED_ENQUEUED, toHash(pruned...)...)
 }
 
 // addGossipTx handles receiving transactions
