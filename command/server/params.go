@@ -27,7 +27,7 @@ const (
 	maxOutboundPeersFlag      = "max-outbound-peers"
 	priceLimitFlag            = "price-limit"
 	maxSlotsFlag              = "max-slots"
-	MaxAccountDemotionsFlag   = "max-account-demotions"
+	maxAccountDemotionsFlag   = "max-account-demotions"
 	pruneTickSecondsFlag      = "prune-tick-seconds"
 	promoteOutdateSecondsFlag = "promote-outdate-seconds"
 	blockGasTargetFlag        = "block-gas-target"

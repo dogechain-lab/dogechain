@@ -180,7 +180,7 @@ func setFlags(cmd *cobra.Command) {
 
 	cmd.Flags().Uint64Var(
 		&params.rawConfig.TxPool.MaxAccountDemotions,
-		MaxAccountDemotionsFlag,
+		maxAccountDemotionsFlag,
 		command.DefaultMaxAccountDemotions,
 		"maximum account demontion counter limit in the pool",
 	)
