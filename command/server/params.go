@@ -14,30 +14,32 @@ import (
 )
 
 const (
-	configFlag              = "config"
-	genesisPathFlag         = "chain"
-	dataDirFlag             = "data-dir"
-	libp2pAddressFlag       = "libp2p"
-	prometheusAddressFlag   = "prometheus"
-	natFlag                 = "nat"
-	dnsFlag                 = "dns"
-	sealFlag                = "seal"
-	maxPeersFlag            = "max-peers"
-	maxInboundPeersFlag     = "max-inbound-peers"
-	maxOutboundPeersFlag    = "max-outbound-peers"
-	priceLimitFlag          = "price-limit"
-	maxSlotsFlag            = "max-slots"
-	MaxAccountDemotionsFlag = "max-account-demotions"
-	blockGasTargetFlag      = "block-gas-target"
-	secretsConfigFlag       = "secrets-config"
-	restoreFlag             = "restore"
-	blockTimeFlag           = "block-time"
-	devIntervalFlag         = "dev-interval"
-	devFlag                 = "dev"
-	corsOriginFlag          = "access-control-allow-origins"
-	daemonFlag              = "daemon"
-	logFileLocationFlag     = "log-to"
-	enableGraphQLFlag       = "enable-graphql"
+	configFlag                = "config"
+	genesisPathFlag           = "chain"
+	dataDirFlag               = "data-dir"
+	libp2pAddressFlag         = "libp2p"
+	prometheusAddressFlag     = "prometheus"
+	natFlag                   = "nat"
+	dnsFlag                   = "dns"
+	sealFlag                  = "seal"
+	maxPeersFlag              = "max-peers"
+	maxInboundPeersFlag       = "max-inbound-peers"
+	maxOutboundPeersFlag      = "max-outbound-peers"
+	priceLimitFlag            = "price-limit"
+	maxSlotsFlag              = "max-slots"
+	MaxAccountDemotionsFlag   = "max-account-demotions"
+	pruneTickSecondsFlag      = "prune-tick-seconds"
+	promoteOutdateSecondsFlag = "promote-outdate-seconds"
+	blockGasTargetFlag        = "block-gas-target"
+	secretsConfigFlag         = "secrets-config"
+	restoreFlag               = "restore"
+	blockTimeFlag             = "block-time"
+	devIntervalFlag           = "dev-interval"
+	devFlag                   = "dev"
+	corsOriginFlag            = "access-control-allow-origins"
+	daemonFlag                = "daemon"
+	logFileLocationFlag       = "log-to"
+	enableGraphQLFlag         = "enable-graphql"
 )
 
 const (
@@ -182,17 +184,19 @@ func (p *serverParams) generateConfig() *server.Config {
 			MaxOutboundPeers: p.rawConfig.Network.MaxOutboundPeers,
 			Chain:            p.genesisConfig,
 		},
-		DataDir:             p.rawConfig.DataDir,
-		Seal:                p.rawConfig.ShouldSeal,
-		PriceLimit:          p.rawConfig.TxPool.PriceLimit,
-		MaxSlots:            p.rawConfig.TxPool.MaxSlots,
-		MaxAccountDemotions: p.rawConfig.TxPool.MaxAccountDemotions,
-		SecretsManager:      p.secretsConfig,
-		RestoreFile:         p.getRestoreFilePath(),
-		BlockTime:           p.rawConfig.BlockTime,
-		LogLevel:            hclog.LevelFromString(p.rawConfig.LogLevel),
-		LogFilePath:         p.logFileLocation,
-		Daemon:              p.isDaemon,
-		ValidatorKey:        p.validatorKey,
+		DataDir:               p.rawConfig.DataDir,
+		Seal:                  p.rawConfig.ShouldSeal,
+		PriceLimit:            p.rawConfig.TxPool.PriceLimit,
+		MaxSlots:              p.rawConfig.TxPool.MaxSlots,
+		MaxAccountDemotions:   p.rawConfig.TxPool.MaxAccountDemotions,
+		PruneTickSeconds:      p.rawConfig.TxPool.PruneTickSeconds,
+		PromoteOutdateSeconds: p.rawConfig.TxPool.PromoteOutdateSeconds,
+		SecretsManager:        p.secretsConfig,
+		RestoreFile:           p.getRestoreFilePath(),
+		BlockTime:             p.rawConfig.BlockTime,
+		LogLevel:              hclog.LevelFromString(p.rawConfig.LogLevel),
+		LogFilePath:           p.logFileLocation,
+		Daemon:                p.isDaemon,
+		ValidatorKey:          p.validatorKey,
 	}
 }

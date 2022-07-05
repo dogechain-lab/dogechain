@@ -19,9 +19,11 @@ import (
 )
 
 const (
-	txSlotSize  = 32 * 1024  // 32kB
-	txMaxSize   = 128 * 1024 //128Kb
-	topicNameV1 = "txpool/0.1"
+	txSlotSize                   = 32 * 1024  // 32kB
+	txMaxSize                    = 128 * 1024 //128Kb
+	topicNameV1                  = "txpool/0.1"
+	defaultPruneTickSeconds      = 300
+	defaultPromoteOutdateSeconds = 1800
 )
 
 // errors
@@ -75,10 +77,12 @@ type signer interface {
 }
 
 type Config struct {
-	PriceLimit          uint64
-	MaxSlots            uint64
-	Sealing             bool
-	MaxAccountDemotions uint64
+	PriceLimit            uint64
+	MaxSlots              uint64
+	Sealing               bool
+	MaxAccountDemotions   uint64
+	PruneTickSeconds      uint64
+	PromoteOutdateSeconds uint64
 }
 
 /* All requests are passed to the main loop
@@ -167,8 +171,11 @@ type TxPool struct {
 	// maximum account demotion count. when reach, drop all transactions of this account
 	maxAccountDemotions uint64
 
+	// pruning configs
 	// ticker for pruning account outdated transactions
-	pruneAccountTicker *time.Ticker
+	pruneAccountTicker     *time.Ticker
+	pruneTick              time.Duration
+	promoteOutdateDuration time.Duration
 }
 
 // NewTxPool returns a new pool for processing incoming transactions.
@@ -181,18 +188,33 @@ func NewTxPool(
 	metrics *Metrics,
 	config *Config,
 ) (*TxPool, error) {
+	var (
+		pruneTickSeconds      = config.PruneTickSeconds
+		promoteOutdateSeconds = config.PromoteOutdateSeconds
+	)
+
+	if pruneTickSeconds == 0 {
+		pruneTickSeconds = defaultPruneTickSeconds
+	}
+
+	if promoteOutdateSeconds == 0 {
+		promoteOutdateSeconds = defaultPromoteOutdateSeconds
+	}
+
 	pool := &TxPool{
-		logger:              logger.Named("txpool"),
-		forks:               forks,
-		store:               store,
-		metrics:             metrics,
-		accounts:            accountsMap{},
-		executables:         newPricedQueue(),
-		index:               lookupMap{all: make(map[types.Hash]*types.Transaction)},
-		gauge:               slotGauge{height: 0, max: config.MaxSlots},
-		priceLimit:          config.PriceLimit,
-		sealing:             config.Sealing,
-		maxAccountDemotions: config.MaxAccountDemotions,
+		logger:                 logger.Named("txpool"),
+		forks:                  forks,
+		store:                  store,
+		metrics:                metrics,
+		accounts:               accountsMap{},
+		executables:            newPricedQueue(),
+		index:                  lookupMap{all: make(map[types.Hash]*types.Transaction)},
+		gauge:                  slotGauge{height: 0, max: config.MaxSlots},
+		priceLimit:             config.PriceLimit,
+		sealing:                config.Sealing,
+		maxAccountDemotions:    config.MaxAccountDemotions,
+		pruneTick:              time.Second * time.Duration(pruneTickSeconds),
+		promoteOutdateDuration: time.Second * time.Duration(promoteOutdateSeconds),
 	}
 
 	// Attach the event manager
@@ -231,7 +253,7 @@ func (p *TxPool) Start() {
 	// set default value of txpool pending transactions gauge
 	p.metrics.PendingTxs.Set(0)
 
-	p.pruneAccountTicker = time.NewTicker(maxAccountInactivity)
+	p.pruneAccountTicker = time.NewTicker(p.pruneTick)
 
 	go func() {
 		for {
@@ -675,7 +697,7 @@ func (p *TxPool) handlePromoteRequest(req promoteRequest) {
 // pruneStaleAccounts would find out all need-to-prune transactions,
 // remove them from txpool.
 func (p *TxPool) pruneStaleAccounts() {
-	pruned := p.accounts.pruneStaleEnqueuedTxs()
+	pruned := p.accounts.pruneStaleEnqueuedTxs(p.promoteOutdateDuration)
 
 	p.index.remove(pruned...)
 	p.gauge.decrease(slotsRequired(pruned...))

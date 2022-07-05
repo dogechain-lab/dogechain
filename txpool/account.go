@@ -8,10 +8,6 @@ import (
 	"github.com/dogechain-lab/dogechain/types"
 )
 
-var (
-	maxAccountInactivity = 30 * time.Minute
-)
-
 // Thread safe map of all accounts registered by the pool.
 // Each account (value) is bound to one address (key).
 type accountsMap struct {
@@ -143,7 +139,7 @@ func (m *accountsMap) allTxs(includeEnqueued bool) (
 	return
 }
 
-func (m *accountsMap) pruneStaleEnqueuedTxs() []*types.Transaction {
+func (m *accountsMap) pruneStaleEnqueuedTxs(outdateDuration time.Duration) []*types.Transaction {
 	pruned := make([]*types.Transaction, 0)
 
 	m.Range(func(_, value interface{}) bool {
@@ -156,7 +152,7 @@ func (m *accountsMap) pruneStaleEnqueuedTxs() []*types.Transaction {
 		account.enqueued.lock(true)
 		defer account.enqueued.unlock()
 
-		if time.Since(account.lastPromoted) >= maxAccountInactivity {
+		if time.Since(account.lastPromoted) >= outdateDuration {
 			pruned = append(
 				pruned,
 				account.enqueued.clear()...,

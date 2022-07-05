@@ -24,10 +24,12 @@ type Config struct {
 	GRPCAddr      *net.TCPAddr
 	LibP2PAddr    *net.TCPAddr
 
-	PriceLimit          uint64
-	MaxSlots            uint64
-	BlockTime           uint64
-	MaxAccountDemotions uint64
+	PriceLimit            uint64
+	MaxSlots              uint64
+	BlockTime             uint64
+	MaxAccountDemotions   uint64
+	PruneTickSeconds      uint64
+	PromoteOutdateSeconds uint64
 
 	Telemetry *Telemetry
 	Network   *network.Config

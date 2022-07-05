@@ -90,10 +90,12 @@ func newTestPoolWithSlots(maxSlots uint64, mockStore ...store) (*TxPool, error) 
 		nil,
 		nilMetrics,
 		&Config{
-			PriceLimit:          defaultPriceLimit,
-			MaxSlots:            maxSlots,
-			Sealing:             false,
-			MaxAccountDemotions: defaultMaxAccountDemotions,
+			PriceLimit:            defaultPriceLimit,
+			MaxSlots:              maxSlots,
+			Sealing:               false,
+			MaxAccountDemotions:   defaultMaxAccountDemotions,
+			PruneTickSeconds:      defaultPruneTickSeconds,
+			PromoteOutdateSeconds: defaultPromoteOutdateSeconds,
 		},
 	)
 }
@@ -1158,7 +1160,7 @@ func TestEnqueuedPruning(t *testing.T) {
 	}{
 		{
 			"prune stale tx",
-			time.Now().Add(-1 * maxAccountInactivity),
+			time.Now().Add(-time.Second * defaultPromoteOutdateSeconds),
 			0,
 			0,
 		},
