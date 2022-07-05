@@ -250,8 +250,8 @@ func NewTxPool(
 // On each request received, the appropriate handler
 // is invoked in a separate goroutine.
 func (p *TxPool) Start() {
-	// set default value of txpool pending transactions gauge
-	p.metrics.PendingTxs.Set(0)
+	// set default value of txpool transactions gauge
+	p.metrics.SetDefaultValue(0)
 
 	p.pruneAccountTicker = time.NewTicker(p.pruneTick)
 
@@ -411,6 +411,9 @@ func (p *TxPool) Drop(tx *types.Transaction) {
 	// drop enqueued
 	dropped = account.enqueued.clear()
 	clearAccountQueue(dropped)
+
+	// update metrics
+	p.metrics.EnqueueTxs.Add(float64(-1 * len(dropped)))
 
 	p.eventManager.signalEvent(proto.EventType_DROPPED, tx.Hash)
 	p.logger.Debug("dropped account txs",
@@ -703,6 +706,7 @@ func (p *TxPool) pruneStaleAccounts() {
 	p.gauge.decrease(slotsRequired(pruned...))
 
 	p.logger.Debug("pruned stale enqueued txs", "num", pruned)
+	p.metrics.EnqueueTxs.Add(-1 * float64(len(pruned)))
 	p.eventManager.signalEvent(proto.EventType_PRUNED_ENQUEUED, toHash(pruned...)...)
 }
 
@@ -786,6 +790,7 @@ func (p *TxPool) resetAccounts(stateNonces map[types.Address]uint64) {
 			toHash(allPrunedPromoted...)...,
 		)
 
+		// update metrics
 		p.metrics.PendingTxs.Add(float64(-1 * len(allPrunedPromoted)))
 	}
 
@@ -795,6 +800,9 @@ func (p *TxPool) resetAccounts(stateNonces map[types.Address]uint64) {
 			proto.EventType_PRUNED_ENQUEUED,
 			toHash(allPrunedEnqueued...)...,
 		)
+
+		// update metrics
+		p.metrics.EnqueueTxs.Add(float64(-1 * len(allPrunedEnqueued)))
 	}
 }
 
