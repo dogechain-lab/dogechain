@@ -704,6 +704,10 @@ func (p *TxPool) handlePromoteRequest(req promoteRequest) {
 func (p *TxPool) pruneStaleAccounts() {
 	pruned := p.accounts.pruneStaleEnqueuedTxs(p.promoteOutdateDuration)
 
+	if len(pruned) == 0 {
+		return
+	}
+
 	p.index.remove(pruned...)
 	p.gauge.decrease(slotsRequired(pruned...))
 
