@@ -696,6 +696,9 @@ func (p *TxPool) handlePromoteRequest(req promoteRequest) {
 
 	// update metrics
 	p.metrics.PendingTxs.Add(float64(len(promoted)))
+	// do not forget to delete from enqueued guage
+	p.metrics.EnqueueTxs.Add(-1 * float64(len(promoted)))
+
 	p.eventManager.signalEvent(proto.EventType_PROMOTED, toHash(promoted...)...)
 }
 
