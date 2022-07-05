@@ -670,6 +670,8 @@ func (p *TxPool) handleEnqueueRequest(req enqueueRequest) {
 
 	p.gauge.increase(slotsRequired(tx))
 
+	// update metrics
+	p.metrics.PendingTxs.Add(1)
 	p.eventManager.signalEvent(proto.EventType_ENQUEUED, tx.Hash)
 
 	if tx.Nonce > account.getNonce() {
