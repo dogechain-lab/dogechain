@@ -1,3 +1,5 @@
+[![codecov](https://codecov.io/gh/dogechain-lab/dogechain/branch/dev/graph/badge.svg?token=EKFM6S9478)](https://codecov.io/gh/dogechain-lab/dogechain)
+
 ## Dogechain
 
 Dogechain-Lab Dogechain is a modular and extensible framework for building Ethereum-compatible blockchain networks, which forks from 0xPolygon's Polygon Edge project.
