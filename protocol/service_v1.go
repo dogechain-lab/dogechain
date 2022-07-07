@@ -130,9 +130,10 @@ func (s *serviceV1) GetHeaders(_ context.Context, req *proto.GetHeadersRequest) 
 		req.Amount = maxSkeletonHeadersAmount
 	}
 
-	var origin *types.Header
-
-	var ok bool
+	var (
+		origin *types.Header
+		ok     bool
+	)
 
 	if req.Number != 0 {
 		origin, ok = s.store.GetHeaderByNumber(uint64(req.Number))
