@@ -332,7 +332,7 @@ func TestWatchSyncWithPeer(t *testing.T) {
 				blocks = append(blocks, b)
 
 				return len(blocks) >= len(newBlocks)
-			})
+			}, 2*time.Second)
 
 			// sort the slice outside
 			sort.Slice(blocks, func(i, j int) bool {

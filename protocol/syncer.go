@@ -647,7 +647,11 @@ func (s *Syncer) findCommonAncestor(clt proto.V1Client, status *Status) (*types.
 }
 
 // WatchSyncWithPeer subscribes and adds peer's latest block
-func (s *Syncer) WatchSyncWithPeer(p *SyncPeer, handler func(b *types.Block) bool) {
+func (s *Syncer) WatchSyncWithPeer(
+	p *SyncPeer,
+	newBlockHandler func(b *types.Block) bool,
+	blockTimeout time.Duration,
+) {
 	// purge from the cache of broadcasted blocks all the ones we have written so far
 	header := s.blockchain.Header()
 	p.purgeBlocks(header.Hash)
@@ -660,7 +664,7 @@ func (s *Syncer) WatchSyncWithPeer(p *SyncPeer, handler func(b *types.Block) boo
 			break
 		}
 
-		b, err := p.popBlock(popTimeout)
+		b, err := p.popBlock(blockTimeout)
 		if err != nil {
 			s.logSyncPeerPopBlockError(err, p)
 
@@ -679,7 +683,7 @@ func (s *Syncer) WatchSyncWithPeer(p *SyncPeer, handler func(b *types.Block) boo
 			break
 		}
 
-		if handler(b) {
+		if newBlockHandler(b) {
 			break
 		}
 	}
