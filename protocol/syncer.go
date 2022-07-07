@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"math/big"
 	"sort"
 	"sync"
 	"time"
@@ -312,9 +311,10 @@ func (s *Syncer) handlePeerEvent() {
 
 // BestPeer returns the best peer by difficulty (if any)
 func (s *Syncer) BestPeer() *SyncPeer {
-	var bestPeer *SyncPeer
-
-	var bestTd *big.Int
+	var (
+		bestPeer        *SyncPeer
+		bestBlockNumber uint64
+	)
 
 	s.peers.Range(func(peerID, peer interface{}) bool {
 		syncPeer, ok := peer.(*SyncPeer)
@@ -322,28 +322,17 @@ func (s *Syncer) BestPeer() *SyncPeer {
 			return false
 		}
 
-		status := syncPeer.status
-		if bestPeer == nil || status.Difficulty.Cmp(bestTd) > 0 {
-			var correctAssertion bool
-
-			bestPeer, correctAssertion = peer.(*SyncPeer)
-			if !correctAssertion {
-				return false
-			}
-
-			bestTd = status.Difficulty
+		peerBlockNumber := syncPeer.Number()
+		if bestPeer == nil || peerBlockNumber > bestBlockNumber {
+			bestPeer = syncPeer
+			bestBlockNumber = peerBlockNumber
 		}
 
 		return true
 	})
 
-	if bestPeer == nil {
-		return nil
-	}
-
-	curDiff := s.blockchain.CurrentTD()
-	if bestTd.Cmp(curDiff) <= 0 {
-		return nil
+	if bestBlockNumber <= s.blockchain.Header().Number {
+		bestPeer = nil
 	}
 
 	return bestPeer
