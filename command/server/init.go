@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"net"
@@ -13,6 +14,10 @@ import (
 	"github.com/dogechain-lab/dogechain/secrets"
 	"github.com/dogechain-lab/dogechain/server"
 	"github.com/dogechain-lab/dogechain/types"
+)
+
+var (
+	errDataDirectoryUndefined = errors.New("data directory not defined")
 )
 
 func (p *serverParams) initConfigFromFile() error {
@@ -54,7 +59,7 @@ func (p *serverParams) initRawParams() error {
 
 func (p *serverParams) initDataDirLocation() error {
 	if p.rawConfig.DataDir == "" {
-		return fmt.Errorf("data directory not defined")
+		return errDataDirectoryUndefined
 	}
 
 	return nil
