@@ -15,8 +15,9 @@ import (
 )
 
 var (
-	ErrNilRawRequest    = errors.New("notify request raw is nil")
-	ErrNilStatusRequest = errors.New("notify request status is nil")
+	errInvalidHeadersRequest = errors.New("cannot provide both a number and a hash")
+	ErrNilRawRequest         = errors.New("notify request raw is nil")
+	ErrNilStatusRequest      = errors.New("notify request status is nil")
 )
 
 // serviceV1 is the GRPC server implementation for the v1 protocol
@@ -122,7 +123,7 @@ const maxSkeletonHeadersAmount = 190
 // GetHeaders implements the V1Server interface
 func (s *serviceV1) GetHeaders(_ context.Context, req *proto.GetHeadersRequest) (*proto.Response, error) {
 	if req.Number != 0 && req.Hash != "" {
-		return nil, errors.New("cannot provide both a number and a hash")
+		return nil, errInvalidHeadersRequest
 	}
 
 	if req.Amount > maxSkeletonHeadersAmount {
