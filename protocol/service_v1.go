@@ -194,7 +194,13 @@ func getBodies(ctx context.Context, clt proto.V1Client, hashes []types.Hash) ([]
 		input = append(input, h.String())
 	}
 
-	resp, err := clt.GetObjectsByHash(ctx, &proto.HashRequest{Hash: input, Type: proto.HashRequest_BODIES})
+	resp, err := clt.GetObjectsByHash(
+		ctx,
+		&proto.HashRequest{
+			Hash: input,
+			Type: proto.HashRequest_BODIES,
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
