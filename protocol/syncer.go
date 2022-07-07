@@ -202,20 +202,6 @@ func (s *Status) toProto() *proto.V1Status {
 	}
 }
 
-// fromProto converts a proto.V1Status to a Status object
-func fromProto(status *proto.V1Status) (*Status, error) {
-	diff, ok := new(big.Int).SetString(status.Difficulty, 10)
-	if !ok {
-		return nil, fmt.Errorf("failed to parse difficulty: %s", status.Difficulty)
-	}
-
-	return &Status{
-		Number:     status.Number,
-		Hash:       types.StringToHash(status.Hash),
-		Difficulty: diff,
-	}, nil
-}
-
 // statusFromProto extracts a Status object from a passed in proto.V1Status
 func statusFromProto(p *proto.V1Status) (*Status, error) {
 	s := new(Status)
