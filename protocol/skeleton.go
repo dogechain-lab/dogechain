@@ -19,9 +19,9 @@ func getHeaders(clt proto.V1Client, req *proto.GetHeadersRequest) ([]*types.Head
 		return nil, err
 	}
 
-	headers := []*types.Header{}
+	headers := make([]*types.Header, len(resp.Objs))
 
-	for _, obj := range resp.Objs {
+	for index, obj := range resp.Objs {
 		if obj == nil || obj.Spec == nil {
 			// this nil header comes from a faulty node, reject all blocks of it.
 			return nil, errNilHeaderResponse
@@ -32,7 +32,7 @@ func getHeaders(clt proto.V1Client, req *proto.GetHeadersRequest) ([]*types.Head
 			return nil, err
 		}
 
-		headers = append(headers, header)
+		headers[index] = header
 	}
 
 	return headers, nil
