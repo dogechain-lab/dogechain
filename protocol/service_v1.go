@@ -16,8 +16,8 @@ import (
 
 var (
 	errInvalidHeadersRequest = errors.New("cannot provide both a number and a hash")
-	ErrNilRawRequest         = errors.New("notify request raw is nil")
-	ErrNilStatusRequest      = errors.New("notify request status is nil")
+	errNilRawRequest         = errors.New("notify request raw is nil")
+	errNilStatusRequest      = errors.New("notify request status is nil")
 )
 
 // serviceV1 is the GRPC server implementation for the v1 protocol
@@ -38,11 +38,11 @@ type rlpObject interface {
 func (s *serviceV1) Notify(ctx context.Context, req *proto.NotifyReq) (*empty.Empty, error) {
 	if req.Raw == nil || len(req.Raw.Value) == 0 {
 		// malicious node conducted denial of service
-		return nil, ErrNilRawRequest
+		return nil, errNilRawRequest
 	}
 
 	if req.Status == nil {
-		return nil, ErrNilStatusRequest
+		return nil, errNilStatusRequest
 	}
 
 	var id peer.ID

@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	ErrNilHeaderResponse = errors.New("header response is nil")
+	errNilHeaderResponse = errors.New("header response is nil")
 )
 
 func getHeaders(clt proto.V1Client, req *proto.GetHeadersRequest) ([]*types.Header, error) {
@@ -24,7 +24,7 @@ func getHeaders(clt proto.V1Client, req *proto.GetHeadersRequest) ([]*types.Head
 	for _, obj := range resp.Objs {
 		if obj == nil || obj.Spec == nil {
 			// this nil header comes from a faulty node, reject all blocks of it.
-			return nil, ErrNilHeaderResponse
+			return nil, errNilHeaderResponse
 		}
 
 		header := &types.Header{}
