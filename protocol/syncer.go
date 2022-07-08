@@ -489,7 +489,8 @@ func (s *Syncer) WatchSyncWithPeer(
 			break
 		}
 
-		b, err := p.popBlock(blockTimeout)
+		// safe estimate time for fetching new block broadcast
+		b, err := p.popBlock(blockTimeout * 3)
 		if err != nil {
 			s.logSyncPeerPopBlockError(err, p)
 
@@ -508,7 +509,11 @@ func (s *Syncer) WatchSyncWithPeer(
 			break
 		}
 
-		if newBlockHandler(b) {
+		shouldExit := newBlockHandler(b)
+
+		s.prunePeerEnqueuedBlocks(b)
+
+		if shouldExit {
 			break
 		}
 	}
@@ -524,10 +529,12 @@ func (s *Syncer) logSyncPeerPopBlockError(err error, peer *SyncPeer) {
 }
 
 // BulkSyncWithPeer finds common ancestor with a peer and syncs block until latest block
+// Only missing blocks are synced up to the peer's highest block number
 func (s *Syncer) BulkSyncWithPeer(p *SyncPeer, newBlockHandler func(block *types.Block)) error {
 	// find the common ancestor
 	ancestor, fork, err := s.findCommonAncestor(p.client, p.status)
 	if err != nil {
+		// No need to sync with this peer
 		return err
 	}
 
@@ -536,7 +543,10 @@ func (s *Syncer) BulkSyncWithPeer(p *SyncPeer, newBlockHandler func(block *types
 
 	startBlock := fork
 
-	var lastTarget uint64
+	var (
+		lastTarget        uint64
+		currentSyncHeight = ancestor.Number + 1
+	)
 
 	// Create a blockchain subscription for the sync progression and start tracking
 	s.syncProgression.StartProgression(startBlock.Number, s.blockchain.SubscribeEvents())
@@ -546,7 +556,10 @@ func (s *Syncer) BulkSyncWithPeer(p *SyncPeer, newBlockHandler func(block *types
 
 	// sync up to the current known header
 	for {
-		// update target
+		// Update the target. This entire outer loop
+		// is there in order to make sure bulk syncing is entirely done
+		// as the peer's status can change over time if block writes have a significant
+		// time impact on the node in question
 		target := p.status.Number
 
 		s.syncProgression.UpdateHighestProgression(target)
@@ -557,42 +570,42 @@ func (s *Syncer) BulkSyncWithPeer(p *SyncPeer, newBlockHandler func(block *types
 		}
 
 		for {
-			s.logger.Debug("sync up to block", "from", startBlock.Number, "to", target)
+			s.logger.Debug(
+				"sync up to block",
+				"from",
+				currentSyncHeight,
+				"to",
+				target,
+			)
 
-			// start to synchronize with it
+			// Create the base request skeleton
 			sk := &skeleton{
-				span: 10,
-				num:  5,
+				amount: maxSkeletonHeadersAmount,
 			}
 
-			if err := sk.build(p.client, startBlock.Hash); err != nil {
-				return fmt.Errorf("failed to build skeleton: %w", err)
+			// Fetch the blocks from the peer
+			if err := sk.getBlocksFromPeer(p.client, currentSyncHeight); err != nil {
+				return fmt.Errorf("unable to fetch blocks from peer, %w", err)
 			}
 
-			// fill skeleton
-			for indx := range sk.slots {
-				sk.fillSlot(uint64(indx), p.client) //nolint
-			}
-
-			// sync the data
-			for _, slot := range sk.slots {
-				for _, block := range slot.blocks {
-					if err := s.blockchain.VerifyFinalizedBlock(block); err != nil {
-						return fmt.Errorf("unable to verify block, %w", err)
-					}
-
-					if err := s.blockchain.WriteBlock(block); err != nil {
-						return fmt.Errorf("failed to write bulk sync block: %w", err)
-					}
-
-					newBlockHandler(block)
+			// Verify and write the data locally
+			for _, block := range sk.blocks {
+				if err := s.blockchain.VerifyFinalizedBlock(block); err != nil {
+					return fmt.Errorf("unable to verify block, %w", err)
 				}
+
+				if err := s.blockchain.WriteBlock(block); err != nil {
+					return fmt.Errorf("failed to write block while bulk syncing: %w", err)
+				}
+
+				newBlockHandler(block)
+				// prune the peers' enqueued block
+				s.prunePeerEnqueuedBlocks(block)
+				currentSyncHeight++
 			}
 
-			// try to get the next block
-			startBlock = sk.LastHeader()
-
-			if startBlock.Number >= target {
+			if currentSyncHeight >= target {
+				// Target has been reached
 				break
 			}
 		}
@@ -639,4 +652,22 @@ func getHeader(clt proto.V1Client, num *uint64, hash *types.Hash) (*types.Header
 	}
 
 	return header, nil
+}
+
+func (s *Syncer) prunePeerEnqueuedBlocks(block *types.Block) {
+	s.peers.Range(func(key, value interface{}) bool {
+		peerID, _ := key.(peer.ID)
+		syncPeer, _ := value.(*SyncPeer)
+
+		pruned := syncPeer.purgeBlocks(block.Hash())
+
+		s.logger.Debug(
+			"pruned peer enqueued block",
+			"num", pruned,
+			"id", peerID.String(),
+			"reference_block_num", block.Number(),
+		)
+
+		return true
+	})
 }
