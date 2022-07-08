@@ -198,8 +198,11 @@ func (s *Syncer) updatePeerStatus(peerID peer.ID, status *Status) {
 func (s *Syncer) Broadcast(b *types.Block) {
 	sendNotify := func(peerID, peer interface{}, req *proto.NotifyReq) {
 		startTime := time.Now()
+
 		if _, err := peer.(*SyncPeer).client.Notify(context.Background(), req); err != nil {
 			s.logger.Error("failed to notify", "err", err)
+
+			return
 		}
 
 		duration := time.Since(startTime)

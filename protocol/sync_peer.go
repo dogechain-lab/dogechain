@@ -1,7 +1,6 @@
 package protocol
 
 import (
-	"errors"
 	"math/big"
 	"sort"
 	"sync"
@@ -12,10 +11,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
-)
-
-var (
-	errInvalidDifficulty = errors.New("failed to decode difficulty")
 )
 
 // Status defines the up to date information regarding the peer
