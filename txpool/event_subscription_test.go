@@ -109,6 +109,8 @@ func TestEventSubscription_ProcessedEvents(t *testing.T) {
 	}
 
 	for _, testCase := range testTable {
+		testCase := testCase
+
 		t.Run(testCase.name, func(t *testing.T) {
 			subscription := &eventSubscription{
 				eventTypes: supportedEvents,
