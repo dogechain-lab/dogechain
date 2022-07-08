@@ -100,24 +100,24 @@ func (s *SyncPeer) purgeBlocks(lastSeen types.Hash) uint64 {
 	s.enqueueLock.Lock()
 	defer s.enqueueLock.Unlock()
 
-	indx := -1
+	index := -1
 
 	for i, b := range s.enqueue {
 		if b.Hash() == lastSeen {
-			indx = i
+			index = i
 
 			break
 		}
 	}
 
-	if indx == -1 {
+	if index == -1 {
 		// no blocks enqueued
 		return 0
 	}
 
-	s.enqueue = s.enqueue[indx+1:]
+	s.enqueue = s.enqueue[index+1:]
 
-	return uint64(indx + 1)
+	return uint64(index + 1)
 }
 
 // popBlock pops a block from the block queue [BLOCKING]
