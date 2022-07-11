@@ -1,6 +1,7 @@
 package ibft
 
 import (
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"testing"
@@ -19,6 +20,203 @@ import (
 	"github.com/stretchr/testify/assert"
 	anypb "google.golang.org/protobuf/types/known/anypb"
 )
+
+var (
+	defaultBlockGasLimit uint64 = 8000000
+)
+
+type MockBlockchain struct {
+	t *testing.T
+
+	latestBlockNumber *uint64
+	headers           map[uint64]*types.Header
+	blocks            map[uint64]*types.Block
+
+	// Handlers to change mock's behavior
+	HeaderHandler               func() *types.Header
+	GetHeaderByNumberHandler    func(uint64) (*types.Header, bool)
+	WriteBlockHandler           func(*types.Block) error
+	VerifyPotentialBlockHandler func(block *types.Block) error
+	CalculateGasLimitHandler    func(number uint64) (uint64, error)
+}
+
+func (m *MockBlockchain) Header() *types.Header {
+	m.t.Helper()
+
+	if m.HeaderHandler == nil {
+		m.errorByUndefinedMethod("Header")
+	}
+
+	return m.HeaderHandler()
+}
+
+func (m *MockBlockchain) GetHeaderByNumber(i uint64) (*types.Header, bool) {
+	m.t.Helper()
+
+	if m.GetHeaderByNumberHandler == nil {
+		m.errorByUndefinedMethod("GetHeaderByNumber")
+	}
+
+	return m.GetHeaderByNumberHandler(i)
+}
+
+func (m *MockBlockchain) WriteBlock(block *types.Block) error {
+	m.t.Helper()
+
+	if m.WriteBlockHandler == nil {
+		m.errorByUndefinedMethod("WriteBlock")
+	}
+
+	return m.WriteBlockHandler(block)
+}
+
+func (m *MockBlockchain) VerifyPotentialBlock(block *types.Block) error {
+	m.t.Helper()
+
+	if m.VerifyPotentialBlockHandler == nil {
+		m.errorByUndefinedMethod("VerifyPotentialBlock")
+	}
+
+	return m.VerifyPotentialBlockHandler(block)
+}
+
+func (m *MockBlockchain) CalculateGasLimit(number uint64) (uint64, error) {
+	m.t.Helper()
+
+	if m.CalculateGasLimitHandler == nil {
+		m.errorByUndefinedMethod("CalculateGasLimit")
+	}
+
+	return m.CalculateGasLimitHandler(number)
+}
+
+// helper method
+func (m *MockBlockchain) SetGenesis(validators []types.Address) *types.Block {
+	m.t.Helper()
+
+	header := &types.Header{
+		Number:     0,
+		Difficulty: 0,
+		ParentHash: types.ZeroHash,
+		MixHash:    IstanbulDigest,
+		Sha3Uncles: types.EmptyUncleHash,
+		GasLimit:   defaultBlockGasLimit,
+	}
+
+	putIbftExtraValidators(header, validators)
+
+	header = header.ComputeHash()
+
+	block := &types.Block{
+		Header: header,
+	}
+
+	if err := m.writeBlock(block); err != nil {
+		m.t.Errorf("failed to insert genesis block: %v", err)
+	}
+
+	return block
+}
+
+func (m *MockBlockchain) MockBlock(
+	height uint64,
+	parentHash types.Hash,
+	proposer *ecdsa.PrivateKey,
+	validators []types.Address,
+) *types.Block {
+	m.t.Helper()
+
+	var err error
+
+	gasLimit, _ := m.CalculateGasLimit(height - 1)
+
+	header := &types.Header{
+		Number:     height,
+		Difficulty: height,
+		ParentHash: parentHash,
+		MixHash:    IstanbulDigest,
+		Sha3Uncles: types.EmptyUncleHash,
+		GasLimit:   gasLimit,
+	}
+
+	putIbftExtraValidators(header, validators)
+
+	header = header.ComputeHash()
+
+	header, err = writeSeal(proposer, header)
+	if err != nil {
+		m.t.Errorf("failed to write seal in DummyBlock: %v", err)
+	}
+
+	return &types.Block{
+		Header: header,
+	}
+}
+
+func (m *MockBlockchain) errorByUndefinedMethod(methodName string) {
+	m.t.Helper()
+	m.t.Errorf("%s method is not defined in MockBlockchain", methodName)
+}
+
+// default behaviors
+func (m *MockBlockchain) header() *types.Header {
+	if m.latestBlockNumber == nil {
+		return nil
+	}
+
+	return m.headers[*m.latestBlockNumber]
+}
+
+func (m *MockBlockchain) getHeaderByNumber(i uint64) (*types.Header, bool) {
+	header, ok := m.headers[i]
+
+	return header, ok
+}
+
+func (m *MockBlockchain) writeBlock(block *types.Block) error {
+	number := block.Number()
+	m.blocks[number] = block
+
+	if _, ok := m.headers[number]; !ok {
+		m.headers[number] = block.Header
+
+		if m.latestBlockNumber == nil || *m.latestBlockNumber < number {
+			m.latestBlockNumber = &number
+		}
+	}
+
+	return nil
+}
+
+func (m *MockBlockchain) verifyPotentialBlock(block *types.Block) error {
+	return nil
+}
+
+func (m *MockBlockchain) calculateGasLimit(number uint64) (uint64, error) {
+	return defaultBlockGasLimit, nil
+}
+
+// interface check
+var _ blockchainInterface = (*MockBlockchain)(nil)
+
+func NewMockBlockchain(t *testing.T) *MockBlockchain {
+	t.Helper()
+
+	m := &MockBlockchain{
+		t:                 t,
+		latestBlockNumber: nil,
+		headers:           make(map[uint64]*types.Header),
+		blocks:            make(map[uint64]*types.Block),
+	}
+
+	m.HeaderHandler = m.header
+	m.GetHeaderByNumberHandler = m.getHeaderByNumber
+	m.WriteBlockHandler = m.writeBlock
+	m.VerifyPotentialBlockHandler = m.verifyPotentialBlock
+	m.CalculateGasLimitHandler = m.calculateGasLimit
+
+	return m
+}
 
 func TestTransition_ValidateState_Prepare(t *testing.T) {
 	t.Skip()
