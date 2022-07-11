@@ -18,7 +18,7 @@ func GetCommand() *cobra.Command {
 	}
 
 	setFlags(ibftSnapshotCmd)
-	setRequiredFlags(ibftSnapshotCmd)
+	helper.SetRequiredFlags(ibftSnapshotCmd, params.getRequiredFlags())
 
 	return ibftSnapshotCmd
 }
@@ -41,12 +41,6 @@ func setFlags(cmd *cobra.Command) {
 			dropVote,
 		),
 	)
-}
-
-func setRequiredFlags(cmd *cobra.Command) {
-	for _, requiredFlag := range params.getRequiredFlags() {
-		_ = cmd.MarkFlagRequired(requiredFlag)
-	}
 }
 
 func runPreRun(_ *cobra.Command, _ []string) error {

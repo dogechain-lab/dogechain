@@ -21,7 +21,7 @@ func GetCommand() *cobra.Command {
 
 	setFlags(genesisCmd)
 	setLegacyFlags(genesisCmd)
-	setRequiredFlags(genesisCmd)
+	helper.SetRequiredFlags(genesisCmd, params.getRequiredFlags())
 
 	return genesisCmd
 }
@@ -172,12 +172,6 @@ func setLegacyFlags(cmd *cobra.Command) {
 	)
 
 	_ = cmd.Flags().MarkHidden(chainIDFlagLEGACY)
-}
-
-func setRequiredFlags(cmd *cobra.Command) {
-	for _, requiredFlag := range params.getRequiredFlags() {
-		_ = cmd.MarkFlagRequired(requiredFlag)
-	}
 }
 
 func runPreRun(_ *cobra.Command, _ []string) error {

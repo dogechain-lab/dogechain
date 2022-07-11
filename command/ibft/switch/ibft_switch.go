@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/dogechain-lab/dogechain/command"
+	"github.com/dogechain-lab/dogechain/command/helper"
 	"github.com/spf13/cobra"
 )
 
@@ -16,7 +17,7 @@ func GetCommand() *cobra.Command {
 	}
 
 	setFlags(ibftSwitchCmd)
-	setRequiredFlags(ibftSwitchCmd)
+	helper.SetRequiredFlags(ibftSwitchCmd, params.getRequiredFlags())
 
 	return ibftSwitchCmd
 }
@@ -52,12 +53,6 @@ func setFlags(cmd *cobra.Command) {
 		"",
 		"the height to switch the new type",
 	)
-}
-
-func setRequiredFlags(cmd *cobra.Command) {
-	for _, requiredFlag := range params.getRequiredFlags() {
-		_ = cmd.MarkFlagRequired(requiredFlag)
-	}
 }
 
 func runPreRun(_ *cobra.Command, _ []string) error {
