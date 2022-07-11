@@ -473,6 +473,12 @@ func (i *Ibft) runSyncState() {
 		}
 	}
 
+	// save current height to check whether new blocks are added or not during syncing
+	beginningHeight := uint64(0)
+	if header := i.blockchain.Header(); header != nil {
+		beginningHeight = header.Number
+	}
+
 	for i.isState(SyncState) {
 		// try to sync with the best-suited peer
 		p := i.syncer.BestPeer()
@@ -535,6 +541,17 @@ func (i *Ibft) runSyncState() {
 			i.startNewSequence()
 			i.setState(AcceptState)
 		}
+	}
+
+	// new height added during syncing
+	endingHeight := uint64(0)
+	if header := i.blockchain.Header(); header != nil {
+		endingHeight = header.Number
+	}
+
+	// unlock current block if new blocks are added
+	if endingHeight > beginningHeight {
+		i.state.unlock()
 	}
 }
 
@@ -839,6 +856,14 @@ func (i *Ibft) runAcceptState() { // start new round
 			return
 		}
 
+		// Make sure the proposing block height match the current sequence
+		if block.Number() != i.state.view.Sequence {
+			i.logger.Error("sequence not correct", "block", block.Number, "sequence", i.state.view.Sequence)
+			i.handleStateErr(errIncorrectBlockHeight)
+
+			return
+		}
+
 		if i.state.locked {
 			// the state is locked, we need to receive the same block
 			if block.Hash() == i.state.block.Hash() {
@@ -977,6 +1002,9 @@ func (i *Ibft) runValidateState() {
 			// update metrics
 			i.updateMetrics(block)
 
+			// increase the sequence number and reset the round if any
+			i.startNewSequence()
+
 			// move ahead to the next block
 			i.setState(AcceptState)
 		}
@@ -1054,12 +1082,6 @@ func (i *Ibft) insertBlock(block *types.Block) error {
 		"committed", i.state.numCommitted(),
 	)
 
-	// increase the sequence number and reset the round if any
-	i.state.view = &proto.View{
-		Sequence: header.Number + 1,
-		Round:    0,
-	}
-
 	// broadcast the new block
 	i.syncer.Broadcast(block)
 
@@ -1072,6 +1094,7 @@ func (i *Ibft) insertBlock(block *types.Block) error {
 
 var (
 	errIncorrectBlockLocked    = errors.New("block locked is incorrect")
+	errIncorrectBlockHeight    = errors.New("proposed block number is incorrect")
 	errBlockVerificationFailed = errors.New("block verification failed")
 	errFailedToInsertBlock     = errors.New("failed to insert block")
 )
