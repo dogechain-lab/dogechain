@@ -275,7 +275,7 @@ func TestTransition_AcceptState_Validator_LockWrong(t *testing.T) {
 		sequence: 1,
 		state:    RoundChangeState,
 		locked:   true,
-		err:      errIncorrectBlockLocked,
+		err:      errIncorrectBlockHeight,
 	})
 }
 
