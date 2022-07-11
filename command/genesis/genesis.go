@@ -48,14 +48,6 @@ func setFlags(cmd *cobra.Command) {
 		"the consensus protocol to be used",
 	)
 
-	cmd.Flags().StringVar(
-		&params.validatorPrefixPath,
-		ibftValidatorPrefixFlag,
-		"",
-		"prefix path for validator folder directory. "+
-			"Needs to be present if ibft-validator is omitted",
-	)
-
 	cmd.Flags().StringArrayVar(
 		&params.premine,
 		premineFlag,
@@ -73,13 +65,27 @@ func setFlags(cmd *cobra.Command) {
 		"multiAddr URL for p2p discovery bootstrap. This flag can be used multiple times",
 	)
 
-	cmd.Flags().StringArrayVar(
-		&params.ibftValidatorsRaw,
-		ibftValidatorFlag,
-		[]string{},
-		"addresses to be used as IBFT validators, can be used multiple times. "+
-			"Needs to be present if ibft-validators-prefix-path is omitted",
-	)
+	// IBFT Validators
+	{
+		cmd.Flags().StringVar(
+			&params.validatorPrefixPath,
+			ibftValidatorPrefixFlag,
+			"",
+			"prefix path for validator folder directory. "+
+				"Needs to be present if ibft-validator is omitted",
+		)
+
+		cmd.Flags().StringArrayVar(
+			&params.ibftValidatorsRaw,
+			ibftValidatorFlag,
+			[]string{},
+			"addresses to be used as IBFT validators, can be used multiple times. "+
+				"Needs to be present if ibft-validators-prefix-path is omitted",
+		)
+
+		// --ibft-validator-prefix-path & --ibft-validator can't be given at same time
+		cmd.MarkFlagsMutuallyExclusive(ibftValidatorPrefixFlag, ibftValidatorFlag)
+	}
 
 	cmd.Flags().BoolVar(
 		&params.isPos,
