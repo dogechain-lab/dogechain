@@ -106,6 +106,27 @@ func (m *accountsMap) promoted() (total uint64) {
 	return
 }
 
+// promoted returns the number of all promoted transactons.
+func (m *accountsMap) enqueued() (total uint64) {
+	m.Range(func(key, value interface{}) bool {
+		accountKey, ok := key.(types.Address)
+		if !ok {
+			return false
+		}
+
+		account := m.get(accountKey)
+
+		account.enqueued.lock(false)
+		defer account.enqueued.unlock()
+
+		total += account.enqueued.length()
+
+		return true
+	})
+
+	return
+}
+
 // allTxs returns all promoted and all enqueued transactions, depending on the flag.
 func (m *accountsMap) allTxs(includeEnqueued bool) (
 	allPromoted, allEnqueued map[types.Address][]*types.Transaction,

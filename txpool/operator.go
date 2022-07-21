@@ -10,9 +10,16 @@ import (
 )
 
 // Status implements the GRPC status endpoint. Returns the number of transactions in the pool
+//
+// Length is deprecated. Use pendingLength, enqueuedLength instead.
 func (p *TxPool) Status(ctx context.Context, req *empty.Empty) (*proto.TxnPoolStatusResp, error) {
+	pendingLength := p.accounts.promoted()
+
 	resp := &proto.TxnPoolStatusResp{
-		Length: p.accounts.promoted(),
+		Length:         pendingLength,
+		PendingLength:  pendingLength,
+		EnqueuedLength: p.accounts.enqueued(),
+		MaxSlots:       p.gauge.max,
 	}
 
 	return resp, nil

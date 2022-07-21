@@ -31,7 +31,10 @@ func runCommand(cmd *cobra.Command, _ []string) {
 	}
 
 	outputter.SetCommandResult(&TxPoolStatusResult{
-		Transactions: statusResponse.Length,
+		Transactions:         statusResponse.Length,
+		PendingTransactions:  statusResponse.PendingLength,
+		EnqueuedTransactions: statusResponse.EnqueuedLength,
+		MaxSlots:             statusResponse.MaxSlots,
 	})
 }
 
