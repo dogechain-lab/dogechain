@@ -204,5 +204,5 @@ var TxnPoolOperator_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-	Metadata: "operator.proto",
+	Metadata: "txpool/proto/operator.proto",
 }

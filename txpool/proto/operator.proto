@@ -28,7 +28,10 @@ message AddTxnResp {
 }
 
 message TxnPoolStatusResp {
-  uint64 length = 1;
+  uint64 length = 1; // deprecated
+  uint64 pendingLength = 2;
+  uint64 enqueuedLength = 3;
+  uint64 maxSlots = 4;
 }
 
 message SubscribeRequest {
