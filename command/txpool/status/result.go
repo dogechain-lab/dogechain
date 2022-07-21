@@ -19,9 +19,9 @@ func (r *TxPoolStatusResult) GetOutput() string {
 
 	buffer.WriteString("\n[TXPOOL STATUS]\n")
 	buffer.WriteString(helper.FormatKV([]string{
-		fmt.Sprintf("\tPending transactions|%d\n", r.PendingTransactions),
-		fmt.Sprintf("\tEnqueued transactions|%d\n", r.EnqueuedTransactions),
-		fmt.Sprintf("\tMax slots|%d", r.MaxSlots),
+		fmt.Sprintf("Pending transactions|%d", r.PendingTransactions),
+		fmt.Sprintf("Enqueued transactions|%d", r.EnqueuedTransactions),
+		fmt.Sprintf("Max slots|%d", r.MaxSlots),
 	}))
 	buffer.WriteString("\n")
 
