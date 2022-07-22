@@ -2340,13 +2340,15 @@ func TestGetTxs(t *testing.T) {
 
 func TestAddTx_ReplaceSameNonce(t *testing.T) {
 	var (
-		eoa         = new(eoa).create(t)
-		addr        = eoa.Address
+		eoa  = new(eoa).create(t)
+		addr = eoa.Address
+		// price
 		lowerPrice  = big.NewInt(int64(defaultPriceLimit))
-		higherPrice = lowerPrice.Mul(lowerPrice, big.NewInt(2))
-		tx0         = eoa.signTx(newTx(addr, 0, 1), signerEIP155)
-		tx2         = eoa.signTx(newTx(addr, 2, 1), signerEIP155)
-		// same nonce transactions
+		higherPrice = big.NewInt(0).Mul(lowerPrice, big.NewInt(2))
+		// normal txs
+		tx0 = eoa.signTx(newTx(addr, 0, 1), signerEIP155)
+		tx2 = eoa.signTx(newTx(addr, 2, 1), signerEIP155)
+		// same nonce txs
 		tx1_1 = eoa.signTx(newPriceTx(addr, lowerPrice, 1, 1), signerEIP155)
 		tx1_2 = eoa.signTx(newPriceTx(addr, higherPrice, 1, 1), signerEIP155)
 	)
@@ -2358,7 +2360,7 @@ func TestAddTx_ReplaceSameNonce(t *testing.T) {
 		expectedPromoted []*types.Transaction
 	}{
 		{
-			name: "would not replace same nonce tx in enqueued list",
+			name: "replace same nonce tx in enqueued list",
 			allTxs: []*types.Transaction{
 				tx1_1,
 				tx1_2,
@@ -2372,11 +2374,6 @@ func TestAddTx_ReplaceSameNonce(t *testing.T) {
 			allTxs: []*types.Transaction{
 				tx0,
 				tx1_1,
-				tx1_2,
-				tx2,
-			},
-			expectedEnqueued: []*types.Transaction{
-				tx0,
 				tx1_2,
 				tx2,
 			},
