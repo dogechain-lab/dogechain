@@ -46,6 +46,16 @@ var (
 
 // returns a new valid tx of slots size with the given nonce
 func newTx(addr types.Address, nonce, slots uint64) *types.Transaction {
+	return newPriceTx(
+		addr,
+		big.NewInt(0).SetUint64(defaultPriceLimit),
+		nonce,
+		slots,
+	)
+}
+
+// returns a new valid tx of slots size with the given nonce and gas price
+func newPriceTx(addr types.Address, price *big.Int, nonce, slots uint64) *types.Transaction {
 	// base field should take 1 slot at least
 	size := txSlotSize * (slots - 1)
 	if size <= 0 {
@@ -61,7 +71,7 @@ func newTx(addr types.Address, nonce, slots uint64) *types.Transaction {
 		From:     addr,
 		Nonce:    nonce,
 		Value:    big.NewInt(1),
-		GasPrice: big.NewInt(0).SetUint64(defaultPriceLimit),
+		GasPrice: price,
 		Gas:      validGasLimit,
 		Input:    input,
 	}
@@ -2324,6 +2334,120 @@ func TestGetTxs(t *testing.T) {
 					assert.True(t, found)
 				}
 			}
+		})
+	}
+}
+
+func TestAddTx_ReplaceSameNonce(t *testing.T) {
+	var (
+		eoa         = new(eoa).create(t)
+		addr        = eoa.Address
+		lowerPrice  = big.NewInt(int64(defaultPriceLimit))
+		higherPrice = lowerPrice.Mul(lowerPrice, big.NewInt(2))
+		tx0         = eoa.signTx(newTx(addr, 0, 1), signerEIP155)
+		tx2         = eoa.signTx(newTx(addr, 2, 1), signerEIP155)
+		// same nonce transactions
+		tx1_1 = eoa.signTx(newPriceTx(addr, lowerPrice, 1, 1), signerEIP155)
+		tx1_2 = eoa.signTx(newPriceTx(addr, higherPrice, 1, 1), signerEIP155)
+	)
+
+	testCases := []*struct {
+		name             string
+		allTxs           []*types.Transaction
+		expectedEnqueued []*types.Transaction
+		expectedPromoted []*types.Transaction
+	}{
+		{
+			name: "would not replace same nonce tx in enqueued list",
+			allTxs: []*types.Transaction{
+				tx1_1,
+				tx1_2,
+			},
+			expectedEnqueued: []*types.Transaction{
+				tx1_2,
+			},
+		},
+		{
+			name: "replace same nonce tx in promoted list",
+			allTxs: []*types.Transaction{
+				tx0,
+				tx1_1,
+				tx1_2,
+				tx2,
+			},
+			expectedEnqueued: []*types.Transaction{
+				tx0,
+				tx1_2,
+				tx2,
+			},
+			expectedPromoted: []*types.Transaction{
+				tx0,
+				tx1_2,
+				tx2,
+			},
+		},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			pool, err := newTestPool()
+			assert.NoError(t, err)
+			pool.SetSigner(signerEIP155)
+
+			pool.Start()
+			defer pool.Close()
+
+			promoteSubscription := pool.eventManager.subscribe(
+				[]proto.EventType{
+					proto.EventType_PROMOTED,
+				},
+			)
+
+			enqueueSubscription := pool.eventManager.subscribe(
+				[]proto.EventType{
+					proto.EventType_ENQUEUED,
+				},
+			)
+
+			// send txs
+			expectedPromotedTx := 0
+			for _, tx := range test.allTxs {
+				nonce := uint64(0)
+				promotable := uint64(0)
+
+				if tx.Nonce == nonce+promotable {
+					promotable++
+				}
+
+				assert.NoError(t, pool.addTx(local, tx))
+
+				expectedPromotedTx += int(promotable)
+			}
+
+			// Wait for promoted transactions
+			if expectedPromotedTx > 0 {
+				ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*10)
+				defer cancelFn()
+
+				// Wait for promoted transactions
+				assert.Len(t, waitForEvents(ctx, promoteSubscription, expectedPromotedTx), expectedPromotedTx)
+			}
+
+			// Wait for enqueued transactions, if any are present
+			if expectedEnqueuedTx := len(test.allTxs) - expectedPromotedTx; expectedEnqueuedTx > 0 {
+				ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*10)
+				defer cancelFn()
+
+				assert.Len(t, waitForEvents(ctx, enqueueSubscription, expectedEnqueuedTx), expectedEnqueuedTx)
+			}
+
+			allPromoted, allEnqueued := pool.GetTxs(true)
+
+			// assert promoted
+			assert.Equal(t, test.expectedPromoted, allPromoted[addr])
+
+			// assert enqueued
+			assert.Equal(t, test.expectedEnqueued, allEnqueued[addr])
 		})
 	}
 }
