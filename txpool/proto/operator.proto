@@ -60,6 +60,9 @@ enum EventType {
 
   // For pruned enqueued transactions
   PRUNED_ENQUEUED = 6;
+
+  // For replaced transactions
+  REPLACED = 7;
 }
 
 message TxPoolEvent {

@@ -663,13 +663,29 @@ func (p *TxPool) handleEnqueueRequest(req enqueueRequest) {
 	account := p.accounts.get(addr)
 
 	// enqueue tx
-	if err := account.enqueue(tx); err != nil {
+	replacedTx, err := account.enqueue(tx)
+	if err != nil {
 		p.logger.Error("enqueue request", "err", err)
 
 		// remove it from index when nonce too low
 		p.index.remove(tx)
 
 		return
+	}
+
+	// old tx exists, replacement
+	if replacedTx != nil {
+		p.logger.Debug(
+			"replace enquque transaction",
+			"old",
+			replacedTx.Hash.String(),
+			"new",
+			tx.Hash.String(),
+		)
+
+		p.gauge.decrease(slotsRequired(replacedTx))
+		p.metrics.EnqueueTxs.Add(-1)
+		p.eventManager.signalEvent(proto.EventType_Replaced, replacedTx.Hash)
 	}
 
 	p.logger.Debug("enqueue request", "hash", tx.Hash.String())

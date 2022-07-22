@@ -265,19 +265,19 @@ func (a *account) reset(nonce uint64, promoteCh chan<- promoteRequest) (
 }
 
 // enqueue attempts tp push the transaction onto the enqueued queue.
-func (a *account) enqueue(tx *types.Transaction) error {
+func (a *account) enqueue(tx *types.Transaction) (old *types.Transaction, err error) {
 	a.enqueued.lock(true)
 	defer a.enqueued.unlock()
 
 	// reject low nonce tx
 	if tx.Nonce < a.getNonce() {
-		return ErrNonceTooLow
+		return nil, ErrNonceTooLow
 	}
 
 	// enqueue tx
-	a.enqueued.push(tx)
+	old = a.enqueued.upsert(tx)
 
-	return nil
+	return old, nil
 }
 
 // Promote moves eligible transactions from enqueued to promoted.

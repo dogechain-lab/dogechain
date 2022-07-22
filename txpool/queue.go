@@ -75,7 +75,44 @@ func (q *accountQueue) clear() (removed []*types.Transaction) {
 	return
 }
 
-// push pushes the given transactions onto the queue.
+// txOfNonce returns transaction in queue or nil when not found.
+//
+// not thread-safe, should be locked and sorted before query.
+func (q *accountQueue) txOfNonce(nonce uint64) (tx *types.Transaction, index int) {
+	index = -1
+
+	for i, transaction := range q.queue {
+		if transaction.Nonce < nonce {
+			continue
+		}
+
+		if transaction.Nonce == nonce {
+			tx = transaction
+			index = i
+		}
+
+		break
+	}
+
+	return
+}
+
+// upsert upserts transaction to the queue, return old nonce transaction if any.
+//
+// not thread-safe, should be locked and sorted before upsert.
+func (q *accountQueue) upsert(tx *types.Transaction) *types.Transaction {
+	old, i := q.txOfNonce(tx.Nonce)
+	// only better price could take replacement.
+	if old != nil && tx.GasPrice.Cmp(old.GasPrice) > 0 {
+		heap.Remove(&q.queue, i)
+	}
+
+	heap.Push(&q.queue, tx)
+
+	return old
+}
+
+// push pushes the given transaction onto the queue.
 func (q *accountQueue) push(tx *types.Transaction) {
 	heap.Push(&q.queue, tx)
 }
@@ -130,7 +167,16 @@ func (q *minNonceQueue) Swap(i, j int) {
 }
 
 func (q *minNonceQueue) Less(i, j int) bool {
-	return (*q)[i].Nonce < (*q)[j].Nonce
+	qi, qj := (*q)[i], (*q)[j]
+
+	switch {
+	case qi.Nonce > qj.Nonce:
+		return false
+	case qi.Nonce < qj.Nonce:
+		return true
+	}
+
+	return qi.GasPrice.Cmp(qj.GasPrice) > 0
 }
 
 func (q *minNonceQueue) Push(x interface{}) {
