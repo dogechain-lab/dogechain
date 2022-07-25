@@ -2345,7 +2345,7 @@ func TestAddTx_ReplaceSameNonce(t *testing.T) {
 		// price
 		lowPrice  = big.NewInt(int64(defaultPriceLimit))
 		midPrice  = big.NewInt(0).Mul(lowPrice, big.NewInt(2))
-		highPrice = big.NewInt(0).Mul(lowPrice, big.NewInt(2))
+		highPrice = big.NewInt(0).Mul(lowPrice, big.NewInt(3))
 		// normal txs
 		tx0 = eoa.signTx(newTx(addr, 0, 1), signerEIP155)
 		// same nonce txs
