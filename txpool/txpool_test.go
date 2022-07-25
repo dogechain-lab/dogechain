@@ -2343,14 +2343,19 @@ func TestAddTx_ReplaceSameNonce(t *testing.T) {
 		eoa  = new(eoa).create(t)
 		addr = eoa.Address
 		// price
-		lowerPrice  = big.NewInt(int64(defaultPriceLimit))
-		higherPrice = big.NewInt(0).Mul(lowerPrice, big.NewInt(2))
+		lowPrice  = big.NewInt(int64(defaultPriceLimit))
+		midPrice  = big.NewInt(0).Mul(lowPrice, big.NewInt(2))
+		highPrice = big.NewInt(0).Mul(lowPrice, big.NewInt(2))
 		// normal txs
 		tx0 = eoa.signTx(newTx(addr, 0, 1), signerEIP155)
-		tx2 = eoa.signTx(newTx(addr, 2, 1), signerEIP155)
 		// same nonce txs
-		tx1_1 = eoa.signTx(newPriceTx(addr, lowerPrice, 1, 1), signerEIP155)
-		tx1_2 = eoa.signTx(newPriceTx(addr, higherPrice, 1, 1), signerEIP155)
+		tx1_1 = eoa.signTx(newPriceTx(addr, lowPrice, 1, 1), signerEIP155)
+		tx1_2 = eoa.signTx(newPriceTx(addr, midPrice, 1, 1), signerEIP155)
+		tx2_1 = eoa.signTx(newPriceTx(addr, lowPrice, 2, 1), signerEIP155)
+		tx2_2 = eoa.signTx(newPriceTx(addr, midPrice, 2, 1), signerEIP155)
+		tx3_1 = eoa.signTx(newPriceTx(addr, lowPrice, 3, 1), signerEIP155)
+		tx3_2 = eoa.signTx(newPriceTx(addr, midPrice, 3, 1), signerEIP155)
+		tx3_3 = eoa.signTx(newPriceTx(addr, highPrice, 3, 1), signerEIP155)
 	)
 
 	testCases := []*struct {
@@ -2366,11 +2371,18 @@ func TestAddTx_ReplaceSameNonce(t *testing.T) {
 			allTxs: []*types.Transaction{
 				tx1_1,
 				tx1_2,
+				tx2_1,
+				tx2_2,
+				tx3_1,
+				tx3_2,
+				tx3_3,
 			},
 			expectedEnqueued: []*types.Transaction{
 				tx1_2,
+				tx2_2,
+				tx3_3,
 			},
-			expectedReplacedCount: 1,
+			expectedReplacedCount: 4,
 		},
 		{
 			name: "replace same nonce tx in promoted list",
@@ -2378,15 +2390,20 @@ func TestAddTx_ReplaceSameNonce(t *testing.T) {
 				tx0,
 				tx1_1,
 				tx1_2,
-				tx2,
+				tx2_1,
+				tx2_2,
+				tx3_1,
+				tx3_2,
+				tx3_3,
 			},
 			expectedPromoted: []*types.Transaction{
 				tx0,
 				tx1_2,
-				tx2,
+				tx2_2,
+				tx3_3,
 			},
-			expectedPromotedCount: 4,
-			expectedReplacedCount: 1,
+			expectedPromotedCount: 8,
+			expectedReplacedCount: 4,
 		},
 	}
 
