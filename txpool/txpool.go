@@ -683,6 +683,9 @@ func (p *TxPool) handleEnqueueRequest(req enqueueRequest) {
 			tx.Hash.String(),
 		)
 
+		// remove tx index
+		p.index.remove(replacedTx)
+		// gauge, metrics, event
 		p.gauge.decrease(slotsRequired(replacedTx))
 		p.metrics.EnqueueTxs.Add(-1)
 		p.eventManager.signalEvent(proto.EventType_REPLACED, replacedTx.Hash)

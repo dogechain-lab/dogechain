@@ -269,53 +269,10 @@ func (a *account) enqueue(tx *types.Transaction) (old *types.Transaction, err er
 	a.enqueued.lock(true)
 	defer a.enqueued.unlock()
 
-	// replace old transaction first, if any presented.
-	old, err = a.replaceSameNonceTx(a.enqueued, tx)
-	if err != nil {
-		return nil, err
-	} else if old != nil {
-		return old, nil
+	inserted, old := a.enqueued.Add(tx)
+	if !inserted {
+		return nil, ErrUnderpriced
 	}
-
-	a.promoted.lock(true)
-	defer a.promoted.unlock()
-
-	// if same nonce promotable transaction exists, we should and must enquque
-	// this transaction.
-	oldPromoted, _ := a.promoted.txOfNonce(tx.Nonce)
-	if oldPromoted != nil {
-		a.enqueued.push(tx)
-		// promotable, but would not handle promoation here.
-		return nil, nil
-	}
-
-	// reject low nonce tx
-	if tx.Nonce < a.getNonce() {
-		return nil, ErrNonceTooLow
-	}
-
-	// enqueue tx
-	a.enqueued.push(tx)
-
-	return old, nil
-}
-
-// replaceSameNonceTx replaces the same nonce transaction in queue.
-func (a *account) replaceSameNonceTx(queue *accountQueue, tx *types.Transaction) (*types.Transaction, error) {
-	// find same nonce tx exists or not
-	old, i := queue.txOfNonce(tx.Nonce)
-	if old == nil {
-		// not replaceable
-		return nil, nil
-	}
-	// only better price could take replacement
-	if !txPriceReplacable(tx, old) {
-		return nil, ErrNonceTooLow
-	}
-
-	// replace same nonce tx
-	queue.dropTx(i)
-	queue.push(tx)
 
 	return old, nil
 }
@@ -374,7 +331,7 @@ func (a *account) promote() (
 			replaced = append(replaced, old)
 
 			// drop old transaction
-			a.promoted.dropTx(i)
+			a.promoted.dropTxByIndex(i)
 
 			promoted = append(promoted, popToPromoted())
 

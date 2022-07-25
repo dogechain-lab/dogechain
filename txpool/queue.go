@@ -14,11 +14,13 @@ type accountQueue struct {
 	sync.RWMutex
 	wLock uint32
 	queue minNonceQueue
+	txs   map[uint64]*types.Transaction // nonce filter transactions
 }
 
 func newAccountQueue() *accountQueue {
 	q := accountQueue{
 		queue: make(minNonceQueue, 0),
+		txs:   make(map[uint64]*types.Transaction),
 	}
 
 	heap.Init(&q.queue)
@@ -72,7 +74,41 @@ func (q *accountQueue) clear() (removed []*types.Transaction) {
 	// clear the underlying queue
 	q.queue = q.queue[:0]
 
+	// clear the underlying map
+	q.txs = make(map[uint64]*types.Transaction)
+
 	return
+}
+
+// not thread-safe, should be lock held.
+func (q *accountQueue) getTxByNonce(nonce uint64) *types.Transaction {
+	return q.txs[nonce]
+}
+
+// Add tries to insert a new transaction into the list, returning whether the
+// transaction was accepted, and if yes, any previous transaction it replaced.
+//
+// not thread-safe, should be lock held.
+func (q *accountQueue) Add(tx *types.Transaction) (bool, *types.Transaction) {
+	// If there's an older better transaction, abort
+	old := q.getTxByNonce(tx.Nonce)
+	if old != nil {
+		if tx.GasPrice.Cmp(old.GasPrice) <= 0 {
+			return false, nil
+		}
+	}
+
+	// cache nonce
+	q.txs[tx.Nonce] = tx
+
+	// upsert
+	if old == nil {
+		q.push(tx)
+	} else {
+		old = q.replaceTxByNewTx(tx)
+	}
+
+	return true, old
 }
 
 // txOfNonce returns transaction and index in queue or nil when not found.
@@ -82,22 +118,33 @@ func (q *accountQueue) txOfNonce(nonce uint64) (tx *types.Transaction, index int
 	index = -1
 
 	for i, transaction := range q.queue {
-		if transaction.Nonce < nonce {
-			continue
-		}
-
 		if transaction.Nonce == nonce {
 			tx = transaction
 			index = i
-		}
 
-		break
+			break
+		}
 	}
 
 	return
 }
 
-func (q *accountQueue) dropTx(index int) {
+func (q *accountQueue) replaceTxByNewTx(newTx *types.Transaction) *types.Transaction {
+	var dropped *types.Transaction
+
+	for i, tx := range q.queue {
+		if tx.Nonce == newTx.Nonce && newTx.GasPrice.Cmp(tx.GasPrice) > 0 {
+			dropped = tx
+			q.queue[i] = newTx
+
+			break
+		}
+	}
+
+	return dropped
+}
+
+func (q *accountQueue) dropTxByIndex(index int) {
 	heap.Remove(&q.queue, index)
 }
 
@@ -125,6 +172,9 @@ func (q *accountQueue) pop() *types.Transaction {
 	if !ok {
 		return nil
 	}
+
+	// remove it from map
+	delete(q.txs, transaction.Nonce)
 
 	return transaction
 }
