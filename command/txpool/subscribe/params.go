@@ -14,6 +14,7 @@ var (
 	droppedFlag        = "dropped"
 	prunedPromotedFlag = "pruned-promoted"
 	prunedEnqueuedFlag = "pruned-enqueued"
+	replacedFlag       = "replaced"
 )
 
 type subscribeParams struct {
@@ -31,6 +32,7 @@ func (sp *subscribeParams) initEventMap() {
 		proto.EventType_DEMOTED:         &falseRaw,
 		proto.EventType_PRUNED_PROMOTED: &falseRaw,
 		proto.EventType_PRUNED_ENQUEUED: &falseRaw,
+		proto.EventType_REPLACED:        &falseRaw,
 	}
 }
 
@@ -65,5 +67,6 @@ func (sp *subscribeParams) setAllEvents() {
 		proto.EventType_DEMOTED,
 		proto.EventType_PRUNED_PROMOTED,
 		proto.EventType_PRUNED_ENQUEUED,
+		proto.EventType_REPLACED,
 	}
 }

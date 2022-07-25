@@ -70,6 +70,12 @@ func setFlags(cmd *cobra.Command) {
 		false,
 		"should subscribe to pruned enqueued tx events in the TxPool",
 	)
+	cmd.Flags().BoolVar(
+		params.eventSubscriptionMap[txpoolProto.EventType_REPLACED],
+		replacedFlag,
+		false,
+		"should subscribe to replaced tx events in the TxPool",	
+	)
 }
 
 func runCommand(cmd *cobra.Command, _ []string) {
