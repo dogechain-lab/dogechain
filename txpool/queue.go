@@ -156,16 +156,7 @@ func (q *minNonceQueue) Swap(i, j int) {
 }
 
 func (q *minNonceQueue) Less(i, j int) bool {
-	qi, qj := (*q)[i], (*q)[j]
-
-	switch {
-	case qi.Nonce > qj.Nonce:
-		return false
-	case qi.Nonce < qj.Nonce:
-		return true
-	}
-
-	return qi.GasPrice.Cmp(qj.GasPrice) > 0
+	return (*q)[i].Nonce < (*q)[j].Nonce
 }
 
 func (q *minNonceQueue) Push(x interface{}) {
