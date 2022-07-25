@@ -2339,6 +2339,8 @@ func TestGetTxs(t *testing.T) {
 }
 
 func TestAddTx_ReplaceSameNonce(t *testing.T) {
+	t.Parallel()
+
 	var (
 		eoa  = new(eoa).create(t)
 		addr = eoa.Address
@@ -2408,7 +2410,11 @@ func TestAddTx_ReplaceSameNonce(t *testing.T) {
 	}
 
 	for _, test := range testCases {
+		test := test
+
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
 			pool, err := newTestPool()
 			assert.NoError(t, err)
 			pool.SetSigner(signerEIP155)
@@ -2427,6 +2433,13 @@ func TestAddTx_ReplaceSameNonce(t *testing.T) {
 						proto.EventType_REPLACED,
 					},
 				)
+				waitSubscription = func(t *testing.T, sub *subscribeResult, expected int) bool {
+					ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*10)
+					defer cancelFn()
+
+					// Wait for promoted transactions
+					return assert.Len(t, waitForEvents(ctx, sub, expected), expected)
+				}
 			)
 
 			// send txs
@@ -2436,27 +2449,15 @@ func TestAddTx_ReplaceSameNonce(t *testing.T) {
 
 			// Wait for promoted transactions
 			if test.expectedPromotedCount > 0 {
-				ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*10)
-				defer cancelFn()
-
-				// Wait for promoted transactions
-				assert.Len(
-					t,
-					waitForEvents(ctx, promoteSubscription, test.expectedPromotedCount),
-					test.expectedPromotedCount,
-				)
+				if !waitSubscription(t, promoteSubscription, test.expectedPromotedCount) {
+					t.FailNow()
+				}
 			}
 			// Wait for replaced transactions, if any are present
 			if test.expectedReplacedCount > 0 {
-				ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*10)
-				defer cancelFn()
-
-				// Wait for promoted transactions
-				assert.Len(
-					t,
-					waitForEvents(ctx, replaceSubscription, test.expectedReplacedCount),
-					test.expectedReplacedCount,
-				)
+				if !waitSubscription(t, replaceSubscription, test.expectedReplacedCount) {
+					t.FailNow()
+				}
 			}
 
 			allPromoted, allEnqueued := pool.GetTxs(true)
