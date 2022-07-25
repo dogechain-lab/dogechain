@@ -309,7 +309,7 @@ func (a *account) replaceSameNonceTx(queue *accountQueue, tx *types.Transaction)
 		return nil, nil
 	}
 	// only better price could take replacement
-	if tx.GasPrice.Cmp(old.GasPrice) <= 0 {
+	if !txPriceReplacable(tx, old) {
 		return nil, ErrNonceTooLow
 	}
 
@@ -350,7 +350,7 @@ func (a *account) promote() (
 	nextNonce := currentNonce
 
 	// repeat logic
-	popAndPush := func() *types.Transaction {
+	popToPromoted := func() *types.Transaction {
 		// pop from enqueued
 		tx := a.enqueued.pop()
 		// push to promoted
@@ -369,14 +369,14 @@ func (a *account) promote() (
 
 		// find replacable tx first
 		old, i := a.promoted.txOfNonce(tx.Nonce)
-		if old != nil && tx.GasPrice.Cmp(old.GasPrice) > 0 {
+		if old != nil && txPriceReplacable(tx, old) {
 			// replaced old transaction
 			replaced = append(replaced, old)
 
 			// drop old transaction
 			a.promoted.dropTx(i)
 
-			promoted = append(promoted, popAndPush())
+			promoted = append(promoted, popToPromoted())
 
 			continue
 		}
@@ -396,7 +396,7 @@ func (a *account) promote() (
 		nextNonce += 1
 
 		// update return result
-		promoted = append(promoted, popAndPush())
+		promoted = append(promoted, popToPromoted())
 	}
 
 	// only update the nonce map if the new nonce
@@ -409,4 +409,8 @@ func (a *account) promote() (
 	a.lastPromoted = time.Now()
 
 	return
+}
+
+func txPriceReplacable(newTx, oldTx *types.Transaction) bool {
+	return newTx.GasPrice.Cmp(oldTx.GasPrice) > 0
 }
