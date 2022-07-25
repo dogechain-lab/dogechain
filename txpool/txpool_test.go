@@ -2434,6 +2434,8 @@ func TestAddTx_ReplaceSameNonce(t *testing.T) {
 					},
 				)
 				waitSubscription = func(t *testing.T, sub *subscribeResult, expected int) bool {
+					t.Helper()
+
 					ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*10)
 					defer cancelFn()
 
