@@ -75,7 +75,7 @@ func (q *accountQueue) clear() (removed []*types.Transaction) {
 	return
 }
 
-// txOfNonce returns transaction in queue or nil when not found.
+// txOfNonce returns transaction and index in queue or nil when not found.
 //
 // not thread-safe, should be locked and sorted before query.
 func (q *accountQueue) txOfNonce(nonce uint64) (tx *types.Transaction, index int) {
@@ -97,19 +97,8 @@ func (q *accountQueue) txOfNonce(nonce uint64) (tx *types.Transaction, index int
 	return
 }
 
-// upsert upserts transaction to the queue, return old nonce transaction if any.
-//
-// not thread-safe, should be locked and sorted before upsert.
-func (q *accountQueue) upsert(tx *types.Transaction) *types.Transaction {
-	old, i := q.txOfNonce(tx.Nonce)
-	// only better price could take replacement.
-	if old != nil && tx.GasPrice.Cmp(old.GasPrice) > 0 {
-		heap.Remove(&q.queue, i)
-	}
-
-	heap.Push(&q.queue, tx)
-
-	return old
+func (q *accountQueue) dropTx(index int) {
+	heap.Remove(&q.queue, index)
 }
 
 // push pushes the given transaction onto the queue.

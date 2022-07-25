@@ -685,7 +685,7 @@ func (p *TxPool) handleEnqueueRequest(req enqueueRequest) {
 
 		p.gauge.decrease(slotsRequired(replacedTx))
 		p.metrics.EnqueueTxs.Add(-1)
-		p.eventManager.signalEvent(proto.EventType_Replaced, replacedTx.Hash)
+		p.eventManager.signalEvent(proto.EventType_REPLACED, replacedTx.Hash)
 	}
 
 	p.logger.Debug("enqueue request", "hash", tx.Hash.String())
@@ -712,13 +712,22 @@ func (p *TxPool) handlePromoteRequest(req promoteRequest) {
 	account := p.accounts.get(addr)
 
 	// promote enqueued txs
-	promoted, dropped := account.promote()
+	promoted, dropped, replaced := account.promote()
 	p.logger.Debug("promote request", "promoted", promoted, "addr", addr.String())
 
 	// drop lower nonce txs first, to reduce the risk of mining.
 	if len(dropped) > 0 {
 		p.pruneEnqueuedTxs(dropped)
 		p.logger.Debug("dropped transactions when promoting", "dropped", dropped)
+	}
+
+	if len(replaced) > 0 {
+		p.index.remove(replaced...)
+		// state
+		p.gauge.decrease(slotsRequired(replaced...))
+		// metrics and event
+		p.decreaseQueueGauge(replaced, p.metrics.PendingTxs, proto.EventType_REPLACED)
+		p.logger.Debug("replaced transactions when promoting", "replaced", replaced)
 	}
 
 	// metrics and event
