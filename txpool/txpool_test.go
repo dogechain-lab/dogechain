@@ -2354,10 +2354,12 @@ func TestAddTx_ReplaceSameNonce(t *testing.T) {
 	)
 
 	testCases := []*struct {
-		name             string
-		allTxs           []*types.Transaction
-		expectedEnqueued []*types.Transaction
-		expectedPromoted []*types.Transaction
+		name                  string
+		allTxs                []*types.Transaction
+		expectedEnqueued      []*types.Transaction
+		expectedPromoted      []*types.Transaction
+		expectedPromotedCount int
+		expectedReplacedCount int
 	}{
 		{
 			name: "replace same nonce tx in enqueued list",
@@ -2368,6 +2370,7 @@ func TestAddTx_ReplaceSameNonce(t *testing.T) {
 			expectedEnqueued: []*types.Transaction{
 				tx1_2,
 			},
+			expectedReplacedCount: 1,
 		},
 		{
 			name: "replace same nonce tx in promoted list",
@@ -2382,6 +2385,8 @@ func TestAddTx_ReplaceSameNonce(t *testing.T) {
 				tx1_2,
 				tx2,
 			},
+			expectedPromotedCount: 4,
+			expectedReplacedCount: 1,
 		},
 	}
 
@@ -2394,48 +2399,47 @@ func TestAddTx_ReplaceSameNonce(t *testing.T) {
 			pool.Start()
 			defer pool.Close()
 
-			promoteSubscription := pool.eventManager.subscribe(
-				[]proto.EventType{
-					proto.EventType_PROMOTED,
-				},
-			)
-
-			enqueueSubscription := pool.eventManager.subscribe(
-				[]proto.EventType{
-					proto.EventType_ENQUEUED,
-				},
+			var (
+				promoteSubscription = pool.eventManager.subscribe(
+					[]proto.EventType{
+						proto.EventType_PROMOTED,
+					},
+				)
+				replaceSubscription = pool.eventManager.subscribe(
+					[]proto.EventType{
+						proto.EventType_REPLACED,
+					},
+				)
 			)
 
 			// send txs
-			expectedPromotedTx := 0
 			for _, tx := range test.allTxs {
-				nonce := uint64(0)
-				promotable := uint64(0)
-
-				if tx.Nonce == nonce+promotable {
-					promotable++
-				}
-
 				assert.NoError(t, pool.addTx(local, tx))
-
-				expectedPromotedTx += int(promotable)
 			}
 
 			// Wait for promoted transactions
-			if expectedPromotedTx > 0 {
+			if test.expectedPromotedCount > 0 {
 				ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*10)
 				defer cancelFn()
 
 				// Wait for promoted transactions
-				assert.Len(t, waitForEvents(ctx, promoteSubscription, expectedPromotedTx), expectedPromotedTx)
+				assert.Len(
+					t,
+					waitForEvents(ctx, promoteSubscription, test.expectedPromotedCount),
+					test.expectedPromotedCount,
+				)
 			}
-
-			// Wait for enqueued transactions, if any are present
-			if expectedEnqueuedTx := len(test.allTxs) - expectedPromotedTx; expectedEnqueuedTx > 0 {
+			// Wait for replaced transactions, if any are present
+			if test.expectedReplacedCount > 0 {
 				ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*10)
 				defer cancelFn()
 
-				assert.Len(t, waitForEvents(ctx, enqueueSubscription, expectedEnqueuedTx), expectedEnqueuedTx)
+				// Wait for promoted transactions
+				assert.Len(
+					t,
+					waitForEvents(ctx, replaceSubscription, test.expectedReplacedCount),
+					test.expectedReplacedCount,
+				)
 			}
 
 			allPromoted, allEnqueued := pool.GetTxs(true)
