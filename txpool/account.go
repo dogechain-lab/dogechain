@@ -306,16 +306,6 @@ func (a *account) promote() (
 	// the first promotable nonce
 	nextNonce := currentNonce
 
-	// repeat logic
-	popToPromoted := func() *types.Transaction {
-		// pop from enqueued
-		tx := a.enqueued.pop()
-		// push to promoted
-		a.promoted.push(tx)
-
-		return tx
-	}
-
 	//	move all promotable txs (enqueued txs that are sequential in nonce)
 	//	to the account's promoted queue
 	for {
@@ -325,15 +315,15 @@ func (a *account) promote() (
 		}
 
 		// find replacable tx first
-		old, i := a.promoted.txOfNonce(tx.Nonce)
-		if old != nil && txPriceReplacable(tx, old) {
-			// replaced old transaction
-			replaced = append(replaced, old)
+		if old := a.promoted.getTxByNonce(tx.Nonce); old != nil {
+			// pop out the transaction first
+			tx = a.enqueued.pop()
 
-			// drop old transaction
-			a.promoted.dropTxByIndex(i)
-
-			promoted = append(promoted, popToPromoted())
+			if _, old = a.promoted.Add(tx); old != nil {
+				// succed to replace old transaction
+				replaced = append(replaced, old)
+				promoted = append(promoted, tx)
+			}
 
 			continue
 		}
@@ -349,11 +339,19 @@ func (a *account) promote() (
 			break
 		}
 
+		// pop from enqueued
+		tx = a.enqueued.pop()
+
+		if inserted, _ := a.promoted.Add(tx); !inserted {
+			// failed tx would not stop promoting.
+			continue
+		}
+
 		// update counters
 		nextNonce += 1
 
 		// update return result
-		promoted = append(promoted, popToPromoted())
+		promoted = append(promoted, tx)
 	}
 
 	// only update the nonce map if the new nonce

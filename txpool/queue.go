@@ -93,7 +93,7 @@ func (q *accountQueue) Add(tx *types.Transaction) (bool, *types.Transaction) {
 	// If there's an older better transaction, abort
 	old := q.getTxByNonce(tx.Nonce)
 	if old != nil {
-		if tx.GasPrice.Cmp(old.GasPrice) <= 0 {
+		if !txPriceReplacable(tx, old) {
 			return false, nil
 		}
 	}
@@ -111,29 +111,11 @@ func (q *accountQueue) Add(tx *types.Transaction) (bool, *types.Transaction) {
 	return true, old
 }
 
-// txOfNonce returns transaction and index in queue or nil when not found.
-//
-// not thread-safe, should be locked and sorted before query.
-func (q *accountQueue) txOfNonce(nonce uint64) (tx *types.Transaction, index int) {
-	index = -1
-
-	for i, transaction := range q.queue {
-		if transaction.Nonce == nonce {
-			tx = transaction
-			index = i
-
-			break
-		}
-	}
-
-	return
-}
-
 func (q *accountQueue) replaceTxByNewTx(newTx *types.Transaction) *types.Transaction {
 	var dropped *types.Transaction
 
 	for i, tx := range q.queue {
-		if tx.Nonce == newTx.Nonce && newTx.GasPrice.Cmp(tx.GasPrice) > 0 {
+		if tx.Nonce == newTx.Nonce && txPriceReplacable(newTx, tx) {
 			dropped = tx
 			q.queue[i] = newTx
 
@@ -142,10 +124,6 @@ func (q *accountQueue) replaceTxByNewTx(newTx *types.Transaction) *types.Transac
 	}
 
 	return dropped
-}
-
-func (q *accountQueue) dropTxByIndex(index int) {
-	heap.Remove(&q.queue, index)
 }
 
 // push pushes the given transaction onto the queue.
