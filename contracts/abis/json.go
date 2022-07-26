@@ -943,6 +943,26 @@ const VaultJSONABI = `[
             {
                 "indexed": true,
                 "internalType": "address",
+                "name": "from",
+                "type": "address"
+            },
+            {
+                "indexed": true,
+                "internalType": "uint256",
+                "name": "amount",
+                "type": "uint256"
+            }
+        ],
+        "name": "ReceiveReward",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs":
+        [
+            {
+                "indexed": true,
+                "internalType": "address",
                 "name": "to",
                 "type": "address"
             },
@@ -954,26 +974,6 @@ const VaultJSONABI = `[
             }
         ],
         "name": "RewardTo",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs":
-        [
-            {
-                "indexed": true,
-                "internalType": "address",
-                "name": "from",
-                "type": "address"
-            },
-            {
-                "indexed": true,
-                "internalType": "uint256",
-                "name": "amount",
-                "type": "uint256"
-            }
-        ],
-        "name": "receiveReward",
         "type": "event"
     },
     {
