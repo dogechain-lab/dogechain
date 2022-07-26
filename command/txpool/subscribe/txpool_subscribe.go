@@ -74,7 +74,7 @@ func setFlags(cmd *cobra.Command) {
 		params.eventSubscriptionMap[txpoolProto.EventType_REPLACED],
 		replacedFlag,
 		false,
-		"should subscribe to replaced tx events in the TxPool",	
+		"should subscribe to replaced tx events in the TxPool",
 	)
 }
 
