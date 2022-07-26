@@ -41,6 +41,7 @@ var (
 	ErrInvalidAccountState = errors.New("invalid account state")
 	ErrAlreadyKnown        = errors.New("already known")
 	ErrOversizedData       = errors.New("oversized data")
+	ErrReplaceUnderpriced  = errors.New("replacement transaction underpriced")
 )
 
 // indicates origin of a transaction

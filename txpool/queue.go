@@ -80,8 +80,10 @@ func (q *accountQueue) clear() (removed []*types.Transaction) {
 	return
 }
 
+// GetTxByNonce returns the specific nonce transaction.
+//
 // not thread-safe, should be lock held.
-func (q *accountQueue) getTxByNonce(nonce uint64) *types.Transaction {
+func (q *accountQueue) GetTxByNonce(nonce uint64) *types.Transaction {
 	return q.txs[nonce]
 }
 
@@ -89,27 +91,29 @@ func (q *accountQueue) getTxByNonce(nonce uint64) *types.Transaction {
 // transaction was accepted, and if yes, any previous transaction it replaced.
 //
 // not thread-safe, should be lock held.
-func (q *accountQueue) SameNonceTx(tx *types.Transaction) (bool, *types.Transaction) {
-	// If there's an older better transaction, abort
-	old := q.getTxByNonce(tx.Nonce)
-	if old != nil {
-		if !txPriceReplacable(tx, old) {
-			return false, nil
-		}
+func (q *accountQueue) SameNonceTx(tx *types.Transaction) (replacable bool, old *types.Transaction) {
+	old = q.GetTxByNonce(tx.Nonce)
+	if old == nil {
+		return false, nil
 	}
+	// If there's an older better transaction, abort
+	if !txPriceReplacable(tx, old) {
+		return false, old
+	}
+
+	return true, old
 }
 
-// Add tries to insert a new transaction into the list, returning whether the
-// transaction was accepted, and if yes, any previous transaction it replaced.
+// Add tries to insert or replace a new transaction into the list, returning
+// whether the transaction was accepted, and if yes, any previous transaction
+// it replaced.
 //
 // not thread-safe, should be lock held.
 func (q *accountQueue) Add(tx *types.Transaction) (bool, *types.Transaction) {
-	// If there's an older better transaction, abort
-	old := q.getTxByNonce(tx.Nonce)
-	if old != nil {
-		if !txPriceReplacable(tx, old) {
-			return false, nil
-		}
+	replacable, old := q.SameNonceTx(tx)
+	if !replacable && old != nil {
+		// transaction replace underprice
+		return false, old
 	}
 
 	// cache nonce

@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"crypto/rand"
-	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -442,23 +441,21 @@ func createNilRawDataTxn() *proto.Txn {
 }
 
 func TestAddHandler(t *testing.T) {
-	// t.Run("enqueue new tx with higher nonce", func(t *testing.T) {
-	// 	pool, err := newTestPool()
-	// 	assert.NoError(t, err)
-	// 	pool.SetSigner(&mockSigner{})
+	t.Run("enqueue new tx with higher nonce", func(t *testing.T) {
+		pool, err := newTestPool()
+		assert.NoError(t, err)
+		pool.SetSigner(&mockSigner{})
 
-	// 	// send higher nonce tx
-	// 	go func() {
-	// 		err := pool.addTx(local, newTx(addr1, 10, 1)) // 10 > 0
-	// 		if !assert.NoError(t, err) {
-	// 			fmt.Println("err: ", err)
-	// 		}
-	// 	}()
-	// 	pool.handleEnqueueRequest(<-pool.enqueueReqCh)
+		// send higher nonce tx
+		go func() {
+			err := pool.addTx(local, newTx(addr1, 10, 1)) // 10 > 0
+			assert.NoError(t, err)
+		}()
+		pool.handleEnqueueRequest(<-pool.enqueueReqCh)
 
-	// 	assert.Equal(t, uint64(1), pool.gauge.read())
-	// 	assert.Equal(t, uint64(1), pool.accounts.get(addr1).enqueued.length())
-	// })
+		assert.Equal(t, uint64(1), pool.gauge.read())
+		assert.Equal(t, uint64(1), pool.accounts.get(addr1).enqueued.length())
+	})
 
 	t.Run("reject new tx with low nonce", func(t *testing.T) {
 		pool, err := newTestPool()
@@ -472,9 +469,7 @@ func TestAddHandler(t *testing.T) {
 		// send tx
 		go func() {
 			err := pool.addTx(local, newTx(addr1, 10, 1)) // 10 < 20
-			if !assert.NoError(t, err) {
-				fmt.Println("err: ", err)
-			}
+			assert.NoError(t, err)
 		}()
 		pool.handleEnqueueRequest(<-pool.enqueueReqCh)
 
@@ -490,9 +485,7 @@ func TestAddHandler(t *testing.T) {
 		// send tx
 		go func() {
 			err := pool.addTx(local, newTx(addr1, 0, 1)) // 0 == 0
-			if !assert.NoError(t, err) {
-				fmt.Println("err: ", err)
-			}
+			assert.NoError(t, err)
 		}()
 		go pool.handleEnqueueRequest(<-pool.enqueueReqCh)
 

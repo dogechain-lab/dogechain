@@ -265,16 +265,38 @@ func (a *account) reset(nonce uint64, promoteCh chan<- promoteRequest) (
 }
 
 // enqueue attempts tp push the transaction onto the enqueued queue.
-func (a *account) enqueue(tx *types.Transaction) (old *types.Transaction, err error) {
+func (a *account) enqueue(tx *types.Transaction) (oldTx *types.Transaction, err error) {
 	a.enqueued.lock(true)
 	defer a.enqueued.unlock()
 
-	inserted, old := a.enqueued.Add(tx)
+	// find out the same nonce transaction in all queues
+	replacable, oldTx := a.enqueued.SameNonceTx(tx)
+	if !replacable && oldTx == nil {
+		a.promoted.lock(true)
+		defer a.promoted.unlock()
+
+		// find it in promoted queue when enqueued queue not found
+		replacable, oldTx = a.promoted.SameNonceTx(tx)
+	}
+
+	if !replacable {
+		if oldTx != nil {
+			return nil, ErrReplaceUnderpriced
+		}
+
+		// check nonce
+		if tx.Nonce < a.getNonce() {
+			return nil, ErrNonceTooLow
+		}
+	}
+
+	// all checks passed, we could add the transcation now.
+	inserted, oldTx := a.enqueued.Add(tx)
 	if !inserted {
 		return nil, ErrUnderpriced
 	}
 
-	return old, nil
+	return oldTx, nil
 }
 
 // Promote moves eligible transactions from enqueued to promoted.
@@ -315,7 +337,7 @@ func (a *account) promote() (
 		}
 
 		// find replacable tx first
-		if old := a.promoted.getTxByNonce(tx.Nonce); old != nil {
+		if old := a.promoted.GetTxByNonce(tx.Nonce); old != nil {
 			// pop out the transaction first
 			tx = a.enqueued.pop()
 
