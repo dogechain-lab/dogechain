@@ -89,6 +89,20 @@ func (q *accountQueue) getTxByNonce(nonce uint64) *types.Transaction {
 // transaction was accepted, and if yes, any previous transaction it replaced.
 //
 // not thread-safe, should be lock held.
+func (q *accountQueue) SameNonceTx(tx *types.Transaction) (bool, *types.Transaction) {
+	// If there's an older better transaction, abort
+	old := q.getTxByNonce(tx.Nonce)
+	if old != nil {
+		if !txPriceReplacable(tx, old) {
+			return false, nil
+		}
+	}
+}
+
+// Add tries to insert a new transaction into the list, returning whether the
+// transaction was accepted, and if yes, any previous transaction it replaced.
+//
+// not thread-safe, should be lock held.
 func (q *accountQueue) Add(tx *types.Transaction) (bool, *types.Transaction) {
 	// If there's an older better transaction, abort
 	old := q.getTxByNonce(tx.Nonce)
