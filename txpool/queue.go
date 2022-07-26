@@ -14,13 +14,12 @@ type accountQueue struct {
 	sync.RWMutex
 	wLock uint32
 	queue minNonceQueue
-	txs   map[uint64]*types.Transaction // nonce filter transactions
+	txs   sync.Map // nonce filter transactions
 }
 
 func newAccountQueue() *accountQueue {
 	q := accountQueue{
 		queue: make(minNonceQueue, 0),
-		txs:   make(map[uint64]*types.Transaction),
 	}
 
 	heap.Init(&q.queue)
@@ -75,16 +74,37 @@ func (q *accountQueue) clear() (removed []*types.Transaction) {
 	q.queue = q.queue[:0]
 
 	// clear the underlying map
-	q.txs = make(map[uint64]*types.Transaction)
+	q.clearNonceTxs()
 
 	return
 }
 
 // GetTxByNonce returns the specific nonce transaction.
 //
-// not thread-safe, should be lock held.
+// thread-safe
 func (q *accountQueue) GetTxByNonce(nonce uint64) *types.Transaction {
-	return q.txs[nonce]
+	v, ok := q.txs.Load(nonce)
+	if !ok {
+		return nil
+	}
+
+	return v.(*types.Transaction)
+}
+
+func (q *accountQueue) setNonceTx(tx *types.Transaction) {
+	q.txs.Store(tx.Nonce, tx)
+}
+
+func (q *accountQueue) deleteNonceTx(nonce uint64) {
+	q.txs.Delete(nonce)
+}
+
+func (q *accountQueue) clearNonceTxs() {
+	q.txs.Range(func(key, value interface{}) bool {
+		q.txs.Delete(key)
+
+		return true
+	})
 }
 
 // Add tries to insert a new transaction into the list, returning whether the
@@ -117,7 +137,7 @@ func (q *accountQueue) Add(tx *types.Transaction) (bool, *types.Transaction) {
 	}
 
 	// cache nonce
-	q.txs[tx.Nonce] = tx
+	q.setNonceTx(tx)
 
 	// upsert
 	if old == nil {
@@ -169,8 +189,8 @@ func (q *accountQueue) pop() *types.Transaction {
 		return nil
 	}
 
-	// remove it from map
-	delete(q.txs, transaction.Nonce)
+	// remove it from cache
+	q.deleteNonceTx(transaction.Nonce)
 
 	return transaction
 }

@@ -266,15 +266,9 @@ func (a *account) reset(nonce uint64, promoteCh chan<- promoteRequest) (
 
 // enqueue attempts tp push the transaction onto the enqueued queue.
 func (a *account) enqueue(tx *types.Transaction) (oldTx *types.Transaction, err error) {
-	a.enqueued.lock(true)
-	defer a.enqueued.unlock()
-
 	// find out the same nonce transaction in all queues
 	replacable, oldTx := a.enqueued.SameNonceTx(tx)
 	if !replacable && oldTx == nil {
-		a.promoted.lock(true)
-		defer a.promoted.unlock()
-
 		// find it in promoted queue when enqueued queue not found
 		replacable, oldTx = a.promoted.SameNonceTx(tx)
 	}
@@ -289,6 +283,10 @@ func (a *account) enqueue(tx *types.Transaction) (oldTx *types.Transaction, err 
 			return nil, ErrNonceTooLow
 		}
 	}
+
+	// only lock the queue when adding
+	a.enqueued.lock(true)
+	defer a.enqueued.unlock()
 
 	// all checks passed, we could add the transcation now.
 	inserted, oldTx := a.enqueued.Add(tx)
