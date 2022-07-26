@@ -102,9 +102,9 @@ const (
 	signersSlot
 	addressToIsSignerSlot
 	addressToSignerIndexSlot
-	ordersSlot      // too complicated, would not be set
-	totalSupplySlot // would not be set
-	rateSlot
+	// ordersSlot      // too complicated, would not be set
+	// totalSupplySlot // would not be set
+	rateSlot = int64(iota + 2)
 )
 
 const (
