@@ -13,6 +13,7 @@ import (
 
 var (
 	DefaultThreshold = "100000000000000000000" // 100 wDoge
+	DefaultRate      = 100                     // 1%
 )
 
 // getAddressMapping returns the key for the SC storage mapping (address => something)
@@ -53,6 +54,7 @@ func getStorageIndexes(address types.Address, index int64) *StorageIndexes {
 	// Index for regular types is calculated as just the regular slot
 	storageIndexes.OwnerIndex = big.NewInt(ownerSlot).Bytes()
 	storageIndexes.MinimumThresholdIndex = big.NewInt(minimumThresholdSlot).Bytes()
+	storageIndexes.RateIndex = big.NewInt(rateSlot).Bytes()
 
 	// Get the indexes for the mappings
 	// The index for the mapping is retrieved with:
@@ -90,15 +92,19 @@ type StorageIndexes struct {
 	SignersArraySizeIndex     []byte // []address size
 	AddressToIsSignerIndex    []byte // mapping(address => bool)
 	AddressToSignerIndexIndex []byte // mapping(address => uint256)
+	RateIndex                 []byte // uint256
 }
 
 // Slot definitions for SC storage
-var (
-	ownerSlot                = int64(0) // Slot 0
-	minimumThresholdSlot     = int64(1) // Slot 1
-	signersSlot              = int64(2)
-	addressToIsSignerSlot    = int64(3)
-	addressToSignerIndexSlot = int64(4)
+const (
+	ownerSlot = int64(iota) // Slot 0
+	minimumThresholdSlot
+	signersSlot
+	addressToIsSignerSlot
+	addressToSignerIndexSlot
+	ordersSlot      // too complicated, would not be set
+	totalSupplySlot // would not be set
+	rateSlot
 )
 
 const (
@@ -119,12 +125,14 @@ func PredeployBridgeSC(params PredeployParams) (*chain.GenesisAccount, error) {
 	// Parse the default threshold value into *big.Int
 	bigDefaultThreshold, err := types.ParseUint256orHex(&DefaultThreshold)
 	if err != nil {
-		return nil, fmt.Errorf("unable to generate bigDefaultThreshold, %w", err)
+		return nil, fmt.Errorf("unable to generate default threshold, %w", err)
 	}
+
+	bigDefaultRate := big.NewInt(int64(DefaultRate))
+	bigTrueValue := big.NewInt(1)
 
 	// Generate the empty account storage map
 	storageMap := make(map[types.Hash]types.Hash)
-	bigTrueValue := big.NewInt(1)
 
 	for indx, signer := range params.Signers {
 		// Get the storage indexes
@@ -153,6 +161,10 @@ func PredeployBridgeSC(params PredeployParams) (*chain.GenesisAccount, error) {
 		// Set the value for the address -> signer array index mapping
 		storageMap[types.BytesToHash(storageIndexes.AddressToSignerIndexIndex)] =
 			types.StringToHash(hex.EncodeUint64(uint64(indx)))
+
+		// Set the value for the rate
+		storageMap[types.BytesToHash(storageIndexes.RateIndex)] =
+			types.BytesToHash(bigDefaultRate.Bytes())
 	}
 
 	// Save the storage map
