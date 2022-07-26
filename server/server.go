@@ -84,7 +84,6 @@ const (
 
 var dirPaths = []string{
 	"blockchain",
-	"keystore",
 	"trie",
 }
 
