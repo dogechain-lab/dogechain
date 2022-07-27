@@ -2339,8 +2339,6 @@ func TestGetTxs(t *testing.T) {
 }
 
 func TestAddTx_ReplaceSameNonce(t *testing.T) {
-	t.Parallel()
-
 	var (
 		eoa  = new(eoa).create(t)
 		addr = eoa.Address
@@ -2413,8 +2411,6 @@ func TestAddTx_ReplaceSameNonce(t *testing.T) {
 		test := test
 
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-
 			pool, err := newTestPool()
 			assert.NoError(t, err)
 			pool.SetSigner(signerEIP155)
