@@ -9,9 +9,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Delete workflow runs
-        uses: Mattraks/delete-workflow-runs@v2.0.3
+        uses: c-hive/gha-remove-artifacts@v1
         with:
-          token: ${{ github.token }}
-          repository: ${{ github.repository }}
-          retain_days: 45
-          keep_minimum_runs: 30
+          age: "45 days" # '<number> <unit>', e.g. 5 days, 2 years, 90 seconds, parsed by Moment.js
+          # Optional inputs
+          skip-tags: true
+          skip-recent: 30
