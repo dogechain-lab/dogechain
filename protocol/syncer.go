@@ -18,6 +18,8 @@ import (
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/hashicorp/go-hclog"
 	"github.com/libp2p/go-libp2p-core/peer"
+	grpccodes "google.golang.org/grpc/codes"
+	grpcstatus "google.golang.org/grpc/status"
 	anypb "google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
@@ -560,6 +562,9 @@ func (s *Syncer) BulkSyncWithPeer(p *SyncPeer, newBlockHandler func(block *types
 	// Stop monitoring the sync progression upon exit
 	defer s.syncProgression.StopProgression()
 
+	// dynamic modifying syncing size
+	blockAmount := int64(maxSkeletonHeadersAmount)
+
 	// sync up to the current known header
 	for {
 		// Update the target. This entire outer loop
@@ -586,12 +591,27 @@ func (s *Syncer) BulkSyncWithPeer(p *SyncPeer, newBlockHandler func(block *types
 
 			// Create the base request skeleton
 			sk := &skeleton{
-				amount: maxSkeletonHeadersAmount,
+				amount: blockAmount,
 			}
 
 			// Fetch the blocks from the peer
 			if err := sk.getBlocksFromPeer(p.client, currentSyncHeight); err != nil {
+				if rpcErr, ok := grpcstatus.FromError(err); ok {
+					// the data size exceeds grpc server/client message size
+					if rpcErr.Code() == grpccodes.ResourceExhausted {
+						blockAmount /= 2
+
+						continue
+					}
+				}
+
 				return fmt.Errorf("unable to fetch blocks from peer, %w", err)
+			}
+
+			// increase block amount when succeeded
+			blockAmount++
+			if blockAmount > maxSkeletonHeadersAmount {
+				blockAmount = maxSkeletonHeadersAmount
 			}
 
 			// Verify and write the data locally
