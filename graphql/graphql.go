@@ -19,9 +19,13 @@ var (
 )
 
 var (
-	errBlockInvariant    = errors.New("block objects must be instantiated with at least one of num or hash")
-	errBlockNotExists    = errors.New("block not exists")
-	errBlockInvalidRange = errors.New("block range invalid")
+	errBlockInvariant        = errors.New("block objects must be instantiated with at least one of num or hash")
+	errBlockNotExists        = errors.New("block not exists")
+	errBlockInvalidRange     = errors.New("block range invalid")
+	errFetchingGenesisHeader = errors.New("error fetching genesis block header")
+	errPendingNotSupport     = errors.New("fetching the pending header is not supported")
+	errBlockNumber           = errors.New("invalid argument 0: block number larger than int64")
+	errFetchingHeader        = errors.New("failed to get header from block hash or block number")
 )
 
 // Account represents an Dogechain account at a particular block.
@@ -40,7 +44,7 @@ func (a *Account) getStateRoot(ctx context.Context) (types.Hash, error) {
 
 	header, err := a.getHeaderFromBlockNumberOrHash(&a.blockNrOrHash)
 	if err != nil {
-		return types.ZeroHash, fmt.Errorf("failed to get header from block hash or block number")
+		return types.ZeroHash, errFetchingHeader
 	}
 
 	return header.StateRoot, nil
@@ -77,13 +81,13 @@ func (a *Account) getBlockHeader(number rpc.BlockNumber) (*types.Header, error) 
 	case rpc.EarliestBlockNumber:
 		header, ok := a.backend.GetHeaderByNumber(uint64(0))
 		if !ok {
-			return nil, fmt.Errorf("error fetching genesis block header")
+			return nil, errFetchingGenesisHeader
 		}
 
 		return header, nil
 
 	case rpc.PendingBlockNumber:
-		return nil, fmt.Errorf("fetching the pending header is not supported")
+		return nil, errPendingNotSupport
 
 	default:
 		// Convert the block number from hex to uint64
@@ -667,7 +671,12 @@ func (b *Block) resolveHeader(ctx context.Context) (*types.Header, error) {
 				return nil, errBlockNotExists
 			}
 		} else {
-			b.header, exists = b.backend.GetHeaderByNumber(uint64(*b.numberOrHash.BlockNumber))
+			num, err := b.getNumericBlockNumber(*b.numberOrHash.BlockNumber)
+			if err != nil {
+				return nil, err
+			}
+
+			b.header, exists = b.backend.GetHeaderByNumber(num)
 			if !exists {
 				return nil, errBlockNotExists
 			}
@@ -677,6 +686,26 @@ func (b *Block) resolveHeader(ctx context.Context) (*types.Header, error) {
 	}
 
 	return b.header, nil
+}
+
+func (b *Block) getNumericBlockNumber(number rpc.BlockNumber) (uint64, error) {
+	switch number {
+	case rpc.LatestBlockNumber:
+		return b.backend.Header().Number, nil
+
+	case rpc.EarliestBlockNumber:
+		return 0, nil
+
+	case rpc.PendingBlockNumber:
+		return 0, errPendingNotSupport
+
+	default:
+		if number < 0 {
+			return 0, errBlockNumber
+		}
+
+		return uint64(number), nil
+	}
 }
 
 // resolveReceipts returns the list of receipts for this block, fetching them if necessary.
