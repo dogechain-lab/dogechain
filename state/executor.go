@@ -476,6 +476,10 @@ func (t *Transition) apply(msg *types.Transaction) (*runtime.ExecutionResult, er
 	// 6. caller has enough balance to cover asset transfer for **topmost** call
 	txn := t.state
 
+	t.logger.Debug("try to apply transaction",
+		"hash", msg.Hash, "from", msg.From, "nonce", msg.Nonce, "price", msg.GasPrice.String(),
+		"remainingGas", t.gasPool, "wantGas", msg.Gas)
+
 	// 1. the nonce of the message caller is correct
 	if err := t.nonceCheck(msg); err != nil {
 		return nil, NewTransitionApplicationError(err, true)
@@ -496,6 +500,8 @@ func (t *Transition) apply(msg *types.Transaction) (*runtime.ExecutionResult, er
 	if err != nil {
 		return nil, NewTransitionApplicationError(err, false)
 	}
+
+	t.logger.Debug("apply transaction would uses gas", "hash", msg.Hash, "gas", intrinsicGasCost)
 
 	// 5. the purchased gas is enough to cover intrinsic usage
 	gasLeft := msg.Gas - intrinsicGasCost

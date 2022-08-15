@@ -358,6 +358,8 @@ func (p *TxPool) Pop(tx *types.Transaction) {
 	// pop the top most promoted tx
 	account.promoted.pop()
 
+	p.logger.Debug("excutables pop out the max price transaction", "hash", tx.Hash, "from", tx.From)
+
 	//	successfully popping an account resets its demotions count to 0
 	account.demotions = 0
 
@@ -369,6 +371,7 @@ func (p *TxPool) Pop(tx *types.Transaction) {
 
 	// update executables
 	if tx := account.promoted.peek(); tx != nil {
+		p.logger.Debug("excutables push in another transaction", "hash", tx.Hash, "from", tx.From)
 		p.executables.push(tx)
 	}
 }
