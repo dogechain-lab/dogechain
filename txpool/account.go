@@ -190,8 +190,8 @@ func (m *accountsMap) pruneStaleEnqueuedTxs(outdateDuration time.Duration) []*ty
 // transactions from a specific address. The nextNonce
 // field is what separates the enqueued from promoted transactions:
 //
-// 	1. enqueued - transactions higher than the nextNonce
-// 	2. promoted - transactions lower than the nextNonce
+// 1. enqueued - transactions higher than the nextNonce
+// 2. promoted - transactions lower than the nextNonce
 //
 // If an enqueued transaction matches the nextNonce,
 // a promoteRequest is signaled for this account
@@ -218,10 +218,10 @@ func (a *account) setNonce(nonce uint64) {
 	atomic.StoreUint64(&a.nextNonce, nonce)
 }
 
-//	reset aligns the account with the new nonce
-//	by pruning all transactions with nonce lesser than new.
-//	After pruning, a promotion may be signaled if the first
-// 	enqueued transaction matches the new nonce.
+// reset aligns the account with the new nonce
+// by pruning all transactions with nonce lesser than new.
+// After pruning, a promotion may be signaled if the first
+// enqueued transaction matches the new nonce.
 func (a *account) reset(nonce uint64, promoteCh chan<- promoteRequest) (
 	prunedPromoted,
 	prunedEnqueued []*types.Transaction,

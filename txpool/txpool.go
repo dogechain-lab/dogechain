@@ -100,13 +100,13 @@ type enqueueRequest struct {
 // is eligible for promotion. This request is signaled
 // on 2 occasions:
 //
-// 	1. When an enqueued transaction's nonce is
-// 	not greater than the expected (account's nextNonce).
-// 		== 	nextNonce	- transaction is expected (addTx)
-// 		<	nextNonce	- transaction was demoted (Demote)
+// 1. When an enqueued transaction's nonce is
+// not greater than the expected (account's nextNonce).
+// == 	nextNonce	- transaction is expected (addTx)
+// <	nextNonce	- transaction was demoted (Demote)
 //
-// 	2. When an account's nextNonce is updated (during ResetWithHeader)
-// 	and the first enqueued transaction matches the new nonce.
+// 2. When an account's nextNonce is updated (during ResetWithHeader)
+// and the first enqueued transaction matches the new nonce.
 type promoteRequest struct {
 	account types.Address
 }
@@ -114,9 +114,11 @@ type promoteRequest struct {
 // TxPool is a module that handles pending transactions.
 // All transactions are handled within their respective accounts.
 // An account contains 2 queues a transaction needs to go through:
-// - 1. Enqueued	(entry point)
-// - 2. Promoted	(exit point)
-// 	(both queues are min nonce ordered)
+//
+// 1. Enqueued (entry point)
+// 2. Promoted (exit point)
+//
+// both queues are min nonce ordered
 //
 // When consensus needs to process promoted transactions,
 // the pool generates a queue of "executable" transactions. These
@@ -833,7 +835,7 @@ func (p *TxPool) Length() uint64 {
 	return p.accounts.promoted()
 }
 
-//	toHash returns the hash(es) of given transaction(s)
+// toHash returns the hash(es) of given transaction(s)
 func toHash(txs ...*types.Transaction) (hashes []types.Hash) {
 	for _, tx := range txs {
 		hashes = append(hashes, tx.Hash)

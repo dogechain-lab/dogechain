@@ -103,7 +103,7 @@ func DefaultConfig() *Config {
 // readConfigFile reads the config file from the specified path, builds a Config object
 // and returns it.
 //
-//Supported file types: .json, .hcl
+// Supported file types: .json, .hcl
 func readConfigFile(path string) (*Config, error) {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {

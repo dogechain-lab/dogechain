@@ -280,7 +280,7 @@ func GetIBFTForks(ibftConfig map[string]interface{}) ([]IBFTFork, error) {
 	return nil, errors.New("current IBFT type not found")
 }
 
-//  setupTransport read current mechanism in params and sets up consensus mechanism
+// setupMechanism read current mechanism in params and sets up consensus mechanism
 func (i *Ibft) setupMechanism() error {
 	ibftForks, err := GetIBFTForks(i.config.Config)
 	if err != nil {

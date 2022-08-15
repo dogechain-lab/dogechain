@@ -35,8 +35,8 @@ type Daemon struct {
 // Turn the the main program into background running (start a child process, and then exit)
 // logFile - If it is not empty, the standard output and error output of the child process will be recorded in this file
 // isExit - Whether to exit the main program directly after the child process started.
-//          If false, the main program returns * OS Process, the child process returns nil.
-//          It needs to be handled by the caller.
+// If false, the main program returns * OS Process, the child process returns nil.
+// It needs to be handled by the caller.
 func Background(logFile string, priKey string, isExit bool) (*exec.Cmd, error) {
 	// Check whether the child process or the parent process
 	runIdx++
