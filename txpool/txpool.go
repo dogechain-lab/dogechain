@@ -253,7 +253,9 @@ func (p *TxPool) Start() {
 	// set default value of txpool transactions gauge
 	p.metrics.SetDefaultValue(0)
 
-	p.pruneAccountTicker = time.NewTicker(p.pruneTick)
+	// p.pruneAccountTicker = time.NewTicker(p.pruneTick)
+	// case <-p.pruneAccountTicker.C:
+	// 	go p.pruneStaleAccounts()
 
 	go func() {
 		for {
@@ -264,8 +266,6 @@ func (p *TxPool) Start() {
 				go p.handleEnqueueRequest(req)
 			case req := <-p.promoteReqCh:
 				go p.handlePromoteRequest(req)
-			case <-p.pruneAccountTicker.C:
-				go p.pruneStaleAccounts()
 			}
 		}
 	}()
