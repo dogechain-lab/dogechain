@@ -1048,6 +1048,7 @@ func TestPop(t *testing.T) {
 	assert.Equal(t, uint64(0), pool.gauge.read())
 	assert.Equal(t, uint64(0), pool.accounts.get(addr1).promoted.length())
 }
+
 func TestDrop(t *testing.T) {
 	pool, err := newTestPool()
 	assert.NoError(t, err)
@@ -1064,6 +1065,67 @@ func TestDrop(t *testing.T) {
 	assert.Equal(t, uint64(1), pool.gauge.read())
 	assert.Equal(t, uint64(1), pool.accounts.get(addr1).getNonce())
 	assert.Equal(t, uint64(1), pool.accounts.get(addr1).promoted.length())
+
+	// pop the tx
+	pool.Prepare()
+	tx := pool.Peek()
+	pool.Drop(tx)
+
+	assert.Equal(t, uint64(0), pool.gauge.read())
+	assert.Equal(t, uint64(0), pool.accounts.get(addr1).getNonce())
+	assert.Equal(t, uint64(0), pool.accounts.get(addr1).promoted.length())
+}
+
+func TestDrop_RecoverRightNonce(t *testing.T) {
+	pool, err := newTestPool()
+	assert.NoError(t, err)
+	pool.SetSigner(&mockSigner{})
+
+	const maxTxLength = 2
+
+	// send txs
+	go func() {
+		for i := 0; i < maxTxLength; i++ {
+			err := pool.addTx(local, newTx(addr1, uint64(i), 1))
+			assert.NoError(t, err)
+		}
+	}()
+	// enqueue them
+	go func() {
+		for i := 0; i < maxTxLength; i++ {
+			pool.handleEnqueueRequest(<-pool.enqueueReqCh)
+		}
+	}()
+	// promote them
+	go func() {
+		for i := 0; i < maxTxLength; i++ {
+			pool.handlePromoteRequest(<-pool.promoteReqCh)
+		}
+	}()
+
+	// waiting for the promoted event
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+
+	nonce, err := tests.RetryUntilTimeout(ctx, func() (interface{}, bool) {
+		account1 := pool.accounts.get(addr1)
+		if account1 == nil {
+			return nil, true // retry
+		}
+
+		nonce := account1.getNonce()
+		if nonce < maxTxLength {
+			return nil, true // retry
+		}
+
+		return nonce, false
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(2), nonce)
+	assert.Equal(t, uint64(2), pool.gauge.read())
+	assert.Equal(t, uint64(2), pool.accounts.get(addr1).getNonce())
+	assert.Equal(t, uint64(2), pool.accounts.get(addr1).promoted.length())
 
 	// pop the tx
 	pool.Prepare()
