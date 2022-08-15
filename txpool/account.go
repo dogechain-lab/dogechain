@@ -18,7 +18,7 @@ type accountsMap struct {
 // Intializes an account for the given address.
 func (m *accountsMap) initOnce(addr types.Address, nonce uint64) *account {
 	a, _ := m.LoadOrStore(addr, &account{})
-	newAccount := a.(*account) // nolint:forcetypeassert
+	newAccount := a.(*account) //nolint:forcetypeassert
 	// run only once
 	newAccount.init.Do(func() {
 		// create queues

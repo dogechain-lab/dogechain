@@ -260,7 +260,7 @@ func Test_GetLogFilterFromID(t *testing.T) {
 
 	m := NewFilterManager(hclog.NewNullLogger(), store)
 	// filter manager should Close(), but mock one might crash on writing on a closed channel
-	// nolint: errcheck
+	//nolint:errcheck
 	defer recover()
 	defer m.Close()
 

@@ -103,7 +103,7 @@ func (l *Loadbot) calculateGasMetrics(jsonClient *jsonrpc.Client, gasMetrics *Bl
 }
 
 func (l *Loadbot) updateGasEstimate(jsonClient *jsonrpc.Client) error {
-	//nolint: ifshort
+	//nolint:ifshort
 	gasLimit := l.cfg.GasLimit
 
 	if gasLimit == nil {

@@ -139,7 +139,7 @@ func (lr *LoadbotResult) initDetailedErrors(gen generator.TransactionGenerator) 
 }
 
 func (lr *LoadbotResult) writeBlockData(buffer *bytes.Buffer) {
-	//nolint: ifshort
+	//nolint:ifshort
 	blockData := &lr.BlockData
 
 	buffer.WriteString("\n\n[BLOCK DATA]\n")

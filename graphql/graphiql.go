@@ -62,7 +62,7 @@ func (h GraphiQL) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// nolint: lll
+//nolint:lll
 var graphiql = []byte(`
 <!DOCTYPE html>
 <html>

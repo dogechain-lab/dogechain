@@ -119,7 +119,7 @@ func TestEth_GetTransactionByHash(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, res)
 
-		// nolint:forcetypeassert
+		//nolint:forcetypeassert
 		foundTxn := res.(*transaction)
 		assert.Equal(t, argUint64(testTxn.Nonce), foundTxn.Nonce)
 		assert.Equal(t, argUint64(block.Number()), *foundTxn.BlockNumber)
@@ -142,7 +142,7 @@ func TestEth_GetTransactionByHash(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, res)
 
-		// nolint:forcetypeassert
+		//nolint:forcetypeassert
 		foundTxn := res.(*transaction)
 		assert.Equal(t, argUint64(testTxn.Nonce), foundTxn.Nonce)
 		assert.Nil(t, foundTxn.BlockNumber)
@@ -195,7 +195,7 @@ func TestEth_GetTransactionReceipt(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, res)
 
-		// nolint:forcetypeassert
+		//nolint:forcetypeassert
 		response := res.(*receipt)
 		assert.Equal(t, txn.Hash, response.TxHash)
 		assert.Equal(t, block.Hash(), response.BlockHash)
@@ -215,7 +215,7 @@ func TestEth_Syncing(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, res)
 
-		// nolint:forcetypeassert
+		//nolint:forcetypeassert
 		response := res.(progression)
 		assert.NotEqual(t, progress.ChainSyncBulk, response.Type)
 		assert.Equal(t, fmt.Sprintf("0x%x", 1), response.StartingBlock)
@@ -243,7 +243,7 @@ func TestEth_GasPrice(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, res)
 
-	// nolint:forcetypeassert
+	//nolint:forcetypeassert
 	response := res.(string)
 	assert.Equal(t, fmt.Sprintf("0x%x", store.averageGasPrice), response)
 }

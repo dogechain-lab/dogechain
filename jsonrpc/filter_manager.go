@@ -760,7 +760,7 @@ func (t timeHeapImpl) Swap(i, j int) {
 
 func (t *timeHeapImpl) Push(x interface{}) {
 	n := len(*t)
-	item := x.(*filterBase) //nolint: forcetypeassert
+	item := x.(*filterBase) //nolint:forcetypeassert
 	item.heapIndex = n
 	*t = append(*t, item)
 }
