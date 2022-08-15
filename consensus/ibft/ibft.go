@@ -45,8 +45,8 @@ type blockchainInterface interface {
 type txPoolInterface interface {
 	Prepare()
 	Length() uint64
-	Peek() *types.Transaction
-	Pop(tx *types.Transaction)
+	Pop() *types.Transaction
+	Remove(tx *types.Transaction)
 	Drop(tx *types.Transaction)
 	Demote(tx *types.Transaction)
 	ResetWithHeaders(headers ...*types.Header)
@@ -670,7 +670,7 @@ func (i *Ibft) writeTransactions(gasLimit uint64, transition transitionInterface
 	i.txpool.Prepare()
 
 	for {
-		tx := i.txpool.Peek()
+		tx := i.txpool.Pop()
 		if tx == nil {
 			i.logger.Debug("no more transactions")
 
@@ -712,8 +712,8 @@ func (i *Ibft) writeTransactions(gasLimit uint64, transition transitionInterface
 			continue
 		}
 
-		// no errors, pop the tx from the pool
-		i.txpool.Pop(tx)
+		// no errors, remove the tx from the pool
+		i.txpool.Remove(tx)
 
 		successTxCount++
 

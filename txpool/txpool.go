@@ -332,9 +332,9 @@ func (p *TxPool) Prepare() {
 	}
 }
 
-// Peek returns the best-price selected
+// Pop returns the best-price selected
 // transaction ready for execution.
-func (p *TxPool) Peek() *types.Transaction {
+func (p *TxPool) Pop() *types.Transaction {
 	// Popping the executables queue
 	// does not remove the actual tx
 	// from the pool.
@@ -344,11 +344,11 @@ func (p *TxPool) Peek() *types.Transaction {
 	return p.executables.pop()
 }
 
-// Pop removes the given transaction from the
+// Remove removes the given transaction from the
 // associated promoted queue (account).
 // Will update executables with the next primary
 // from that account (if any).
-func (p *TxPool) Pop(tx *types.Transaction) {
+func (p *TxPool) Remove(tx *types.Transaction) {
 	// fetch the associated account
 	account := p.accounts.get(tx.From)
 

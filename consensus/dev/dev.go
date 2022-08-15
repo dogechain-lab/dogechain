@@ -110,7 +110,7 @@ func (d *Dev) writeTransactions(gasLimit uint64, transition transitionInterface)
 	d.txpool.Prepare()
 
 	for {
-		tx := d.txpool.Peek()
+		tx := d.txpool.Pop()
 		if tx == nil {
 			break
 		}
@@ -134,7 +134,7 @@ func (d *Dev) writeTransactions(gasLimit uint64, transition transitionInterface)
 		}
 
 		// no errors, pop the tx from the pool
-		d.txpool.Pop(tx)
+		d.txpool.Remove(tx)
 
 		successful = append(successful, tx)
 	}

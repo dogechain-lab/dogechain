@@ -1042,8 +1042,8 @@ func TestPop(t *testing.T) {
 
 	// pop the tx
 	pool.Prepare()
-	tx := pool.Peek()
-	pool.Pop(tx)
+	tx := pool.Pop()
+	pool.Remove(tx)
 
 	assert.Equal(t, uint64(0), pool.gauge.read())
 	assert.Equal(t, uint64(0), pool.accounts.get(addr1).promoted.length())
@@ -1068,7 +1068,7 @@ func TestDrop(t *testing.T) {
 
 	// pop the tx
 	pool.Prepare()
-	tx := pool.Peek()
+	tx := pool.Pop()
 	pool.Drop(tx)
 
 	assert.Equal(t, uint64(0), pool.gauge.read())
@@ -1129,7 +1129,7 @@ func TestDrop_RecoverRightNonce(t *testing.T) {
 
 	// pop the tx
 	pool.Prepare()
-	tx := pool.Peek()
+	tx := pool.Pop()
 	pool.Drop(tx)
 
 	assert.Equal(t, uint64(0), pool.gauge.read())
@@ -1162,7 +1162,7 @@ func TestDemote(t *testing.T) {
 
 		//	call demote
 		pool.Prepare()
-		tx := pool.Peek()
+		tx := pool.Pop()
 		pool.Demote(tx)
 
 		assert.Equal(t, uint64(1), pool.gauge.read())
@@ -1198,7 +1198,7 @@ func TestDemote(t *testing.T) {
 
 		//	call demote
 		pool.Prepare()
-		tx := pool.Peek()
+		tx := pool.Pop()
 		pool.Demote(tx)
 
 		//	account was dropped
@@ -1834,12 +1834,12 @@ func TestExecutablesOrder(t *testing.T) {
 
 			var successful []*types.Transaction
 			for {
-				tx := pool.Peek()
+				tx := pool.Pop()
 				if tx == nil {
 					break
 				}
 
-				pool.Pop(tx)
+				pool.Remove(tx)
 				successful = append(successful, tx)
 			}
 
@@ -2027,7 +2027,7 @@ func TestRecovery(t *testing.T) {
 			func() {
 				pool.Prepare()
 				for {
-					tx := pool.Peek()
+					tx := pool.Pop()
 					if tx == nil {
 						break
 					}
@@ -2038,7 +2038,7 @@ func TestRecovery(t *testing.T) {
 					case unrecoverable:
 						pool.Drop(tx)
 					case ok:
-						pool.Pop(tx)
+						pool.Remove(tx)
 					}
 				}
 			}()
