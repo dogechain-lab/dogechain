@@ -695,11 +695,14 @@ func (i *Ibft) writeTransactions(gasLimit uint64, transition transitionInterface
 		}
 
 		if err := transition.Write(tx); err != nil {
-			i.logger.Debug("apply write block", "hash", tx.Hash, "from", tx.From, "err", err)
+			i.logger.Debug("write transaction", "hash", tx.Hash, "from", tx.From, "nonce", tx.Nonce, "err", err)
 
-			if _, ok := err.(*state.GasLimitReachedTransitionApplicationError); ok { //nolint:errorlint
+			if appErr, ok := err.(*state.GasLimitReachedTransitionApplicationError); ok && appErr.IsRecoverable {
 				// Ignore those out-of-gas transaction whose gas limit too large
-			} else if appErr, ok := err.(*state.TransitionApplicationError); ok && appErr.IsRecoverable { //nolint:errorlint
+			} else if appErr, ok := err.(*state.AllGasUsedError); ok && appErr.IsRecoverable {
+				// no more transaction could be packed.
+				break
+			} else if appErr, ok := err.(*state.TransitionApplicationError); ok && appErr.IsRecoverable {
 				i.txpool.Demote(tx)
 			} else {
 				failedTxCount++
