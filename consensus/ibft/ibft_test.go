@@ -817,22 +817,23 @@ func TestWriteTransactions(t *testing.T) {
 			},
 		},
 		{
-			"write stops when next included transaction reaches block gas limit",
+			"transaction whose gas exceeds block gas limit is included but with failedReceipt",
 			testParams{
-				[]*types.Transaction{
+				txns: []*types.Transaction{
 					{Nonce: 1},             // recoverable - returned to pool
 					{Nonce: 2},             // unrecoverable
 					{Nonce: 3},             // included
-					{Nonce: 4, Gas: 10001}, // exceeds block gas limit
-					{Nonce: 5},             // included
-					{Nonce: 6},             // reaches gas limit - returned to pool
-					{Nonce: 7}},            // not considered - stays in pool
-				[]int{0},
-				[]int{1},
-				5,
-				3,
-				3,
-				1,
+					{Nonce: 4, Gas: 10001}, // exceeds block gas limit, included with failed receipt
+					{Nonce: 5},             // gas limit reach, skip
+					{Nonce: 6},             // included when in mock
+					{Nonce: 7},             // included when in mock
+				},
+				recoverableTxnsIndexes:      []int{0},
+				unrecoverableTxnsIndexes:    []int{1},
+				gasLimitReachedTxnIndex:     4,
+				expectedTxPoolLength:        1,
+				expectedIncludedTxnsCount:   4, // nonce: 3,4,6,7
+				expectedFailReceiptsWritten: 1,
 			},
 		},
 	}
@@ -1034,24 +1035,24 @@ func (p *mockTxPool) Length() uint64 {
 	return uint64(len(p.transactions) + len(p.demoted))
 }
 
-func (p *mockTxPool) Peek() *types.Transaction {
+// simulated the same logic of txpool
+func (p *mockTxPool) Pop() *types.Transaction {
 	if len(p.transactions) == 0 {
 		return nil
 	}
 
-	return p.transactions[0]
+	tx := p.transactions[0]
+	p.transactions = p.transactions[1:]
+
+	return tx
 }
 
-func (p *mockTxPool) Pop(tx *types.Transaction) {
-	if len(p.transactions) == 0 {
-		return
-	}
-
-	p.transactions = p.transactions[1:]
+func (p *mockTxPool) Remove(tx *types.Transaction) {
+	// do nothing
 }
 
 func (p *mockTxPool) Demote(tx *types.Transaction) {
-	p.Pop(tx)
+	p.Remove(tx)
 	p.demoted = append(p.demoted, tx)
 }
 
@@ -1060,7 +1061,7 @@ func (p *mockTxPool) Drop(tx *types.Transaction) {
 		p.nonceDecreased = make(map[*types.Transaction]bool)
 	}
 
-	p.Pop(tx)
+	p.Remove(tx)
 	p.nonceDecreased[tx] = true
 }
 
