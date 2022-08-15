@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"time"
 
 	"github.com/dogechain-lab/dogechain/chain"
 	rpc "github.com/dogechain-lab/dogechain/jsonrpc"
@@ -80,7 +81,8 @@ func (svc *GraphQLService) setupHTTP() error {
 	mux.Handle("/graphql/", middlewareFactory(svc.config)(graphqlHandler))
 
 	srv := http.Server{
-		Handler: mux,
+		Handler:           mux,
+		ReadHeaderTimeout: time.Minute,
 	}
 
 	go func() {

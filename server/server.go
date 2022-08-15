@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/dogechain-lab/dogechain/archive"
 	"github.com/dogechain-lab/dogechain/blockchain"
@@ -712,6 +713,7 @@ func (s *Server) startPrometheusServer(listenAddr *net.TCPAddr) *http.Server {
 				promhttp.HandlerOpts{},
 			),
 		),
+		ReadHeaderTimeout: time.Minute,
 	}
 
 	go func() {
