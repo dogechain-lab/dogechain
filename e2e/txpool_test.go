@@ -559,6 +559,195 @@ func TestTxPool_RecoverableError(t *testing.T) {
 	assert.Equal(t, secondTx.BlockNumber, receipt.BlockNumber)
 }
 
+func TestTxPool_GreedyPackingStrategy(t *testing.T) {
+	// Test scenario :
+	//
+	// 0. Set the block gas limit (marked as 'Limit') to (21000 + 1000) * 3, which could only save three
+	// normal transactions. And set a long block dev interval for promising block building.
+	//
+	// 1. Create two accounts for sending multiple transactions with different gas limit.
+	//
+	// 2. Broadcast the transactions once and for all.
+	//
+	// 3. The block should include as much transactions as possible, which would skip some large gas limit
+	// transactions and try to include another account's transactions.
+	//
+	var (
+		sender1Key, sender1Address = tests.GenerateKeyAndAddr(t)
+		sender2Key, sender2Address = tests.GenerateKeyAndAddr(t)
+		_, receiverAddress         = tests.GenerateKeyAndAddr(t)
+		basicGas                   = uint64(22000)
+		gasLimit                   = uint64(22000 * 3)
+		lowGasPrice                = big.NewInt(framework.DefaultGasPrice)
+		midGasPrice                = big.NewInt(framework.DefaultGasLimit * 1.2)
+		highGasPrice               = big.NewInt(framework.DefaultGasLimit * 1.5)
+		v                          = big.NewInt(27)
+	)
+
+	testCase := struct {
+		transactions       []*types.Transaction
+		sameBlockTxIndexes [][]int
+		hashes             []web3.Hash
+	}{
+		transactions: []*types.Transaction{
+			{ // 0. first block X
+				Nonce:    0,
+				GasPrice: highGasPrice,
+				Gas:      gasLimit - 1,
+				To:       &receiverAddress,
+				Value:    oneEth,
+				V:        v,
+				From:     sender1Address,
+			},
+			{ // 1. exceeds limit, go to second block
+				Nonce:    0,
+				GasPrice: midGasPrice,
+				Gas:      gasLimit - 1,
+				To:       &receiverAddress,
+				Value:    oneEth,
+				V:        v,
+				From:     sender2Address,
+			},
+			{ // 2. first block, greedy include
+				Nonce:    1,
+				GasPrice: highGasPrice,
+				Gas:      basicGas * 2,
+				To:       &receiverAddress,
+				Value:    oneEth,
+				V:        v,
+				From:     sender1Address,
+			},
+			{ // 3. second block, greedy include
+				Nonce:    1,
+				GasPrice: midGasPrice,
+				Gas:      basicGas * 2,
+				To:       &receiverAddress,
+				Value:    oneEth,
+				V:        v,
+				From:     sender2Address,
+			},
+			{ // 4. exceeds gas limit, should be third | forth block
+				Nonce:    2,
+				GasPrice: lowGasPrice,
+				Gas:      gasLimit - 1,
+				To:       &receiverAddress,
+				Value:    oneEth,
+				V:        v,
+				From:     sender1Address,
+			},
+			{ // 5. exceeds gas limit, should be third | forth block
+				Nonce:    2,
+				GasPrice: lowGasPrice,
+				Gas:      gasLimit - 1,
+				To:       &receiverAddress,
+				Value:    oneEth,
+				V:        v,
+				From:     sender2Address,
+			},
+		},
+		sameBlockTxIndexes: [][]int{
+			{0, 2},
+			{1, 3},
+			{4},
+			{5},
+		},
+		hashes: make([]web3.Hash, 6),
+	}
+
+	// server
+	server := framework.NewTestServers(t, 1, func(config *framework.TestServerConfig) {
+		config.SetConsensus(framework.ConsensusDev)
+		config.SetSeal(true)
+		config.SetBlockLimit(gasLimit)
+		config.SetDevInterval(2)
+		config.Premine(sender1Address, framework.EthToWei(100))
+		config.Premine(sender2Address, framework.EthToWei(100))
+	})[0]
+	// client
+	client := server.JSONRPC()
+	operator := server.TxnPoolOperator()
+
+	for i, tx := range testCase.transactions {
+		var (
+			signedTx *types.Transaction
+			err      error
+		)
+		// sign different tx
+		if tx.From == sender1Address {
+			signedTx, err = signer.SignTx(tx, sender1Key)
+		} else {
+			signedTx, err = signer.SignTx(tx, sender2Key)
+		}
+		// should not be any error
+		assert.NoError(t, err)
+
+		response, err := operator.AddTxn(context.Background(), &txpoolOp.AddTxnReq{
+			Raw: &any.Any{
+				Value: signedTx.MarshalRLP(),
+			},
+			From: types.ZeroAddress.String(),
+		})
+		if ret := assert.NoError(t, err, "Unable to send transaction, %v", err); !ret {
+			t.FailNow()
+		}
+
+		txHash := web3.Hash(types.StringToHash(response.TxHash))
+		// save for later querying
+		testCase.hashes[i] = txHash
+	}
+
+	// 6 blocks at most
+	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
+	defer cancel()
+
+	// wait for the last tx to be included in a block
+	receipt, err := tests.WaitForReceipt(ctx, client.Eth(), testCase.hashes[len(testCase.hashes)-1])
+	if ret := assert.NoError(t, err); !ret {
+		t.FailNow()
+	}
+	// the receipt should not be nil
+	assert.NotNil(t, receipt)
+
+	// assert balance moved
+	balance, err := client.Eth().GetBalance(web3.Address(receiverAddress), web3.Latest)
+	assert.NoError(t, err, "failed to retrieve receiver account balance")
+	assert.Equal(t, framework.EthToWei(int64(len(testCase.transactions))).String(), balance.String())
+
+	// query all transactions
+	txs := make([]*web3.Transaction, 0, len(testCase.hashes))
+	for _, hash := range testCase.hashes {
+		tx, err := client.Eth().GetTransactionByHash(hash)
+		if ret := assert.NoError(t, err); !ret {
+			t.FailNow()
+		}
+
+		if ret := assert.NotNil(t, tx); !ret {
+			t.FailNow()
+		}
+
+		txs = append(txs, tx)
+	}
+
+	// assert block including tx match
+	for i, indexes := range testCase.sameBlockTxIndexes {
+		blockNum := txs[indexes[0]].BlockNumber
+
+		for j, index := range indexes {
+			assert.Equal(t, blockNum, txs[index].BlockNumber)
+			// compare different slice should not included in the same block
+			// skip those not the last element of inner slice
+			if j < len(indexes)-1 {
+				continue
+			}
+			// skip the last element of outter slice
+			if i == len(testCase.sameBlockTxIndexes)-1 {
+				continue
+			}
+			assert.NotEqual(t, txs[index].BlockNumber, txs[testCase.sameBlockTxIndexes[i+1][0]].BlockNumber)
+		}
+	}
+}
+
 func TestTxPool_ZeroPriceDev(t *testing.T) {
 	senderKey, senderAddress := tests.GenerateKeyAndAddr(t)
 	_, receiverAddress := tests.GenerateKeyAndAddr(t)
