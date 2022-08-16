@@ -449,21 +449,29 @@ func TestTxPool_StressAddition(t *testing.T) {
 func TestTxPool_RecoverableError(t *testing.T) {
 	// Test scenario :
 	//
-	// 1. Send a first valid transaction with gasLimit = block gas limit - 1
+	// 0. Set the block gas limit (marked as 'Limit') to (21000 + 1000) * 2, which could only save two
+	// normal transactions.
 	//
-	// 2. Send a second transaction with gasLimit = block gas limit / 2. Since there is not enough gas remaining,
+	// 1. Send a first valid transaction with gasLimit = Limit - 1.
+	//
+	// 2. Send a second transaction with gasLimit = Limit - 1. Since there is not enough gas remaining,
 	// the transaction will be pushed back to the pending queue so that is can be executed in the next block.
 	//
-	// 3. Send a third - valid - transaction, both the previous one and this one should be executed.
+	// 3. Send a third - valid - transaction with gasLimit = Limit / 2, both the previous one and this one
+	// should be executed in one block.
 	//
-	senderKey, senderAddress := tests.GenerateKeyAndAddr(t)
-	_, receiverAddress := tests.GenerateKeyAndAddr(t)
+	var (
+		senderKey, senderAddress = tests.GenerateKeyAndAddr(t)
+		_, receiverAddress       = tests.GenerateKeyAndAddr(t)
+		gasLimit                 = uint64(22000 * 2)
+		gasPrice                 = big.NewInt(framework.DefaultGasPrice)
+	)
 
 	transactions := []*types.Transaction{
 		{
 			Nonce:    0,
-			GasPrice: big.NewInt(framework.DefaultGasPrice),
-			Gas:      22000,
+			GasPrice: gasPrice,
+			Gas:      gasLimit - 1,
 			To:       &receiverAddress,
 			Value:    oneEth,
 			V:        big.NewInt(27),
@@ -471,8 +479,8 @@ func TestTxPool_RecoverableError(t *testing.T) {
 		},
 		{
 			Nonce:    1,
-			GasPrice: big.NewInt(framework.DefaultGasPrice),
-			Gas:      22000,
+			GasPrice: gasPrice,
+			Gas:      gasLimit - 1,
 			To:       &receiverAddress,
 			Value:    oneEth,
 			V:        big.NewInt(27),
@@ -480,8 +488,8 @@ func TestTxPool_RecoverableError(t *testing.T) {
 		},
 		{
 			Nonce:    2,
-			GasPrice: big.NewInt(framework.DefaultGasPrice),
-			Gas:      22000,
+			GasPrice: gasPrice,
+			Gas:      gasLimit / 2,
 			To:       &receiverAddress,
 			Value:    oneEth,
 			V:        big.NewInt(27),
@@ -492,7 +500,7 @@ func TestTxPool_RecoverableError(t *testing.T) {
 	server := framework.NewTestServers(t, 1, func(config *framework.TestServerConfig) {
 		config.SetConsensus(framework.ConsensusDev)
 		config.SetSeal(true)
-		config.SetBlockLimit(2.5 * 21000)
+		config.SetBlockLimit(gasLimit)
 		config.SetDevInterval(2)
 		config.Premine(senderAddress, framework.EthToWei(100))
 	})[0]
@@ -524,7 +532,10 @@ func TestTxPool_RecoverableError(t *testing.T) {
 
 	// wait for the last tx to be included in a block
 	receipt, err := tests.WaitForReceipt(ctx, client.Eth(), hashes[2])
-	assert.NoError(t, err)
+	if ret := assert.NoError(t, err); !ret {
+		t.FailNow()
+	}
+	// the receipt should not be nil
 	assert.NotNil(t, receipt)
 
 	// assert balance moved
@@ -541,11 +552,11 @@ func TestTxPool_RecoverableError(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, secondTx)
 
-	// first two are in one block
-	assert.Equal(t, firstTx.BlockNumber, secondTx.BlockNumber)
+	// first two transactions should not be in one block
+	assert.NotEqual(t, firstTx.BlockNumber, secondTx.BlockNumber)
 
-	// last tx is included in next block
-	assert.NotEqual(t, secondTx.BlockNumber, receipt.BlockNumber)
+	// last two transactions is included in next block
+	assert.Equal(t, secondTx.BlockNumber, receipt.BlockNumber)
 }
 
 func TestTxPool_ZeroPriceDev(t *testing.T) {
