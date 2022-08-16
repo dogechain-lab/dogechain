@@ -433,18 +433,20 @@ func (e *Eth) GetStorageAt(
 
 // GasPrice returns the average gas price based on the last x blocks
 func (e *Eth) GasPrice() (interface{}, error) {
-	var avgGasPrice string
+	// var avgGasPrice string
 
 	// Grab the average gas price and convert it to a hex value
 	minGasPrice, _ := new(big.Int).SetString(defaultMinGasPrice, 0)
 
-	if e.store.GetAvgGasPrice().Cmp(minGasPrice) == -1 {
-		avgGasPrice = hex.EncodeBig(minGasPrice)
-	} else {
-		avgGasPrice = hex.EncodeBig(e.store.GetAvgGasPrice())
-	}
+	// if e.store.GetAvgGasPrice().Cmp(minGasPrice) == -1 {
+	// 	avgGasPrice = hex.EncodeBig(minGasPrice)
+	// } else {
+	// 	avgGasPrice = hex.EncodeBig(e.store.GetAvgGasPrice())
+	// }
 
-	return avgGasPrice, nil
+	// return avgGasPrice, nil
+
+	return hex.EncodeBig(minGasPrice), nil
 }
 
 // Call executes a smart contract call using the transaction object data
