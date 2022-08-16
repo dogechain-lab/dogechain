@@ -715,6 +715,7 @@ func TestTxPool_GreedyPackingStrategy(t *testing.T) {
 
 	// query all transactions
 	txs := make([]*web3.Transaction, 0, len(testCase.hashes))
+
 	for _, hash := range testCase.hashes {
 		tx, err := client.Eth().GetTransactionByHash(hash)
 		if ret := assert.NoError(t, err); !ret {
@@ -743,6 +744,7 @@ func TestTxPool_GreedyPackingStrategy(t *testing.T) {
 			if i == len(testCase.sameBlockTxIndexes)-1 {
 				continue
 			}
+
 			assert.NotEqual(t, txs[index].BlockNumber, txs[testCase.sameBlockTxIndexes[i+1][0]].BlockNumber)
 		}
 	}
