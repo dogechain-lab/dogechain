@@ -420,9 +420,9 @@ func (t *Transition) nonceCheck(msg *types.Transaction) error {
 	nonce := t.state.GetNonce(msg.From)
 
 	if msg.Nonce < nonce {
-		return NewNonceTooLowError(ErrNonceIncorrect)
+		return NewNonceTooLowError(fmt.Errorf("%w, actual: %d, wanted: %d", ErrNonceIncorrect, msg.Nonce, nonce))
 	} else if msg.Nonce > nonce {
-		return NewNonceTooHighError(ErrNonceIncorrect)
+		return NewNonceTooHighError(fmt.Errorf("%w, actual: %d, wanted: %d", ErrNonceIncorrect, msg.Nonce, nonce))
 	}
 
 	return nil

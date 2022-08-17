@@ -695,7 +695,8 @@ func (i *Ibft) writeTransactions(gasLimit uint64, transition transitionInterface
 		}
 
 		if err := transition.Write(tx); err != nil {
-			i.logger.Debug("write transaction failed", "hash", tx.Hash, "from", tx.From, "nonce", tx.Nonce, "err", err)
+			i.logger.Debug("write transaction failed", "hash", tx.Hash, "from", tx.From,
+				"nonce", tx.Nonce, "err", err)
 
 			//nolint:errorlint
 			if _, ok := err.(*state.GasLimitReachedTransitionApplicationError); ok {
@@ -707,11 +708,13 @@ func (i *Ibft) writeTransactions(gasLimit uint64, transition transitionInterface
 				// Remove low nonce tx
 				failedTxCount++
 				i.txpool.Remove(tx)
-				i.logger.Error("write transaction nonce too low", "err", err)
+				i.logger.Error("write transaction nonce too low", "hash", tx.Hash, "from", tx.From,
+					"nonce", tx.Nonce, "err", err)
 			} else if _, ok := err.(*state.NonceTooHighError); ok {
 				// Too high nonce tx
 				failedTxCount++
-				i.logger.Error("write miss some transactions with higher nonce", "err", err)
+				i.logger.Error("write miss some transactions with higher nonce", tx.Hash, "from", tx.From,
+					"nonce", tx.Nonce, "err", err)
 			} else if appErr, ok := err.(*state.TransitionApplicationError); ok && appErr.IsRecoverable {
 				i.txpool.Demote(tx)
 			} else {
