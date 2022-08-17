@@ -419,8 +419,10 @@ func (t *Transition) subGasLimitPrice(msg *types.Transaction) error {
 func (t *Transition) nonceCheck(msg *types.Transaction) error {
 	nonce := t.state.GetNonce(msg.From)
 
-	if nonce != msg.Nonce {
-		return ErrNonceIncorrect
+	if msg.Nonce < nonce {
+		return NewNonceTooLowError(ErrNonceIncorrect)
+	} else if msg.Nonce > nonce {
+		return NewNonceTooHighError(ErrNonceIncorrect)
 	}
 
 	return nil
@@ -452,6 +454,26 @@ func NewTransitionApplicationError(err error, isRecoverable bool) *TransitionApp
 	return &TransitionApplicationError{
 		Err:           err,
 		IsRecoverable: isRecoverable,
+	}
+}
+
+type NonceTooLowError struct {
+	TransitionApplicationError
+}
+
+func NewNonceTooLowError(err error) *NonceTooLowError {
+	return &NonceTooLowError{
+		*NewTransitionApplicationError(err, false),
+	}
+}
+
+type NonceTooHighError struct {
+	TransitionApplicationError
+}
+
+func NewNonceTooHighError(err error) *NonceTooHighError {
+	return &NonceTooHighError{
+		*NewTransitionApplicationError(err, false),
 	}
 }
 
@@ -499,7 +521,7 @@ func (t *Transition) apply(msg *types.Transaction) (*runtime.ExecutionResult, er
 
 	// 1. the nonce of the message caller is correct
 	if err := t.nonceCheck(msg); err != nil {
-		return nil, NewTransitionApplicationError(err, true)
+		return nil, err // the error already formatted
 	}
 
 	// 2. caller has enough balance to cover transaction fee(gaslimit * gasprice)
