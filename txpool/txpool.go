@@ -674,7 +674,7 @@ func (p *TxPool) handleEnqueueRequest(req enqueueRequest) {
 
 	p.logger.Debug("enqueue request", "hash", tx.Hash.String())
 
-	p.increaseSlotMetrics([]*types.Transaction{tx}, p.metrics.EnqueueTxs, proto.EventType_ENQUEUED)
+	p.increaseSlotGauge([]*types.Transaction{tx}, p.metrics.EnqueueTxs, proto.EventType_ENQUEUED)
 
 	if tx.Nonce > account.getNonce() {
 		// don't signal promotion for
@@ -702,11 +702,8 @@ func (p *TxPool) handlePromoteRequest(req promoteRequest) {
 		p.logger.Debug("dropped transactions when promoting", "dropped", dropped)
 	}
 
-	// metrics switching
-	p.metrics.PendingTxs.Add(float64(len(promoted)))
-	p.metrics.EnqueueTxs.Add(-1 * float64(len(promoted)))
-	// event
-	p.eventManager.signalEvent(proto.EventType_PROMOTED, toHash(promoted...)...)
+	// gauge and event
+	p.tranferSlotGauge(promoted, p.metrics.EnqueueTxs, p.metrics.PendingTxs, proto.EventType_PROMOTED)
 }
 
 // pruneStaleAccounts would find out all need-to-prune transactions,
@@ -721,27 +718,35 @@ func (p *TxPool) pruneStaleAccounts() {
 	p.logger.Debug("pruned stale enqueued txs", "num", pruned)
 }
 
-func (p *TxPool) increaseSlotMetrics(txs []*types.Transaction, gauge metrics.Gauge, event proto.EventType) {
-	// state
-	p.gauge.increase(slotsRequired(txs...))
-	// metrics
-	gauge.Add(float64(len(txs)))
+func (p *TxPool) tranferSlotGauge(txs []*types.Transaction, src, dest metrics.Gauge, event proto.EventType) {
+	// metrics switching
+	src.Add(-1 * float64(len(txs)))
+	dest.Add(float64(len(txs)))
 	// event
 	p.eventManager.signalEvent(event, toHash(txs...)...)
 }
 
-func (p *TxPool) decreaseSlotMetrics(txs []*types.Transaction, gauge metrics.Gauge, event proto.EventType) {
+func (p *TxPool) increaseSlotGauge(txs []*types.Transaction, destGauge metrics.Gauge, event proto.EventType) {
+	// state
+	p.gauge.increase(slotsRequired(txs...))
+	// metrics
+	destGauge.Add(float64(len(txs)))
+	// event
+	p.eventManager.signalEvent(event, toHash(txs...)...)
+}
+
+func (p *TxPool) decreaseSlotGauge(txs []*types.Transaction, destGauge metrics.Gauge, event proto.EventType) {
 	// state
 	p.gauge.decrease(slotsRequired(txs...))
 	// metrics
-	gauge.Add(-1 * float64(len(txs)))
+	destGauge.Add(-1 * float64(len(txs)))
 	// event
 	p.eventManager.signalEvent(event, toHash(txs...)...)
 }
 
 func (p *TxPool) pruneEnqueuedTxs(pruned []*types.Transaction) {
 	p.index.remove(pruned...)
-	p.decreaseSlotMetrics(pruned, p.metrics.EnqueueTxs, proto.EventType_PRUNED_ENQUEUED)
+	p.decreaseSlotGauge(pruned, p.metrics.EnqueueTxs, proto.EventType_PRUNED_ENQUEUED)
 }
 
 // addGossipTx handles receiving transactions
