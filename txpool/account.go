@@ -302,7 +302,8 @@ func (a *account) promote() (promoted []*types.Transaction, dropped []*types.Tra
 		return
 	}
 
-	nextNonce := a.enqueued.peek().Nonce
+	// the first promotable nonce
+	nextNonce := currentNonce
 
 	//	move all promotable txs (enqueued txs that are sequential in nonce)
 	//	to the account's promoted queue
@@ -312,13 +313,13 @@ func (a *account) promote() (promoted []*types.Transaction, dropped []*types.Tra
 			break
 		}
 
-		if tx.Nonce < currentNonce {
+		if tx.Nonce < nextNonce {
 			// pop out too low nonce tx, which should be drop
 			tx = a.enqueued.pop()
 			dropped = append(dropped, tx)
 
 			continue
-		} else if tx.Nonce > currentNonce {
+		} else if tx.Nonce > nextNonce {
 			// nothing to prmote
 			break
 		}
