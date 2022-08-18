@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/go-kit/kit/metrics"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/hashicorp/go-hclog"
 	"google.golang.org/grpc"
@@ -673,11 +674,7 @@ func (p *TxPool) handleEnqueueRequest(req enqueueRequest) {
 
 	p.logger.Debug("enqueue request", "hash", tx.Hash.String())
 
-	p.gauge.increase(slotsRequired(tx))
-
-	// update metrics
-	p.metrics.EnqueueTxs.Add(1)
-	p.eventManager.signalEvent(proto.EventType_ENQUEUED, tx.Hash)
+	p.increaseSlotMetrics([]*types.Transaction{tx}, p.metrics.EnqueueTxs, proto.EventType_ENQUEUED)
 
 	if tx.Nonce > account.getNonce() {
 		// don't signal promotion for
@@ -701,18 +698,12 @@ func (p *TxPool) handlePromoteRequest(req promoteRequest) {
 
 	// drop lower nonce txs first, to reduce the risk of mining.
 	if len(dropped) > 0 {
+		p.pruneEnqueuedTxs(dropped)
 		p.logger.Debug("dropped transactions when promoting", "dropped", dropped)
-		// drop from txpool
-		p.index.remove(dropped...)
-		// update metrics
-		p.metrics.EnqueueTxs.Add(float64(-1 * len(dropped)))
-		// event
-		p.eventManager.signalEvent(proto.EventType_DROPPED, toHash(dropped...)...)
 	}
 
-	// update metrics
+	// metrics switching
 	p.metrics.PendingTxs.Add(float64(len(promoted)))
-	// do not forget to delete from enqueued gauge
 	p.metrics.EnqueueTxs.Add(-1 * float64(len(promoted)))
 	// event
 	p.eventManager.signalEvent(proto.EventType_PROMOTED, toHash(promoted...)...)
@@ -722,17 +713,35 @@ func (p *TxPool) handlePromoteRequest(req promoteRequest) {
 // remove them from txpool.
 func (p *TxPool) pruneStaleAccounts() {
 	pruned := p.accounts.pruneStaleEnqueuedTxs(p.promoteOutdateDuration)
-
 	if len(pruned) == 0 {
 		return
 	}
 
-	p.index.remove(pruned...)
-	p.gauge.decrease(slotsRequired(pruned...))
-
+	p.pruneEnqueuedTxs(pruned)
 	p.logger.Debug("pruned stale enqueued txs", "num", pruned)
-	p.metrics.EnqueueTxs.Add(-1 * float64(len(pruned)))
-	p.eventManager.signalEvent(proto.EventType_PRUNED_ENQUEUED, toHash(pruned...)...)
+}
+
+func (p *TxPool) increaseSlotMetrics(txs []*types.Transaction, gauge metrics.Gauge, event proto.EventType) {
+	// state
+	p.gauge.increase(slotsRequired(txs...))
+	// metrics
+	gauge.Add(float64(len(txs)))
+	// event
+	p.eventManager.signalEvent(event, toHash(txs...)...)
+}
+
+func (p *TxPool) decreaseSlotMetrics(txs []*types.Transaction, gauge metrics.Gauge, event proto.EventType) {
+	// state
+	p.gauge.decrease(slotsRequired(txs...))
+	// metrics
+	gauge.Add(-1 * float64(len(txs)))
+	// event
+	p.eventManager.signalEvent(event, toHash(txs...)...)
+}
+
+func (p *TxPool) pruneEnqueuedTxs(pruned []*types.Transaction) {
+	p.index.remove(pruned...)
+	p.decreaseSlotMetrics(pruned, p.metrics.EnqueueTxs, proto.EventType_PRUNED_ENQUEUED)
 }
 
 // addGossipTx handles receiving transactions

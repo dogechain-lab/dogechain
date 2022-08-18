@@ -312,13 +312,13 @@ func (a *account) promote() (promoted []*types.Transaction, dropped []*types.Tra
 			break
 		}
 
-		if tx.Nonce < nextNonce {
+		if tx.Nonce < currentNonce {
 			// pop out too low nonce tx, which should be drop
 			tx = a.enqueued.pop()
 			dropped = append(dropped, tx)
 
 			continue
-		} else if tx.Nonce > nextNonce {
+		} else if tx.Nonce > currentNonce {
 			// nothing to prmote
 			break
 		}
