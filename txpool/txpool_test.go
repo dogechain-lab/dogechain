@@ -613,6 +613,71 @@ func TestPromoteHandler(t *testing.T) {
 		assert.Equal(t, uint64(0), pool.accounts.get(addr1).enqueued.length())
 		assert.Equal(t, uint64(20), pool.accounts.get(addr1).promoted.length())
 	})
+
+	t.Run("Two txs -> one promoted, the lower nonce dropped", func(t *testing.T) {
+		/* This example illustrates the fault tolerance of the promoting handler:
+		The lower nonce transaction should be dropped when it is accidently inserted
+		into the enqueued queue. It should not block any promotable transactions. */
+		pool, err := newTestPool()
+		assert.NoError(t, err)
+		pool.SetSigner(&mockSigner{})
+		const promotableNonce = uint64(5)
+
+		// event sub
+		subscription := pool.eventManager.subscribe([]proto.EventType{
+			proto.EventType_PROMOTED,
+			proto.EventType_PRUNED_ENQUEUED,
+		})
+
+		// Prepare the bug test case. It is a bug, but sometimes it happeds.
+		// set account nonce large to make the first tx lower nonce
+		acc := pool.createAccountOnce(addr1)
+		acc.setNonce(promotableNonce)
+		// lower nonce tx
+		lowerNonceTx := newTx(addr1, 0, 1)
+		// enqueue it by hand
+		acc.enqueued.push(lowerNonceTx)
+		pool.gauge.increase(1)
+		assert.Equal(t, uint64(1), pool.accounts.get(addr1).enqueued.length())
+
+		go func() {
+			// promotable
+			err = pool.addTx(local, newTx(addr1, promotableNonce, 1))
+			assert.NoError(t, err)
+		}()
+		// enqueue
+		go pool.handleEnqueueRequest(<-pool.enqueueReqCh)
+		// promote
+		go pool.handlePromoteRequest(<-pool.promoteReqCh)
+
+		// waiting for the promoted event
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+		defer cancel()
+
+		// 1 dropped, 1 promoted.
+		events := waitForEvents(ctx, subscription, 2)
+
+		var prunedCount, promotedCount int
+		// count events
+		for _, ev := range events {
+			switch ev.Type {
+			case proto.EventType_PROMOTED:
+				promotedCount++
+			case proto.EventType_PRUNED_ENQUEUED:
+				prunedCount++
+			}
+		}
+
+		// assert
+		assert.Equal(t, 1, prunedCount)
+		assert.Equal(t, 1, promotedCount)
+
+		assert.Equal(t, uint64(1), pool.gauge.read())
+		assert.Equal(t, promotableNonce, pool.accounts.get(addr1).getNonce())
+
+		assert.Equal(t, uint64(0), pool.accounts.get(addr1).enqueued.length())
+		assert.Equal(t, uint64(1), pool.accounts.get(addr1).promoted.length())
+	})
 }
 
 func TestResetAccount(t *testing.T) {
