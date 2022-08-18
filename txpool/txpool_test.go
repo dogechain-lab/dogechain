@@ -616,7 +616,7 @@ func TestPromoteHandler(t *testing.T) {
 
 	t.Run("Two txs -> one promoted, the lower nonce dropped", func(t *testing.T) {
 		/* This example illustrates the fault tolerance of the promoting handler:
-		The lower nonce transaction should be dropped when it is accidently inserted
+		The lower nonce transaction should be dropped when it is accidentally inserted
 		into the enqueued queue. It should not block any promotable transactions. */
 		pool, err := newTestPool()
 		assert.NoError(t, err)
