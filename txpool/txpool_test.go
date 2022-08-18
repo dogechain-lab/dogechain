@@ -651,7 +651,7 @@ func TestPromoteHandler(t *testing.T) {
 		go pool.handlePromoteRequest(<-pool.promoteReqCh)
 
 		// waiting for the promoted event
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 		defer cancel()
 
 		// 1 dropped, 1 promoted.
@@ -673,7 +673,7 @@ func TestPromoteHandler(t *testing.T) {
 		assert.Equal(t, 1, promotedCount)
 
 		assert.Equal(t, uint64(1), pool.gauge.read())
-		assert.Equal(t, promotableNonce, pool.accounts.get(addr1).getNonce())
+		assert.Equal(t, promotableNonce+1, pool.accounts.get(addr1).getNonce())
 
 		assert.Equal(t, uint64(0), pool.accounts.get(addr1).enqueued.length())
 		assert.Equal(t, uint64(1), pool.accounts.get(addr1).promoted.length())
