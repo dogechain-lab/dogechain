@@ -284,8 +284,8 @@ func (a *account) enqueue(tx *types.Transaction) error {
 //
 // Eligible transactions are all sequential in order of nonce
 // and the first one has to have nonce less (or equal) to the account's
-// nextNonce.
-func (a *account) promote() []*types.Transaction {
+// nextNonce. Lower nonce transaction would be dropped when promoting.
+func (a *account) promote() (promoted []*types.Transaction, dropped []*types.Transaction) {
 	a.promoted.lock(true)
 	a.enqueued.lock(true)
 
@@ -299,18 +299,27 @@ func (a *account) promote() []*types.Transaction {
 	if a.enqueued.length() == 0 ||
 		a.enqueued.peek().Nonce > currentNonce {
 		// nothing to promote
-		return nil
+		return
 	}
 
-	promoted := make([]*types.Transaction, 0)
 	nextNonce := a.enqueued.peek().Nonce
 
 	//	move all promotable txs (enqueued txs that are sequential in nonce)
 	//	to the account's promoted queue
 	for {
 		tx := a.enqueued.peek()
-		if tx == nil ||
-			tx.Nonce != nextNonce {
+		if tx == nil {
+			break
+		}
+
+		if tx.Nonce < nextNonce {
+			// pop out too low nonce tx, which should be drop
+			tx = a.enqueued.pop()
+			dropped = append(dropped, tx)
+
+			continue
+		} else if tx.Nonce > nextNonce {
+			// nothing to prmote
 			break
 		}
 
@@ -336,5 +345,5 @@ func (a *account) promote() []*types.Transaction {
 	// update timestamp for pruning
 	a.lastPromoted = time.Now()
 
-	return promoted
+	return
 }

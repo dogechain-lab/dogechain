@@ -696,14 +696,25 @@ func (p *TxPool) handlePromoteRequest(req promoteRequest) {
 	account := p.accounts.get(addr)
 
 	// promote enqueued txs
-	promoted := account.promote()
+	promoted, dropped := account.promote()
 	p.logger.Debug("promote request", "promoted", promoted, "addr", addr.String())
+
+	// drop lower nonce txs first, to reduce the risk of mining.
+	if len(dropped) > 0 {
+		p.logger.Debug("dropped transactions when promoting", "dropped", dropped)
+		// drop from txpool
+		p.index.remove(dropped...)
+		// update metrics
+		p.metrics.EnqueueTxs.Add(float64(-1 * len(dropped)))
+		// event
+		p.eventManager.signalEvent(proto.EventType_DROPPED, toHash(dropped...)...)
+	}
 
 	// update metrics
 	p.metrics.PendingTxs.Add(float64(len(promoted)))
 	// do not forget to delete from enqueued gauge
 	p.metrics.EnqueueTxs.Add(-1 * float64(len(promoted)))
-
+	// event
 	p.eventManager.signalEvent(proto.EventType_PROMOTED, toHash(promoted...)...)
 }
 
