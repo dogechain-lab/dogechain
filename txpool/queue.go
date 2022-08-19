@@ -88,7 +88,7 @@ func (q *accountQueue) GetTxByNonce(nonce uint64) *types.Transaction {
 		return nil
 	}
 
-	// nolint: forcetypeassert
+	//nolint:forcetypeassert
 	return v.(*types.Transaction)
 }
 
