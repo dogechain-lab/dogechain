@@ -2358,7 +2358,7 @@ func TestAddTx_ReplaceSameNonce(t *testing.T) {
 		tx3_3 = eoa.signTx(newPriceTx(addr, highPrice, 3, 1), signerEIP155)
 	)
 
-	testCases := []*struct {
+	testCases := []struct {
 		name                  string
 		allTxs                []*types.Transaction
 		expectedEnqueued      []*types.Transaction
@@ -2419,13 +2419,9 @@ func TestAddTx_ReplaceSameNonce(t *testing.T) {
 			defer pool.Close()
 
 			var (
-				promoteSubscription = pool.eventManager.subscribe(
+				eventSubscription = pool.eventManager.subscribe(
 					[]proto.EventType{
 						proto.EventType_PROMOTED,
-					},
-				)
-				replaceSubscription = pool.eventManager.subscribe(
-					[]proto.EventType{
 						proto.EventType_REPLACED,
 					},
 				)
@@ -2446,14 +2442,8 @@ func TestAddTx_ReplaceSameNonce(t *testing.T) {
 			}
 
 			// Wait for promoted transactions
-			if test.expectedPromotedCount > 0 {
-				if !waitSubscription(t, promoteSubscription, test.expectedPromotedCount) {
-					t.FailNow()
-				}
-			}
-			// Wait for replaced transactions, if any are present
-			if test.expectedReplacedCount > 0 {
-				if !waitSubscription(t, replaceSubscription, test.expectedReplacedCount) {
+			if test.expectedPromotedCount > 0 || test.expectedReplacedCount > 0 {
+				if !waitSubscription(t, eventSubscription, test.expectedPromotedCount+test.expectedReplacedCount) {
 					t.FailNow()
 				}
 			}
