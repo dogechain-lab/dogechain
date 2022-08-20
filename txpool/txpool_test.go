@@ -2410,51 +2410,47 @@ func TestAddTx_ReplaceSameNonce(t *testing.T) {
 	for _, test := range testCases {
 		test := test
 
-		t.Run(test.name, func(t *testing.T) {
-			pool, err := newTestPool()
-			assert.NoError(t, err)
-			pool.SetSigner(signerEIP155)
+		pool, err := newTestPool()
+		assert.NoError(t, err)
+		pool.SetSigner(signerEIP155)
 
-			pool.Start()
-			defer pool.Close()
+		pool.Start()
+		defer pool.Close()
 
-			var (
-				eventSubscription = pool.eventManager.subscribe(
-					[]proto.EventType{
-						proto.EventType_PROMOTED,
-						proto.EventType_REPLACED,
-					},
-				)
-				waitSubscription = func(t *testing.T, sub *subscribeResult, expected int) bool {
-					t.Helper()
+		var eventSubscription = pool.eventManager.subscribe(
+			[]proto.EventType{
+				proto.EventType_PROMOTED,
+				proto.EventType_REPLACED,
+			},
+		)
 
-					ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*10)
-					defer cancelFn()
-
-					// Wait for promoted transactions
-					return assert.Len(t, waitForEvents(ctx, sub, expected), expected)
-				}
-			)
-
-			// send txs
+		// send txs in a goroutine, to avoid hanging event subscriptions.
+		go func() {
 			for _, tx := range test.allTxs {
 				assert.NoError(t, pool.addTx(local, tx))
 			}
+		}()
 
-			// Wait for promoted transactions
-			if test.expectedPromotedCount > 0 || test.expectedReplacedCount > 0 {
-				if !waitSubscription(t, eventSubscription, test.expectedPromotedCount+test.expectedReplacedCount) {
-					t.FailNow()
-				}
-			}
+		// Wait for promoted transactions
+		ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*10)
+		defer cancelFn()
 
-			allPromoted, allEnqueued := pool.GetTxs(true)
+		expectedEventCount := test.expectedPromotedCount + test.expectedReplacedCount
+		if !assert.Len(
+			t,
+			waitForEvents(ctx, eventSubscription, expectedEventCount),
+			expectedEventCount,
+			test.name,
+		) {
+			t.FailNow()
+		}
 
-			// assert promoted
-			assert.Equal(t, test.expectedPromoted, allPromoted[addr])
+		allPromoted, allEnqueued := pool.GetTxs(true)
 
-			// assert enqueued
-			assert.Equal(t, test.expectedEnqueued, allEnqueued[addr])
-		})
+		// assert promoted
+		assert.Equal(t, test.expectedPromoted, allPromoted[addr], test.name)
+
+		// assert enqueued
+		assert.Equal(t, test.expectedEnqueued, allEnqueued[addr], test.name)
 	}
 }
