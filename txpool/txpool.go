@@ -24,7 +24,7 @@ const (
 	txMaxSize                    = 128 * 1024 //128Kb
 	topicNameV1                  = "txpool/0.1"
 	defaultPruneTickSeconds      = 300
-	defaultPromoteOutdateSeconds = 1800
+	defaultPromoteOutdateSeconds = 3600
 )
 
 // errors
