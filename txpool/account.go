@@ -28,7 +28,7 @@ func (m *accountsMap) initOnce(addr types.Address, nonce uint64) *account {
 		// set the nonce
 		newAccount.setNonce(nonce)
 
-		// set the timestamp for pruning
+		// set the timestamp for pruning. Reinit account should reset it.
 		newAccount.lastPromoted = time.Now()
 
 		// update global count
@@ -173,7 +173,7 @@ func (m *accountsMap) pruneStaleEnqueuedTxs(outdateDuration time.Duration) []*ty
 		account.enqueued.lock(true)
 		defer account.enqueued.unlock()
 
-		if time.Since(account.lastPromoted) >= outdateDuration {
+		if account.IsOutdated(outdateDuration) {
 			pruned = append(
 				pruned,
 				account.enqueued.clear()...,
@@ -343,8 +343,17 @@ func (a *account) promote() (promoted []*types.Transaction, dropped []*types.Tra
 		a.setNonce(nextNonce)
 	}
 
-	// update timestamp for pruning
-	a.lastPromoted = time.Now()
+	a.updatePromoted()
 
 	return
+}
+
+// updatePromoted updates promoted timestamp
+func (a *account) updatePromoted() {
+	a.lastPromoted = time.Now()
+}
+
+// IsOutdated returns whether account was outdated comparing with the duration
+func (a *account) IsOutdated(outdateDuration time.Duration) bool {
+	return time.Since(a.lastPromoted) >= outdateDuration
 }
