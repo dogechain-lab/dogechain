@@ -6,11 +6,9 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/dogechain-lab/dogechain/command"
 	"github.com/dogechain-lab/dogechain/jsonrpc"
 	"github.com/dogechain-lab/dogechain/network"
 	"github.com/dogechain-lab/dogechain/txpool"
-
 	"github.com/hashicorp/hcl"
 )
 
@@ -87,9 +85,9 @@ func DefaultConfig() *Config {
 		Telemetry:  &Telemetry{},
 		ShouldSeal: false,
 		TxPool: &TxPool{
-			PriceLimit:            command.DefaultPriceLimit,
-			MaxSlots:              command.DefaultMaxSlots,
-			MaxAccountDemotions:   command.DefaultMaxAccountDemotions,
+			PriceLimit:            0,
+			MaxSlots:              txpool.DefaultMaxSlots,
+			MaxAccountDemotions:   txpool.DefaultMaxAccountDemotions,
 			PruneTickSeconds:      txpool.DefaultPruneTickSeconds,
 			PromoteOutdateSeconds: txpool.DefaultPromoteOutdateSeconds,
 		},

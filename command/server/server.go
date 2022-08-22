@@ -175,14 +175,14 @@ func setFlags(cmd *cobra.Command) {
 	cmd.Flags().Uint64Var(
 		&params.rawConfig.TxPool.MaxSlots,
 		maxSlotsFlag,
-		command.DefaultMaxSlots,
+		txpool.DefaultMaxSlots,
 		"maximum slots in the pool",
 	)
 
 	cmd.Flags().Uint64Var(
 		&params.rawConfig.TxPool.MaxAccountDemotions,
 		maxAccountDemotionsFlag,
-		command.DefaultMaxAccountDemotions,
+		txpool.DefaultMaxAccountDemotions,
 		"maximum account demontion counter limit in the pool",
 	)
 

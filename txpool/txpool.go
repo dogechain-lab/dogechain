@@ -20,11 +20,6 @@ import (
 )
 
 const (
-	DefaultPruneTickSeconds      = 300  // ticker duration for pruning account future transactions
-	DefaultPromoteOutdateSeconds = 3600 // not promoted account for a long time would be pruned
-)
-
-const (
 	txSlotSize  = 32 * 1024  // 32kB
 	txMaxSize   = 128 * 1024 //128Kb
 	topicNameV1 = "txpool/0.1"
@@ -197,6 +192,8 @@ func NewTxPool(
 	var (
 		pruneTickSeconds      = config.PruneTickSeconds
 		promoteOutdateSeconds = config.PromoteOutdateSeconds
+		maxSlot               = config.MaxSlots
+		maxAccountDemotions   = config.MaxAccountDemotions
 	)
 
 	if pruneTickSeconds == 0 {
@@ -207,6 +204,14 @@ func NewTxPool(
 		promoteOutdateSeconds = DefaultPromoteOutdateSeconds
 	}
 
+	if maxSlot == 0 {
+		maxSlot = DefaultMaxSlots
+	}
+
+	if maxAccountDemotions == 0 {
+		maxAccountDemotions = DefaultMaxAccountDemotions
+	}
+
 	pool := &TxPool{
 		logger:                 logger.Named("txpool"),
 		forks:                  forks,
@@ -215,10 +220,10 @@ func NewTxPool(
 		accounts:               accountsMap{},
 		executables:            newPricedQueue(),
 		index:                  lookupMap{all: make(map[types.Hash]*types.Transaction)},
-		gauge:                  slotGauge{height: 0, max: config.MaxSlots},
+		gauge:                  slotGauge{height: 0, max: maxSlot},
 		priceLimit:             config.PriceLimit,
 		sealing:                config.Sealing,
-		maxAccountDemotions:    config.MaxAccountDemotions,
+		maxAccountDemotions:    maxAccountDemotions,
 		pruneTick:              time.Second * time.Duration(pruneTickSeconds),
 		promoteOutdateDuration: time.Second * time.Duration(promoteOutdateSeconds),
 	}
