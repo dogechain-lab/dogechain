@@ -20,11 +20,14 @@ import (
 )
 
 const (
-	txSlotSize                   = 32 * 1024  // 32kB
-	txMaxSize                    = 128 * 1024 //128Kb
-	topicNameV1                  = "txpool/0.1"
-	defaultPruneTickSeconds      = 300
-	defaultPromoteOutdateSeconds = 3600
+	DefaultPruneTickSeconds      = 300  // ticker duration for pruning account future transactions
+	DefaultPromoteOutdateSeconds = 3600 // not promoted account for a long time would be pruned
+)
+
+const (
+	txSlotSize  = 32 * 1024  // 32kB
+	txMaxSize   = 128 * 1024 //128Kb
+	topicNameV1 = "txpool/0.1"
 )
 
 // errors
@@ -197,11 +200,11 @@ func NewTxPool(
 	)
 
 	if pruneTickSeconds == 0 {
-		pruneTickSeconds = defaultPruneTickSeconds
+		pruneTickSeconds = DefaultPruneTickSeconds
 	}
 
 	if promoteOutdateSeconds == 0 {
-		promoteOutdateSeconds = defaultPromoteOutdateSeconds
+		promoteOutdateSeconds = DefaultPromoteOutdateSeconds
 	}
 
 	pool := &TxPool{

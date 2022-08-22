@@ -12,6 +12,7 @@ import (
 	"github.com/dogechain-lab/dogechain/command"
 	"github.com/dogechain-lab/dogechain/crypto"
 	"github.com/dogechain-lab/dogechain/helper/daemon"
+	"github.com/dogechain-lab/dogechain/txpool"
 	"github.com/howeyc/gopass"
 	"github.com/spf13/cobra"
 
@@ -188,14 +189,14 @@ func setFlags(cmd *cobra.Command) {
 	cmd.Flags().Uint64Var(
 		&params.rawConfig.TxPool.PruneTickSeconds,
 		pruneTickSecondsFlag,
-		command.DefaultPruneTickSeconds,
+		txpool.DefaultPruneTickSeconds,
 		"tick seconds for pruning account future transactions in the pool",
 	)
 
 	cmd.Flags().Uint64Var(
 		&params.rawConfig.TxPool.PromoteOutdateSeconds,
 		promoteOutdateSecondsFlag,
-		command.DefaultPromoteOutdateSeconds,
+		txpool.DefaultPromoteOutdateSeconds,
 		"account in the pool not promoted for a long time would be pruned",
 	)
 

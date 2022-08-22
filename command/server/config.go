@@ -9,6 +9,7 @@ import (
 	"github.com/dogechain-lab/dogechain/command"
 	"github.com/dogechain-lab/dogechain/jsonrpc"
 	"github.com/dogechain-lab/dogechain/network"
+	"github.com/dogechain-lab/dogechain/txpool"
 
 	"github.com/hashicorp/hcl"
 )
@@ -89,8 +90,8 @@ func DefaultConfig() *Config {
 			PriceLimit:            command.DefaultPriceLimit,
 			MaxSlots:              command.DefaultMaxSlots,
 			MaxAccountDemotions:   command.DefaultMaxAccountDemotions,
-			PruneTickSeconds:      command.DefaultPruneTickSeconds,
-			PromoteOutdateSeconds: command.DefaultPromoteOutdateSeconds,
+			PruneTickSeconds:      txpool.DefaultPruneTickSeconds,
+			PromoteOutdateSeconds: txpool.DefaultPromoteOutdateSeconds,
 		},
 		LogLevel:    "INFO",
 		RestoreFile: "",
