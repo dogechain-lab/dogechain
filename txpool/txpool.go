@@ -834,24 +834,12 @@ func (p *TxPool) resetAccounts(stateNonces map[types.Address]uint64) {
 	//	prune pool state
 	if len(allPrunedPromoted) > 0 {
 		cleanup(allPrunedPromoted...)
-		p.eventManager.signalEvent(
-			proto.EventType_PRUNED_PROMOTED,
-			toHash(allPrunedPromoted...)...,
-		)
-
-		// update metrics
-		p.metrics.PendingTxs.Add(float64(-1 * len(allPrunedPromoted)))
+		p.decreaseQueueGauge(allPrunedPromoted, p.metrics.PendingTxs, proto.EventType_PRUNED_PROMOTED)
 	}
 
 	if len(allPrunedEnqueued) > 0 {
 		cleanup(allPrunedEnqueued...)
-		p.eventManager.signalEvent(
-			proto.EventType_PRUNED_ENQUEUED,
-			toHash(allPrunedEnqueued...)...,
-		)
-
-		// update metrics
-		p.metrics.EnqueueTxs.Add(float64(-1 * len(allPrunedEnqueued)))
+		p.decreaseQueueGauge(allPrunedEnqueued, p.metrics.EnqueueTxs, proto.EventType_PRUNED_ENQUEUED)
 	}
 }
 

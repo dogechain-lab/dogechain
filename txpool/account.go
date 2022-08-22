@@ -29,7 +29,7 @@ func (m *accountsMap) initOnce(addr types.Address, nonce uint64) *account {
 		newAccount.setNonce(nonce)
 
 		// set the timestamp for pruning. Reinit account should reset it.
-		newAccount.lastPromoted = time.Now()
+		newAccount.updatePromoted()
 
 		// update global count
 		atomic.AddUint64(&m.count, 1)
@@ -341,9 +341,9 @@ func (a *account) promote() (promoted []*types.Transaction, dropped []*types.Tra
 	// is higher than the one previously stored.
 	if nextNonce > currentNonce {
 		a.setNonce(nextNonce)
+		// only update the promotion timestamp when it is actually promoted.
+		a.updatePromoted()
 	}
-
-	a.updatePromoted()
 
 	return
 }
