@@ -523,28 +523,56 @@ func (f *FilterManager) GetLogFilterFromID(filterID string) (*logFilter, error) 
 	return logFilter, nil
 }
 
-// GetFilterChanges returns the updates of the filter with given ID in string
+// refreshFilterTimeout updates the timeout for a filter to the current time
+func (f *FilterManager) refreshFilterTimeout(filter *filterBase) {
+	f.timeouts.removeFilter(filter)
+	f.addFilterTimeout(filter)
+}
+
+// addFilterTimeout set timeout and add to heap
+func (f *FilterManager) addFilterTimeout(filter *filterBase) {
+	filter.expiresAt = time.Now().Add(f.timeout)
+	f.timeouts.addFilter(filter)
+	f.emitSignalToUpdateCh()
+}
+
+// GetFilterChanges returns the updates of the filter with given ID in string,
+// and refreshes the timeout on the filter
 func (f *FilterManager) GetFilterChanges(id string) (string, error) {
+	filter, res, err := f.getFilterAndChanges(id)
+
+	if err == nil && !filter.hasWSConn() {
+		// Refresh the timeout on this filter
+		f.Lock()
+		f.refreshFilterTimeout(filter.getFilterBase())
+		f.Unlock()
+	}
+
+	return res, err
+}
+
+// getFilterAndChanges returns the updates of the filter with given ID in string
+func (f *FilterManager) getFilterAndChanges(id string) (filter, string, error) {
 	f.RLock()
 	defer f.RUnlock()
 
 	filter, ok := f.filters[id]
 
 	if !ok {
-		return "", ErrFilterDoesNotExists
+		return nil, "", ErrFilterDoesNotExists
 	}
 
 	// we cannot get updates from a ws filter with getFilterChanges
 	if filter.hasWSConn() {
-		return "", ErrWSFilterDoesNotSupportGetChanges
+		return nil, "", ErrWSFilterDoesNotSupportGetChanges
 	}
 
 	res, err := filter.getUpdates()
 	if err != nil {
-		return "", err
+		return nil, "", err
 	}
 
-	return res, nil
+	return filter, res, nil
 }
 
 // Uninstall removes the filter with given ID from list
@@ -592,9 +620,7 @@ func (f *FilterManager) addFilter(filter filter) string {
 
 	// Set timeout and add to heap if filter doesn't have web socket connection
 	if !filter.hasWSConn() {
-		base.expiresAt = time.Now().Add(f.timeout)
-		f.timeouts.addFilter(base)
-		f.emitSignalToUpdateCh()
+		f.addFilterTimeout(base)
 	}
 
 	f.logger.Debug("filter added", "id", base.id, "timeout", base.expiresAt)
@@ -737,13 +763,11 @@ func (f *FilterManager) flushWsFilters() error {
 	// remove filters with closed web socket connections from FilterManager
 	if len(closedFilterIDs) > 0 {
 		f.Lock()
-
 		for _, id := range closedFilterIDs {
 			f.removeFilterByID(id)
 		}
-
 		f.Unlock()
-		f.emitSignalToUpdateCh()
+
 		f.logger.Info(fmt.Sprintf("Removed %d filters due to closed connections", len(closedFilterIDs)))
 	}
 
