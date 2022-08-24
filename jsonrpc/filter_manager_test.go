@@ -18,7 +18,7 @@ func TestFilterLog(t *testing.T) {
 
 	store := newMockStore()
 
-	m := NewFilterManager(hclog.NewNullLogger(), store)
+	m := NewFilterManager(hclog.NewNullLogger(), store, 1000)
 	// filter manager should Close(), but mock one might crash on writing on a closed channel
 	//nolint:errcheck
 	defer recover()
@@ -85,7 +85,7 @@ func TestFilterBlock(t *testing.T) {
 
 	store := newMockStore()
 
-	m := NewFilterManager(hclog.NewNullLogger(), store)
+	m := NewFilterManager(hclog.NewNullLogger(), store, 1000)
 	// filter manager should Close(), but mock one might crash on writing on a closed channel
 	//nolint:errcheck
 	defer recover()
@@ -190,7 +190,7 @@ func Test_GetLogsForQuery(t *testing.T) {
 
 	store.appendBlocksToStore(blocks)
 
-	f := NewFilterManager(hclog.NewNullLogger(), store)
+	f := NewFilterManager(hclog.NewNullLogger(), store, 1000)
 
 	t.Cleanup(func() {
 		f.Close() // prevent memory leak
@@ -251,6 +251,16 @@ func Test_GetLogsForQuery(t *testing.T) {
 			0,
 			ErrIncorrectBlockRange,
 		},
+		{
+			"Block range too high",
+			&LogQuery{
+				FromBlock: 10,
+				ToBlock:   1012,
+				Topics:    topics,
+			},
+			0,
+			ErrBlockRangeTooHigh,
+		},
 	}
 
 	for _, testCase := range testTable {
@@ -278,7 +288,7 @@ func Test_GetLogFilterFromID(t *testing.T) {
 
 	store := newMockStore()
 
-	m := NewFilterManager(hclog.NewNullLogger(), store)
+	m := NewFilterManager(hclog.NewNullLogger(), store, 1000)
 	// filter manager should Close(), but mock one might crash on writing on a closed channel
 	//nolint:errcheck
 	defer recover()
@@ -305,7 +315,7 @@ func TestFilterTimeout(t *testing.T) {
 
 	store := newMockStore()
 
-	m := NewFilterManager(hclog.NewNullLogger(), store)
+	m := NewFilterManager(hclog.NewNullLogger(), store, 1000)
 	// filter manager should Close(), but mock one might crash on writing on a closed channel
 	//nolint:errcheck
 	defer recover()
@@ -332,7 +342,7 @@ func TestRemoveFilterByWebsocket(t *testing.T) {
 		msgCh: make(chan []byte, 1),
 	}
 
-	m := NewFilterManager(hclog.NewNullLogger(), store)
+	m := NewFilterManager(hclog.NewNullLogger(), store, 1000)
 	// filter manager should Close(), but mock one might crash on writing on a closed channel
 	//nolint:errcheck
 	defer recover()
@@ -357,7 +367,7 @@ func TestFilterWebsocket(t *testing.T) {
 		msgCh: make(chan []byte, 1),
 	}
 
-	m := NewFilterManager(hclog.NewNullLogger(), store)
+	m := NewFilterManager(hclog.NewNullLogger(), store, 1000)
 	// filter manager should Close(), but mock one might crash on writing on a closed channel
 	//nolint:errcheck
 	defer recover()
@@ -432,7 +442,7 @@ func TestClosedFilterDeletion(t *testing.T) {
 
 	store := newMockStore()
 
-	m := NewFilterManager(hclog.NewNullLogger(), store)
+	m := NewFilterManager(hclog.NewNullLogger(), store, 1000)
 	// filter manager should Close(), but mock one might crash on writing on a closed channel
 	//nolint:errcheck
 	defer recover()

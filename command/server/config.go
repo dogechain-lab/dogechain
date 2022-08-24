@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/dogechain-lab/dogechain/command"
+	"github.com/dogechain-lab/dogechain/jsonrpc"
 	"github.com/dogechain-lab/dogechain/network"
 
 	"github.com/hashicorp/hcl"
@@ -14,23 +15,25 @@ import (
 
 // Config defines the server configuration params
 type Config struct {
-	GenesisPath       string     `json:"chain_config"`
-	SecretsConfigPath string     `json:"secrets_config"`
-	DataDir           string     `json:"data_dir"`
-	BlockGasTarget    string     `json:"block_gas_target"`
-	GRPCAddr          string     `json:"grpc_addr"`
-	JSONRPCAddr       string     `json:"jsonrpc_addr"`
-	Telemetry         *Telemetry `json:"telemetry"`
-	Network           *Network   `json:"network"`
-	ShouldSeal        bool       `json:"seal"`
-	TxPool            *TxPool    `json:"tx_pool"`
-	LogLevel          string     `json:"log_level"`
-	RestoreFile       string     `json:"restore_file"`
-	BlockTime         uint64     `json:"block_time_s"`
-	Headers           *Headers   `json:"headers"`
-	LogFilePath       string     `json:"log_to"`
-	EnableGraphQL     bool       `json:"enable_graphql"`
-	GraphQLAddr       string     `json:"graphql_addr"`
+	GenesisPath              string     `json:"chain_config"`
+	SecretsConfigPath        string     `json:"secrets_config"`
+	DataDir                  string     `json:"data_dir"`
+	BlockGasTarget           string     `json:"block_gas_target"`
+	GRPCAddr                 string     `json:"grpc_addr"`
+	JSONRPCAddr              string     `json:"jsonrpc_addr"`
+	Telemetry                *Telemetry `json:"telemetry"`
+	Network                  *Network   `json:"network"`
+	ShouldSeal               bool       `json:"seal"`
+	TxPool                   *TxPool    `json:"tx_pool"`
+	LogLevel                 string     `json:"log_level"`
+	RestoreFile              string     `json:"restore_file"`
+	BlockTime                uint64     `json:"block_time_s"`
+	Headers                  *Headers   `json:"headers"`
+	LogFilePath              string     `json:"log_to"`
+	EnableGraphQL            bool       `json:"enable_graphql"`
+	GraphQLAddr              string     `json:"graphql_addr"`
+	JSONRPCBatchRequestLimit uint64     `json:"json_rpc_batch_request_limit" yaml:"json_rpc_batch_request_limit"`
+	JSONRPCBlockRangeLimit   uint64     `json:"json_rpc_block_range_limit" yaml:"json_rpc_block_range_limit"`
 }
 
 // Telemetry holds the config details for metric services.
@@ -95,8 +98,10 @@ func DefaultConfig() *Config {
 		Headers: &Headers{
 			AccessControlAllowOrigins: []string{"*"},
 		},
-		LogFilePath:   "",
-		EnableGraphQL: false,
+		LogFilePath:              "",
+		EnableGraphQL:            false,
+		JSONRPCBatchRequestLimit: jsonrpc.DefaultJSONRPCBatchRequestLimit,
+		JSONRPCBlockRangeLimit:   jsonrpc.DefaultJSONRPCBlockRangeLimit,
 	}
 }
 

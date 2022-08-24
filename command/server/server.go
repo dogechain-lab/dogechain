@@ -234,6 +234,21 @@ func setFlags(cmd *cobra.Command) {
 		"the flag indicating that node enable graphql service",
 	)
 
+	cmd.Flags().Uint64Var(
+		&params.jsonRPCBatchLengthLimit,
+		jsonRPCBatchRequestLimitFlag,
+		defaultConfig.JSONRPCBatchRequestLimit,
+		"the max length to be considered when handling json-rpc batch requests",
+	)
+
+	cmd.Flags().Uint64Var(
+		&params.jsonRPCBlockRangeLimit,
+		jsonRPCBlockRangeLimitFlag,
+		defaultConfig.JSONRPCBlockRangeLimit,
+		"the max block range to be considered when executing json-rpc requests "+
+			"that consider fromBlock/toBlock values (e.g. eth_getLogs)",
+	)
+
 	setDevFlags(cmd)
 }
 

@@ -14,32 +14,34 @@ import (
 )
 
 const (
-	configFlag                = "config"
-	genesisPathFlag           = "chain"
-	dataDirFlag               = "data-dir"
-	libp2pAddressFlag         = "libp2p"
-	prometheusAddressFlag     = "prometheus"
-	natFlag                   = "nat"
-	dnsFlag                   = "dns"
-	sealFlag                  = "seal"
-	maxPeersFlag              = "max-peers"
-	maxInboundPeersFlag       = "max-inbound-peers"
-	maxOutboundPeersFlag      = "max-outbound-peers"
-	priceLimitFlag            = "price-limit"
-	maxSlotsFlag              = "max-slots"
-	maxAccountDemotionsFlag   = "max-account-demotions"
-	pruneTickSecondsFlag      = "prune-tick-seconds"
-	promoteOutdateSecondsFlag = "promote-outdate-seconds"
-	blockGasTargetFlag        = "block-gas-target"
-	secretsConfigFlag         = "secrets-config"
-	restoreFlag               = "restore"
-	blockTimeFlag             = "block-time"
-	devIntervalFlag           = "dev-interval"
-	devFlag                   = "dev"
-	corsOriginFlag            = "access-control-allow-origins"
-	daemonFlag                = "daemon"
-	logFileLocationFlag       = "log-to"
-	enableGraphQLFlag         = "enable-graphql"
+	configFlag                   = "config"
+	genesisPathFlag              = "chain"
+	dataDirFlag                  = "data-dir"
+	libp2pAddressFlag            = "libp2p"
+	prometheusAddressFlag        = "prometheus"
+	natFlag                      = "nat"
+	dnsFlag                      = "dns"
+	sealFlag                     = "seal"
+	maxPeersFlag                 = "max-peers"
+	maxInboundPeersFlag          = "max-inbound-peers"
+	maxOutboundPeersFlag         = "max-outbound-peers"
+	priceLimitFlag               = "price-limit"
+	maxSlotsFlag                 = "max-slots"
+	maxAccountDemotionsFlag      = "max-account-demotions"
+	pruneTickSecondsFlag         = "prune-tick-seconds"
+	promoteOutdateSecondsFlag    = "promote-outdate-seconds"
+	blockGasTargetFlag           = "block-gas-target"
+	secretsConfigFlag            = "secrets-config"
+	restoreFlag                  = "restore"
+	blockTimeFlag                = "block-time"
+	devIntervalFlag              = "dev-interval"
+	devFlag                      = "dev"
+	corsOriginFlag               = "access-control-allow-origins"
+	daemonFlag                   = "daemon"
+	logFileLocationFlag          = "log-to"
+	enableGraphQLFlag            = "enable-graphql"
+	jsonRPCBatchRequestLimitFlag = "json-rpc-batch-request-limit"
+	jsonRPCBlockRangeLimitFlag   = "json-rpc-block-range-limit"
 )
 
 const (
@@ -85,6 +87,9 @@ type serverParams struct {
 	secretsConfig *secrets.SecretsManagerConfig
 
 	logFileLocation string
+
+	jsonRPCBatchLengthLimit uint64
+	jsonRPCBlockRangeLimit  uint64
 }
 
 func (p *serverParams) validateFlags() error {
@@ -162,11 +167,14 @@ func (p *serverParams) generateConfig() *server.Config {
 		JSONRPC: &server.JSONRPC{
 			JSONRPCAddr:              p.jsonRPCAddress,
 			AccessControlAllowOrigin: p.corsAllowedOrigins,
+			BatchLengthLimit:         p.jsonRPCBatchLengthLimit,
+			BlockRangeLimit:          p.jsonRPCBlockRangeLimit,
 		},
 		EnableGraphQL: p.rawConfig.EnableGraphQL,
 		GraphQL: &server.GraphQL{
 			GraphQLAddr:              p.graphqlAddress,
 			AccessControlAllowOrigin: p.corsAllowedOrigins,
+			BlockRangeLimit:          p.jsonRPCBlockRangeLimit,
 		},
 		GRPCAddr:   p.grpcAddress,
 		LibP2PAddr: p.libp2pAddress,

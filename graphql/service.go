@@ -26,6 +26,7 @@ type Config struct {
 	Forks                    chain.Forks
 	ChainID                  uint64
 	AccessControlAllowOrigin []string
+	BlockRangeLimit          uint64
 }
 
 // GraphQLStore defines all the methods required
@@ -38,10 +39,15 @@ type GraphQLStore interface {
 
 // NewJSONRPC returns the JSONRPC http server
 func NewGraphQLService(logger hclog.Logger, config *Config) (*GraphQLService, error) {
+	var blockRangeLimit = config.BlockRangeLimit
+	if blockRangeLimit == 0 {
+		blockRangeLimit = rpc.DefaultJSONRPCBlockRangeLimit
+	}
+
 	q := Resolver{
 		backend:       config.Store,
 		chainID:       config.ChainID,
-		filterManager: rpc.NewFilterManager(hclog.NewNullLogger(), config.Store),
+		filterManager: rpc.NewFilterManager(hclog.NewNullLogger(), config.Store, blockRangeLimit),
 	}
 
 	s, err := graphql.ParseSchema(schema, &q)

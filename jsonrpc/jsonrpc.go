@@ -60,14 +60,29 @@ type Config struct {
 	Addr                     *net.TCPAddr
 	ChainID                  uint64
 	AccessControlAllowOrigin []string
+	BatchLengthLimit         uint64
+	BlockRangeLimit          uint64
 }
 
 // NewJSONRPC returns the JSONRPC http server
 func NewJSONRPC(logger hclog.Logger, config *Config) (*JSONRPC, error) {
+	var (
+		batchLengthLimit = config.BatchLengthLimit
+		blockRangeLimit  = config.BlockRangeLimit
+	)
+
+	if batchLengthLimit == 0 {
+		batchLengthLimit = DefaultJSONRPCBatchRequestLimit
+	}
+
+	if blockRangeLimit == 0 {
+		blockRangeLimit = DefaultJSONRPCBlockRangeLimit
+	}
+
 	srv := &JSONRPC{
 		logger:     logger.Named("jsonrpc"),
 		config:     config,
-		dispatcher: newDispatcher(logger, config.Store, config.ChainID),
+		dispatcher: newDispatcher(logger, config.Store, config.ChainID, batchLengthLimit, blockRangeLimit),
 	}
 
 	// start http server

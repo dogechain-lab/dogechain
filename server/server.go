@@ -575,6 +575,8 @@ func (s *Server) setupJSONRPC() error {
 		Addr:                     s.config.JSONRPC.JSONRPCAddr,
 		ChainID:                  uint64(s.config.Chain.Params.ChainID),
 		AccessControlAllowOrigin: s.config.JSONRPC.AccessControlAllowOrigin,
+		BatchLengthLimit:         s.config.JSONRPC.BatchLengthLimit,
+		BlockRangeLimit:          s.config.JSONRPC.BlockRangeLimit,
 	}
 
 	srv, err := jsonrpc.NewJSONRPC(s.logger, conf)
@@ -608,6 +610,7 @@ func (s *Server) setupGraphQL() error {
 		Addr:                     s.config.GraphQL.GraphQLAddr,
 		ChainID:                  uint64(s.config.Chain.Params.ChainID),
 		AccessControlAllowOrigin: s.config.GraphQL.AccessControlAllowOrigin,
+		BlockRangeLimit:          s.config.GraphQL.BlockRangeLimit,
 	}
 
 	srv, err := graphql.NewGraphQLService(s.logger, conf)
