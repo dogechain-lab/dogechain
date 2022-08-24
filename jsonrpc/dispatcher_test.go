@@ -267,7 +267,6 @@ func TestDispatcherBatchRequest(t *testing.T) {
 		return res
 	}
 
-	//nolint:lll
 	cases := []struct {
 		name          string
 		desc          string
