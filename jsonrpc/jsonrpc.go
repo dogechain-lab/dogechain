@@ -66,23 +66,11 @@ type Config struct {
 
 // NewJSONRPC returns the JSONRPC http server
 func NewJSONRPC(logger hclog.Logger, config *Config) (*JSONRPC, error) {
-	var (
-		batchLengthLimit = config.BatchLengthLimit
-		blockRangeLimit  = config.BlockRangeLimit
-	)
-
-	if batchLengthLimit == 0 {
-		batchLengthLimit = DefaultJSONRPCBatchRequestLimit
-	}
-
-	if blockRangeLimit == 0 {
-		blockRangeLimit = DefaultJSONRPCBlockRangeLimit
-	}
-
 	srv := &JSONRPC{
-		logger:     logger.Named("jsonrpc"),
-		config:     config,
-		dispatcher: newDispatcher(logger, config.Store, config.ChainID, batchLengthLimit, blockRangeLimit),
+		logger: logger.Named("jsonrpc"),
+		config: config,
+		dispatcher: newDispatcher(logger, config.Store, config.ChainID,
+			config.BatchLengthLimit, config.BlockRangeLimit),
 	}
 
 	// start http server

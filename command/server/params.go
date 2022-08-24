@@ -87,9 +87,6 @@ type serverParams struct {
 	secretsConfig *secrets.SecretsManagerConfig
 
 	logFileLocation string
-
-	jsonRPCBatchLengthLimit uint64
-	jsonRPCBlockRangeLimit  uint64
 }
 
 func (p *serverParams) validateFlags() error {
@@ -167,14 +164,14 @@ func (p *serverParams) generateConfig() *server.Config {
 		JSONRPC: &server.JSONRPC{
 			JSONRPCAddr:              p.jsonRPCAddress,
 			AccessControlAllowOrigin: p.corsAllowedOrigins,
-			BatchLengthLimit:         p.jsonRPCBatchLengthLimit,
-			BlockRangeLimit:          p.jsonRPCBlockRangeLimit,
+			BatchLengthLimit:         p.rawConfig.JSONRPCBatchRequestLimit,
+			BlockRangeLimit:          p.rawConfig.JSONRPCBlockRangeLimit,
 		},
 		EnableGraphQL: p.rawConfig.EnableGraphQL,
 		GraphQL: &server.GraphQL{
 			GraphQLAddr:              p.graphqlAddress,
 			AccessControlAllowOrigin: p.corsAllowedOrigins,
-			BlockRangeLimit:          p.jsonRPCBlockRangeLimit,
+			BlockRangeLimit:          p.rawConfig.JSONRPCBlockRangeLimit,
 		},
 		GRPCAddr:   p.grpcAddress,
 		LibP2PAddr: p.libp2pAddress,

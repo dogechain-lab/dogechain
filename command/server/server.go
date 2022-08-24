@@ -235,14 +235,14 @@ func setFlags(cmd *cobra.Command) {
 	)
 
 	cmd.Flags().Uint64Var(
-		&params.jsonRPCBatchLengthLimit,
+		&params.rawConfig.JSONRPCBatchRequestLimit,
 		jsonRPCBatchRequestLimitFlag,
 		defaultConfig.JSONRPCBatchRequestLimit,
 		"the max length to be considered when handling json-rpc batch requests",
 	)
 
 	cmd.Flags().Uint64Var(
-		&params.jsonRPCBlockRangeLimit,
+		&params.rawConfig.JSONRPCBlockRangeLimit,
 		jsonRPCBlockRangeLimitFlag,
 		defaultConfig.JSONRPCBlockRangeLimit,
 		"the max block range to be considered when executing json-rpc requests "+

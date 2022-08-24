@@ -39,15 +39,10 @@ type GraphQLStore interface {
 
 // NewJSONRPC returns the JSONRPC http server
 func NewGraphQLService(logger hclog.Logger, config *Config) (*GraphQLService, error) {
-	var blockRangeLimit = config.BlockRangeLimit
-	if blockRangeLimit == 0 {
-		blockRangeLimit = rpc.DefaultJSONRPCBlockRangeLimit
-	}
-
 	q := Resolver{
 		backend:       config.Store,
 		chainID:       config.ChainID,
-		filterManager: rpc.NewFilterManager(hclog.NewNullLogger(), config.Store, blockRangeLimit),
+		filterManager: rpc.NewFilterManager(hclog.NewNullLogger(), config.Store, config.BlockRangeLimit),
 	}
 
 	s, err := graphql.ParseSchema(schema, &q)

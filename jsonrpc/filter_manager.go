@@ -438,19 +438,19 @@ func (f *FilterManager) getLogsFromBlocks(query *LogQuery) ([]*Log, error) {
 		return nil, err
 	}
 
-	if to < from {
-		return nil, ErrIncorrectBlockRange
-	}
-
-	// avoid handling large block ranges
-	if to-from > f.blockRangeLimit {
-		return nil, ErrBlockRangeTooHigh
-	}
-
 	// If from equals genesis block
 	// skip it
 	if from == 0 {
 		from = 1
+	}
+
+	if to < from {
+		return nil, ErrIncorrectBlockRange
+	}
+
+	// if not disabled, avoid handling large block ranges
+	if f.blockRangeLimit > 0 && to-from > f.blockRangeLimit {
+		return nil, ErrBlockRangeTooHigh
 	}
 
 	logs := make([]*Log, 0)
