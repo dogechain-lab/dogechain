@@ -289,6 +289,10 @@ OUT_LOOP:
 
 		// set timer to remove filter
 		if filterBase != nil {
+			// It is awful, which would simple drop the not expired timer to the GC,
+			// which might take several minutes to recycle it.
+			// And even worse, the ws filter don't have an expire timestamp, which
+			// means we might make an imediate fired timer.
 			timeoutCh = time.After(time.Until(filterBase.expiredAt))
 		}
 
@@ -307,6 +311,8 @@ OUT_LOOP:
 
 				continue OUT_LOOP
 			}
+
+			f.logger.Info("filterBase timeout", "id", filterBase.id, "expired", filterBase.expiredAt)
 
 			if !f.Uninstall(filterBase.id) {
 				f.logger.Error("failed to uninstall filter", "id", filterBase.id)
@@ -550,6 +556,8 @@ func (f *FilterManager) addFilter(filter filter) string {
 		f.timeouts.addFilter(base)
 		f.emitSignalToUpdateCh()
 	}
+
+	f.logger.Debug("filter added", "id", base.id, "timeout", base.expiredAt)
 
 	return base.id
 }
