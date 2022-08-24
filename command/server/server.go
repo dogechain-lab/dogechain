@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/dogechain-lab/dogechain/blockchain/storage/leveldb"
 	"github.com/dogechain-lab/dogechain/command"
 	"github.com/dogechain-lab/dogechain/crypto"
 	"github.com/dogechain-lab/dogechain/helper/daemon"
@@ -60,6 +61,20 @@ func setFlags(cmd *cobra.Command) {
 		configFlag,
 		"",
 		"the path to the CLI config. Supports .json and .hcl",
+	)
+
+	cmd.Flags().IntVar(
+		&params.leveldbCacheSize,
+		leveldbCacheFlag,
+		leveldb.DefaultCache,
+		"the size of the leveldb cache in MB",
+	)
+
+	cmd.Flags().IntVar(
+		&params.leveldbHandles,
+		leveldbHandlesFlag,
+		leveldb.DefaultHandles,
+		"the number of handles to leveldb open files",
 	)
 
 	cmd.Flags().StringVar(

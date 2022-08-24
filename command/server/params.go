@@ -17,6 +17,8 @@ const (
 	configFlag                   = "config"
 	genesisPathFlag              = "chain"
 	dataDirFlag                  = "data-dir"
+	leveldbCacheFlag             = "leveldb.cache-size"
+	leveldbHandlesFlag           = "leveldb.handles"
 	libp2pAddressFlag            = "libp2p"
 	prometheusAddressFlag        = "prometheus"
 	natFlag                      = "nat"
@@ -66,6 +68,9 @@ var (
 type serverParams struct {
 	rawConfig  *Config
 	configPath string
+
+	leveldbCacheSize int // in MB
+	leveldbHandles   int
 
 	libp2pAddress     *net.TCPAddr
 	prometheusAddress *net.TCPAddr
@@ -198,6 +203,8 @@ func (p *serverParams) generateConfig() *server.Config {
 		PromoteOutdateSeconds: p.rawConfig.TxPool.PromoteOutdateSeconds,
 		SecretsManager:        p.secretsConfig,
 		RestoreFile:           p.getRestoreFilePath(),
+		LeveldbCacheSize:      p.leveldbCacheSize,
+		LeveldbHandles:        p.leveldbHandles,
 		BlockTime:             p.rawConfig.BlockTime,
 		LogLevel:              hclog.LevelFromString(p.rawConfig.LogLevel),
 		LogFilePath:           p.logFileLocation,

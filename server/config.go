@@ -37,6 +37,9 @@ type Config struct {
 	DataDir     string
 	RestoreFile *string
 
+	LeveldbCacheSize int // in MB
+	LeveldbHandles   int
+
 	Seal           bool
 	SecretsManager *secrets.SecretsManagerConfig
 

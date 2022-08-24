@@ -6,6 +6,19 @@ import (
 	"github.com/dogechain-lab/dogechain/blockchain/storage"
 	"github.com/hashicorp/go-hclog"
 	"github.com/syndtr/goleveldb/leveldb"
+	leveldbopt "github.com/syndtr/goleveldb/leveldb/opt"
+)
+
+const (
+	// minCache is the minimum memory allocate to leveldb
+	// half write, half read
+	minCache = 16
+
+	// minHandles is the minimum number of files handles to leveldb open files
+	minHandles = 16
+
+	DefaultCache   = 16  // 16 MiB
+	DefaultHandles = 256 // files handles to leveldb open files
 )
 
 // Factory creates a leveldb storage
@@ -20,12 +33,45 @@ func Factory(config map[string]interface{}, logger hclog.Logger) (storage.Storag
 		return nil, fmt.Errorf("path is not a string")
 	}
 
-	return NewLevelDBStorage(pathStr, logger)
+	cache, ok := config["cache"]
+	if !ok {
+		cache = minCache
+	}
+
+	cacheInt, ok := cache.(int)
+	if !ok {
+		return nil, fmt.Errorf("cache is not a int")
+	}
+
+	handles, ok := config["handles"]
+	if !ok {
+		handles = minHandles
+	}
+
+	handlesInt, ok := handles.(int)
+	if !ok {
+		return nil, fmt.Errorf("handles is not a int")
+	}
+
+	return NewLevelDBStorage(pathStr, cacheInt, handlesInt, logger)
 }
 
 // NewLevelDBStorage creates the new storage reference with leveldb
-func NewLevelDBStorage(path string, logger hclog.Logger) (storage.Storage, error) {
-	db, err := leveldb.OpenFile(path, nil)
+func NewLevelDBStorage(path string, cache int, handles int, logger hclog.Logger) (storage.Storage, error) {
+	opt := &leveldbopt.Options{}
+
+	if cache < minCache {
+		cache = minCache
+	}
+	if handles < minHandles {
+		handles = minHandles
+	}
+
+	opt.OpenFilesCacheCapacity = handles
+	opt.BlockCacheCapacity = cache / 2 * leveldbopt.MiB
+	opt.WriteBuffer = cache / 4 * leveldbopt.MiB
+
+	db, err := leveldb.OpenFile(path, opt)
 	if err != nil {
 		return nil, err
 	}

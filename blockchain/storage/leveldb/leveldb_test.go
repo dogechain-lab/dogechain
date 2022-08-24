@@ -17,7 +17,8 @@ func newStorage(t *testing.T) (storage.Storage, func()) {
 		t.Fatal(err)
 	}
 
-	s, err := NewLevelDBStorage(path, hclog.NewNullLogger())
+	s, err := NewLevelDBStorage(
+		path, 0, 0, hclog.NewNullLogger())
 	if err != nil {
 		t.Fatal(err)
 	}
