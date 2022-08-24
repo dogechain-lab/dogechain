@@ -263,9 +263,11 @@ func TestDispatcherFuncDecode(t *testing.T) {
 func TestDispatcherBatchRequest(t *testing.T) {
 	handle := func(dispatcher *Dispatcher, reqBody []byte) []byte {
 		res, _ := dispatcher.Handle(reqBody)
+
 		return res
 	}
 
+	//nolint:lll
 	cases := []struct {
 		name          string
 		desc          string
@@ -282,7 +284,7 @@ func TestDispatcherBatchRequest(t *testing.T) {
                                {"id":1,"jsonrpc":"2.0","method":"eth_getBalance","params":["0x1", true]},
                                {"id":2,"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["0x2", true]},
                                {"id":3,"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["0x3", true]},
-                               {"id":4,"jsonrpc":"2.0","method": "web3_sha3","params": ["0x68656c6c6f20776f726c64"]}]`)...),
+                               {"id":4,"jsonrpc":"2.0","method":"web3_sha3","params": ["0x68656c6c6f20776f726c64"]}]`)...),
 			nil,
 			[]*SuccessResponse{
 				{Error: &ObjectError{Code: -32602, Message: "Invalid Params"}},

@@ -715,6 +715,7 @@ func (f *FilterManager) appendLogsToFilters(header *types.Header) error {
 					// Extract tx Hash
 					receipt.TxHash = block.Transactions[indx].Hash
 				}
+
 				f.appendLog(&Log{
 					Address:     log.Address,
 					Topics:      log.Topics,
