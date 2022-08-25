@@ -42,6 +42,7 @@ func shuffleTxPoolEvents(
 
 	randomEventType := func(supported bool) proto.EventType {
 		for {
+			//nolint:gosec
 			randNum, _ := rand.Int(rand.Reader, big.NewInt(int64(len(supportedTypes))))
 
 			randType := allEvents[randNum.Int64()]
