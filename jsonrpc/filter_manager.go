@@ -553,12 +553,8 @@ func (f *FilterManager) GetFilterChanges(id string) (string, error) {
 
 // getFilterAndChanges returns the updates of the filter with given ID in string
 func (f *FilterManager) getFilterAndChanges(id string) (filter, string, error) {
-	f.RLock()
-	defer f.RUnlock()
-
-	filter, ok := f.filters[id]
-
-	if !ok {
+	filter := f.getFilterByID(id)
+	if filter == nil {
 		return nil, "", ErrFilterDoesNotExists
 	}
 
