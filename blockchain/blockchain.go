@@ -181,8 +181,7 @@ func (b *Blockchain) GetAvgGasPrice() *big.Int {
 func NewBlockchain(
 	logger hclog.Logger,
 	dataDir string,
-	cahce int,
-	handles int,
+	levelOpt *leveldb.Options,
 	config *chain.Chain,
 	consensus Verifier,
 	executor Executor,
@@ -211,8 +210,7 @@ func NewBlockchain(
 	} else {
 		if db, err = leveldb.NewLevelDBStorage(
 			filepath.Join(dataDir, "blockchain"),
-			cahce,
-			handles,
+			levelOpt,
 			logger,
 		); err != nil {
 			return nil, err

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/dogechain-lab/dogechain/blockchain/storage"
+	"github.com/dogechain-lab/dogechain/blockchain/storage/leveldb"
 	"github.com/dogechain-lab/dogechain/chain"
 	"github.com/dogechain-lab/dogechain/state"
 	itrie "github.com/dogechain-lab/dogechain/state/immutable-trie"
@@ -327,7 +328,7 @@ func newBlockChain(config *chain.Chain, executor Executor) (*Blockchain, error) 
 		executor = &mockExecutor{}
 	}
 
-	b, err := NewBlockchain(hclog.NewNullLogger(), "", 0, 0, config, &MockVerifier{}, executor)
+	b, err := NewBlockchain(hclog.NewNullLogger(), "", leveldb.NewDefaultOptons(), config, &MockVerifier{}, executor)
 	if err != nil {
 		return nil, err
 	}

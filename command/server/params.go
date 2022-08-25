@@ -6,6 +6,7 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 
+	"github.com/dogechain-lab/dogechain/blockchain/storage/leveldb"
 	"github.com/dogechain-lab/dogechain/chain"
 	"github.com/dogechain-lab/dogechain/network"
 	"github.com/dogechain-lab/dogechain/secrets"
@@ -19,6 +20,10 @@ const (
 	dataDirFlag                  = "data-dir"
 	leveldbCacheFlag             = "leveldb.cache-size"
 	leveldbHandlesFlag           = "leveldb.handles"
+	leveldbBloomKeyBitsFlag      = "leveldb.bloom-bits"
+	leveldbTableSizeFlag         = "leveldb.table-size"
+	leveldbTotalTableSizeFlag    = "leveldb.total-table-size"
+	leveldbNoSyncFlag            = "leveldb.nosync"
 	libp2pAddressFlag            = "libp2p"
 	prometheusAddressFlag        = "prometheus"
 	natFlag                      = "nat"
@@ -52,6 +57,7 @@ const (
 
 var (
 	params = &serverParams{
+		leveldbOptions: leveldb.NewDefaultOptons(),
 		rawConfig: &Config{
 			Telemetry: &Telemetry{},
 			Network:   &Network{},
@@ -69,9 +75,7 @@ type serverParams struct {
 	rawConfig  *Config
 	configPath string
 
-	leveldbCacheSize int // in MB
-	leveldbHandles   int
-
+	leveldbOptions    *leveldb.Options
 	libp2pAddress     *net.TCPAddr
 	prometheusAddress *net.TCPAddr
 	natAddress        net.IP
@@ -203,8 +207,7 @@ func (p *serverParams) generateConfig() *server.Config {
 		PromoteOutdateSeconds: p.rawConfig.TxPool.PromoteOutdateSeconds,
 		SecretsManager:        p.secretsConfig,
 		RestoreFile:           p.getRestoreFilePath(),
-		LeveldbCacheSize:      p.leveldbCacheSize,
-		LeveldbHandles:        p.leveldbHandles,
+		LeveldbOptions:        p.leveldbOptions,
 		BlockTime:             p.rawConfig.BlockTime,
 		LogLevel:              hclog.LevelFromString(p.rawConfig.LogLevel),
 		LogFilePath:           p.logFileLocation,

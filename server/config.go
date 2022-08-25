@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 
+	"github.com/dogechain-lab/dogechain/blockchain/storage/leveldb"
 	"github.com/dogechain-lab/dogechain/chain"
 	"github.com/dogechain-lab/dogechain/network"
 	"github.com/dogechain-lab/dogechain/secrets"
@@ -37,8 +38,7 @@ type Config struct {
 	DataDir     string
 	RestoreFile *string
 
-	LeveldbCacheSize int // in MB
-	LeveldbHandles   int
+	LeveldbOptions *leveldb.Options
 
 	Seal           bool
 	SecretsManager *secrets.SecretsManagerConfig

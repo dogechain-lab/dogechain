@@ -201,8 +201,7 @@ func NewServer(config *Config) (*Server, error) {
 	m.blockchain, err = blockchain.NewBlockchain(
 		logger,
 		m.config.DataDir,
-		m.config.LeveldbCacheSize,
-		m.config.LeveldbHandles,
+		m.config.LeveldbOptions,
 		config.Chain,
 		nil,
 		m.executor,
