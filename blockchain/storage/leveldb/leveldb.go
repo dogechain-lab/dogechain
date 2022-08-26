@@ -127,12 +127,15 @@ func NewLevelDBStorage(path string, o *Options, logger hclog.Logger) (storage.St
 	if o.CacheSize < minCache {
 		cache = minCache
 	}
+
 	if handles < minHandles {
 		handles = minHandles
 	}
+
 	if compactionTableSize < DefaultCompactionTableSize {
 		compactionTableSize = DefaultCompactionTableSize
 	}
+
 	if compactionTotalSize < DefaultCompactionTotalSize ||
 		compactionTotalSize < compactionTableSize {
 		compactionTotalSize = int(common.Max(
