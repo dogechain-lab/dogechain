@@ -580,6 +580,7 @@ func (f *FilterManager) removeFilterByID(id string) bool {
 	if !ok {
 		// not exits, should not retry
 		f.logger.Debug("filter not in list", "id", id)
+
 		return true
 	}
 
