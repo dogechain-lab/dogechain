@@ -1,8 +1,6 @@
 package leveldb
 
 import (
-	"fmt"
-
 	"github.com/dogechain-lab/dogechain/blockchain/storage"
 	"github.com/dogechain-lab/dogechain/helper/common"
 	"github.com/hashicorp/go-hclog"
@@ -47,72 +45,6 @@ func NewDefaultOptons() *Options {
 		CompactionTotalSize: DefaultCompactionTotalSize,
 		NoSync:              DefaultNoSync,
 	}
-}
-
-// Factory creates a leveldb storage
-func Factory(config map[string]interface{}, logger hclog.Logger) (storage.Storage, error) {
-	path, ok := config["path"]
-	if !ok {
-		return nil, fmt.Errorf("path not found")
-	}
-
-	pathStr, ok := path.(string)
-	if !ok {
-		return nil, fmt.Errorf("path is not a string")
-	}
-
-	// get the options
-	opt := NewDefaultOptons()
-
-	cache, ok := config["cache"]
-	if ok {
-		opt.CacheSize, ok = cache.(int)
-		if !ok {
-			return nil, fmt.Errorf("cache is not a int")
-		}
-	}
-
-	handles, ok := config["handles"]
-	if ok {
-		opt.Handles, ok = handles.(int)
-		if !ok {
-			return nil, fmt.Errorf("handles is not a int")
-		}
-	}
-
-	bloomKeyBits, ok := config["bloomKeyBits"]
-	if ok {
-		opt.BloomKeyBits, ok = bloomKeyBits.(int)
-		if !ok {
-			return nil, fmt.Errorf("bloomKeyBits is not a int")
-		}
-	}
-
-	compactionTableSize, ok := config["compactionTableSize"]
-	if ok {
-		opt.CompactionTableSize, ok = compactionTableSize.(int)
-		if !ok {
-			return nil, fmt.Errorf("compactionTableSize is not a int")
-		}
-	}
-
-	compactionTotalSize, ok := config["compactionTotalSize"]
-	if ok {
-		opt.CompactionTotalSize, ok = compactionTotalSize.(int)
-		if !ok {
-			return nil, fmt.Errorf("compactionTableSize is not a int")
-		}
-	}
-
-	nosync, ok := config["nosync"]
-	if ok {
-		opt.NoSync, ok = nosync.(bool)
-		if !ok {
-			return nil, fmt.Errorf("nosync is not a bool")
-		}
-	}
-
-	return NewLevelDBStorage(pathStr, opt, logger)
 }
 
 // NewLevelDBStorage creates the new storage reference with leveldb
