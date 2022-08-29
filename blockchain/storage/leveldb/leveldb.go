@@ -17,13 +17,11 @@ const (
 	// minHandles is the minimum number of files handles to leveldb open files
 	minHandles = 16
 
-	DefaultCache   = 16  // 16 MiB
-	DefaultHandles = 512 // files handles to leveldb open files
-
-	DefaultBloomKeyBits = 16 // bloom filter bits
-
-	DefaultCompactionTableSize = 2  // 2 MiB
-	DefaultCompactionTotalSize = 10 // 10 MiB
+	DefaultCache               = 1024  // 16 MiB
+	DefaultHandles             = 512   // files handles to leveldb open files
+	DefaultBloomKeyBits        = 2048  // bloom filter bits
+	DefaultCompactionTableSize = 8     // 8  MiB
+	DefaultCompactionTotalSize = 32    // 32 MiB
 	DefaultNoSync              = false
 )
 
@@ -84,12 +82,14 @@ func NewLevelDBStorage(path string, o *Options, logger hclog.Logger) (storage.St
 	opt.Filter = filter.NewBloomFilter(bloomKeyBits)
 	opt.NoSync = o.NoSync
 
-	logger.Info("leveldb", "OpenFilesCacheCapacity", opt.OpenFilesCacheCapacity)
-	logger.Info("leveldb", "CompactionTableSize", compactionTableSize)
-	logger.Info("leveldb", "BlockCacheCapacity", cache/2)
-	logger.Info("leveldb", "WriteBuffer", cache/4)
-	logger.Info("leveldb", "BloomFilter bits", bloomKeyBits)
-	logger.Info("leveldb", "NoSync", o.NoSync)
+	logger.Info("leveldb",
+		"OpenFilesCacheCapacity", opt.OpenFilesCacheCapacity,
+		"CompactionTableSize", compactionTableSize,
+		"BlockCacheCapacity", cache/2,
+		"WriteBuffer", cache/4,
+		"BloomFilter bits", bloomKeyBits,
+		"NoSync", o.NoSync,
+	)
 
 	db, err := leveldb.OpenFile(path, opt)
 	if err != nil {
