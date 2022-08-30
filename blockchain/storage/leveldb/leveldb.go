@@ -12,16 +12,16 @@ import (
 const (
 	// minCache is the minimum memory allocate to leveldb
 	// half write, half read
-	minCache = 16
+	minCache = 16 // 16 MiB
 
 	// minHandles is the minimum number of files handles to leveldb open files
 	minHandles = 16
 
-	DefaultCache               = 1024  // 16 MiB
-	DefaultHandles             = 512   // files handles to leveldb open files
-	DefaultBloomKeyBits        = 2048  // bloom filter bits
-	DefaultCompactionTableSize = 8     // 8  MiB
-	DefaultCompactionTotalSize = 32    // 32 MiB
+	DefaultCache               = 1024 // 1 GiB
+	DefaultHandles             = 512  // files handles to leveldb open files
+	DefaultBloomKeyBits        = 2048 // bloom filter bits (256 bytes)
+	DefaultCompactionTableSize = 8    // 8  MiB
+	DefaultCompactionTotalSize = 32   // 32 MiB
 	DefaultNoSync              = false
 )
 
