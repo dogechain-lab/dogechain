@@ -161,7 +161,11 @@ func (m *accountsMap) allTxs(includeEnqueued bool) (
 }
 
 func (m *accountsMap) pruneStaleEnqueuedTxs(outdateDuration time.Duration) []*types.Transaction {
-	pruned := make([]*types.Transaction, 0)
+	var (
+		pruned = make([]*types.Transaction, 0)
+		// use same time for faster comparison
+		outdateTimeBound = time.Now().Add(-1 * outdateDuration)
+	)
 
 	m.Range(func(_, value interface{}) bool {
 		account, ok := value.(*account)
@@ -169,15 +173,19 @@ func (m *accountsMap) pruneStaleEnqueuedTxs(outdateDuration time.Duration) []*ty
 			// It shouldn't be. We just do some prevention work.
 			return false
 		}
+		// should not do anything, make things faster
+		if account.enqueued.length() == 0 {
+			return true
+		}
 
-		account.enqueued.lock(true)
-		defer account.enqueued.unlock()
-
-		if account.IsOutdated(outdateDuration) {
+		if account.IsOutdated(outdateTimeBound) {
+			// only lock the account when needed
+			account.enqueued.lock(true)
 			pruned = append(
 				pruned,
 				account.enqueued.clear()...,
 			)
+			account.enqueued.unlock()
 		}
 
 		return true
@@ -353,7 +361,8 @@ func (a *account) updatePromoted() {
 	a.lastPromoted = time.Now()
 }
 
-// IsOutdated returns whether account was outdated comparing with the duration
-func (a *account) IsOutdated(outdateDuration time.Duration) bool {
-	return time.Since(a.lastPromoted) >= outdateDuration
+// IsOutdated returns whether account was outdated comparing with the outdate time bound,
+// the promoted timestamp before the bound is outdated.
+func (a *account) IsOutdated(outdateTimeBound time.Time) bool {
+	return a.lastPromoted.Before(outdateTimeBound)
 }
