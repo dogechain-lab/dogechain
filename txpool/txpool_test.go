@@ -1281,18 +1281,21 @@ func TestEnqueuedPruning(t *testing.T) {
 
 	testTable := []struct {
 		name            string
+		futureTx        *types.Transaction
 		lastPromoted    time.Time
 		expectedTxCount uint64
 		expectedGauge   uint64
 	}{
 		{
 			"prune stale tx",
+			newTx(addr1, 3, 1),
 			time.Now().Add(-time.Second * DefaultPromoteOutdateSeconds),
 			0,
 			0,
 		},
 		{
 			"no stale tx to prune",
+			newTx(addr1, 5, 1),
 			time.Now().Add(-5 * time.Second),
 			1,
 			1,
@@ -1310,7 +1313,8 @@ func TestEnqueuedPruning(t *testing.T) {
 			pool.SetSigner(&mockSigner{})
 
 			go func() {
-				err := pool.addTx(local, newTx(addr1, 5, 1))
+				// add a future nonce tx
+				err := pool.addTx(local, test.futureTx)
 				assert.NoError(t, err)
 			}()
 			pool.handleEnqueueRequest(<-pool.enqueueReqCh)
