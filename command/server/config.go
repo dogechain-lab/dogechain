@@ -33,6 +33,7 @@ type Config struct {
 	GraphQLAddr              string     `json:"graphql_addr"`
 	JSONRPCBatchRequestLimit uint64     `json:"json_rpc_batch_request_limit" yaml:"json_rpc_batch_request_limit"`
 	JSONRPCBlockRangeLimit   uint64     `json:"json_rpc_block_range_limit" yaml:"json_rpc_block_range_limit"`
+	EnableWS                 bool       `json:"enable_ws"`
 }
 
 // Telemetry holds the config details for metric services.
@@ -101,6 +102,7 @@ func DefaultConfig() *Config {
 		EnableGraphQL:            false,
 		JSONRPCBatchRequestLimit: jsonrpc.DefaultJSONRPCBatchRequestLimit,
 		JSONRPCBlockRangeLimit:   jsonrpc.DefaultJSONRPCBlockRangeLimit,
+		EnableWS:                 false,
 	}
 }
 

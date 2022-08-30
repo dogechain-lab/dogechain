@@ -62,6 +62,7 @@ type Config struct {
 	AccessControlAllowOrigin []string
 	BatchLengthLimit         uint64
 	BlockRangeLimit          uint64
+	EnableWS                 bool
 }
 
 // NewJSONRPC returns the JSONRPC http server
@@ -95,7 +96,10 @@ func (j *JSONRPC) setupHTTP() error {
 	jsonRPCHandler := http.HandlerFunc(j.handle)
 	mux.Handle("/", middlewareFactory(j.config)(jsonRPCHandler))
 
-	mux.HandleFunc("/ws", j.handleWs)
+	// would only enable websocket when set
+	if j.config.EnableWS {
+		mux.HandleFunc("/ws", j.handleWs)
+	}
 
 	srv := http.Server{
 		Handler:           mux,

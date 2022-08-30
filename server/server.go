@@ -597,6 +597,7 @@ func (s *Server) setupJSONRPC() error {
 		AccessControlAllowOrigin: s.config.JSONRPC.AccessControlAllowOrigin,
 		BatchLengthLimit:         s.config.JSONRPC.BatchLengthLimit,
 		BlockRangeLimit:          s.config.JSONRPC.BlockRangeLimit,
+		EnableWS:                 s.config.JSONRPC.EnableWS,
 	}
 
 	srv, err := jsonrpc.NewJSONRPC(s.logger, conf)

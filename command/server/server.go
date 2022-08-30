@@ -293,6 +293,13 @@ func setFlags(cmd *cobra.Command) {
 			"that consider fromBlock/toBlock values (e.g. eth_getLogs)",
 	)
 
+	cmd.Flags().BoolVar(
+		&params.rawConfig.EnableWS,
+		enableWSFlag,
+		false,
+		"the flag indicating that node enable websocket service",
+	)
+
 	setDevFlags(cmd)
 }
 

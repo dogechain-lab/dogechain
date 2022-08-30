@@ -71,6 +71,7 @@ type JSONRPC struct {
 	AccessControlAllowOrigin []string
 	BatchLengthLimit         uint64
 	BlockRangeLimit          uint64
+	EnableWS                 bool
 }
 
 type GraphQL struct {
