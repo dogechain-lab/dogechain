@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 	"math/big"
+	"strconv"
 	"testing"
 	"time"
 
@@ -1276,7 +1277,7 @@ func TestDemote(t *testing.T) {
 	})
 }
 
-func TestEnqueuedPruning(t *testing.T) {
+func TestTxpool_PruneStaleAccounts(t *testing.T) {
 	t.Parallel()
 
 	testTable := []struct {
@@ -1333,6 +1334,57 @@ func TestEnqueuedPruning(t *testing.T) {
 			assert.Equal(t, test.expectedGauge, pool.gauge.read())
 		})
 	}
+}
+
+func BenchmarkPruneStaleAccounts1KAccounts(b *testing.B)   { benchmarkPruneStaleAccounts(b, 1000) }
+func BenchmarkPruneStaleAccounts10KAccounts(b *testing.B)  { benchmarkPruneStaleAccounts(b, 10000) }
+func BenchmarkPruneStaleAccounts100KAccounts(b *testing.B) { benchmarkPruneStaleAccounts(b, 100000) }
+
+func benchmarkPruneStaleAccounts(b *testing.B, accountSize int) {
+	pool, err := newTestPoolWithSlots(uint64(accountSize + 1))
+	assert.NoError(b, err)
+
+	pool.SetSigner(&mockSigner{})
+	pool.pruneTick = time.Second // check on every second
+
+	pool.Start()
+	defer pool.Close()
+
+	var (
+		addresses        = make([]types.Address, accountSize)
+		lastPromotedTime = time.Now()
+	)
+
+	for i := 0; i < accountSize; i++ {
+		addresses[i] = types.StringToAddress("0x" + strconv.FormatInt(int64(1024+i), 16))
+		addr := addresses[i]
+		// add enough future tx
+		err := pool.addTx(local, newTx(addr, uint64(10+i), 1))
+		if !assert.NoError(b, err, "add tx failed") {
+			b.FailNow()
+		}
+		// set the account lastPromoted to the same timestamp
+		if !pool.accounts.exists(addr) {
+			pool.createAccountOnce(addr)
+		}
+		pool.accounts.get(addr).lastPromoted = lastPromotedTime
+	}
+
+	// mark all transactions outdated
+	pool.promoteOutdateDuration = time.Since(lastPromotedTime) - time.Millisecond
+
+	// Reset the benchmark and measure pruning task
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		// benchmark pruning task
+		pool.pruneStaleAccounts()
+	}
+
+	promoted, enqueued := pool.GetTxs(true)
+	assert.Len(b, promoted, 0)
+	assert.Len(b, enqueued, 0)
 }
 
 /* "Integrated" tests */
