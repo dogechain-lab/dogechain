@@ -1341,6 +1341,8 @@ func BenchmarkPruneStaleAccounts10KAccounts(b *testing.B)  { benchmarkPruneStale
 func BenchmarkPruneStaleAccounts100KAccounts(b *testing.B) { benchmarkPruneStaleAccounts(b, 100000) }
 
 func benchmarkPruneStaleAccounts(b *testing.B, accountSize int) {
+	b.Helper()
+
 	pool, err := newTestPoolWithSlots(uint64(accountSize + 1))
 	assert.NoError(b, err)
 
@@ -1367,6 +1369,7 @@ func benchmarkPruneStaleAccounts(b *testing.B, accountSize int) {
 		if !pool.accounts.exists(addr) {
 			pool.createAccountOnce(addr)
 		}
+
 		pool.accounts.get(addr).lastPromoted = lastPromotedTime
 	}
 
