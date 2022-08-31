@@ -64,42 +64,42 @@ func setFlags(cmd *cobra.Command) {
 	)
 
 	cmd.Flags().IntVar(
-		&params.leveldbOptions.CacheSize,
+		&params.leveldbCacheSize,
 		leveldbCacheFlag,
 		leveldb.DefaultCache,
 		"the size of the leveldb cache in MB",
 	)
 
 	cmd.Flags().IntVar(
-		&params.leveldbOptions.Handles,
+		&params.leveldbHandles,
 		leveldbHandlesFlag,
 		leveldb.DefaultHandles,
 		"the number of handles to leveldb open files",
 	)
 
 	cmd.Flags().IntVar(
-		&params.leveldbOptions.BloomKeyBits,
+		&params.leveldbBloomKeyBits,
 		leveldbBloomKeyBitsFlag,
 		leveldb.DefaultBloomKeyBits,
 		"the bits of leveldb bloom filters",
 	)
 
 	cmd.Flags().IntVar(
-		&params.leveldbOptions.CompactionTableSize,
+		&params.leveldbTableSize,
 		leveldbTableSizeFlag,
 		leveldb.DefaultCompactionTableSize,
 		"the leveldb 'sorted table' size in MB",
 	)
 
 	cmd.Flags().IntVar(
-		&params.leveldbOptions.CompactionTotalSize,
+		&params.leveldbTotalTableSize,
 		leveldbTotalTableSizeFlag,
 		leveldb.DefaultCompactionTotalSize,
 		"limits leveldb total size of 'sorted table' for each level in MB",
 	)
 
 	cmd.Flags().BoolVar(
-		&params.leveldbOptions.NoSync,
+		&params.leveldbNoSync,
 		leveldbNoSyncFlag,
 		leveldb.DefaultNoSync,
 		"leveldb nosync allows completely disable fsync",

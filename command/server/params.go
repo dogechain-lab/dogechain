@@ -6,7 +6,6 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 
-	"github.com/dogechain-lab/dogechain/blockchain/storage/leveldb"
 	"github.com/dogechain-lab/dogechain/chain"
 	"github.com/dogechain-lab/dogechain/network"
 	"github.com/dogechain-lab/dogechain/secrets"
@@ -57,7 +56,6 @@ const (
 
 var (
 	params = &serverParams{
-		leveldbOptions: leveldb.NewDefaultOptons(),
 		rawConfig: &Config{
 			Telemetry: &Telemetry{},
 			Network:   &Network{},
@@ -75,7 +73,13 @@ type serverParams struct {
 	rawConfig  *Config
 	configPath string
 
-	leveldbOptions    *leveldb.Options
+	leveldbCacheSize      int
+	leveldbHandles        int
+	leveldbBloomKeyBits   int
+	leveldbTableSize      int
+	leveldbTotalTableSize int
+	leveldbNoSync         bool
+
 	libp2pAddress     *net.TCPAddr
 	prometheusAddress *net.TCPAddr
 	natAddress        net.IP
@@ -207,11 +211,18 @@ func (p *serverParams) generateConfig() *server.Config {
 		PromoteOutdateSeconds: p.rawConfig.TxPool.PromoteOutdateSeconds,
 		SecretsManager:        p.secretsConfig,
 		RestoreFile:           p.getRestoreFilePath(),
-		LeveldbOptions:        p.leveldbOptions,
-		BlockTime:             p.rawConfig.BlockTime,
-		LogLevel:              hclog.LevelFromString(p.rawConfig.LogLevel),
-		LogFilePath:           p.logFileLocation,
-		Daemon:                p.isDaemon,
-		ValidatorKey:          p.validatorKey,
+		LeveldbOptions: &server.LeveldbOptions{
+			CacheSize:           p.leveldbCacheSize,
+			Handles:             p.leveldbHandles,
+			BloomKeyBits:        p.leveldbBloomKeyBits,
+			CompactionTableSize: p.leveldbTableSize,
+			CompactionTotalSize: p.leveldbTotalTableSize,
+			NoSync:              p.leveldbNoSync,
+		},
+		BlockTime:    p.rawConfig.BlockTime,
+		LogLevel:     hclog.LevelFromString(p.rawConfig.LogLevel),
+		LogFilePath:  p.logFileLocation,
+		Daemon:       p.isDaemon,
+		ValidatorKey: p.validatorKey,
 	}
 }

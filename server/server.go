@@ -13,6 +13,7 @@ import (
 
 	"github.com/dogechain-lab/dogechain/archive"
 	"github.com/dogechain-lab/dogechain/blockchain"
+	"github.com/dogechain-lab/dogechain/blockchain/storage/leveldb"
 	"github.com/dogechain-lab/dogechain/chain"
 	"github.com/dogechain-lab/dogechain/consensus"
 	"github.com/dogechain-lab/dogechain/crypto"
@@ -197,12 +198,24 @@ func NewServer(config *Config) (*Server, error) {
 	genesisRoot := m.executor.WriteGenesis(config.Chain.Genesis.Alloc)
 	config.Chain.Genesis.StateRoot = genesisRoot
 
+	// create leveldb storageBuilder
+	leveldbBuilder := leveldb.NewBuilder(
+		logger,
+		filepath.Join(m.config.DataDir, "blockchain"),
+	)
+
+	leveldbBuilder.SetCacheSize(config.LeveldbOptions.CacheSize).
+		SetHandles(config.LeveldbOptions.Handles).
+		SetBloomKeyBits(config.LeveldbOptions.BloomKeyBits).
+		SetCompactionTableSize(config.LeveldbOptions.CompactionTableSize).
+		SetCompactionTotalSize(config.LeveldbOptions.CompactionTotalSize).
+		SetNoSync(config.LeveldbOptions.NoSync)
+
 	// blockchain object
 	m.blockchain, err = blockchain.NewBlockchain(
 		logger,
-		m.config.DataDir,
-		m.config.LeveldbOptions,
 		config.Chain,
+		leveldbBuilder,
 		nil,
 		m.executor,
 	)
