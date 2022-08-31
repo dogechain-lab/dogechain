@@ -1,0 +1,34 @@
+linters:
+  # Enable specific linter
+  # https://golangci-lint.run/usage/linters/#enabled-by-default-linters
+  enable:
+    - dogsled
+    - dupl
+    - errname
+    - errorlint
+    - forcetypeassert
+    - goconst
+    - gofmt
+    - gosec
+    - importas
+    - lll
+    - makezero
+    - misspell
+    - nlreturn
+    - nolintlint
+    - prealloc
+    - predeclared
+    - stylecheck
+    - thelper
+    - tparallel
+    - unconvert
+    - wastedassign
+    - whitespace
+    - wsl
+
+issues:
+  exclude-rules:
+    - linters:
+        - staticcheck
+      path: "state/runtime/precompiled/base.go"
+      text: "SA1019:"
