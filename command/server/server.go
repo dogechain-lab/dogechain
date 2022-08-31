@@ -269,6 +269,8 @@ func setDevFlags(cmd *cobra.Command) {
 		"the client's dev notification interval in seconds (default 1)",
 	)
 
+	helper.RegisterPprofFlag(cmd)
+
 	_ = cmd.Flags().MarkHidden(devIntervalFlag)
 }
 
@@ -339,6 +341,7 @@ func askForConfirmation() string {
 }
 
 func runCommand(cmd *cobra.Command, _ []string) {
+	command.InitializePprofServer(cmd)
 	outputter := command.InitializeOutputter(cmd)
 
 	log.Println("Main process run isDaemon:", params.isDaemon)

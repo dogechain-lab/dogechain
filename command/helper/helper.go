@@ -226,6 +226,21 @@ func RegisterGraphQLFlag(cmd *cobra.Command) {
 	)
 }
 
+// RegisterPprofFlag registers the pprof flags for all child commands
+func RegisterPprofFlag(cmd *cobra.Command) {
+	cmd.PersistentFlags().Bool(
+		command.PprofFlag,
+		false,
+		"enable the pprof server",
+	)
+
+	cmd.PersistentFlags().String(
+		command.PprofAddressFlag,
+		fmt.Sprintf("%s:%d", LocalHostBinding, server.DefaultPprofPort),
+		"the address and port for the pprof service",
+	)
+}
+
 // ParseGraphQLAddress parses the passed in GraphQL address
 func ParseGraphQLAddress(graphqlAddress string) (*url.URL, error) {
 	return url.ParseRequestURI(graphqlAddress)

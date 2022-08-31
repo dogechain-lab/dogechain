@@ -22,6 +22,8 @@ const (
 	GRPCAddressFlag    = "grpc-address"
 	JSONRPCFlag        = "jsonrpc"
 	GraphQLAddressFlag = "graphql-address"
+	PprofFlag          = "pprof"
+	PprofAddressFlag   = "pprof-address"
 )
 
 // Legacy flag that needs to be present to preserve backwards
