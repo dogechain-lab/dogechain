@@ -78,13 +78,28 @@ func (n Nonce) MarshalText() ([]byte, error) {
 }
 
 func (h *Header) Copy() *Header {
-	hh := new(Header)
-	*hh = *h
+	newHeader := &Header{
+		ParentHash:   h.ParentHash,
+		Sha3Uncles:   h.Sha3Uncles,
+		Miner:        h.Miner,
+		StateRoot:    h.StateRoot,
+		TxRoot:       h.TxRoot,
+		ReceiptsRoot: h.ReceiptsRoot,
+		LogsBloom:    h.LogsBloom,
+		Difficulty:   h.Difficulty,
+		Number:       h.Number,
+		GasLimit:     h.GasLimit,
+		GasUsed:      h.GasUsed,
+		Timestamp:    h.Timestamp,
+		MixHash:      h.MixHash,
+		Nonce:        h.Nonce,
+		Hash:         h.Hash,
+	}
 
-	hh.ExtraData = make([]byte, len(h.ExtraData))
-	copy(hh.ExtraData[:], h.ExtraData[:])
+	newHeader.ExtraData = make([]byte, len(h.ExtraData))
+	copy(newHeader.ExtraData[:], h.ExtraData[:])
 
-	return hh
+	return newHeader
 }
 
 type Body struct {
