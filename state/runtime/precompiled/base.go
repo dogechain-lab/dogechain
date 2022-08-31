@@ -4,11 +4,12 @@ import (
 	"crypto/sha256"
 	"math/big"
 
-	"golang.org/x/crypto/ripemd160" //nolint:staticcheck
-
 	"github.com/dogechain-lab/dogechain/chain"
 	"github.com/dogechain-lab/dogechain/crypto"
 	"github.com/dogechain-lab/dogechain/helper/keccak"
+
+	//nolint:staticcheck
+	"golang.org/x/crypto/ripemd160"
 )
 
 type ecrecover struct {
