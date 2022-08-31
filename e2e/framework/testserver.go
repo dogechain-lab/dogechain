@@ -322,6 +322,10 @@ func (t *TestServer) Start(ctx context.Context) error {
 		"--jsonrpc", t.JSONRPCAddr(),
 	}
 
+	if t.Config.IsWSEnable {
+		args = append(args, "--enable-ws")
+	}
+
 	switch t.Config.Consensus {
 	case ConsensusIBFT:
 		args = append(args, "--data-dir", filepath.Join(t.Config.RootDir, t.Config.IBFTDir))

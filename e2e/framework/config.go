@@ -49,6 +49,7 @@ type TestServerConfig struct {
 	Signer         *crypto.EIP155Signer // Signer used for transactions
 	BridgeOwner    types.Address        // bridge contract owner
 	BridgeSigners  []types.Address      // bridge contract signers
+	IsWSEnable     bool                 // enable websocket or not
 }
 
 // DataDir returns path of data directory server uses
@@ -164,4 +165,8 @@ func (t *TestServerConfig) SetBridgeOwner(owner types.Address) {
 
 func (t *TestServerConfig) SetBridgeSigners(signers []types.Address) {
 	t.BridgeSigners = signers
+}
+
+func (t *TestServerConfig) EnableWebSocket() {
+	t.IsWSEnable = true
 }
