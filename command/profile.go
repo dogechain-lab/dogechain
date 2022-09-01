@@ -3,6 +3,7 @@ package command
 import (
 	"log"
 	"net/http"
+	"time"
 
 	"net/http/pprof"
 
@@ -27,13 +28,14 @@ func InitializePprofServer(cmd *cobra.Command) {
 		mux.Handle("/debug/pprof/block", pprof.Handler("block"))
 		mux.Handle("/debug/pprof/mutex", pprof.Handler("mutex"))
 
-		pprof_svr := &http.Server{
-			Addr:    address,
-			Handler: mux,
+		pprofSvr := &http.Server{
+			Addr:              address,
+			Handler:           mux,
+			ReadHeaderTimeout: 5 * time.Second,
 		}
 
 		go func() {
-			if err := pprof_svr.ListenAndServe(); err != nil {
+			if err := pprofSvr.ListenAndServe(); err != nil {
 				log.Fatalln("Failure in running pprof server", "err", err)
 			}
 		}()

@@ -226,7 +226,7 @@ func RegisterGraphQLFlag(cmd *cobra.Command) {
 	)
 }
 
-// RegisterPprofFlag registers the pprof flags for all child commands
+// RegisterPprofFlag registers the pprof flags
 func RegisterPprofFlag(cmd *cobra.Command) {
 	cmd.PersistentFlags().Bool(
 		command.PprofFlag,
