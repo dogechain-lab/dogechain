@@ -302,10 +302,14 @@ func (p *TxPool) Start() {
 				go p.handleEnqueueRequest(req)
 			case req := <-p.promoteReqCh:
 				go p.handlePromoteRequest(req)
-			case <-p.pruneAccountTicker.C:
-				go p.pruneStaleAccounts()
-			case <-p.clippingMemoryTicker.C:
-				go p.clipMemoryEater()
+			case _, ok := <-p.pruneAccountTicker.C:
+				if ok { // readable
+					go p.pruneStaleAccounts()
+				}
+			case _, ok := <-p.clippingMemoryTicker.C:
+				if ok { // readable
+					go p.clipMemoryEater()
+				}
 			}
 		}
 	}()
@@ -313,10 +317,8 @@ func (p *TxPool) Start() {
 
 // Close shuts down the pool's main loop.
 func (p *TxPool) Close() {
-	if p.pruneAccountTicker != nil {
-		p.pruneAccountTicker.Stop()
-	}
-
+	p.pruneAccountTicker.Stop()
+	p.pruneAccountTicker.Stop()
 	p.eventManager.Close()
 	p.shutdownCh <- struct{}{}
 }
