@@ -76,6 +76,11 @@ type signer interface {
 	Sender(tx *types.Transaction) (types.Address, error)
 }
 
+type ClippingMemory struct {
+	TickSeconds uint64 // ticker duration, in seconds
+	Threshold   uint64 // threshold ratio, in percentage
+}
+
 type Config struct {
 	PriceLimit            uint64
 	MaxSlots              uint64
@@ -83,6 +88,7 @@ type Config struct {
 	MaxAccountDemotions   uint64
 	PruneTickSeconds      uint64
 	PromoteOutdateSeconds uint64
+	ClippingMemory        ClippingMemory
 }
 
 /* All requests are passed to the main loop
@@ -195,10 +201,12 @@ func NewTxPool(
 	config *Config,
 ) (*TxPool, error) {
 	var (
-		pruneTickSeconds      = config.PruneTickSeconds
-		promoteOutdateSeconds = config.PromoteOutdateSeconds
-		maxSlot               = config.MaxSlots
-		maxAccountDemotions   = config.MaxAccountDemotions
+		pruneTickSeconds          = config.PruneTickSeconds
+		promoteOutdateSeconds     = config.PromoteOutdateSeconds
+		maxSlot                   = config.MaxSlots
+		maxAccountDemotions       = config.MaxAccountDemotions
+		clippingMemoryTickSeconds = config.ClippingMemory.TickSeconds
+		clippingMemoryThreshold   = config.ClippingMemory.Threshold
 	)
 
 	if pruneTickSeconds == 0 {
@@ -217,20 +225,30 @@ func NewTxPool(
 		maxAccountDemotions = DefaultMaxAccountDemotions
 	}
 
+	if clippingMemoryTickSeconds == 0 {
+		clippingMemoryTickSeconds = DefaultClippingTickSeconds
+	}
+
+	if clippingMemoryThreshold == 0 {
+		clippingMemoryThreshold = DefaultClippingMemoryThreshold
+	}
+
 	pool := &TxPool{
-		logger:                 logger.Named("txpool"),
-		forks:                  forks,
-		store:                  store,
-		metrics:                metrics,
-		accounts:               accountsMap{},
-		executables:            newPricedQueue(),
-		index:                  lookupMap{all: make(map[types.Hash]*types.Transaction)},
-		gauge:                  slotGauge{height: 0, max: maxSlot},
-		priceLimit:             config.PriceLimit,
-		sealing:                config.Sealing,
-		maxAccountDemotions:    maxAccountDemotions,
-		pruneTick:              time.Second * time.Duration(pruneTickSeconds),
-		promoteOutdateDuration: time.Second * time.Duration(promoteOutdateSeconds),
+		logger:                  logger.Named("txpool"),
+		forks:                   forks,
+		store:                   store,
+		metrics:                 metrics,
+		accounts:                accountsMap{},
+		executables:             newPricedQueue(),
+		index:                   lookupMap{all: make(map[types.Hash]*types.Transaction)},
+		gauge:                   slotGauge{height: 0, max: maxSlot},
+		priceLimit:              config.PriceLimit,
+		sealing:                 config.Sealing,
+		maxAccountDemotions:     maxAccountDemotions,
+		pruneTick:               time.Second * time.Duration(pruneTickSeconds),
+		promoteOutdateDuration:  time.Second * time.Duration(promoteOutdateSeconds),
+		clippingTick:            time.Second * time.Duration(clippingMemoryTickSeconds),
+		clippingMemoryThreshold: clippingMemoryThreshold,
 	}
 
 	// Attach the event manager
@@ -931,9 +949,10 @@ func (p *TxPool) clipMemoryEater() {
 			return false
 		}
 
-		len := account.enqueued.length()
-		if len > maxEaterTxLength {
-			maxEaterTxLength = len
+		length := account.enqueued.length()
+		if length > maxEaterTxLength {
+			maxEaterTxLength = length
+			//nolint:forcetypeassert
 			maxEaterAddr = key.(types.Address)
 		}
 
