@@ -178,6 +178,10 @@ type TxPool struct {
 	pruneAccountTicker     *time.Ticker
 	pruneTick              time.Duration
 	promoteOutdateDuration time.Duration
+	// memory clipping configs
+	clippingMemoryTicker    *time.Ticker
+	clippingTick            time.Duration
+	clippingMemoryThreshold uint64
 }
 
 // NewTxPool returns a new pool for processing incoming transactions.
@@ -266,6 +270,7 @@ func (p *TxPool) Start() {
 	p.metrics.SetDefaultValue(0)
 
 	p.pruneAccountTicker = time.NewTicker(p.pruneTick)
+	p.clippingMemoryTicker = time.NewTicker(p.clippingTick)
 
 	go func() {
 		for {
@@ -278,6 +283,8 @@ func (p *TxPool) Start() {
 				go p.handlePromoteRequest(req)
 			case <-p.pruneAccountTicker.C:
 				go p.pruneStaleAccounts()
+			case <-p.clippingMemoryTicker.C:
+				go p.clipMemoryEater()
 			}
 		}
 	}()
@@ -431,7 +438,7 @@ func (p *TxPool) Drop(tx *types.Transaction) {
 	p.metrics.EnqueueTxs.Add(float64(-1 * len(dropped)))
 
 	p.eventManager.signalEvent(proto.EventType_DROPPED, tx.Hash)
-	p.logger.Debug("dropped account txs",
+	p.logger.Debug("dropped account transactions",
 		"num", droppedCount,
 		"next_nonce", nextNonce,
 		"address", tx.From.String(),
@@ -755,7 +762,7 @@ func (p *TxPool) pruneStaleAccounts() {
 	}
 
 	p.pruneEnqueuedTxs(pruned)
-	p.logger.Debug("pruned stale enqueued txs", "num", pruned)
+	p.logger.Debug("pruned stale enqueued transactions", "transactions", pruned)
 }
 
 func (p *TxPool) tranferQueueGauge(txs []*types.Transaction, src, dest metrics.Gauge, event proto.EventType) {
@@ -897,4 +904,53 @@ func toHash(txs ...*types.Transaction) (hashes []types.Hash) {
 	}
 
 	return
+}
+
+// highPressure checks if the gauge level is higher than the threshold
+func (p *TxPool) highPressure() bool {
+	return p.gauge.read() >= (p.clippingMemoryThreshold*p.gauge.max)/100
+}
+
+func (p *TxPool) clipMemoryEater() {
+	if !p.highPressure() {
+		// not reaching the threshold, do nothing
+		return
+	}
+
+	var (
+		maxEaterTxLength uint64
+		maxEaterAddr     types.Address
+	)
+
+	// only iterate accounts once
+	p.accounts.Range(func(key, value interface{}) bool {
+		account, ok := value.(*account)
+		if !ok {
+			p.logger.Warn("account in map is nil")
+			// It shouldn't be. We just do some prevention work.
+			return false
+		}
+
+		len := account.enqueued.length()
+		if len > maxEaterTxLength {
+			maxEaterTxLength = len
+			maxEaterAddr = key.(types.Address)
+		}
+
+		return true
+	})
+
+	if maxEaterTxLength == 0 {
+		// no transactions
+		return
+	}
+
+	eater := p.accounts.get(maxEaterAddr)
+
+	eater.enqueued.lock(true) // update lock
+	defer eater.enqueued.unlock()
+
+	pruned := eater.enqueued.clear()
+	p.pruneEnqueuedTxs(pruned)
+	p.logger.Info("pruned memory eater transactions", "num", len(pruned), "account", maxEaterAddr)
 }
