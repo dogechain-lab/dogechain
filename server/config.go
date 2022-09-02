@@ -8,6 +8,7 @@ import (
 	"github.com/dogechain-lab/dogechain/chain"
 	"github.com/dogechain-lab/dogechain/network"
 	"github.com/dogechain-lab/dogechain/secrets"
+	"github.com/dogechain-lab/dogechain/txpool"
 )
 
 const DefaultGRPCPort int = 9632
@@ -31,6 +32,7 @@ type Config struct {
 	MaxAccountDemotions   uint64
 	PruneTickSeconds      uint64
 	PromoteOutdateSeconds uint64
+	ClippingMemory        txpool.ClippingMemory
 
 	Telemetry *Telemetry
 	Network   *network.Config

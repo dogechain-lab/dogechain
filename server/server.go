@@ -245,6 +245,7 @@ func NewServer(config *Config) (*Server, error) {
 				MaxAccountDemotions:   m.config.MaxAccountDemotions,
 				PruneTickSeconds:      m.config.PruneTickSeconds,
 				PromoteOutdateSeconds: m.config.PromoteOutdateSeconds,
+				ClippingMemory:        m.config.ClippingMemory,
 			},
 		)
 		if err != nil {

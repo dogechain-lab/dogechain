@@ -107,6 +107,10 @@ func newTestPoolWithSlots(maxSlots uint64, mockStore ...store) (*TxPool, error) 
 			MaxAccountDemotions:   defaultMaxAccountDemotions,
 			PruneTickSeconds:      DefaultPruneTickSeconds,
 			PromoteOutdateSeconds: DefaultPromoteOutdateSeconds,
+			ClippingMemory: ClippingMemory{
+				TickSeconds: DefaultClippingTickSeconds,
+				Threshold:   DefaultClippingMemoryThreshold,
+			},
 		},
 	)
 }

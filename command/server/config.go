@@ -54,11 +54,12 @@ type Network struct {
 
 // TxPool defines the TxPool configuration params
 type TxPool struct {
-	PriceLimit            uint64 `json:"price_limit"`
-	MaxSlots              uint64 `json:"max_slots"`
-	MaxAccountDemotions   uint64 `json:"max_account_demotions"`
-	PruneTickSeconds      uint64 `json:"prune_tick_seconds"`
-	PromoteOutdateSeconds uint64 `json:"promote_outdate_seconds"`
+	PriceLimit            uint64                `json:"price_limit"`
+	MaxSlots              uint64                `json:"max_slots"`
+	MaxAccountDemotions   uint64                `json:"max_account_demotions"`
+	PruneTickSeconds      uint64                `json:"prune_tick_seconds"`
+	PromoteOutdateSeconds uint64                `json:"promote_outdate_seconds"`
+	ClippingMemory        txpool.ClippingMemory `json:"clipping_memory"`
 }
 
 // Headers defines the HTTP response headers required to enable CORS.
@@ -91,6 +92,10 @@ func DefaultConfig() *Config {
 			MaxAccountDemotions:   txpool.DefaultMaxAccountDemotions,
 			PruneTickSeconds:      txpool.DefaultPruneTickSeconds,
 			PromoteOutdateSeconds: txpool.DefaultPromoteOutdateSeconds,
+			ClippingMemory: txpool.ClippingMemory{
+				TickSeconds: txpool.DefaultClippingTickSeconds,
+				Threshold:   txpool.DefaultClippingMemoryThreshold,
+			},
 		},
 		LogLevel:    "INFO",
 		RestoreFile: "",

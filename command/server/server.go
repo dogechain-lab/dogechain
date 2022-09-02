@@ -300,6 +300,20 @@ func setFlags(cmd *cobra.Command) {
 		"the flag indicating that node enable websocket service",
 	)
 
+	cmd.Flags().Uint64Var(
+		&params.rawConfig.TxPool.ClippingMemory.TickSeconds,
+		ClippingTickSecondsFlag,
+		defaultConfig.TxPool.ClippingMemory.TickSeconds,
+		"tick seconds for clipping txpool eater account transactions",
+	)
+
+	cmd.Flags().Uint64Var(
+		&params.rawConfig.TxPool.ClippingMemory.Threshold,
+		ClippingMemoryThresholdFlag,
+		defaultConfig.TxPool.ClippingMemory.Threshold,
+		"memory pecentage threshold of txpool for clipping txpool eater account transactions",
+	)
+
 	setDevFlags(cmd)
 }
 

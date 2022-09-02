@@ -49,6 +49,8 @@ const (
 	jsonRPCBatchRequestLimitFlag = "json-rpc-batch-request-limit"
 	jsonRPCBlockRangeLimitFlag   = "json-rpc-block-range-limit"
 	enableWSFlag                 = "enable-ws"
+	ClippingTickSecondsFlag      = "clipping.tick-seconds"
+	ClippingMemoryThresholdFlag  = "clipping.memory-threshold"
 )
 
 const (
@@ -211,6 +213,7 @@ func (p *serverParams) generateConfig() *server.Config {
 		MaxAccountDemotions:   p.rawConfig.TxPool.MaxAccountDemotions,
 		PruneTickSeconds:      p.rawConfig.TxPool.PruneTickSeconds,
 		PromoteOutdateSeconds: p.rawConfig.TxPool.PromoteOutdateSeconds,
+		ClippingMemory:        p.rawConfig.TxPool.ClippingMemory,
 		SecretsManager:        p.secretsConfig,
 		RestoreFile:           p.getRestoreFilePath(),
 		LeveldbOptions: &server.LeveldbOptions{
