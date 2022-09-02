@@ -229,8 +229,11 @@ func NewTxPool(
 		clippingMemoryTickSeconds = DefaultClippingTickSeconds
 	}
 
-	if clippingMemoryThreshold == 0 {
+	switch {
+	case clippingMemoryThreshold == 0:
 		clippingMemoryThreshold = DefaultClippingMemoryThreshold
+	case clippingMemoryThreshold > MaxClippingMemoryThreshold:
+		clippingMemoryThreshold = MaxClippingMemoryThreshold
 	}
 
 	pool := &TxPool{
