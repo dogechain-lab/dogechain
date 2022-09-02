@@ -11,15 +11,14 @@ import (
 
 	"github.com/dogechain-lab/dogechain/blockchain/storage/leveldb"
 	"github.com/dogechain-lab/dogechain/command"
+	"github.com/dogechain-lab/dogechain/command/helper"
 	"github.com/dogechain-lab/dogechain/crypto"
 	"github.com/dogechain-lab/dogechain/helper/daemon"
+	"github.com/dogechain-lab/dogechain/network"
+	"github.com/dogechain-lab/dogechain/server"
 	"github.com/dogechain-lab/dogechain/txpool"
 	"github.com/howeyc/gopass"
 	"github.com/spf13/cobra"
-
-	"github.com/dogechain-lab/dogechain/command/helper"
-	"github.com/dogechain-lab/dogechain/network"
-	"github.com/dogechain-lab/dogechain/server"
 )
 
 func GetCommand() *cobra.Command {
@@ -43,276 +42,309 @@ func GetCommand() *cobra.Command {
 func setFlags(cmd *cobra.Command) {
 	defaultConfig := DefaultConfig()
 
-	cmd.Flags().StringVar(
-		&params.rawConfig.LogLevel,
-		command.LogLevelFlag,
-		defaultConfig.LogLevel,
-		"the log level for console output",
-	)
+	// basic flags
+	{
+		cmd.Flags().StringVar(
+			&params.configPath,
+			configFlag,
+			"",
+			"the path to the CLI config. Supports .json and .hcl",
+		)
 
-	cmd.Flags().StringVar(
-		&params.rawConfig.GenesisPath,
-		genesisPathFlag,
-		defaultConfig.GenesisPath,
-		"the genesis file used for starting the chain",
-	)
+		cmd.Flags().StringVar(
+			&params.rawConfig.DataDir,
+			dataDirFlag,
+			defaultConfig.DataDir,
+			"the data directory used for storing Dogechain-Lab Dogechain client data",
+		)
 
-	cmd.Flags().StringVar(
-		&params.configPath,
-		configFlag,
-		"",
-		"the path to the CLI config. Supports .json and .hcl",
-	)
+		cmd.Flags().StringVar(
+			&params.rawConfig.GenesisPath,
+			genesisPathFlag,
+			defaultConfig.GenesisPath,
+			"the genesis file used for starting the chain",
+		)
 
-	cmd.Flags().IntVar(
-		&params.leveldbCacheSize,
-		leveldbCacheFlag,
-		leveldb.DefaultCache,
-		"the size of the leveldb cache in MB",
-	)
+		cmd.Flags().StringVar(
+			&params.rawConfig.RestoreFile,
+			restoreFlag,
+			"",
+			"the path to the archive blockchain data to restore on initialization",
+		)
+	}
 
-	cmd.Flags().IntVar(
-		&params.leveldbHandles,
-		leveldbHandlesFlag,
-		leveldb.DefaultHandles,
-		"the number of handles to leveldb open files",
-	)
+	// block flags
+	{
+		cmd.Flags().Uint64Var(
+			&params.rawConfig.BlockTime,
+			blockTimeFlag,
+			defaultConfig.BlockTime,
+			"minimum block time in seconds (at least 1s)",
+		)
+	}
 
-	cmd.Flags().IntVar(
-		&params.leveldbBloomKeyBits,
-		leveldbBloomKeyBitsFlag,
-		leveldb.DefaultBloomKeyBits,
-		"the bits of leveldb bloom filters",
-	)
+	// endpoint flags
+	{
+		cmd.Flags().Uint64Var(
+			&params.rawConfig.JSONRPCBatchRequestLimit,
+			jsonRPCBatchRequestLimitFlag,
+			defaultConfig.JSONRPCBatchRequestLimit,
+			"the max length to be considered when handling json-rpc batch requests",
+		)
 
-	cmd.Flags().IntVar(
-		&params.leveldbTableSize,
-		leveldbTableSizeFlag,
-		leveldb.DefaultCompactionTableSize,
-		"the leveldb 'sorted table' size in MB",
-	)
+		cmd.Flags().Uint64Var(
+			&params.rawConfig.JSONRPCBlockRangeLimit,
+			jsonRPCBlockRangeLimitFlag,
+			defaultConfig.JSONRPCBlockRangeLimit,
+			"the max block range to be considered when executing json-rpc requests "+
+				"that consider fromBlock/toBlock values (e.g. eth_getLogs)",
+		)
 
-	cmd.Flags().IntVar(
-		&params.leveldbTotalTableSize,
-		leveldbTotalTableSizeFlag,
-		leveldb.DefaultCompactionTotalSize,
-		"limits leveldb total size of 'sorted table' for each level in MB",
-	)
+		cmd.Flags().BoolVar(
+			&params.rawConfig.EnableWS,
+			enableWSFlag,
+			false,
+			"the flag indicating that node enable websocket service",
+		)
 
-	cmd.Flags().BoolVar(
-		&params.leveldbNoSync,
-		leveldbNoSyncFlag,
-		leveldb.DefaultNoSync,
-		"leveldb nosync allows completely disable fsync",
-	)
+		cmd.Flags().BoolVar(
+			&params.rawConfig.EnableGraphQL,
+			enableGraphQLFlag,
+			false,
+			"the flag indicating that node enable graphql service",
+		)
+	}
 
-	cmd.Flags().StringVar(
-		&params.rawConfig.DataDir,
-		dataDirFlag,
-		defaultConfig.DataDir,
-		"the data directory used for storing Dogechain-Lab Dogechain client data",
-	)
+	// leveldb flags
+	{
+		cmd.Flags().IntVar(
+			&params.leveldbCacheSize,
+			leveldbCacheFlag,
+			leveldb.DefaultCache,
+			"the size of the leveldb cache in MB",
+		)
 
-	cmd.Flags().StringVar(
-		&params.rawConfig.Network.Libp2pAddr,
-		libp2pAddressFlag,
-		fmt.Sprintf("127.0.0.1:%d", network.DefaultLibp2pPort),
-		"the address and port for the libp2p service",
-	)
+		cmd.Flags().IntVar(
+			&params.leveldbHandles,
+			leveldbHandlesFlag,
+			leveldb.DefaultHandles,
+			"the number of handles to leveldb open files",
+		)
 
-	cmd.Flags().StringVar(
-		&params.rawConfig.Telemetry.PrometheusAddr,
-		prometheusAddressFlag,
-		"",
-		"the address and port for the prometheus instrumentation service (address:port). "+
-			"If only port is defined (:port) it will bind to 0.0.0.0:port",
-	)
+		cmd.Flags().IntVar(
+			&params.leveldbBloomKeyBits,
+			leveldbBloomKeyBitsFlag,
+			leveldb.DefaultBloomKeyBits,
+			"the bits of leveldb bloom filters",
+		)
 
-	cmd.Flags().StringVar(
-		&params.rawConfig.Network.NatAddr,
-		natFlag,
-		"",
-		"the external IP address without port, as can be seen by peers",
-	)
+		cmd.Flags().IntVar(
+			&params.leveldbTableSize,
+			leveldbTableSizeFlag,
+			leveldb.DefaultCompactionTableSize,
+			"the leveldb 'sorted table' size in MB",
+		)
 
-	cmd.Flags().StringVar(
-		&params.rawConfig.Network.DNSAddr,
-		dnsFlag,
-		"",
-		"the host DNS address which can be used by a remote peer for connection",
-	)
+		cmd.Flags().IntVar(
+			&params.leveldbTotalTableSize,
+			leveldbTotalTableSizeFlag,
+			leveldb.DefaultCompactionTotalSize,
+			"limits leveldb total size of 'sorted table' for each level in MB",
+		)
 
-	cmd.Flags().StringVar(
-		&params.rawConfig.BlockGasTarget,
-		blockGasTargetFlag,
-		strconv.FormatUint(0, 10),
-		"the target block gas limit for the chain. If omitted, the value of the parent block is used",
-	)
+		cmd.Flags().BoolVar(
+			&params.leveldbNoSync,
+			leveldbNoSyncFlag,
+			leveldb.DefaultNoSync,
+			"leveldb nosync allows completely disable fsync",
+		)
+	}
 
-	cmd.Flags().StringVar(
-		&params.rawConfig.SecretsConfigPath,
-		secretsConfigFlag,
-		"",
-		"the path to the SecretsManager config file. Used for Hashicorp Vault. "+
-			"If omitted, the local FS secrets manager is used",
-	)
+	// log flags
+	{
+		cmd.Flags().StringVar(
+			&params.rawConfig.LogLevel,
+			command.LogLevelFlag,
+			defaultConfig.LogLevel,
+			"the log level for console output",
+		)
 
-	cmd.Flags().StringVar(
-		&params.rawConfig.RestoreFile,
-		restoreFlag,
-		"",
-		"the path to the archive blockchain data to restore on initialization",
-	)
+		cmd.Flags().StringVar(
+			&params.rawConfig.LogFilePath,
+			logFileLocationFlag,
+			defaultConfig.LogFilePath,
+			"write all logs to the file at specified location instead of writing them to console",
+		)
+	}
 
-	cmd.Flags().BoolVar(
-		&params.rawConfig.ShouldSeal,
-		sealFlag,
-		true,
-		"the flag indicating that the client should seal blocks",
-	)
+	// miner flags
+	{
+		cmd.Flags().BoolVar(
+			&params.rawConfig.ShouldSeal,
+			sealFlag,
+			true,
+			"the flag indicating that the client should seal blocks",
+		)
 
-	cmd.Flags().BoolVar(
-		&params.rawConfig.Network.NoDiscover,
-		command.NoDiscoverFlag,
-		defaultConfig.Network.NoDiscover,
-		"prevent the client from discovering other peers (default: false)",
-	)
+		cmd.Flags().StringVar(
+			&params.rawConfig.BlockGasTarget,
+			blockGasTargetFlag,
+			strconv.FormatUint(0, 10),
+			"the target block gas limit for the chain. If omitted, the value of the parent block is used",
+		)
 
-	cmd.Flags().Int64Var(
-		&params.rawConfig.Network.MaxPeers,
-		maxPeersFlag,
-		-1,
-		"the client's max number of peers allowed",
-	)
-	// override default usage value
-	cmd.Flag(maxPeersFlag).DefValue = fmt.Sprintf("%d", defaultConfig.Network.MaxPeers)
+		cmd.Flags().BoolVar(
+			&params.isDaemon,
+			daemonFlag,
+			false,
+			"the flag indicating that the server ran as daemon",
+		)
 
-	cmd.Flags().Int64Var(
-		&params.rawConfig.Network.MaxInboundPeers,
-		maxInboundPeersFlag,
-		-1,
-		"the client's max number of inbound peers allowed",
-	)
-	// override default usage value
-	cmd.Flag(maxInboundPeersFlag).DefValue = fmt.Sprintf("%d", defaultConfig.Network.MaxInboundPeers)
+		cmd.Flags().StringVar(
+			&params.rawConfig.SecretsConfigPath,
+			secretsConfigFlag,
+			"",
+			"the path to the SecretsManager config file. Used for Hashicorp Vault. "+
+				"If omitted, the local FS secrets manager is used",
+		)
+	}
 
-	cmd.Flags().Int64Var(
-		&params.rawConfig.Network.MaxOutboundPeers,
-		maxOutboundPeersFlag,
-		-1,
-		"the client's max number of outbound peers allowed",
-	)
-	// override default usage value
-	cmd.Flag(maxOutboundPeersFlag).DefValue = fmt.Sprintf("%d", defaultConfig.Network.MaxOutboundPeers)
+	// network flags
+	{
+		cmd.Flags().BoolVar(
+			&params.rawConfig.Network.NoDiscover,
+			command.NoDiscoverFlag,
+			defaultConfig.Network.NoDiscover,
+			"prevent the client from discovering other peers (default: false)",
+		)
 
-	cmd.Flags().Uint64Var(
-		&params.rawConfig.TxPool.PriceLimit,
-		priceLimitFlag,
-		0,
-		fmt.Sprintf(
-			"the minimum gas price limit to enforce for acceptance into the pool (default %d)",
-			defaultConfig.TxPool.PriceLimit,
-		),
-	)
+		cmd.Flags().Int64Var(
+			&params.rawConfig.Network.MaxPeers,
+			maxPeersFlag,
+			-1,
+			"the client's max number of peers allowed",
+		)
+		// override default usage value
+		cmd.Flag(maxPeersFlag).DefValue = fmt.Sprintf("%d", defaultConfig.Network.MaxPeers)
 
-	cmd.Flags().Uint64Var(
-		&params.rawConfig.TxPool.MaxSlots,
-		maxSlotsFlag,
-		txpool.DefaultMaxSlots,
-		"maximum slots in the pool",
-	)
+		cmd.Flags().Int64Var(
+			&params.rawConfig.Network.MaxInboundPeers,
+			maxInboundPeersFlag,
+			-1,
+			"the client's max number of inbound peers allowed",
+		)
+		// override default usage value
+		cmd.Flag(maxInboundPeersFlag).DefValue = fmt.Sprintf("%d", defaultConfig.Network.MaxInboundPeers)
 
-	cmd.Flags().Uint64Var(
-		&params.rawConfig.TxPool.MaxAccountDemotions,
-		maxAccountDemotionsFlag,
-		txpool.DefaultMaxAccountDemotions,
-		"maximum account demontion counter limit in the pool",
-	)
+		cmd.Flags().Int64Var(
+			&params.rawConfig.Network.MaxOutboundPeers,
+			maxOutboundPeersFlag,
+			-1,
+			"the client's max number of outbound peers allowed",
+		)
+		// override default usage value
+		cmd.Flag(maxOutboundPeersFlag).DefValue = fmt.Sprintf("%d", defaultConfig.Network.MaxOutboundPeers)
 
-	cmd.Flags().Uint64Var(
-		&params.rawConfig.TxPool.PruneTickSeconds,
-		pruneTickSecondsFlag,
-		txpool.DefaultPruneTickSeconds,
-		"tick seconds for pruning account future transactions in the pool",
-	)
+		cmd.Flags().StringVar(
+			&params.rawConfig.Network.Libp2pAddr,
+			libp2pAddressFlag,
+			fmt.Sprintf("127.0.0.1:%d", network.DefaultLibp2pPort),
+			"the address and port for the libp2p service",
+		)
 
-	cmd.Flags().Uint64Var(
-		&params.rawConfig.TxPool.PromoteOutdateSeconds,
-		promoteOutdateSecondsFlag,
-		txpool.DefaultPromoteOutdateSeconds,
-		"account in the pool not promoted for a long time would be pruned",
-	)
+		cmd.Flags().StringVar(
+			&params.rawConfig.Network.NatAddr,
+			natFlag,
+			"",
+			"the external IP address without port, as can be seen by peers",
+		)
 
-	cmd.Flags().Uint64Var(
-		&params.rawConfig.BlockTime,
-		blockTimeFlag,
-		defaultConfig.BlockTime,
-		"minimum block time in seconds (at least 1s)",
-	)
+		cmd.Flags().StringVar(
+			&params.rawConfig.Network.DNSAddr,
+			dnsFlag,
+			"",
+			"the host DNS address which can be used by a remote peer for connection",
+		)
 
-	cmd.Flags().StringArrayVar(
-		&params.corsAllowedOrigins,
-		corsOriginFlag,
-		defaultConfig.Headers.AccessControlAllowOrigins,
-		"the CORS header indicating whether any JSON-RPC response can be shared with the specified origin",
-	)
+		cmd.Flags().StringArrayVar(
+			&params.corsAllowedOrigins,
+			corsOriginFlag,
+			defaultConfig.Headers.AccessControlAllowOrigins,
+			"the CORS header indicating whether any JSON-RPC response can be shared with the specified origin",
+		)
+	}
 
-	cmd.Flags().BoolVar(
-		&params.isDaemon,
-		daemonFlag,
-		false,
-		"the flag indicating that the server ran as daemon",
-	)
+	// telemetry flags
+	{
+		cmd.Flags().StringVar(
+			&params.rawConfig.Telemetry.PrometheusAddr,
+			prometheusAddressFlag,
+			"",
+			"the address and port for the prometheus instrumentation service (address:port). "+
+				"If only port is defined (:port) it will bind to 0.0.0.0:port",
+		)
+	}
 
-	cmd.Flags().StringVar(
-		&params.rawConfig.LogFilePath,
-		logFileLocationFlag,
-		defaultConfig.LogFilePath,
-		"write all logs to the file at specified location instead of writing them to console",
-	)
+	// txpool flags
+	{
+		cmd.Flags().Uint64Var(
+			&params.rawConfig.TxPool.PriceLimit,
+			priceLimitFlag,
+			0,
+			fmt.Sprintf(
+				"the minimum gas price limit to enforce for acceptance into the pool (default %d)",
+				defaultConfig.TxPool.PriceLimit,
+			),
+		)
 
-	cmd.Flags().BoolVar(
-		&params.rawConfig.EnableGraphQL,
-		enableGraphQLFlag,
-		false,
-		"the flag indicating that node enable graphql service",
-	)
+		cmd.Flags().Uint64Var(
+			&params.rawConfig.TxPool.MaxSlots,
+			maxSlotsFlag,
+			txpool.DefaultMaxSlots,
+			"maximum slots in the pool",
+		)
 
-	cmd.Flags().Uint64Var(
-		&params.rawConfig.JSONRPCBatchRequestLimit,
-		jsonRPCBatchRequestLimitFlag,
-		defaultConfig.JSONRPCBatchRequestLimit,
-		"the max length to be considered when handling json-rpc batch requests",
-	)
+		cmd.Flags().Uint64Var(
+			&params.rawConfig.TxPool.MaxAccountDemotions,
+			maxAccountDemotionsFlag,
+			txpool.DefaultMaxAccountDemotions,
+			"maximum account demontion counter limit in the pool",
+		)
 
-	cmd.Flags().Uint64Var(
-		&params.rawConfig.JSONRPCBlockRangeLimit,
-		jsonRPCBlockRangeLimitFlag,
-		defaultConfig.JSONRPCBlockRangeLimit,
-		"the max block range to be considered when executing json-rpc requests "+
-			"that consider fromBlock/toBlock values (e.g. eth_getLogs)",
-	)
+		// pruning outdated account flags
+		{
+			cmd.Flags().Uint64Var(
+				&params.rawConfig.TxPool.PruneTickSeconds,
+				pruneTickSecondsFlag,
+				txpool.DefaultPruneTickSeconds,
+				"tick seconds for pruning account future transactions in the pool",
+			)
 
-	cmd.Flags().BoolVar(
-		&params.rawConfig.EnableWS,
-		enableWSFlag,
-		false,
-		"the flag indicating that node enable websocket service",
-	)
+			cmd.Flags().Uint64Var(
+				&params.rawConfig.TxPool.PromoteOutdateSeconds,
+				promoteOutdateSecondsFlag,
+				txpool.DefaultPromoteOutdateSeconds,
+				"account in the pool not promoted for a long time would be pruned",
+			)
+		}
 
-	cmd.Flags().Uint64Var(
-		&params.rawConfig.TxPool.ClippingMemory.TickSeconds,
-		ClippingTickSecondsFlag,
-		defaultConfig.TxPool.ClippingMemory.TickSeconds,
-		"tick seconds for clipping txpool eater account transactions",
-	)
+		// clipping flags
+		{
+			cmd.Flags().Uint64Var(
+				&params.rawConfig.TxPool.ClippingMemory.TickSeconds,
+				ClippingTickSecondsFlag,
+				defaultConfig.TxPool.ClippingMemory.TickSeconds,
+				"tick seconds for clipping txpool eater account transactions",
+			)
 
-	cmd.Flags().Uint64Var(
-		&params.rawConfig.TxPool.ClippingMemory.Threshold,
-		ClippingMemoryThresholdFlag,
-		defaultConfig.TxPool.ClippingMemory.Threshold,
-		"memory pecentage threshold of txpool for clipping txpool eater account transactions",
-	)
+			cmd.Flags().Uint64Var(
+				&params.rawConfig.TxPool.ClippingMemory.Threshold,
+				ClippingMemoryThresholdFlag,
+				defaultConfig.TxPool.ClippingMemory.Threshold,
+				"memory pecentage threshold of txpool for clipping txpool eater account transactions",
+			)
+		}
+	}
 
 	setDevFlags(cmd)
 }
