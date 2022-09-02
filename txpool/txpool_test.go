@@ -1361,7 +1361,8 @@ func benchmarkPruneStaleAccounts(b *testing.B, accountSize int) {
 	assert.NoError(b, err)
 
 	pool.SetSigner(&mockSigner{})
-	pool.pruneTick = time.Second // check on every second
+	pool.pruneTick = time.Second       // prune check on every second
+	pool.clippingTick = time.Hour * 24 // 'disable' pool memory clipping
 
 	pool.Start()
 	defer pool.Close()
@@ -1402,6 +1403,92 @@ func benchmarkPruneStaleAccounts(b *testing.B, accountSize int) {
 	promoted, enqueued := pool.GetTxs(true)
 	assert.Len(b, promoted, 0)
 	assert.Len(b, enqueued, 0)
+}
+
+func TestTxpool_ClipMemoryEater(t *testing.T) {
+	testTable := []*struct {
+		name            string
+		txs             []*types.Transaction
+		maxSlots        uint64
+		memoryThreshold uint64
+		expectedTxCount int
+		expectedGauge   uint64
+	}{
+		{
+			"clip max tx count account",
+			[]*types.Transaction{
+				newTx(addr1, 1, 1),
+				newTx(addr2, 2, 1),
+				newTx(addr2, 3, 1),
+			},
+			300,
+			1,
+			1,
+			1,
+		},
+		{
+			"clip random account when tx count equal",
+			[]*types.Transaction{
+				newTx(addr1, 1, 1),
+				newTx(addr2, 2, 1),
+				newTx(addr3, 3, 1),
+			},
+			300,
+			1,
+			2,
+			2,
+		},
+	}
+
+	for _, test := range testTable {
+		t.Run(test.name, func(t *testing.T) {
+			pool, err := newTestPoolWithSlots(test.maxSlots)
+			assert.NoError(t, err)
+			pool.SetSigner(&mockSigner{})
+			// set the clipping memory threshold
+			pool.clippingMemoryThreshold = test.memoryThreshold
+
+			subscription := pool.eventManager.subscribe([]proto.EventType{proto.EventType_ENQUEUED})
+
+			// add future nonce txs
+			go func() {
+				for _, tx := range test.txs {
+					err := pool.addTx(local, tx)
+					assert.NoError(t, err)
+				}
+			}()
+			// handle enqueued
+			go func() {
+				for range test.txs {
+					pool.handleEnqueueRequest(<-pool.enqueueReqCh)
+				}
+			}()
+
+			// timeout context
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+
+			// subscription for events
+			events := waitForEvents(ctx, subscription, len(test.txs))
+			assert.Len(t, events, len(test.txs))
+
+			// make the clipping manually
+			pool.clipMemoryEater()
+
+			// get enqueued tx
+			_, enqueued := pool.GetTxs(true)
+			txCount := 0
+			//sum up enqueued tx count
+			for _, accTxs := range enqueued {
+				txCount += len(accTxs)
+			}
+			// assert enqueued tx count
+			assert.Equal(t, txCount, test.expectedTxCount)
+
+			// assert txpool gauge
+			assert.Equal(t, test.expectedGauge, pool.gauge.read())
+		})
+	}
 }
 
 /* "Integrated" tests */
