@@ -1361,8 +1361,8 @@ func benchmarkPruneStaleAccounts(b *testing.B, accountSize int) {
 	assert.NoError(b, err)
 
 	pool.SetSigner(&mockSigner{})
-	pool.pruneTick = time.Second       // prune check on every second
-	pool.clippingTick = time.Hour * 24 // 'disable' pool memory clipping
+	pool.pruneTick = time.Second  // prune check on every second
+	pool.clippingTick = time.Hour // 'disable' pool memory clipping
 
 	pool.Start()
 	defer pool.Close()
@@ -1488,6 +1488,48 @@ func TestTxpool_ClipMemoryEater(t *testing.T) {
 			// assert txpool gauge
 			assert.Equal(t, test.expectedGauge, pool.gauge.read())
 		})
+	}
+}
+
+func BenchmarkClipMemoryEater1KAccounts(b *testing.B)   { benchmarkClipMemoryEater(b, 1000) }
+func BenchmarkClipMemoryEater10KAccounts(b *testing.B)  { benchmarkClipMemoryEater(b, 10000) }
+func BenchmarkClipMemoryEater100KAccounts(b *testing.B) { benchmarkClipMemoryEater(b, 100000) }
+
+func benchmarkClipMemoryEater(b *testing.B, accountSize int) {
+	b.Helper()
+
+	slots := uint64(accountSize + 1)
+	pool, err := newTestPoolWithSlots(slots)
+	assert.NoError(b, err)
+
+	pool.SetSigner(&mockSigner{})
+	pool.pruneTick = time.Hour    // 'disable' prune check
+	pool.clippingTick = time.Hour // 'disable' pool memory check
+	// lowest clipping threshold, so every loop of benchmark might works
+	pool.clippingMemoryThreshold = 1
+
+	pool.Start()
+	defer pool.Close()
+
+	var addresses = make([]types.Address, accountSize)
+
+	for i := 0; i < accountSize; i++ {
+		addresses[i] = types.StringToAddress("0x" + strconv.FormatInt(int64(1024+i), 16))
+		addr := addresses[i]
+		// add enough future tx
+		err := pool.addTx(local, newTx(addr, uint64(10+i), 1))
+		if !assert.NoError(b, err, "add tx failed") {
+			b.FailNow()
+		}
+	}
+
+	// Reset the benchmark and measure clipping task
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		// benchmark clipping task
+		pool.clipMemoryEater()
 	}
 }
 
