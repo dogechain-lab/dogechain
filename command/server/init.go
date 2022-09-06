@@ -266,11 +266,9 @@ func (p *serverParams) initNATAddress() error {
 	}
 
 	var parseErr error
+	p.natAddress, parseErr = net.ResolveTCPAddr("tcp", p.rawConfig.Network.NatAddr)
 
-	if p.natAddress, parseErr = net.ResolveTCPAddr("tcp",
-		p.rawConfig.Network.NatAddr,
-	); parseErr != nil {
-
+	if parseErr != nil {
 		//compatible with no port setups
 		fmt.Printf("%s, use libp2p port\n", parseErr)
 
