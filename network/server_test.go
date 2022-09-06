@@ -327,7 +327,11 @@ func TestNat(t *testing.T) {
 	testMultiAddrString := fmt.Sprintf("/ip4/%s/tcp/%d", testIP, testPort)
 
 	server, createErr := CreateServer(&CreateServerParams{ConfigCallback: func(c *Config) {
-		c.NatAddr = net.ParseIP(testIP)
+		var err error
+		c.NatAddr, err = net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", testIP, testPort))
+
+		assert.NoError(t, err)
+
 		c.Addr.Port = testPort
 	}})
 	if createErr != nil {
@@ -505,7 +509,7 @@ func TestReconnectionWithNewIP(t *testing.T) {
 					defaultConfig(c)
 					c.DataDir = dir1
 					// same ID to but different IP from servers[1]
-					c.NatAddr = net.ParseIP(natIP)
+					c.NatAddr, _ = net.ResolveTCPAddr("tcp", natIP)
 				},
 			},
 		},

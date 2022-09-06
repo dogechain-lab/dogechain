@@ -105,11 +105,12 @@ func NewServer(logger hclog.Logger, config *Config) (*Server, error) {
 
 	addrsFactory := func(addrs []multiaddr.Multiaddr) []multiaddr.Multiaddr {
 		if config.NatAddr != nil {
-			addr, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", config.NatAddr.String(), config.Addr.Port))
-
-			if addr != nil {
-				addrs = []multiaddr.Multiaddr{addr}
+			addr, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", config.NatAddr.IP.String(), config.NatAddr.Port))
+			if err != nil {
+				logger.Error("failed to create NAT address", "error", err)
+				return addrs
 			}
+			addrs = []multiaddr.Multiaddr{addr}
 		} else if config.DNS != nil {
 			addrs = []multiaddr.Multiaddr{config.DNS}
 		}

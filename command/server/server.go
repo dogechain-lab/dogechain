@@ -132,7 +132,7 @@ func setFlags(cmd *cobra.Command) {
 		&params.rawConfig.Network.NatAddr,
 		natFlag,
 		"",
-		"the external IP address without port, as can be seen by peers",
+		"the external address (address:port), as can be seen by peers",
 	)
 
 	cmd.Flags().StringVar(

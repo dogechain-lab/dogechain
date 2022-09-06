@@ -67,7 +67,7 @@ var (
 
 var (
 	errInvalidPeerParams = errors.New("both max-peers and max-inbound/outbound flags are set")
-	errInvalidNATAddress = errors.New("could not parse NAT IP address")
+	errInvalidNATAddress = errors.New("could not parse NAT address (ip:port)")
 )
 
 type serverParams struct {
@@ -83,7 +83,7 @@ type serverParams struct {
 
 	libp2pAddress     *net.TCPAddr
 	prometheusAddress *net.TCPAddr
-	natAddress        net.IP
+	natAddress        *net.TCPAddr
 	dnsAddress        multiaddr.Multiaddr
 	grpcAddress       *net.TCPAddr
 	jsonRPCAddress    *net.TCPAddr

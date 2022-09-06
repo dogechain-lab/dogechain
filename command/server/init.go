@@ -210,6 +210,7 @@ func (p *serverParams) initAddresses() error {
 		return err
 	}
 
+	// need libp2p address to be set before initializing nat address
 	if err := p.initNATAddress(); err != nil {
 		return err
 	}
@@ -264,9 +265,25 @@ func (p *serverParams) initNATAddress() error {
 		return nil
 	}
 
-	if p.natAddress = net.ParseIP(
+	var parseErr error
+
+	if p.natAddress, parseErr = net.ResolveTCPAddr("tcp",
 		p.rawConfig.Network.NatAddr,
-	); p.natAddress == nil {
+	); parseErr != nil {
+
+		//compatible with no port setups
+		fmt.Printf("%s, use libp2p port\n", parseErr)
+
+		oldNatAddrCfg := net.ParseIP(p.rawConfig.Network.NatAddr)
+		if oldNatAddrCfg != nil {
+			p.natAddress, parseErr = net.ResolveTCPAddr("tcp",
+				fmt.Sprintf("%s:%d", oldNatAddrCfg.String(), p.libp2pAddress.Port),
+			)
+			if parseErr == nil {
+				return nil
+			}
+		}
+
 		return errInvalidNATAddress
 	}
 

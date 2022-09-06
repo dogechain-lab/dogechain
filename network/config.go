@@ -12,7 +12,7 @@ import (
 type Config struct {
 	NoDiscover       bool                   // flag indicating if the discovery mechanism should be turned on
 	Addr             *net.TCPAddr           // the base address
-	NatAddr          net.IP                 // the NAT address
+	NatAddr          *net.TCPAddr           // the NAT address
 	DNS              multiaddr.Multiaddr    // the DNS address
 	DataDir          string                 // the base data directory for the client
 	MaxPeers         int64                  // the maximum number of peer connections
