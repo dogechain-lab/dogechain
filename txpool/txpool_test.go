@@ -21,10 +21,9 @@ import (
 )
 
 const (
-	defaultPriceLimit          uint64 = 1
-	defaultMaxSlots            uint64 = 4096
-	defaultMaxAccountDemotions uint64 = 10
-	validGasLimit              uint64 = 4712350
+	defaultPriceLimit uint64 = 1
+	defaultMaxSlots   uint64 = 4096
+	validGasLimit     uint64 = 4712350
 )
 
 var (
@@ -104,7 +103,6 @@ func newTestPoolWithSlots(maxSlots uint64, mockStore ...store) (*TxPool, error) 
 			PriceLimit:            defaultPriceLimit,
 			MaxSlots:              maxSlots,
 			Sealing:               false,
-			MaxAccountDemotions:   defaultMaxAccountDemotions,
 			PruneTickSeconds:      DefaultPruneTickSeconds,
 			PromoteOutdateSeconds: DefaultPromoteOutdateSeconds,
 			ClippingMemory: ClippingMemory{
@@ -1217,80 +1215,6 @@ func TestDrop_RecoverRightNonce(t *testing.T) {
 	assert.Equal(t, uint64(0), pool.accounts.get(addr1).promoted.length())
 }
 
-func TestDemote(t *testing.T) {
-	t.Parallel()
-
-	t.Run("Demote increments counter", func(t *testing.T) {
-		t.Parallel()
-		//	create pool
-		pool, err := newTestPool()
-		assert.NoError(t, err)
-		pool.SetSigner(&mockSigner{})
-
-		//	send tx
-		go func() {
-			err := pool.addTx(local, newTx(addr1, 0, 1))
-			assert.NoError(t, err)
-		}()
-		go pool.handleEnqueueRequest(<-pool.enqueueReqCh)
-		pool.handlePromoteRequest(<-pool.promoteReqCh)
-
-		assert.Equal(t, uint64(1), pool.gauge.read())
-		assert.Equal(t, uint64(1), pool.accounts.get(addr1).getNonce())
-		assert.Equal(t, uint64(1), pool.accounts.get(addr1).promoted.length())
-		assert.Equal(t, uint64(0), pool.accounts.get(addr1).demotions)
-
-		//	call demote
-		pool.Prepare()
-		tx := pool.Pop()
-		pool.Demote(tx)
-
-		assert.Equal(t, uint64(1), pool.gauge.read())
-		assert.Equal(t, uint64(1), pool.accounts.get(addr1).getNonce())
-		assert.Equal(t, uint64(1), pool.accounts.get(addr1).promoted.length())
-
-		//	assert counter was incremented
-		assert.Equal(t, uint64(1), pool.accounts.get(addr1).demotions)
-	})
-
-	t.Run("Demote calls Drop", func(t *testing.T) {
-		t.Parallel()
-
-		//	create pool
-		pool, err := newTestPool()
-		assert.NoError(t, err)
-		pool.SetSigner(&mockSigner{})
-
-		//	send tx
-		go func() {
-			err := pool.addTx(local, newTx(addr1, 0, 1))
-			assert.NoError(t, err)
-		}()
-		go pool.handleEnqueueRequest(<-pool.enqueueReqCh)
-		pool.handlePromoteRequest(<-pool.promoteReqCh)
-
-		assert.Equal(t, uint64(1), pool.gauge.read())
-		assert.Equal(t, uint64(1), pool.accounts.get(addr1).getNonce())
-		assert.Equal(t, uint64(1), pool.accounts.get(addr1).promoted.length())
-
-		//	set counter to max allowed demotions
-		pool.accounts.get(addr1).demotions = pool.maxAccountDemotions
-
-		//	call demote
-		pool.Prepare()
-		tx := pool.Pop()
-		pool.Demote(tx)
-
-		//	account was dropped
-		assert.Equal(t, uint64(0), pool.gauge.read())
-		assert.Equal(t, uint64(0), pool.accounts.get(addr1).getNonce())
-		assert.Equal(t, uint64(0), pool.accounts.get(addr1).promoted.length())
-
-		//	demotions are reset to 0
-		assert.Equal(t, uint64(0), pool.accounts.get(addr1).demotions)
-	})
-}
-
 func TestTxpool_PruneStaleAccounts(t *testing.T) {
 	t.Parallel()
 
@@ -2301,7 +2225,7 @@ func TestRecovery(t *testing.T) {
 
 					switch status(tx) {
 					case recoverable:
-						pool.Demote(tx)
+						// do nothing?
 					case unrecoverable:
 						pool.Drop(tx)
 					case ok:

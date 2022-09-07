@@ -124,16 +124,26 @@ func (d *Dev) writeTransactions(gasLimit uint64, transition transitionInterface)
 		}
 
 		if err := transition.Write(tx); err != nil {
-			d.logger.Debug("write transaction failed", "hash", tx.Hash, "from", tx.From, "nonce", tx.Nonce, "err", err)
+			d.logger.Debug("write transaction failed", "hash", tx.Hash, "from", tx.From,
+				"nonce", tx.Nonce, "err", err)
 
 			//nolint:errorlint
-			if appErr, ok := err.(*state.GasLimitReachedTransitionApplicationError); ok && appErr.IsRecoverable {
+			if _, ok := err.(*state.GasLimitReachedTransitionApplicationError); ok {
 				// Ignore those out-of-gas transaction whose gas limit too large
-			} else if appErr, ok := err.(*state.AllGasUsedError); ok && appErr.IsRecoverable {
+			} else if _, ok := err.(*state.AllGasUsedError); ok {
 				// no more transaction could be packed.
 				break
+			} else if _, ok := err.(*state.NonceTooLowError); ok {
+				d.txpool.Remove(tx)
+				d.logger.Error("write transaction nonce too low", "hash", tx.Hash, "from", tx.From,
+					"nonce", tx.Nonce, "err", err)
+			} else if _, ok := err.(*state.NonceTooHighError); ok {
+				// Too high nonce tx
+				d.txpool.DemoteAllPromoted(tx)
+				d.logger.Error("write miss some transactions with higher nonce", tx.Hash, "from", tx.From,
+					"nonce", tx.Nonce, "err", err)
 			} else if appErr, ok := err.(*state.TransitionApplicationError); ok && appErr.IsRecoverable {
-				d.txpool.Demote(tx)
+				// d.txpool.DemoteAllPromoted(tx)
 			} else {
 				d.txpool.Drop(tx)
 			}

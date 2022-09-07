@@ -48,7 +48,7 @@ type txPoolInterface interface {
 	Pop() *types.Transaction
 	Remove(tx *types.Transaction)
 	Drop(tx *types.Transaction)
-	Demote(tx *types.Transaction)
+	DemoteAllPromoted(tx *types.Transaction)
 	ResetWithHeaders(headers ...*types.Header)
 }
 
@@ -713,10 +713,11 @@ func (i *Ibft) writeTransactions(gasLimit uint64, transition transitionInterface
 			} else if _, ok := err.(*state.NonceTooHighError); ok {
 				// Too high nonce tx
 				failedTxCount++
+				i.txpool.DemoteAllPromoted(tx)
 				i.logger.Error("write miss some transactions with higher nonce", tx.Hash, "from", tx.From,
 					"nonce", tx.Nonce, "err", err)
 			} else if appErr, ok := err.(*state.TransitionApplicationError); ok && appErr.IsRecoverable {
-				i.txpool.Demote(tx)
+				// i.txpool.DemoteAllPromoted(tx)
 			} else {
 				failedTxCount++
 				i.txpool.Drop(tx)

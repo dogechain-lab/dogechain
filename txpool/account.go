@@ -212,7 +212,6 @@ type account struct {
 	init               sync.Once
 	enqueued, promoted *accountQueue
 	nextNonce          uint64
-	demotions          uint64
 	lastPromoted       time.Time // timestamp for pruning
 }
 

@@ -85,7 +85,6 @@ type Config struct {
 	PriceLimit            uint64
 	MaxSlots              uint64
 	Sealing               bool
-	MaxAccountDemotions   uint64
 	PruneTickSeconds      uint64
 	PromoteOutdateSeconds uint64
 	ClippingMemory        ClippingMemory
@@ -176,9 +175,6 @@ type TxPool struct {
 	// indicates which txpool operator commands should be implemented
 	proto.UnimplementedTxnPoolOperatorServer
 
-	// maximum account demotion count. when reach, drop all transactions of this account
-	maxAccountDemotions uint64
-
 	// pruning configs
 	// ticker for pruning account outdated transactions
 	pruneAccountTicker     *time.Ticker
@@ -204,7 +200,6 @@ func NewTxPool(
 		pruneTickSeconds          = config.PruneTickSeconds
 		promoteOutdateSeconds     = config.PromoteOutdateSeconds
 		maxSlot                   = config.MaxSlots
-		maxAccountDemotions       = config.MaxAccountDemotions
 		clippingMemoryTickSeconds = config.ClippingMemory.TickSeconds
 		clippingMemoryThreshold   = config.ClippingMemory.Threshold
 	)
@@ -219,10 +214,6 @@ func NewTxPool(
 
 	if maxSlot == 0 {
 		maxSlot = DefaultMaxSlots
-	}
-
-	if maxAccountDemotions == 0 {
-		maxAccountDemotions = DefaultMaxAccountDemotions
 	}
 
 	if clippingMemoryTickSeconds == 0 {
@@ -247,7 +238,6 @@ func NewTxPool(
 		gauge:                   slotGauge{height: 0, max: maxSlot},
 		priceLimit:              config.PriceLimit,
 		sealing:                 config.Sealing,
-		maxAccountDemotions:     maxAccountDemotions,
 		pruneTick:               time.Second * time.Duration(pruneTickSeconds),
 		promoteOutdateDuration:  time.Second * time.Duration(promoteOutdateSeconds),
 		clippingTick:            time.Second * time.Duration(clippingMemoryTickSeconds),
@@ -400,9 +390,6 @@ func (p *TxPool) Remove(tx *types.Transaction) {
 
 	p.logger.Debug("excutables pop out the max price transaction", "hash", tx.Hash, "from", tx.From)
 
-	//	successfully popping an account resets its demotions count to 0
-	account.demotions = 0
-
 	// update state
 	p.gauge.decrease(slotsRequired(tx))
 
@@ -414,6 +401,14 @@ func (p *TxPool) Remove(tx *types.Transaction) {
 		p.logger.Debug("excutables push in another transaction", "hash", tx.Hash, "from", tx.From)
 		p.executables.push(tx)
 	}
+}
+
+// DemoteAllPromoted clears all promoted transactions of the account
+//
+// clears all promoted transactions of the account, re-add them to the txpool,
+// and reset the nonce
+func (p *TxPool) DemoteAllPromoted(tx *types.Transaction) {
+	p.eventManager.signalEvent(proto.EventType_DEMOTED, tx.Hash)
 }
 
 // Drop clears the entire account associated with the given transaction
@@ -466,31 +461,6 @@ func (p *TxPool) Drop(tx *types.Transaction) {
 		"next_nonce", nextNonce,
 		"address", tx.From.String(),
 	)
-}
-
-// Demote excludes an account from being further processed during block building
-// due to a recoverable error.
-//
-// If an account has been demoted too many times (maxAccountDemotions), it is Dropped instead.
-func (p *TxPool) Demote(tx *types.Transaction) {
-	account := p.accounts.get(tx.From)
-	if account.demotions == p.maxAccountDemotions {
-		p.logger.Debug(
-			"Demote: threshold reached - dropping account",
-			"addr", tx.From.String(),
-		)
-
-		p.Drop(tx)
-
-		//	reset the demotions counter
-		account.demotions = 0
-
-		return
-	}
-
-	account.demotions++
-
-	p.eventManager.signalEvent(proto.EventType_DEMOTED, tx.Hash)
 }
 
 // ResetWithHeaders processes the transactions from the new
@@ -879,9 +849,6 @@ func (p *TxPool) resetAccounts(stateNonces map[types.Address]uint64) {
 		//	append pruned
 		allPrunedPromoted = append(allPrunedPromoted, prunedPromoted...)
 		allPrunedEnqueued = append(allPrunedEnqueued, prunedEnqueued...)
-
-		// new state for account -> demotions are reset to 0
-		account.demotions = 0
 	}
 
 	//	pool cleanup callback
