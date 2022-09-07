@@ -536,6 +536,7 @@ func (t *Transition) apply(msg *types.Transaction) (*runtime.ExecutionResult, er
 
 	// 2. caller has enough balance to cover transaction fee(gaslimit * gasprice)
 	if err := t.subGasLimitPrice(msg); err != nil {
+		// It is not recoverable. All the transactions after that should be dropped
 		return nil, NewTransitionApplicationError(err, true)
 	}
 
@@ -561,6 +562,7 @@ func (t *Transition) apply(msg *types.Transaction) (*runtime.ExecutionResult, er
 
 	// 6. caller has enough balance to cover asset transfer for **topmost** call
 	if balance := txn.GetBalance(msg.From); balance.Cmp(msg.Value) < 0 {
+		// It is not recoverable. All the transactions after that should be dropped
 		return nil, NewTransitionApplicationError(ErrNotEnoughFunds, true)
 	}
 

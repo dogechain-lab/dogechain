@@ -5,6 +5,5 @@ const (
 	DefaultPromoteOutdateSeconds = 3600 // not promoted account for a long time would be pruned
 	// txpool transaction max slots. tx <= 32kB would only take 1 slot. tx > 32kB would take
 	// ceil(tx.size / 32kB) slots.
-	DefaultMaxSlots            = 4096
-	DefaultMaxAccountDemotions = 10 // account demotion counter limit
+	DefaultMaxSlots = 4096
 )

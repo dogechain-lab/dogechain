@@ -33,7 +33,6 @@ const (
 	maxOutboundPeersFlag         = "max-outbound-peers"
 	priceLimitFlag               = "price-limit"
 	maxSlotsFlag                 = "max-slots"
-	maxAccountDemotionsFlag      = "max-account-demotions"
 	pruneTickSecondsFlag         = "prune-tick-seconds"
 	promoteOutdateSecondsFlag    = "promote-outdate-seconds"
 	blockGasTargetFlag           = "block-gas-target"
@@ -208,7 +207,6 @@ func (p *serverParams) generateConfig() *server.Config {
 		Seal:                  p.rawConfig.ShouldSeal,
 		PriceLimit:            p.rawConfig.TxPool.PriceLimit,
 		MaxSlots:              p.rawConfig.TxPool.MaxSlots,
-		MaxAccountDemotions:   p.rawConfig.TxPool.MaxAccountDemotions,
 		PruneTickSeconds:      p.rawConfig.TxPool.PruneTickSeconds,
 		PromoteOutdateSeconds: p.rawConfig.TxPool.PromoteOutdateSeconds,
 		SecretsManager:        p.secretsConfig,

@@ -28,7 +28,6 @@ type Config struct {
 	PriceLimit            uint64
 	MaxSlots              uint64
 	BlockTime             uint64
-	MaxAccountDemotions   uint64
 	PruneTickSeconds      uint64
 	PromoteOutdateSeconds uint64
 

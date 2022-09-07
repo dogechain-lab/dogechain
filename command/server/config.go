@@ -56,7 +56,6 @@ type Network struct {
 type TxPool struct {
 	PriceLimit            uint64 `json:"price_limit"`
 	MaxSlots              uint64 `json:"max_slots"`
-	MaxAccountDemotions   uint64 `json:"max_account_demotions"`
 	PruneTickSeconds      uint64 `json:"prune_tick_seconds"`
 	PromoteOutdateSeconds uint64 `json:"promote_outdate_seconds"`
 }
@@ -88,7 +87,6 @@ func DefaultConfig() *Config {
 		TxPool: &TxPool{
 			PriceLimit:            0,
 			MaxSlots:              txpool.DefaultMaxSlots,
-			MaxAccountDemotions:   txpool.DefaultMaxAccountDemotions,
 			PruneTickSeconds:      txpool.DefaultPruneTickSeconds,
 			PromoteOutdateSeconds: txpool.DefaultPromoteOutdateSeconds,
 		},
