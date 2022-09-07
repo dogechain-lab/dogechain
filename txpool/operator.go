@@ -20,6 +20,7 @@ func (p *TxPool) Status(ctx context.Context, req *empty.Empty) (*proto.TxnPoolSt
 		PendingLength:  pendingLength,
 		EnqueuedLength: p.accounts.enqueued(),
 		MaxSlots:       p.gauge.max,
+		CurrentSlots:   p.gauge.read(),
 	}
 
 	return resp, nil
