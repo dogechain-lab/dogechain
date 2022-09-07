@@ -46,6 +46,13 @@ func (q *accountQueue) unlock() {
 	}
 }
 
+// Transactions returns all queued transactions
+//
+// The sequence should not be rely on. It might be a simple slice, or a heap, or map.
+func (q *accountQueue) Transactions() []*types.Transaction {
+	return q.queue
+}
+
 // prune removes all transactions from the queue
 // with nonce lower than given.
 func (q *accountQueue) prune(nonce uint64) (
@@ -137,9 +144,6 @@ func (q *accountQueue) Add(tx *types.Transaction) (bool, *types.Transaction) {
 		return false, old
 	}
 
-	// cache nonce
-	q.setNonceTx(tx)
-
 	// upsert
 	if old == nil {
 		q.push(tx)
@@ -157,6 +161,7 @@ func (q *accountQueue) replaceTxByNewTx(newTx *types.Transaction) *types.Transac
 		if tx.Nonce == newTx.Nonce && txPriceReplacable(newTx, tx) {
 			dropped = tx
 			q.queue[i] = newTx
+			q.setNonceTx(newTx)
 
 			break
 		}
@@ -168,6 +173,7 @@ func (q *accountQueue) replaceTxByNewTx(newTx *types.Transaction) *types.Transac
 // push pushes the given transaction onto the queue.
 func (q *accountQueue) push(tx *types.Transaction) {
 	heap.Push(&q.queue, tx)
+	q.setNonceTx(tx)
 }
 
 // peek returns the first transaction from the queue without removing it.
