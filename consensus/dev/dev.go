@@ -134,26 +134,24 @@ func (d *Dev) writeTransactions(gasLimit uint64, transition transitionInterface)
 			} else if _, ok := err.(*state.AllGasUsedError); ok {
 				// no more transaction could be packed.
 				break
-			} else if _, ok := err.(*state.NonceTooLowError); ok {
-				d.txpool.Remove(tx)
+			} else if nonceErr, ok := err.(*state.NonceTooLowError); ok {
+				d.txpool.DemoteAllPromoted(tx, nonceErr.CorrectNonce)
 				d.logger.Error("write transaction nonce too low", "hash", tx.Hash, "from", tx.From,
 					"nonce", tx.Nonce, "err", err)
-			} else if _, ok := err.(*state.NonceTooHighError); ok {
+			} else if nonceErr, ok := err.(*state.NonceTooHighError); ok {
 				// Too high nonce tx
-				d.txpool.DemoteAllPromoted(tx)
+				d.txpool.DemoteAllPromoted(tx, nonceErr.CorrectNonce)
 				d.logger.Error("write miss some transactions with higher nonce", tx.Hash, "from", tx.From,
 					"nonce", tx.Nonce, "err", err)
-			} else if appErr, ok := err.(*state.TransitionApplicationError); ok && appErr.IsRecoverable {
-				// d.txpool.DemoteAllPromoted(tx)
 			} else {
-				d.txpool.Drop(tx)
+				d.txpool.RemoveFailed(tx)
 			}
 
 			continue
 		}
 
 		// no errors, pop the tx from the pool
-		d.txpool.Remove(tx)
+		d.txpool.RemoveExecuted(tx)
 
 		successful = append(successful, tx)
 	}

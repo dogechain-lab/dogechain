@@ -183,7 +183,7 @@ func (m *accountsMap) pruneStaleEnqueuedTxs(outdateDuration time.Duration) []*ty
 			account.enqueued.lock(true)
 			pruned = append(
 				pruned,
-				account.enqueued.clear()...,
+				account.enqueued.Clear()...,
 			)
 			account.enqueued.unlock()
 		}
