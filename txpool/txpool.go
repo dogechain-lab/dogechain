@@ -374,11 +374,47 @@ func (p *TxPool) Pop() *types.Transaction {
 	return p.executables.pop()
 }
 
-// Remove removes the given transaction from the
-// associated promoted queue (account).
+func (p *TxPool) RemoveFailed(tx *types.Transaction) {
+	// fetch the associated account
+	account := p.accounts.get(tx.From)
+
+	account.promoted.lock(true)
+
+	old := account.promoted.peek()
+	if old == nil || old.Hash != tx.Hash {
+		var correctNonce uint64
+		if old == nil {
+			correctNonce = p.store.GetNonce(p.store.Header().StateRoot, tx.From)
+		} else {
+			correctNonce = tx.Nonce
+		}
+		// release the lock
+		account.promoted.unlock()
+		// all wrong, should clear the promoted queue
+		p.DemoteAllPromoted(tx, correctNonce)
+
+		return
+	}
+
+	// pop the top promoted tx
+	account.promoted.pop()
+	// remove it
+	p.index.remove(tx)
+	// update metrics and gauge
+	p.gauge.decrease(slotsRequired(tx))
+	p.decreaseQueueGauge([]*types.Transaction{tx}, p.metrics.PendingTxs, proto.EventType_DROPPED)
+
+	// unlock the queue
+	account.promoted.unlock()
+
+	p.logger.Debug("pop out extecute failed transaction", "hash", tx.Hash, "from", tx.From)
+}
+
+// RemoveExecuted removes the executed transaction from promoted queue
+//
 // Will update executables with the next primary
 // from that account (if any).
-func (p *TxPool) Remove(tx *types.Transaction) {
+func (p *TxPool) RemoveExecuted(tx *types.Transaction) {
 	// fetch the associated account
 	account := p.accounts.get(tx.From)
 
@@ -403,12 +439,37 @@ func (p *TxPool) Remove(tx *types.Transaction) {
 	}
 }
 
-// DemoteAllPromoted clears all promoted transactions of the account
+// DemoteAllPromoted clears all promoted transactions of the account which
+// might be not promotable
 //
 // clears all promoted transactions of the account, re-add them to the txpool,
 // and reset the nonce
-func (p *TxPool) DemoteAllPromoted(tx *types.Transaction) {
-	p.eventManager.signalEvent(proto.EventType_DEMOTED, tx.Hash)
+func (p *TxPool) DemoteAllPromoted(tx *types.Transaction, correctNonce uint64) {
+	// fetch associated account
+	account := p.accounts.get(tx.From)
+
+	// should lock to rewrite other transactions
+	account.promoted.lock(true)
+	defer account.promoted.unlock()
+
+	// clear it
+	txs := account.promoted.Clear()
+	p.index.remove(txs...)
+	// update metrics and gauge
+	p.metrics.PendingTxs.Add(-1 * float64(len(txs)))
+	p.gauge.decrease(slotsRequired(txs...))
+	// signal events
+	p.eventManager.signalEvent(proto.EventType_DEMOTED, toHash(txs...)...)
+
+	// reset account nonce to the correct one
+	account.setNonce(correctNonce)
+
+	go func(txs []*types.Transaction) {
+		// retry enqueue, and broadcast
+		for _, tx := range txs {
+			p.AddTx(tx)
+		}
+	}(txs)
 }
 
 // Drop clears the entire account associated with the given transaction
@@ -442,14 +503,14 @@ func (p *TxPool) Drop(tx *types.Transaction) {
 	account.setNonce(nextNonce)
 
 	// drop promoted
-	dropped := account.promoted.clear()
+	dropped := account.promoted.Clear()
 	clearAccountQueue(dropped)
 
 	// update metrics
 	p.metrics.PendingTxs.Add(float64(-1 * len(dropped)))
 
 	// drop enqueued
-	dropped = account.enqueued.clear()
+	dropped = account.enqueued.Clear()
 	clearAccountQueue(dropped)
 
 	// update metrics
@@ -941,7 +1002,7 @@ func (p *TxPool) clipMemoryEater() {
 	eater.enqueued.lock(true) // update lock
 	defer eater.enqueued.unlock()
 
-	pruned := eater.enqueued.clear()
+	pruned := eater.enqueued.Clear()
 	p.pruneEnqueuedTxs(pruned)
 	p.logger.Info("pruned memory eater transactions", "num", len(pruned), "account", maxEaterAddr)
 }

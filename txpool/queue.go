@@ -72,8 +72,8 @@ func (q *accountQueue) prune(nonce uint64) (
 	return
 }
 
-// clear removes all transactions from the queue.
-func (q *accountQueue) clear() (removed []*types.Transaction) {
+// Clear removes all transactions from the queue.
+func (q *accountQueue) Clear() (removed []*types.Transaction) {
 	// store txs
 	removed = q.queue
 

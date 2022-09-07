@@ -46,9 +46,10 @@ type txPoolInterface interface {
 	Prepare()
 	Length() uint64
 	Pop() *types.Transaction
-	Remove(tx *types.Transaction)
+	RemoveExecuted(tx *types.Transaction)
+	RemoveFailed(tx *types.Transaction)
 	Drop(tx *types.Transaction)
-	DemoteAllPromoted(tx *types.Transaction)
+	DemoteAllPromoted(tx *types.Transaction, correctNonce uint64)
 	ResetWithHeaders(headers ...*types.Header)
 }
 
@@ -678,18 +679,16 @@ func (i *Ibft) writeTransactions(gasLimit uint64, transition transitionInterface
 		}
 
 		if tx.ExceedsBlockGasLimit(gasLimit) {
+			copyTx := tx.Copy()
+			failedTxCount++
+			// The address is punished. For current validator, it would not include its transactions any more.
+			i.txpool.Drop(tx)
+			// write failed receipts
 			if err := transition.WriteFailedReceipt(tx); err != nil {
-				failedTxCount++
-
-				i.txpool.Drop(tx)
-
 				continue
 			}
 
-			failedTxCount++
-
-			transactions = append(transactions, tx)
-			i.txpool.Drop(tx)
+			transactions = append(transactions, copyTx)
 
 			continue
 		}
@@ -700,34 +699,33 @@ func (i *Ibft) writeTransactions(gasLimit uint64, transition transitionInterface
 
 			//nolint:errorlint
 			if _, ok := err.(*state.GasLimitReachedTransitionApplicationError); ok {
-				// Ignore those out-of-gas transaction whose gas limit too large
+				// Ignore transaction when the free gas not enough
 			} else if _, ok := err.(*state.AllGasUsedError); ok {
 				// no more transaction could be packed.
 				break
-			} else if _, ok := err.(*state.NonceTooLowError); ok {
-				// Remove low nonce tx
+			} else if nonceErr, ok := err.(*state.NonceTooLowError); ok {
+				// low nonce tx, demote all promotable transactions
 				failedTxCount++
-				i.txpool.Remove(tx)
+				i.txpool.DemoteAllPromoted(tx, nonceErr.CorrectNonce)
 				i.logger.Error("write transaction nonce too low", "hash", tx.Hash, "from", tx.From,
 					"nonce", tx.Nonce, "err", err)
-			} else if _, ok := err.(*state.NonceTooHighError); ok {
-				// Too high nonce tx
+			} else if nonceErr, ok := err.(*state.NonceTooHighError); ok {
+				// high nonce tx, demote all promotable transactions
 				failedTxCount++
-				i.txpool.DemoteAllPromoted(tx)
+				i.txpool.DemoteAllPromoted(tx, nonceErr.CorrectNonce)
 				i.logger.Error("write miss some transactions with higher nonce", tx.Hash, "from", tx.From,
 					"nonce", tx.Nonce, "err", err)
-			} else if appErr, ok := err.(*state.TransitionApplicationError); ok && appErr.IsRecoverable {
-				// i.txpool.DemoteAllPromoted(tx)
 			} else {
 				failedTxCount++
-				i.txpool.Drop(tx)
+				// remove this transaction only
+				i.txpool.RemoveFailed(tx)
 			}
 
 			continue
 		}
 
 		// no errors, remove the tx from the pool
-		i.txpool.Remove(tx)
+		i.txpool.RemoveExecuted(tx)
 
 		successTxCount++
 

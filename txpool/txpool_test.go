@@ -1121,7 +1121,7 @@ func TestPop(t *testing.T) {
 	// pop the tx
 	pool.Prepare()
 	tx := pool.Pop()
-	pool.Remove(tx)
+	pool.RemoveExecuted(tx)
 
 	assert.Equal(t, uint64(0), pool.gauge.read())
 	assert.Equal(t, uint64(0), pool.accounts.get(addr1).promoted.length())
@@ -2030,7 +2030,7 @@ func TestExecutablesOrder(t *testing.T) {
 					break
 				}
 
-				pool.Remove(tx)
+				pool.RemoveExecuted(tx)
 				successful = append(successful, tx)
 			}
 
@@ -2229,7 +2229,7 @@ func TestRecovery(t *testing.T) {
 					case unrecoverable:
 						pool.Drop(tx)
 					case ok:
-						pool.Remove(tx)
+						pool.RemoveExecuted(tx)
 					}
 				}
 			}()
