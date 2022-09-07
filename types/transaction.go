@@ -42,13 +42,23 @@ func (t *Transaction) ComputeHash() *Transaction {
 	return t
 }
 
+// Copy returns a deep copy
 func (t *Transaction) Copy() *Transaction {
-	tt := new(Transaction)
-	*tt = *t
+	tt := &Transaction{
+		Nonce: t.Nonce,
+		Gas:   t.Gas,
+		Hash:  t.Hash,
+		From:  t.From,
+	}
 
 	tt.GasPrice = new(big.Int)
 	if t.GasPrice != nil {
 		tt.GasPrice.Set(t.GasPrice)
+	}
+
+	if t.To != nil {
+		toAddr := *t.To
+		tt.To = &toAddr
 	}
 
 	tt.Value = new(big.Int)
@@ -56,18 +66,22 @@ func (t *Transaction) Copy() *Transaction {
 		tt.Value.Set(t.Value)
 	}
 
+	if len(t.Input) > 0 {
+		tt.Input = make([]byte, len(t.Input))
+		copy(tt.Input[:], t.Input[:])
+	}
+
+	if t.V != nil {
+		tt.V = new(big.Int).SetBits(t.V.Bits())
+	}
+
 	if t.R != nil {
-		tt.R = new(big.Int)
-		tt.R = big.NewInt(0).SetBits(t.R.Bits())
+		tt.R = new(big.Int).SetBits(t.R.Bits())
 	}
 
 	if t.S != nil {
-		tt.S = new(big.Int)
-		tt.S = big.NewInt(0).SetBits(t.S.Bits())
+		tt.S = new(big.Int).SetBits(t.S.Bits())
 	}
-
-	tt.Input = make([]byte, len(t.Input))
-	copy(tt.Input[:], t.Input[:])
 
 	return tt
 }
