@@ -142,7 +142,7 @@ func (m *accountsMap) allTxs(includeEnqueued bool) (
 		defer account.promoted.unlock()
 
 		if account.promoted.length() != 0 {
-			allPromoted[addr] = account.promoted.queue
+			allPromoted[addr] = account.promoted.Transactions()
 		}
 
 		if includeEnqueued {
@@ -150,7 +150,7 @@ func (m *accountsMap) allTxs(includeEnqueued bool) (
 			defer account.enqueued.unlock()
 
 			if account.enqueued.length() != 0 {
-				allEnqueued[addr] = account.enqueued.queue
+				allEnqueued[addr] = account.enqueued.Transactions()
 			}
 		}
 
