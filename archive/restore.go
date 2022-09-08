@@ -1,6 +1,8 @@
 package archive
 
 import (
+	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -11,7 +13,10 @@ import (
 	"github.com/dogechain-lab/dogechain/helper/common"
 	"github.com/dogechain-lab/dogechain/helper/progress"
 	"github.com/dogechain-lab/dogechain/types"
+	"github.com/klauspost/compress/zstd"
 )
+
+var zstdMagic = []byte{0x28, 0xb5, 0x2f, 0xfd} // zstd Magic number
 
 type blockchainInterface interface {
 	SubscribeEvents() blockchain.Subscription
@@ -24,12 +29,32 @@ type blockchainInterface interface {
 
 // RestoreChain reads blocks from the archive and write to the chain
 func RestoreChain(chain blockchainInterface, filePath string, progression *progress.ProgressionWrapper) error {
-	fp, err := os.Open(filePath)
+	fp, err := os.OpenFile(filePath, os.O_RDONLY, 0)
+	if err != nil {
+		return err
+	}
+	defer fp.Close()
+
+	fbuf := bufio.NewReaderSize(fp, 1*1024*1024) // 1MB buffer
+
+	// check whether the file is compressed
+	fileMagic, err := fbuf.Peek(len(zstdMagic))
 	if err != nil {
 		return err
 	}
 
-	blockStream := newBlockStream(fp)
+	if bytes.Equal(fileMagic[:], zstdMagic[:]) {
+		zstdReader, err := zstd.NewReader(fbuf)
+		if err != nil {
+			return err
+		}
+		defer zstdReader.Close()
+
+		// replace the reader with zstd reader
+		fbuf = bufio.NewReader(zstdReader)
+	}
+
+	blockStream := newBlockStream(fbuf)
 
 	return importBlocks(chain, blockStream, progression)
 }

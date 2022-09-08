@@ -44,6 +44,27 @@ func setFlags(cmd *cobra.Command) {
 		"",
 		"the end height of the chain in backup",
 	)
+
+	cmd.Flags().BoolVar(
+		&params.overwriteFile,
+		overwriteFileFlag,
+		false,
+		"force overwrite the backup file if it already exists",
+	)
+
+	cmd.Flags().BoolVar(
+		&params.enableZstdCompression,
+		zstdFlag,
+		false,
+		"enable zstd compression",
+	)
+
+	cmd.Flags().IntVar(
+		&params.zstdLevel,
+		zstdLevelFlag,
+		3,
+		"zstd compression level",
+	)
 }
 
 func runPreRun(_ *cobra.Command, _ []string) error {

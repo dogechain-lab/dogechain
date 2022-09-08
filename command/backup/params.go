@@ -11,9 +11,12 @@ import (
 )
 
 const (
-	outFlag  = "out"
-	fromFlag = "from"
-	toFlag   = "to"
+	outFlag           = "out"
+	fromFlag          = "from"
+	toFlag            = "to"
+	overwriteFileFlag = "overwrite-file"
+	zstdFlag          = "zstd"
+	zstdLevelFlag     = "zstd-level"
 )
 
 var (
@@ -30,6 +33,11 @@ type backupParams struct {
 
 	fromRaw string
 	toRaw   string
+
+	overwriteFile bool
+
+	enableZstdCompression bool
+	zstdLevel             int
 
 	from uint64
 	to   *uint64
@@ -86,6 +94,9 @@ func (p *backupParams) createBackup(grpcAddress string) error {
 		p.from,
 		p.to,
 		p.out,
+		p.overwriteFile,
+		p.enableZstdCompression,
+		p.zstdLevel,
 	)
 	if err != nil {
 		return err

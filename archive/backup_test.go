@@ -254,8 +254,8 @@ func Test_processExportStream(t *testing.T) {
 				return
 			}
 
-			assert.Equal(t, tt.from, *from)
-			assert.Equal(t, tt.to, *to)
+			assert.Equal(t, tt.from, from)
+			assert.Equal(t, tt.to, to)
 
 			// create expected data
 			expectedData := make([]byte, 0)
