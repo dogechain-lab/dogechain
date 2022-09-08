@@ -2041,6 +2041,8 @@ func TestExecutablesOrder(t *testing.T) {
 }
 
 func TestDropAndRequeue(t *testing.T) {
+	t.Parallel()
+
 	type status int
 
 	// Status of a transaction resulted
@@ -2102,7 +2104,7 @@ func TestDropAndRequeue(t *testing.T) {
 
 	testCases := []*testCase{
 		{
-			name: "unrecoverable drops account",
+			name: "unrecoverable and recoverable all drops account",
 			allTxs: map[types.Address][]statusTx{
 				addr1: {
 					{newTx(addr1, 0, 1), ok},
@@ -2117,11 +2119,11 @@ func TestDropAndRequeue(t *testing.T) {
 				},
 				addr3: {
 					{newTx(addr3, 5, 1), ok},
-					{newTx(addr3, 6, 1), ok},
+					{newTx(addr3, 6, 1), recoverable},
 					{newTx(addr3, 7, 1), ok},
 				},
 			},
-			executableTxsCount: 4, // 1 + 3 (addr1, addr3)
+			executableTxsCount: 1 + 1, // addr1 + addr3
 			expected: result{
 				slots: 0, // all executed
 				accounts: map[types.Address]accountState{
@@ -2138,39 +2140,7 @@ func TestDropAndRequeue(t *testing.T) {
 					addr3: {
 						enqueued:  0,
 						promoted:  0,
-						nextNonce: 8,
-					},
-				},
-			},
-		},
-		{
-			name: "recoverable drops account too",
-			allTxs: map[types.Address][]statusTx{
-				addr1: {
-					{newTx(addr1, 0, 1), ok},
-					{newTx(addr1, 1, 1), ok},
-					{newTx(addr1, 2, 1), ok},
-					{newTx(addr1, 3, 1), recoverable},
-					{newTx(addr1, 4, 1), recoverable},
-				},
-				addr2: {
-					{newTx(addr2, 9, 1), recoverable},
-					{newTx(addr2, 10, 1), recoverable},
-				},
-			},
-			executableTxsCount: 3, // all from addr1
-			expected: result{
-				slots: 0,
-				accounts: map[types.Address]accountState{
-					addr1: {
-						enqueued:  0,
-						promoted:  0,
-						nextNonce: 3,
-					},
-					addr2: {
-						enqueued:  0,
-						promoted:  0,
-						nextNonce: 9,
+						nextNonce: 6,
 					},
 				},
 			},
@@ -2209,6 +2179,8 @@ func TestDropAndRequeue(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
 			// helper callback for transition errors
 			status := func(tx *types.Transaction) (s status) {
 				txs := test.allTxs[tx.From]
@@ -2229,12 +2201,7 @@ func TestDropAndRequeue(t *testing.T) {
 			pool.Start()
 			defer pool.Close()
 
-			promotionSubscription := pool.eventManager.subscribe(
-				[]proto.EventType{
-					proto.EventType_ENQUEUED,
-					proto.EventType_PROMOTED,
-				},
-			)
+			promotionSubscription := pool.eventManager.subscribe([]proto.EventType{proto.EventType_PROMOTED})
 
 			// setup prestate
 			totalTx := 0
