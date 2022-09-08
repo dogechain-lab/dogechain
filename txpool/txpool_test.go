@@ -2076,8 +2076,6 @@ func TestPopAndRequeue(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-
 			// helper callback for transition errors
 			status := func(tx *types.Transaction) (s status) {
 				txs := test.allTxs[tx.From]
