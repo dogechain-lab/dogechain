@@ -354,6 +354,10 @@ func (p *TxPool) Pop() *types.Transaction {
 	return p.executables.pop()
 }
 
+// RemoveFailed removes failed transaction of the promoted queue
+//
+// Will demote all promoted txs when top of heap is not the tx we want to removed.
+// Will remove only the promoted tx when it is the top of heap.
 func (p *TxPool) RemoveFailed(tx *types.Transaction) {
 	// fetch the associated account
 	account := p.accounts.get(tx.From)
