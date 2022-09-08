@@ -43,18 +43,22 @@ func RestoreChain(chain blockchainInterface, filePath string, progression *progr
 		return err
 	}
 
+	var readBuf io.Reader
+
 	if bytes.Equal(fileMagic[:], zstdMagic[:]) {
+
 		zstdReader, err := zstd.NewReader(fbuf)
 		if err != nil {
 			return err
 		}
 		defer zstdReader.Close()
 
-		// replace the reader with zstd reader
-		fbuf = bufio.NewReader(zstdReader)
+		readBuf = zstdReader
+	} else {
+		readBuf = fbuf
 	}
 
-	blockStream := newBlockStream(fbuf)
+	blockStream := newBlockStream(readBuf)
 
 	return importBlocks(chain, blockStream, progression)
 }

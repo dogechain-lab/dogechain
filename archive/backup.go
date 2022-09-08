@@ -2,6 +2,7 @@ package archive
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -148,7 +149,8 @@ func writeMetadata(writer io.Writer, logger hclog.Logger, to uint64, toHash type
 		LatestHash: toHash,
 	}
 
-	_, err := writer.Write(metadata.MarshalRLP())
+	// tips: writer.Write() not necessarily write all data, use io.Copy() instead
+	_, err := io.Copy(writer, bytes.NewBuffer(metadata.MarshalRLP()))
 	if err != nil {
 		return err
 	}
@@ -199,7 +201,8 @@ func processExportStream(
 			return from, to, err
 		}
 
-		if _, err := writer.Write(event.Data); err != nil {
+		// tips: writer.Write() not necessarily write all data, use io.Copy() instead
+		if _, err := io.Copy(writer, bytes.NewBuffer(event.Data)); err != nil {
 			return from, to, err
 		}
 
