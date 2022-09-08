@@ -1907,7 +1907,7 @@ func TestExecutablesOrder(t *testing.T) {
 	}
 }
 
-func TestPopAndRequeue(t *testing.T) {
+func TestDropAndRequeue(t *testing.T) {
 	type status int
 
 	// Status of a transaction resulted
@@ -1937,35 +1937,37 @@ func TestPopAndRequeue(t *testing.T) {
 		status status
 	}
 
-	commonAssert := func(testName string, accounts map[types.Address]accountState, pool *TxPool) {
+	type testCase struct {
+		name               string
+		allTxs             map[types.Address][]statusTx
+		executableTxsCount uint64
+		expected           result
+	}
+
+	commonAssert := func(test *testCase, pool *TxPool) {
+		accounts := test.expected.accounts
 		for addr := range accounts {
 			assert.Equal(t, // nextNonce
 				accounts[addr].nextNonce,
 				pool.accounts.get(addr).getNonce(),
-				fmt.Sprintf("%s: %s nonce not equal", testName, addr),
+				fmt.Sprintf("%+v: %s nonce not equal", test.name, addr),
 			)
 
 			assert.Equal(t, // enqueued
 				accounts[addr].enqueued,
 				pool.accounts.get(addr).enqueued.length(),
-				fmt.Sprintf("%s: %s enqueued not equal", testName, addr),
+				fmt.Sprintf("%+v: %s enqueued not equal", test.name, addr),
 			)
 
 			assert.Equal(t, // promoted
 				accounts[addr].promoted,
 				pool.accounts.get(addr).promoted.length(),
-				fmt.Sprintf("%s: %s promoted not equal", testName, addr),
+				fmt.Sprintf("%+v: %s promoted not equal", test.name, addr),
 			)
 		}
 	}
 
-	testCases := []*struct {
-		name               string
-		allTxs             map[types.Address][]statusTx
-		correctNonces      map[types.Address]uint64
-		executableTxsCount uint64
-		expected           result
-	}{
+	testCases := []*testCase{
 		{
 			name: "unrecoverable drops account",
 			allTxs: map[types.Address][]statusTx{
@@ -2145,7 +2147,7 @@ func TestPopAndRequeue(t *testing.T) {
 
 					switch status(tx) {
 					case recoverable:
-						fallthrough
+						pool.Drop(tx)
 					case unrecoverable:
 						pool.Drop(tx)
 					case ok:
@@ -2169,9 +2171,9 @@ func TestPopAndRequeue(t *testing.T) {
 				)
 			}
 
-			assert.Equal(t, test.executableTxsCount, executableTxsCount)
-			assert.Equal(t, test.expected.slots, pool.gauge.read())
-			commonAssert(test.name, test.expected.accounts, pool)
+			assert.Equal(t, test.executableTxsCount, executableTxsCount, "executable transaction count")
+			assert.Equal(t, test.expected.slots, pool.gauge.read(), "gauge not equal")
+			commonAssert(test, pool)
 		})
 	}
 }
