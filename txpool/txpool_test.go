@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"crypto/rand"
+	"fmt"
 	"math/big"
 	"strconv"
 	"testing"
@@ -2075,21 +2076,22 @@ func TestRecovery(t *testing.T) {
 		for addr := range accounts {
 			assert.Equal(t, // nextNonce
 				accounts[addr].nextNonce,
-				pool.accounts.get(addr).getNonce(), addr.String())
+				pool.accounts.get(addr).getNonce(), fmt.Sprintf("%s nonce not equal", addr))
 
 			assert.Equal(t, // enqueued
 				accounts[addr].enqueued,
-				pool.accounts.get(addr).enqueued.length(), addr.String())
+				pool.accounts.get(addr).enqueued.length(), fmt.Sprintf("%s enqueued not equal", addr))
 
 			assert.Equal(t, // promoted
 				accounts[addr].promoted,
-				pool.accounts.get(addr).promoted.length(), addr.String())
+				pool.accounts.get(addr).promoted.length(), fmt.Sprintf("%s promoted not equal", addr))
 		}
 	}
 
 	testCases := []*struct {
 		name               string
 		allTxs             map[types.Address][]statusTx
+		correctNonces      map[types.Address]uint64
 		executableTxsCount uint64
 		expected           result
 	}{
@@ -2167,6 +2169,36 @@ func TestRecovery(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "remove failed and re-enqueue",
+			allTxs: map[types.Address][]statusTx{
+				addr1: {
+					{newTx(addr1, 0, 1), ok},
+					{newTx(addr1, 1, 1), ok},
+					{newTx(addr1, 2, 1), failed},
+				},
+				addr2: {
+					{newTx(addr2, 9, 1), failed},
+					{newTx(addr2, 10, 1), ok},
+				},
+			},
+			executableTxsCount: 2, // all from addr1
+			expected: result{
+				slots: 1,
+				accounts: map[types.Address]accountState{
+					addr1: {
+						enqueued:  0,
+						promoted:  0,
+						nextNonce: 2,
+					},
+					addr2: {
+						enqueued:  1,
+						promoted:  0,
+						nextNonce: 9,
+					},
+				},
+			},
+		},
 	}
 
 	for _, test := range testCases {
@@ -2193,19 +2225,22 @@ func TestRecovery(t *testing.T) {
 			pool.Start()
 			defer pool.Close()
 
-			eventSubscription := pool.eventManager.subscribe(
-				[]proto.EventType{proto.EventType_ENQUEUED, proto.EventType_PROMOTED},
+			promotionSubscription := pool.eventManager.subscribe(
+				[]proto.EventType{
+					proto.EventType_ENQUEUED,
+					proto.EventType_PROMOTED,
+				},
 			)
 
 			// setup prestate
 			totalTx := 0
-			expectedEnqueued := 0
+			expectedReenqueued := 0
 			for addr, txs := range test.allTxs {
 				// preset nonce so promotions can happen
 				acc := pool.createAccountOnce(addr)
 				acc.setNonce(txs[0].tx.Nonce)
 
-				expectedEnqueued += int(test.expected.accounts[addr].enqueued)
+				expectedReenqueued += int(test.expected.accounts[addr].enqueued)
 
 				// send txs
 				for _, sTx := range txs {
@@ -2214,11 +2249,21 @@ func TestRecovery(t *testing.T) {
 				}
 			}
 
+			// wait for all promotion
 			ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*10)
 			defer cancelFn()
 
 			// All txns should get added
-			assert.Len(t, waitForEvents(ctx, eventSubscription, totalTx), totalTx+expectedEnqueued)
+			assert.Len(
+				t,
+				waitForEvents(ctx, promotionSubscription, totalTx),
+				totalTx,
+			)
+
+			// re-enqueued or re-promote events
+			reenqueueSubscription := pool.eventManager.subscribe([]proto.EventType{
+				proto.EventType_ENQUEUED,
+			})
 
 			var executableTxsCount uint64
 			func() {
@@ -2237,9 +2282,23 @@ func TestRecovery(t *testing.T) {
 					case ok:
 						executableTxsCount++
 						pool.RemoveExecuted(tx)
+					case failed:
+						pool.RemoveFailed(tx)
 					}
 				}
 			}()
+
+			if expectedReenqueued > 0 {
+				ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*10)
+				defer cancelFn()
+
+				// All re-enqueued txs should get added
+				assert.Len(
+					t,
+					waitForEvents(ctx, reenqueueSubscription, expectedReenqueued),
+					expectedReenqueued,
+				)
+			}
 
 			assert.Equal(t, test.executableTxsCount, executableTxsCount)
 			assert.Equal(t, test.expected.slots, pool.gauge.read())
