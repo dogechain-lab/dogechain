@@ -1906,30 +1906,30 @@ func TestExecutablesOrder(t *testing.T) {
 	}
 }
 
-type status int
-
-// Status of a transaction resulted
-// from a transition write attempt
-const (
-	// if a tx is recoverable,
-	// account is excluded from
-	// further processing
-	recoverable status = iota
-
-	// if a tx is unrecoverable,
-	// entire account is dropped
-	unrecoverable
-
-	ok
-)
-
-type statusTx struct {
-	tx     *types.Transaction
-	status status
-}
-
 func TestRecovery(t *testing.T) {
 	t.Parallel()
+
+	type status int
+
+	// Status of a transaction resulted
+	// from a transition write attempt
+	const (
+		// if a tx is recoverable,
+		// account is excluded from
+		// further processing
+		recoverable status = iota
+
+		// if a tx is unrecoverable,
+		// entire account is dropped
+		unrecoverable
+
+		ok
+	)
+
+	type statusTx struct {
+		tx     *types.Transaction
+		status status
+	}
 
 	commonAssert := func(accounts map[types.Address]accountState, pool *TxPool) {
 		for addr := range accounts {
