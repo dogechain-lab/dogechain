@@ -2041,8 +2041,6 @@ func TestExecutablesOrder(t *testing.T) {
 }
 
 func TestPopAndRequeue(t *testing.T) {
-	t.Parallel()
-
 	type status int
 
 	// Status of a transaction resulted

@@ -469,6 +469,7 @@ func (p *TxPool) DemoteAllPromoted(tx *types.Transaction, correctNonce uint64) {
 	go func(txs []*types.Transaction) {
 		// retry enqueue, and broadcast
 		for _, tx := range txs {
+			//nolint:errcheck
 			p.AddTx(tx)
 		}
 	}(txs)
