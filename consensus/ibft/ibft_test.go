@@ -1047,12 +1047,16 @@ func (p *mockTxPool) Pop() *types.Transaction {
 	return tx
 }
 
-func (p *mockTxPool) Remove(tx *types.Transaction) {
+func (p *mockTxPool) RemoveExecuted(tx *types.Transaction) {
 	// do nothing
 }
 
-func (p *mockTxPool) Demote(tx *types.Transaction) {
-	p.Remove(tx)
+func (p *mockTxPool) RemoveFailed(tx *types.Transaction) {
+	// do nothing
+}
+
+func (p *mockTxPool) DemoteAllPromoted(tx *types.Transaction, correctNonce uint64) {
+	p.RemoveExecuted(tx)
 	p.demoted = append(p.demoted, tx)
 }
 
@@ -1061,7 +1065,7 @@ func (p *mockTxPool) Drop(tx *types.Transaction) {
 		p.nonceDecreased = make(map[*types.Transaction]bool)
 	}
 
-	p.Remove(tx)
+	p.RemoveExecuted(tx)
 	p.nonceDecreased[tx] = true
 }
 
