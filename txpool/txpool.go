@@ -362,34 +362,17 @@ func (p *TxPool) Pop() *types.Transaction {
 
 // RemoveFailed removes failed transaction of the promoted queue
 //
-// Will demote all promoted txs when top of heap is not the tx we want to removed.
-// Will remove only the promoted tx when it is the top of heap.
+// Will demote all other promoted txs when it is the top of heap.
 func (p *TxPool) RemoveFailed(tx *types.Transaction) {
 	// fetch the associated account
 	account := p.accounts.get(tx.From)
 
 	account.promoted.lock(true)
 
-	old := account.promoted.peek()
-	if old == nil || old.Hash != tx.Hash {
-		var correctNonce uint64
-		if old == nil {
-			correctNonce = p.store.GetNonce(p.store.Header().StateRoot, tx.From)
-		} else {
-			correctNonce = tx.Nonce
-		}
-		// release the lock
-		account.promoted.unlock()
-		// all wrong, should clear the promoted queue
-		p.DemoteAllPromoted(tx, correctNonce)
-
-		return
-	}
-
 	// pop the top promoted tx
-	account.promoted.pop()
+	topTx := account.promoted.pop()
 	// remove it
-	p.index.remove(tx)
+	p.index.remove(topTx)
 	// update metrics and gauge
 	p.gauge.decrease(slotsRequired(tx))
 	p.decreaseQueueGauge([]*types.Transaction{tx}, p.metrics.PendingTxs, proto.EventType_DROPPED)
@@ -398,6 +381,11 @@ func (p *TxPool) RemoveFailed(tx *types.Transaction) {
 	account.promoted.unlock()
 
 	p.logger.Debug("pop out extecute failed transaction", "hash", tx.Hash, "from", tx.From)
+
+	// all other wrong, should clear the promoted queue
+	p.DemoteAllPromoted(tx, topTx.Nonce)
+
+	p.logger.Debug("demote all not promotable transactions", "hash", tx.Hash, "from", tx.From)
 }
 
 // RemoveExecuted removes the executed transaction from promoted queue
@@ -442,6 +430,13 @@ func (p *TxPool) DemoteAllPromoted(tx *types.Transaction, correctNonce uint64) {
 	account.promoted.lock(true)
 	defer account.promoted.unlock()
 
+	// reset account nonce to the correct one
+	account.setNonce(correctNonce)
+
+	if account.promoted.length() == 0 {
+		return
+	}
+
 	// clear it
 	txs := account.promoted.Clear()
 	p.index.remove(txs...)
@@ -450,9 +445,6 @@ func (p *TxPool) DemoteAllPromoted(tx *types.Transaction, correctNonce uint64) {
 	p.gauge.decrease(slotsRequired(txs...))
 	// signal events
 	p.eventManager.signalEvent(proto.EventType_DEMOTED, toHash(txs...)...)
-
-	// reset account nonce to the correct one
-	account.setNonce(correctNonce)
 
 	go func(txs []*types.Transaction) {
 		// retry enqueue, and broadcast
