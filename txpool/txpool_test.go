@@ -1907,7 +1907,7 @@ func TestExecutablesOrder(t *testing.T) {
 	}
 }
 
-func TestRecovery(t *testing.T) {
+func TestPopAndRequeue(t *testing.T) {
 	t.Parallel()
 
 	type status int
@@ -1939,19 +1939,25 @@ func TestRecovery(t *testing.T) {
 		status status
 	}
 
-	commonAssert := func(accounts map[types.Address]accountState, pool *TxPool) {
+	commonAssert := func(testName string, accounts map[types.Address]accountState, pool *TxPool) {
 		for addr := range accounts {
 			assert.Equal(t, // nextNonce
 				accounts[addr].nextNonce,
-				pool.accounts.get(addr).getNonce(), fmt.Sprintf("%s nonce not equal", addr))
+				pool.accounts.get(addr).getNonce(),
+				fmt.Sprintf("%s: %s nonce not equal", testName, addr),
+			)
 
 			assert.Equal(t, // enqueued
 				accounts[addr].enqueued,
-				pool.accounts.get(addr).enqueued.length(), fmt.Sprintf("%s enqueued not equal", addr))
+				pool.accounts.get(addr).enqueued.length(),
+				fmt.Sprintf("%s: %s enqueued not equal", testName, addr),
+			)
 
 			assert.Equal(t, // promoted
 				accounts[addr].promoted,
-				pool.accounts.get(addr).promoted.length(), fmt.Sprintf("%s promoted not equal", addr))
+				pool.accounts.get(addr).promoted.length(),
+				fmt.Sprintf("%s: %s promoted not equal", testName, addr),
+			)
 		}
 	}
 
@@ -2169,7 +2175,7 @@ func TestRecovery(t *testing.T) {
 
 			assert.Equal(t, test.executableTxsCount, executableTxsCount)
 			assert.Equal(t, test.expected.slots, pool.gauge.read())
-			commonAssert(test.expected.accounts, pool)
+			commonAssert(test.name, test.expected.accounts, pool)
 		})
 	}
 }
