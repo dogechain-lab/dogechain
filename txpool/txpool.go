@@ -129,6 +129,12 @@ type promoteRequest struct {
 // the pool generates a queue of "executable" transactions. These
 // transactions are the first-in-line of some promoted queue,
 // ready to be written to the state (primaries).
+//
+// TODO: Refactor its interface, only expose input methods and events
+// subscription for those who interest in. Its state shouldn't be
+// manipulated by other components. This means it is self-contained
+// and self-consistent. Get enough promotable txs once and for all.
+// Enough is enough, so we could keep it consise and bug-free.
 type TxPool struct {
 	logger hclog.Logger
 	signer signer
