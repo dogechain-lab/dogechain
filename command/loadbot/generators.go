@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/dogechain-lab/dogechain/crypto"
+	"github.com/dogechain-lab/dogechain/helper/common"
 	txpoolOp "github.com/dogechain-lab/dogechain/txpool/proto"
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/umbracle/go-web3/jsonrpc"
@@ -25,7 +26,12 @@ func createJSONRPCClient(endpoint string, maxConns int) (*jsonrpc.Client, error)
 }
 
 func createGRPCClient(endpoint string) (txpoolOp.TxnPoolOperatorClient, error) {
-	conn, err := grpc.Dial(endpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial(
+		endpoint,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(
+			grpc.MaxCallRecvMsgSize(common.MaxGrpcMsgSize),
+			grpc.MaxCallSendMsgSize(common.MaxGrpcMsgSize)))
 	if err != nil {
 		return nil, err
 	}

@@ -24,6 +24,7 @@ import (
 	"github.com/dogechain-lab/dogechain/consensus/ibft"
 	ibftOp "github.com/dogechain-lab/dogechain/consensus/ibft/proto"
 	"github.com/dogechain-lab/dogechain/crypto"
+	"github.com/dogechain-lab/dogechain/helper/common"
 	"github.com/dogechain-lab/dogechain/helper/tests"
 	"github.com/dogechain-lab/dogechain/network"
 	"github.com/dogechain-lab/dogechain/secrets"
@@ -116,7 +117,10 @@ func (t *TestServer) JSONRPC() *jsonrpc.Client {
 func (t *TestServer) Operator() proto.SystemClient {
 	conn, err := grpc.Dial(
 		t.GrpcAddr(),
-		grpc.WithTransportCredentials(insecure.NewCredentials()))
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(
+			grpc.MaxCallRecvMsgSize(common.MaxGrpcMsgSize),
+			grpc.MaxCallSendMsgSize(common.MaxGrpcMsgSize)))
 	if err != nil {
 		t.t.Fatal(err)
 	}
@@ -127,7 +131,10 @@ func (t *TestServer) Operator() proto.SystemClient {
 func (t *TestServer) TxnPoolOperator() txpoolProto.TxnPoolOperatorClient {
 	conn, err := grpc.Dial(
 		t.GrpcAddr(),
-		grpc.WithTransportCredentials(insecure.NewCredentials()))
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(
+			grpc.MaxCallRecvMsgSize(common.MaxGrpcMsgSize),
+			grpc.MaxCallSendMsgSize(common.MaxGrpcMsgSize)))
 	if err != nil {
 		t.t.Fatal(err)
 	}
@@ -138,7 +145,10 @@ func (t *TestServer) TxnPoolOperator() txpoolProto.TxnPoolOperatorClient {
 func (t *TestServer) IBFTOperator() ibftOp.IbftOperatorClient {
 	conn, err := grpc.Dial(
 		t.GrpcAddr(),
-		grpc.WithTransportCredentials(insecure.NewCredentials()))
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(
+			grpc.MaxCallRecvMsgSize(common.MaxGrpcMsgSize),
+			grpc.MaxCallSendMsgSize(common.MaxGrpcMsgSize)))
 	if err != nil {
 		t.t.Fatal(err)
 	}

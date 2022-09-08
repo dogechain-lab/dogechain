@@ -138,10 +138,13 @@ func NewServer(config *Config) (*Server, error) {
 	}
 
 	m := &Server{
-		logger:             logger,
-		config:             config,
-		chain:              config.Chain,
-		grpcServer:         grpc.NewServer(),
+		logger: logger,
+		config: config,
+		chain:  config.Chain,
+		grpcServer: grpc.NewServer(
+			grpc.MaxRecvMsgSize(common.MaxGrpcMsgSize),
+			grpc.MaxSendMsgSize(common.MaxGrpcMsgSize),
+		),
 		restoreProgression: progress.NewProgressionWrapper(progress.ChainSyncRestore),
 	}
 

@@ -140,7 +140,13 @@ func GetIBFTOperatorClientConnection(address string) (
 
 // GetGRPCConnection returns a grpc client connection
 func GetGRPCConnection(address string) (*grpc.ClientConn, error) {
-	conn, err := grpc.Dial(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial(
+		address,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(
+			grpc.MaxCallRecvMsgSize(common.MaxGrpcMsgSize),
+			grpc.MaxCallSendMsgSize(common.MaxGrpcMsgSize)))
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to server: %w", err)
 	}

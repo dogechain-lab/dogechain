@@ -20,6 +20,8 @@ var (
 	// Our staking repo is written in JS, as are many other clients
 	// If we use higher value JS will not be able to parse it
 	MaxSafeJSInt = uint64(math.Pow(2, 53) - 2)
+
+	MaxGrpcMsgSize = 16 * 1024 * 1024 // 16MB
 )
 
 // Min returns the strictly lower number
