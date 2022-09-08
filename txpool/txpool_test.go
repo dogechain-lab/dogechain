@@ -2048,13 +2048,20 @@ func TestRecovery(t *testing.T) {
 	// from a transition write attempt
 	const (
 		// if a tx is recoverable,
-		// account is excluded from
-		// further processing
+		// entire account is dropped,
+		// the transactions behind it
+		// is not executable
 		recoverable status = iota
 
 		// if a tx is unrecoverable,
 		// entire account is dropped
 		unrecoverable
+
+		// if a tx is failed,
+		// remove it only, but the other
+		// txs would be demote if not
+		// promotable
+		failed
 
 		ok
 	)
@@ -2068,22 +2075,23 @@ func TestRecovery(t *testing.T) {
 		for addr := range accounts {
 			assert.Equal(t, // nextNonce
 				accounts[addr].nextNonce,
-				pool.accounts.get(addr).getNonce())
+				pool.accounts.get(addr).getNonce(), addr.String())
 
 			assert.Equal(t, // enqueued
 				accounts[addr].enqueued,
-				pool.accounts.get(addr).enqueued.length())
+				pool.accounts.get(addr).enqueued.length(), addr.String())
 
 			assert.Equal(t, // promoted
 				accounts[addr].promoted,
-				pool.accounts.get(addr).promoted.length())
+				pool.accounts.get(addr).promoted.length(), addr.String())
 		}
 	}
 
 	testCases := []*struct {
-		name     string
-		allTxs   map[types.Address][]statusTx
-		expected result
+		name               string
+		allTxs             map[types.Address][]statusTx
+		executableTxsCount uint64
+		expected           result
 	}{
 		{
 			name: "unrecoverable drops account",
@@ -2097,17 +2105,17 @@ func TestRecovery(t *testing.T) {
 				},
 				addr2: {
 					{newTx(addr2, 9, 1), unrecoverable},
-					{newTx(addr2, 10, 1), recoverable},
+					{newTx(addr2, 10, 1), ok},
 				},
 				addr3: {
 					{newTx(addr3, 5, 1), ok},
-					{newTx(addr3, 6, 1), recoverable},
-					{newTx(addr3, 7, 1), recoverable},
-					{newTx(addr3, 8, 1), recoverable},
+					{newTx(addr3, 6, 1), ok},
+					{newTx(addr3, 7, 1), ok},
 				},
 			},
+			executableTxsCount: 4, // 1 + 3 (addr1, addr3)
 			expected: result{
-				slots: 3, // addr3
+				slots: 0, // all executed
 				accounts: map[types.Address]accountState{
 					addr1: {
 						enqueued:  0,
@@ -2121,14 +2129,14 @@ func TestRecovery(t *testing.T) {
 					},
 					addr3: {
 						enqueued:  0,
-						promoted:  3,
-						nextNonce: 9,
+						promoted:  0,
+						nextNonce: 8,
 					},
 				},
 			},
 		},
 		{
-			name: "recoverable remains in account",
+			name: "recoverable drops account too",
 			allTxs: map[types.Address][]statusTx{
 				addr1: {
 					{newTx(addr1, 0, 1), ok},
@@ -2142,18 +2150,19 @@ func TestRecovery(t *testing.T) {
 					{newTx(addr2, 10, 1), recoverable},
 				},
 			},
+			executableTxsCount: 3, // all from addr1
 			expected: result{
-				slots: 4,
+				slots: 0,
 				accounts: map[types.Address]accountState{
 					addr1: {
 						enqueued:  0,
-						promoted:  2,
-						nextNonce: 5,
+						promoted:  0,
+						nextNonce: 3,
 					},
 					addr2: {
 						enqueued:  0,
-						promoted:  2,
-						nextNonce: 11,
+						promoted:  0,
+						nextNonce: 9,
 					},
 				},
 			},
@@ -2184,19 +2193,19 @@ func TestRecovery(t *testing.T) {
 			pool.Start()
 			defer pool.Close()
 
-			promoteSubscription := pool.eventManager.subscribe(
-				[]proto.EventType{proto.EventType_PROMOTED},
+			eventSubscription := pool.eventManager.subscribe(
+				[]proto.EventType{proto.EventType_ENQUEUED, proto.EventType_PROMOTED},
 			)
 
 			// setup prestate
 			totalTx := 0
-			expectedEnqueued := uint64(0)
+			expectedEnqueued := 0
 			for addr, txs := range test.allTxs {
 				// preset nonce so promotions can happen
 				acc := pool.createAccountOnce(addr)
 				acc.setNonce(txs[0].tx.Nonce)
 
-				expectedEnqueued += test.expected.accounts[addr].enqueued
+				expectedEnqueued += int(test.expected.accounts[addr].enqueued)
 
 				// send txs
 				for _, sTx := range txs {
@@ -2209,8 +2218,9 @@ func TestRecovery(t *testing.T) {
 			defer cancelFn()
 
 			// All txns should get added
-			assert.Len(t, waitForEvents(ctx, promoteSubscription, totalTx), totalTx)
+			assert.Len(t, waitForEvents(ctx, eventSubscription, totalTx), totalTx+expectedEnqueued)
 
+			var executableTxsCount uint64
 			func() {
 				pool.Prepare()
 				for {
@@ -2221,15 +2231,17 @@ func TestRecovery(t *testing.T) {
 
 					switch status(tx) {
 					case recoverable:
-						// do nothing?
+						fallthrough
 					case unrecoverable:
 						pool.Drop(tx)
 					case ok:
+						executableTxsCount++
 						pool.RemoveExecuted(tx)
 					}
 				}
 			}()
 
+			assert.Equal(t, test.executableTxsCount, executableTxsCount)
 			assert.Equal(t, test.expected.slots, pool.gauge.read())
 			commonAssert(test.expected.accounts, pool)
 		})
