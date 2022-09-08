@@ -1380,8 +1380,6 @@ func (e *eoa) signTx(tx *types.Transaction, signer crypto.TxSigner) *types.Trans
 var signerEIP155 = crypto.NewEIP155Signer(100)
 
 func TestAddTxns(t *testing.T) {
-	t.Parallel()
-
 	slotSize := uint64(1)
 
 	testTable := []*struct {
@@ -1412,8 +1410,6 @@ func TestAddTxns(t *testing.T) {
 
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-
 			pool, err := newTestPoolWithSlots(test.numTxs * slotSize)
 
 			assert.NoError(t, err)
