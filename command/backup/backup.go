@@ -63,7 +63,7 @@ func setFlags(cmd *cobra.Command) {
 		&params.zstdLevel,
 		zstdLevelFlag,
 		3,
-		"zstd compression level",
+		"zstd compression level, range 1-10",
 	)
 }
 
