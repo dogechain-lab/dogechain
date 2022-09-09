@@ -46,7 +46,6 @@ func RestoreChain(chain blockchainInterface, filePath string, progression *progr
 	var readBuf io.Reader
 
 	if bytes.Equal(fileMagic[:], zstdMagic[:]) {
-
 		zstdReader, err := zstd.NewReader(fbuf)
 		if err != nil {
 			return err
