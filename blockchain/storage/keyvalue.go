@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/dogechain-lab/dogechain/helper/kvdb"
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/dogechain-lab/fastrlp"
 	"github.com/hashicorp/go-hclog"
@@ -48,23 +49,14 @@ var (
 	EMPTY  = []byte("empty")
 )
 
-// KV is a key value storage interface.
-//
-// KV = Key-Value
-type KV interface {
-	Close() error
-	Set(p []byte, v []byte) error
-	Get(p []byte) ([]byte, bool, error)
-}
-
 // KeyValueStorage is a generic storage for kv databases
 type KeyValueStorage struct {
 	logger hclog.Logger
-	db     KV
-	Db     KV
+	db     kvdb.KVStorage
+	Db     kvdb.KVStorage
 }
 
-func NewKeyValueStorage(logger hclog.Logger, db KV) Storage {
+func NewKeyValueStorage(logger hclog.Logger, db kvdb.KVStorage) Storage {
 	return &KeyValueStorage{logger: logger, db: db}
 }
 

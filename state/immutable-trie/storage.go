@@ -4,10 +4,9 @@ import (
 	"fmt"
 
 	"github.com/dogechain-lab/dogechain/helper/hex"
+	"github.com/dogechain-lab/dogechain/helper/kvdb"
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/dogechain-lab/fastrlp"
-	"github.com/hashicorp/go-hclog"
-	"github.com/syndtr/goleveldb/leveldb"
 )
 
 var parserPool fastrlp.ParserPool
@@ -35,21 +34,20 @@ type Storage interface {
 
 // KVStorage is a k/v storage on memory using leveldb
 type KVStorage struct {
-	db *leveldb.DB
+	db kvdb.KVBatchStorage
 }
 
 // KVBatch is a batch write for leveldb
 type KVBatch struct {
-	db    *leveldb.DB
-	batch *leveldb.Batch
+	batch kvdb.KVBatch
 }
 
 func (b *KVBatch) Put(k, v []byte) {
-	b.batch.Put(k, v)
+	b.batch.Set(k, v)
 }
 
 func (b *KVBatch) Write() {
-	_ = b.db.Write(b.batch, nil)
+	b.batch.Write()
 }
 
 func (kv *KVStorage) SetCode(hash types.Hash, code []byte) {
@@ -61,32 +59,25 @@ func (kv *KVStorage) GetCode(hash types.Hash) ([]byte, bool) {
 }
 
 func (kv *KVStorage) Batch() Batch {
-	return &KVBatch{db: kv.db, batch: &leveldb.Batch{}}
+	return &KVBatch{batch: kv.db.Batch()}
 }
 
 func (kv *KVStorage) Put(k, v []byte) {
-	_ = kv.db.Put(k, v, nil)
+	_ = kv.db.Set(k, v)
 }
 
 func (kv *KVStorage) Get(k []byte) ([]byte, bool) {
-	data, err := kv.db.Get(k, nil)
-	if err != nil {
-		if err.Error() == "leveldb: not found" {
-			return nil, false
-		} else {
-			panic(err)
-		}
-	}
+	v, ok, _ := kv.db.Get(k)
 
-	return data, true
+	return v, ok
 }
 
 func (kv *KVStorage) Close() error {
 	return kv.db.Close()
 }
 
-func NewLevelDBStorage(path string, logger hclog.Logger) (Storage, error) {
-	db, err := leveldb.OpenFile(path, nil)
+func NewLevelDBStorage(leveldbBuilder kvdb.LevelDBBuilder) (Storage, error) {
+	db, err := leveldbBuilder.Build()
 	if err != nil {
 		return nil, err
 	}

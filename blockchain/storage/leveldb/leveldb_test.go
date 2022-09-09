@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/dogechain-lab/dogechain/blockchain/storage"
+	"github.com/dogechain-lab/dogechain/helper/kvdb"
 	"github.com/hashicorp/go-hclog"
 )
 
@@ -17,8 +18,10 @@ func newStorage(t *testing.T) (storage.Storage, func()) {
 		t.Fatal(err)
 	}
 
-	s, err := NewBuilder(
-		hclog.NewNullLogger(), path).Build()
+	logger := hclog.NewNullLogger()
+
+	s, err := NewBlockchainStorageBuilder(
+		logger, kvdb.NewLevelDBBuilder(logger, path)).Build()
 	if err != nil {
 		t.Fatal(err)
 	}
