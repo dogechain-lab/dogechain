@@ -16,64 +16,30 @@ var (
 	codePrefix = []byte("code")
 )
 
-type Batch interface {
-	Put(k, v []byte)
-	Write()
-}
-
 // Storage stores the trie
 type Storage interface {
-	Put(k, v []byte)
-	Get(k []byte) ([]byte, bool)
-	Batch() Batch
+	kvdb.KVBatchStorage
+
 	SetCode(hash types.Hash, code []byte)
 	GetCode(hash types.Hash) ([]byte, bool)
-
-	Close() error
 }
 
 // KVStorage is a k/v storage on memory using leveldb
-type KVStorage struct {
-	db kvdb.KVBatchStorage
+type kvStorage struct {
+	kvdb.KVBatchStorage
 }
 
-// KVBatch is a batch write for leveldb
-type KVBatch struct {
-	batch kvdb.KVBatch
+func (kv *kvStorage) SetCode(hash types.Hash, code []byte) {
+	_ = kv.Set(append(codePrefix, hash.Bytes()...), code)
 }
 
-func (b *KVBatch) Put(k, v []byte) {
-	b.batch.Set(k, v)
-}
+func (kv *kvStorage) GetCode(hash types.Hash) ([]byte, bool) {
+	v, ok, _ := kv.Get(append(codePrefix, hash.Bytes()...))
+	if !ok {
+		return []byte{}, false
+	}
 
-func (b *KVBatch) Write() {
-	b.batch.Write()
-}
-
-func (kv *KVStorage) SetCode(hash types.Hash, code []byte) {
-	kv.Put(append(codePrefix, hash.Bytes()...), code)
-}
-
-func (kv *KVStorage) GetCode(hash types.Hash) ([]byte, bool) {
-	return kv.Get(append(codePrefix, hash.Bytes()...))
-}
-
-func (kv *KVStorage) Batch() Batch {
-	return &KVBatch{batch: kv.db.Batch()}
-}
-
-func (kv *KVStorage) Put(k, v []byte) {
-	_ = kv.db.Set(k, v)
-}
-
-func (kv *KVStorage) Get(k []byte) ([]byte, bool) {
-	v, ok, _ := kv.db.Get(k)
-
-	return v, ok
-}
-
-func (kv *KVStorage) Close() error {
-	return kv.db.Close()
+	return v, true
 }
 
 func NewLevelDBStorage(leveldbBuilder kvdb.LevelDBBuilder) (Storage, error) {
@@ -82,7 +48,7 @@ func NewLevelDBStorage(leveldbBuilder kvdb.LevelDBBuilder) (Storage, error) {
 		return nil, err
 	}
 
-	return &KVStorage{db}, nil
+	return &kvStorage{KVBatchStorage: db}, nil
 }
 
 type memStorage struct {
@@ -99,19 +65,21 @@ func NewMemoryStorage() Storage {
 	return &memStorage{db: map[string][]byte{}, code: map[string][]byte{}}
 }
 
-func (m *memStorage) Put(p []byte, v []byte) {
+func (m *memStorage) Set(p []byte, v []byte) error {
 	buf := make([]byte, len(v))
 	copy(buf[:], v[:])
 	m.db[hex.EncodeToHex(p)] = buf
+
+	return nil
 }
 
-func (m *memStorage) Get(p []byte) ([]byte, bool) {
+func (m *memStorage) Get(p []byte) ([]byte, bool, error) {
 	v, ok := m.db[hex.EncodeToHex(p)]
 	if !ok {
-		return []byte{}, false
+		return []byte{}, false, nil
 	}
 
-	return v, true
+	return v, true, nil
 }
 
 func (m *memStorage) SetCode(hash types.Hash, code []byte) {
@@ -124,7 +92,7 @@ func (m *memStorage) GetCode(hash types.Hash) ([]byte, bool) {
 	return code, ok
 }
 
-func (m *memStorage) Batch() Batch {
+func (m *memStorage) Batch() kvdb.KVBatch {
 	return &memBatch{db: &m.db}
 }
 
@@ -132,7 +100,7 @@ func (m *memStorage) Close() error {
 	return nil
 }
 
-func (m *memBatch) Put(p, v []byte) {
+func (m *memBatch) Set(p, v []byte) {
 	buf := make([]byte, len(v))
 	copy(buf[:], v[:])
 	(*m.db)[hex.EncodeToHex(p)] = buf
@@ -143,7 +111,7 @@ func (m *memBatch) Write() {
 
 // GetNode retrieves a node from storage
 func GetNode(root []byte, storage Storage) (Node, bool, error) {
-	data, ok := storage.Get(root)
+	data, ok, _ := storage.Get(root)
 	if !ok {
 		return nil, false, nil
 	}

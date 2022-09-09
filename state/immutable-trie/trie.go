@@ -244,7 +244,7 @@ func (t *Trie) Txn() *Txn {
 }
 
 type Putter interface {
-	Put(k, v []byte)
+	Set(k, v []byte)
 }
 
 type Txn struct {
