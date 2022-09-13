@@ -15,8 +15,8 @@ func (b *levelBatch) Set(k, v []byte) {
 	b.batch.Put(k, v)
 }
 
-func (b *levelBatch) Write() {
-	_ = b.db.Write(b.batch, nil)
+func (b *levelBatch) Write() error {
+	return b.db.Write(b.batch, nil)
 }
 
 // levelDBKV is the leveldb implementation of the kv storage

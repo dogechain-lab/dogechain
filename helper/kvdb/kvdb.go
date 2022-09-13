@@ -2,7 +2,7 @@ package kvdb
 
 type KVBatch interface {
 	Set(k, v []byte)
-	Write()
+	Write() error
 }
 
 // KVStorage is a k/v storage on memory or leveldb

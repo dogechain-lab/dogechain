@@ -194,7 +194,11 @@ func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte) {
 	nTrie.storage = t.storage
 
 	// Write all the entries to db
-	batch.Write()
+	// TODO, need to handle error
+	err := batch.Write()
+	if err != nil {
+		panic(err)
+	}
 
 	t.state.AddState(types.BytesToHash(root), nTrie)
 

@@ -106,7 +106,8 @@ func (m *memBatch) Set(p, v []byte) {
 	(*m.db)[hex.EncodeToHex(p)] = buf
 }
 
-func (m *memBatch) Write() {
+func (m *memBatch) Write() error {
+	return nil
 }
 
 // GetNode retrieves a node from storage
