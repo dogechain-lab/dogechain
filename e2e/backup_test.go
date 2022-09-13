@@ -17,7 +17,7 @@ import (
 
 func TestBackup(t *testing.T) {
 	compressionFile := path.Join(os.TempDir(), "e2e_testbackup.bin.zstd")
-	noCompressionFile := path.Join(os.TempDir() + "e2e_testbackup.bin")
+	noCompressionFile := path.Join(os.TempDir(), "e2e_testbackup.bin")
 	backupFiles := []string{noCompressionFile, compressionFile}
 
 	var toBlock uint64 = 10
