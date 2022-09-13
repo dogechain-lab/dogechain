@@ -50,6 +50,7 @@ type TestServerConfig struct {
 	BridgeOwner    types.Address        // bridge contract owner
 	BridgeSigners  []types.Address      // bridge contract signers
 	IsWSEnable     bool                 // enable websocket or not
+	RestoreFile    string               // blockchain restore file
 }
 
 // DataDir returns path of data directory server uses
@@ -169,4 +170,8 @@ func (t *TestServerConfig) SetBridgeSigners(signers []types.Address) {
 
 func (t *TestServerConfig) EnableWebSocket() {
 	t.IsWSEnable = true
+}
+
+func (t *TestServerConfig) SetRestoreFile(path string) {
+	t.RestoreFile = path
 }

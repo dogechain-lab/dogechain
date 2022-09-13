@@ -336,6 +336,10 @@ func (t *TestServer) Start(ctx context.Context) error {
 		args = append(args, "--enable-ws")
 	}
 
+	if t.Config.RestoreFile != "" {
+		args = append(args, "--restore", t.Config.RestoreFile)
+	}
+
 	switch t.Config.Consensus {
 	case ConsensusIBFT:
 		args = append(args, "--data-dir", filepath.Join(t.Config.RootDir, t.Config.IBFTDir))

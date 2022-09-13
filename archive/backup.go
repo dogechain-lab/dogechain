@@ -31,7 +31,11 @@ func CreateBackup(
 	overwriteFile bool,
 	enableZstdCompression bool,
 	zstdLevel int,
-) (uint64, uint64, error) {
+) (resFrom uint64, resTo uint64, err error) {
+	resFrom = 0
+	resTo = 0
+	err = nil
+
 	// allow to overwrite the overwrites file only if it's explicitly set
 	fileFlag := os.O_WRONLY | os.O_CREATE | os.O_EXCL
 	if overwriteFile {
@@ -40,22 +44,18 @@ func CreateBackup(
 
 	fp, err := os.OpenFile(outPath, fileFlag, 0644)
 	if err != nil {
-		return 0, 0, err
+		return
 	}
 
 	defer func() {
-		err := fp.Close()
-		if err != nil {
-			logger.Error("Failed to close the file", "err", err)
-		}
+		err = fp.Close()
 	}()
 
 	fbuf := bufio.NewWriterSize(fp, 1*1024*1024)
 
 	defer func() {
-		err := fbuf.Flush()
-		if err != nil {
-			logger.Error("Failed to flush the file", "err", err)
+		if err == nil {
+			err = fbuf.Flush()
 		}
 	}()
 
@@ -71,10 +71,11 @@ func CreateBackup(
 		}
 
 		defer func() {
-			err := zstdWriter.Close()
 			if err != nil {
-				logger.Error("Failed to close the zstd encoder", "err", err)
+				return
 			}
+
+			err = zstdWriter.Close()
 		}()
 
 		writeBuf = zstdWriter
@@ -105,19 +106,19 @@ func CreateBackup(
 		To:   reqTo,
 	})
 	if err != nil {
-		return 0, 0, err
+		return
 	}
 
-	if err := writeMetadata(writeBuf, logger, reqTo, reqToHash); err != nil {
-		return 0, 0, err
+	if err = writeMetadata(writeBuf, logger, reqTo, reqToHash); err != nil {
+		return
 	}
 
-	resFrom, resTo, err := processExportStream(stream, logger, writeBuf, from, reqTo)
+	resFrom, resTo, err = processExportStream(stream, logger, writeBuf, from, reqTo)
 	if err != nil {
-		return 0, 0, err
+		return
 	}
 
-	return resFrom, resTo, nil
+	return
 }
 
 func determineTo(ctx context.Context, clt proto.SystemClient, to *uint64) (uint64, types.Hash, error) {
