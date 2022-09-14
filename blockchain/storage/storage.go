@@ -7,6 +7,10 @@ import (
 	"github.com/hashicorp/go-hclog"
 )
 
+type StorageBuilder interface {
+	Build() (Storage, error)
+}
+
 // Storage is a generic blockchain storage
 type Storage interface {
 	ReadCanonicalHash(n uint64) (types.Hash, bool)

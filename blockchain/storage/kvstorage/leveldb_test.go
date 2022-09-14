@@ -1,7 +1,6 @@
-package leveldb
+package kvstorage
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -13,14 +12,14 @@ import (
 func newStorage(t *testing.T) (storage.Storage, func()) {
 	t.Helper()
 
-	path, err := ioutil.TempDir("/tmp", "minimal_storage")
+	path, err := os.MkdirTemp("/tmp", "minimal_storage")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	logger := hclog.NewNullLogger()
 
-	s, err := NewBlockchainStorageBuilder(
+	s, err := NewLevelDBStorageBuilder(
 		logger, kvdb.NewLevelDBBuilder(logger, path)).Build()
 	if err != nil {
 		t.Fatal(err)

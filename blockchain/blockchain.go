@@ -8,7 +8,6 @@ import (
 	"sync/atomic"
 
 	"github.com/dogechain-lab/dogechain/blockchain/storage"
-	"github.com/dogechain-lab/dogechain/blockchain/storage/memory"
 	"github.com/dogechain-lab/dogechain/chain"
 	"github.com/dogechain-lab/dogechain/contracts/upgrader"
 	"github.com/dogechain-lab/dogechain/helper/common"
@@ -37,6 +36,7 @@ var (
 	ErrInvalidStateRoot     = errors.New("invalid block state root")
 	ErrInvalidGasUsed       = errors.New("invalid block gas used")
 	ErrInvalidReceiptsRoot  = errors.New("invalid block receipts root")
+	ErrNilStorageBuilder    = errors.New("nil storage builder")
 )
 
 // Blockchain is a blockchain reference
@@ -78,10 +78,6 @@ type gasPriceAverage struct {
 
 	price *big.Int // The average gas price that gets queried
 	count *big.Int // Param used in the avg. gas price calculation
-}
-
-type StorageBuilder interface {
-	Build() (storage.Storage, error)
 }
 
 type Verifier interface {
@@ -183,10 +179,14 @@ func (b *Blockchain) GetAvgGasPrice() *big.Int {
 func NewBlockchain(
 	logger hclog.Logger,
 	config *chain.Chain,
-	storageBuilder StorageBuilder,
+	storageBuilder storage.StorageBuilder,
 	consensus Verifier,
 	executor Executor,
 ) (*Blockchain, error) {
+	if storageBuilder == nil {
+		return nil, ErrNilStorageBuilder
+	}
+
 	b := &Blockchain{
 		logger:    logger.Named("blockchain"),
 		config:    config,
@@ -204,14 +204,8 @@ func NewBlockchain(
 		err error
 	)
 
-	if storageBuilder == nil {
-		if db, err = memory.NewMemoryStorage(nil); err != nil {
-			return nil, err
-		}
-	} else {
-		if db, err = storageBuilder.Build(); err != nil {
-			return nil, err
-		}
+	if db, err = storageBuilder.Build(); err != nil {
+		return nil, err
 	}
 
 	b.db = db

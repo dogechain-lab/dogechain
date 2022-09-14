@@ -1,4 +1,4 @@
-package memory
+package kvstorage
 
 import (
 	"github.com/dogechain-lab/dogechain/blockchain/storage"
@@ -6,11 +6,21 @@ import (
 	"github.com/hashicorp/go-hclog"
 )
 
-// NewMemoryStorage creates the new storage reference with inmemory
-func NewMemoryStorage(logger hclog.Logger) (storage.Storage, error) {
+type memoryStorageBuilder struct {
+	logger hclog.Logger
+}
+
+func (builder *memoryStorageBuilder) Build() (storage.Storage, error) {
 	db := &memoryKV{map[string][]byte{}}
 
-	return storage.NewKeyValueStorage(logger, db), nil
+	return newKeyValueStorage(builder.logger, db), nil
+}
+
+// NewMemoryStorageBuilder creates the new blockchain storage builder
+func NewMemoryStorageBuilder(logger hclog.Logger) storage.StorageBuilder {
+	return &memoryStorageBuilder{
+		logger: logger,
+	}
 }
 
 // memoryKV is an in memory implementation of the kv storage
