@@ -54,20 +54,24 @@ func CreateBackup(
 	fbuf := bufio.NewWriterSize(fp, 1*1024*1024)
 
 	defer func() {
-		if err == nil {
-			err = fbuf.Flush()
+		if err != nil {
+			return
 		}
+
+		err = fbuf.Flush()
 	}()
 
 	var writeBuf io.Writer
 
 	if enableZstdCompression {
-		zstdWriter, err := zstd.NewWriter(fbuf,
+		var zstdWriter *zstd.Encoder
+
+		zstdWriter, err = zstd.NewWriter(fbuf,
 			zstd.WithEncoderLevel(
 				zstd.EncoderLevelFromZstd(zstdLevel),
 			))
 		if err != nil {
-			return 0, 0, err
+			return
 		}
 
 		defer func() {
@@ -96,12 +100,18 @@ func CreateBackup(
 
 	clt := proto.NewSystemClient(conn)
 
-	reqTo, reqToHash, err := determineTo(ctx, clt, to)
+	var reqTo uint64
+
+	var reqToHash types.Hash
+
+	reqTo, reqToHash, err = determineTo(ctx, clt, to)
 	if err != nil {
-		return 0, 0, err
+		return
 	}
 
-	stream, err := clt.Export(ctx, &proto.ExportRequest{
+	var stream proto.System_ExportClient
+
+	stream, err = clt.Export(ctx, &proto.ExportRequest{
 		From: from,
 		To:   reqTo,
 	})
