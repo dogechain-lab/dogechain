@@ -2013,7 +2013,7 @@ func TestDropAndRequeue(t *testing.T) {
 			},
 		},
 		{
-			name: "remove failed and re-enqueue",
+			name: "failed tx account is dropped",
 			allTxs: map[types.Address][]statusTx{
 				addr1: {
 					{newTx(addr1, 0, 1), ok},
@@ -2027,7 +2027,7 @@ func TestDropAndRequeue(t *testing.T) {
 			},
 			executableTxsCount: 2, // all from addr1
 			expected: result{
-				slots: 1,
+				slots: 0,
 				accounts: map[types.Address]accountState{
 					addr1: {
 						enqueued:  0,
@@ -2035,7 +2035,7 @@ func TestDropAndRequeue(t *testing.T) {
 						nextNonce: 2,
 					},
 					addr2: {
-						enqueued:  1,
+						enqueued:  0,
 						promoted:  0,
 						nextNonce: 9,
 					},
@@ -2098,11 +2098,6 @@ func TestDropAndRequeue(t *testing.T) {
 				totalTx,
 			)
 
-			// re-enqueued or re-promote events
-			reenqueueSubscription := pool.eventManager.subscribe([]proto.EventType{
-				proto.EventType_ENQUEUED,
-			})
-
 			var executableTxsCount uint64
 			func() {
 				pool.Prepare()
@@ -2121,22 +2116,10 @@ func TestDropAndRequeue(t *testing.T) {
 						executableTxsCount++
 						pool.RemoveExecuted(tx)
 					case failed:
-						pool.RemoveFailed(tx)
+						pool.Drop(tx)
 					}
 				}
 			}()
-
-			if expectedReenqueued > 0 {
-				ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*10)
-				defer cancelFn()
-
-				// All re-enqueued txs should get added
-				assert.Len(
-					t,
-					waitForEvents(ctx, reenqueueSubscription, expectedReenqueued),
-					expectedReenqueued,
-				)
-			}
 
 			assert.Equal(t, test.executableTxsCount, executableTxsCount, "executable transaction count")
 			assert.Equal(t, test.expected.slots, pool.gauge.read(), "gauge not equal")
