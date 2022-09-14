@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 )
 
-func newStorage(t *testing.T) (storage.Storage, func()) {
+func newLevelDBStorage(t *testing.T) (storage.Storage, func()) {
 	t.Helper()
 
 	path, err := os.MkdirTemp("/tmp", "minimal_storage")
@@ -38,6 +38,6 @@ func newStorage(t *testing.T) (storage.Storage, func()) {
 	return s, closeFn
 }
 
-func TestStorage(t *testing.T) {
-	storage.TestStorage(t, newStorage)
+func TestLevelDBStorage(t *testing.T) {
+	storage.TestStorage(t, newLevelDBStorage)
 }
