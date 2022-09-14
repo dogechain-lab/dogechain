@@ -48,7 +48,6 @@ type txPoolInterface interface {
 	Length() uint64
 	Pop() *types.Transaction
 	RemoveExecuted(tx *types.Transaction)
-	RemoveFailed(tx *types.Transaction)
 	Drop(tx *types.Transaction)
 	DemoteAllPromoted(tx *types.Transaction, correctNonce uint64)
 	ResetWithHeaders(headers ...*types.Header)
@@ -711,7 +710,7 @@ func (i *Ibft) writeTransactions(gasLimit uint64, transition transitionInterface
 			if _, ok := err.(*state.GasLimitReachedTransitionApplicationError); ok {
 				// Ignore transaction when the free gas not enough
 			} else if _, ok := err.(*state.AllGasUsedError); ok {
-				// no more transaction could be packed.
+				// no more transaction could be packed
 				break
 			} else if nonceErr, ok := err.(*state.NonceTooLowError); ok {
 				// low nonce tx, demote all promotable transactions
@@ -727,8 +726,8 @@ func (i *Ibft) writeTransactions(gasLimit uint64, transition transitionInterface
 					"nonce", tx.Nonce, "err", err)
 			} else {
 				failedTxCount++
-				// remove this transaction only
-				i.txpool.RemoveFailed(tx)
+				// no matter what kind of failure, drop is reasonable for not executed it yet
+				i.txpool.Drop(tx)
 			}
 
 			continue

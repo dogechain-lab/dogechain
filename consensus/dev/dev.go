@@ -132,19 +132,21 @@ func (d *Dev) writeTransactions(gasLimit uint64, transition transitionInterface)
 			if _, ok := err.(*state.GasLimitReachedTransitionApplicationError); ok {
 				// Ignore those out-of-gas transaction whose gas limit too large
 			} else if _, ok := err.(*state.AllGasUsedError); ok {
-				// no more transaction could be packed.
+				// no more transaction could be packed
 				break
 			} else if nonceErr, ok := err.(*state.NonceTooLowError); ok {
+				// lower nonce tx, demote all promotable transactions
 				d.txpool.DemoteAllPromoted(tx, nonceErr.CorrectNonce)
 				d.logger.Error("write transaction nonce too low", "hash", tx.Hash, "from", tx.From,
 					"nonce", tx.Nonce, "err", err)
 			} else if nonceErr, ok := err.(*state.NonceTooHighError); ok {
-				// Too high nonce tx
+				// higher nonce tx, demote all promotable transactions
 				d.txpool.DemoteAllPromoted(tx, nonceErr.CorrectNonce)
 				d.logger.Error("write miss some transactions with higher nonce", tx.Hash, "from", tx.From,
 					"nonce", tx.Nonce, "err", err)
 			} else {
-				d.txpool.RemoveFailed(tx)
+				// no matter what kind of failure, drop is reasonable for not executed it yet
+				d.txpool.Drop(tx)
 			}
 
 			continue

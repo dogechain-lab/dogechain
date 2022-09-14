@@ -1051,10 +1051,6 @@ func (p *mockTxPool) RemoveExecuted(tx *types.Transaction) {
 	// do nothing
 }
 
-func (p *mockTxPool) RemoveFailed(tx *types.Transaction) {
-	// do nothing
-}
-
 func (p *mockTxPool) DemoteAllPromoted(tx *types.Transaction, correctNonce uint64) {
 	p.RemoveExecuted(tx)
 	p.demoted = append(p.demoted, tx)

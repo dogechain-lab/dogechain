@@ -360,34 +360,6 @@ func (p *TxPool) Pop() *types.Transaction {
 	return p.executables.pop()
 }
 
-// RemoveFailed removes failed transaction of the promoted queue
-//
-// Will demote all other promoted txs when it is the top of heap.
-func (p *TxPool) RemoveFailed(tx *types.Transaction) {
-	// fetch the associated account
-	account := p.accounts.get(tx.From)
-
-	account.promoted.lock(true)
-
-	// pop the top promoted tx
-	topTx := account.promoted.pop()
-	// remove it
-	p.index.remove(topTx)
-	// update metrics and gauge
-	p.gauge.decrease(slotsRequired(tx))
-	p.decreaseQueueGauge([]*types.Transaction{tx}, p.metrics.PendingTxs, proto.EventType_DROPPED)
-
-	// unlock the queue
-	account.promoted.unlock()
-
-	p.logger.Debug("pop out extecute failed transaction", "hash", tx.Hash, "from", tx.From)
-
-	// all other wrong, should clear the promoted queue
-	p.DemoteAllPromoted(tx, topTx.Nonce)
-
-	p.logger.Debug("demote all not promotable transactions", "hash", tx.Hash, "from", tx.From)
-}
-
 // RemoveExecuted removes the executed transaction from promoted queue
 //
 // Will update executables with the next primary
