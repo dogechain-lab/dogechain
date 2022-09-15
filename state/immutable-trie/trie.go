@@ -176,6 +176,7 @@ func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte) {
 			}
 
 			if obj.DirtyCode {
+				// TODO, we need to handle error here
 				t.state.SetCode(obj.CodeHash, obj.Code)
 			}
 

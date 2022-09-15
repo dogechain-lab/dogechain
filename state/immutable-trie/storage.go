@@ -16,12 +16,22 @@ var (
 	codePrefix = []byte("code")
 )
 
+type Batch interface {
+	Set(k, v []byte)
+	Write() error
+}
+
 // Storage stores the trie
 type Storage interface {
-	kvdb.KVBatchStorage
+	Set(k, v []byte) error
+	Get(k []byte) ([]byte, bool, error)
 
-	SetCode(hash types.Hash, code []byte)
+	SetCode(hash types.Hash, code []byte) error
 	GetCode(hash types.Hash) ([]byte, bool)
+
+	Batch() Batch
+
+	Close() error
 }
 
 // KVStorage is a k/v storage on memory using leveldb
@@ -29,8 +39,8 @@ type kvStorage struct {
 	kvdb.KVBatchStorage
 }
 
-func (kv *kvStorage) SetCode(hash types.Hash, code []byte) {
-	_ = kv.Set(append(codePrefix, hash.Bytes()...), code)
+func (kv *kvStorage) SetCode(hash types.Hash, code []byte) error {
+	return kv.Set(append(codePrefix, hash.Bytes()...), code)
 }
 
 func (kv *kvStorage) GetCode(hash types.Hash) ([]byte, bool) {
@@ -40,6 +50,10 @@ func (kv *kvStorage) GetCode(hash types.Hash) ([]byte, bool) {
 	}
 
 	return v, true
+}
+
+func (s *kvStorage) Batch() Batch {
+	return s.KVBatchStorage.Batch()
 }
 
 func NewLevelDBStorage(leveldbBuilder kvdb.LevelDBBuilder) (Storage, error) {
@@ -82,8 +96,9 @@ func (m *memStorage) Get(p []byte) ([]byte, bool, error) {
 	return v, true, nil
 }
 
-func (m *memStorage) SetCode(hash types.Hash, code []byte) {
+func (m *memStorage) SetCode(hash types.Hash, code []byte) error {
 	m.code[hash.String()] = code
+	return nil
 }
 
 func (m *memStorage) GetCode(hash types.Hash) ([]byte, bool) {
@@ -92,7 +107,7 @@ func (m *memStorage) GetCode(hash types.Hash) ([]byte, bool) {
 	return code, ok
 }
 
-func (m *memStorage) Batch() kvdb.KVBatch {
+func (m *memStorage) Batch() Batch {
 	return &memBatch{db: &m.db}
 }
 
