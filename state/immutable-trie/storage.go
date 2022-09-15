@@ -21,7 +21,7 @@ type Batch interface {
 	Write() error
 }
 
-// Storage stores the trie
+// Storage stores the trie on memory or leveldb
 type Storage interface {
 	Set(k, v []byte) error
 	Get(k []byte) ([]byte, bool, error)
@@ -34,7 +34,7 @@ type Storage interface {
 	Close() error
 }
 
-// KVStorage is a k/v storage on memory using leveldb
+// wrap generic kvdb storage to implement Storage interface
 type kvStorage struct {
 	kvdb.KVBatchStorage
 }
