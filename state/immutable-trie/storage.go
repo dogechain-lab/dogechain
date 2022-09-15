@@ -36,15 +36,23 @@ type Storage interface {
 
 // wrap generic kvdb storage to implement Storage interface
 type kvStorage struct {
-	kvdb.KVBatchStorage
+	db kvdb.KVBatchStorage
+}
+
+func (kv *kvStorage) Get(k []byte) ([]byte, bool, error) {
+	return kv.db.Get(k)
+}
+
+func (kv *kvStorage) Set(k, v []byte) error {
+	return kv.db.Set(k, v)
 }
 
 func (kv *kvStorage) SetCode(hash types.Hash, code []byte) error {
-	return kv.Set(append(codePrefix, hash.Bytes()...), code)
+	return kv.db.Set(append(codePrefix, hash.Bytes()...), code)
 }
 
 func (kv *kvStorage) GetCode(hash types.Hash) ([]byte, bool) {
-	v, ok, _ := kv.Get(append(codePrefix, hash.Bytes()...))
+	v, ok, _ := kv.db.Get(append(codePrefix, hash.Bytes()...))
 	if !ok {
 		return []byte{}, false
 	}
@@ -52,8 +60,12 @@ func (kv *kvStorage) GetCode(hash types.Hash) ([]byte, bool) {
 	return v, true
 }
 
-func (s *kvStorage) Batch() Batch {
-	return s.KVBatchStorage.Batch()
+func (kv *kvStorage) Batch() Batch {
+	return kv.db.Batch()
+}
+
+func (kv *kvStorage) Close() error {
+	return kv.db.Close()
 }
 
 func NewLevelDBStorage(leveldbBuilder kvdb.LevelDBBuilder) (Storage, error) {
@@ -62,7 +74,7 @@ func NewLevelDBStorage(leveldbBuilder kvdb.LevelDBBuilder) (Storage, error) {
 		return nil, err
 	}
 
-	return &kvStorage{KVBatchStorage: db}, nil
+	return &kvStorage{db: db}, nil
 }
 
 type memStorage struct {
@@ -98,6 +110,7 @@ func (m *memStorage) Get(p []byte) ([]byte, bool, error) {
 
 func (m *memStorage) SetCode(hash types.Hash, code []byte) error {
 	m.code[hash.String()] = code
+
 	return nil
 }
 
