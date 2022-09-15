@@ -123,3 +123,44 @@ func (t *Transaction) ExceedsBlockGasLimit(blockGasLimit uint64) bool {
 func (t *Transaction) IsUnderpriced(priceLimit uint64) bool {
 	return t.GasPrice.Cmp(big.NewInt(0).SetUint64(priceLimit)) < 0
 }
+
+// TxWithMinerFee wraps a transaction with its gas price or effective miner gasTipCap
+type TxWithMinerFee struct {
+	tx       *Transaction
+	minerFee *big.Int
+}
+
+// TxByPriceAndTime implements both the sort and the heap interface, making it useful
+// for all at once sorting as well as individually adding and removing elements.
+type TxByPriceAndTime []*TxWithMinerFee
+
+func (s TxByPriceAndTime) Len() int {
+	return len(s)
+}
+
+func (s TxByPriceAndTime) Less(i, j int) bool {
+	// If the prices are equal, use the time the transaction was first seen for deterministic sorting
+	cmp := s[i].minerFee.Cmp(s[j].minerFee)
+	if cmp == 0 {
+		return s[i].tx.ReceivedTime.Before(s[j].tx.ReceivedTime)
+	}
+
+	return cmp > 0
+}
+
+func (s TxByPriceAndTime) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+func (s *TxByPriceAndTime) Push(x interface{}) {
+	*s = append(*s, x.(*TxWithMinerFee))
+}
+
+func (s *TxByPriceAndTime) Pop() interface{} {
+	old := *s
+	n := len(old)
+	x := old[n-1]
+	*s = old[0 : n-1]
+
+	return x
+}
