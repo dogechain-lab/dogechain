@@ -3,6 +3,7 @@ package types
 import (
 	"math/big"
 	"sync/atomic"
+	"time"
 
 	"github.com/dogechain-lab/dogechain/helper/keccak"
 )
@@ -22,6 +23,9 @@ type Transaction struct {
 
 	// Cache
 	size atomic.Value
+
+	// time at which the node received the tx
+	ReceivedTime time.Time
 }
 
 func (t *Transaction) IsContractCreation() bool {
@@ -82,6 +86,8 @@ func (t *Transaction) Copy() *Transaction {
 	if t.S != nil {
 		tt.S = new(big.Int).SetBits(t.S.Bits())
 	}
+
+	tt.ReceivedTime = t.ReceivedTime
 
 	return tt
 }

@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/dogechain-lab/fastrlp"
 )
@@ -81,6 +82,9 @@ func (t *Transaction) UnmarshalStoreRLPFrom(p *fastrlp.Parser, v *fastrlp.Value)
 	if err = elems[1].GetAddr(t.From[:]); err != nil {
 		return err
 	}
+
+	// resolve its receive time
+	t.ReceivedTime = time.Now()
 
 	return nil
 }

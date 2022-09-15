@@ -693,6 +693,10 @@ func (p *TxPool) addTx(origin txOrigin, tx *types.Transaction) error {
 		return ErrAlreadyKnown
 	}
 
+	if tx.ReceivedTime.IsZero() {
+		tx.ReceivedTime = time.Now() // mark the tx received time
+	}
+
 	// initialize account for this address once
 	if !p.accounts.exists(tx.From) {
 		p.createAccountOnce(tx.From)
