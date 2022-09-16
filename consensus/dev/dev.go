@@ -108,12 +108,15 @@ type transitionInterface interface {
 }
 
 func (d *Dev) writeTransactions(gasLimit uint64, transition transitionInterface) []*types.Transaction {
-	var successful []*types.Transaction
+	var includedTxs []*types.Transaction
 
-	d.txpool.Prepare()
+	// get all pending transactions once and for all
+	pendingTxs := d.txpool.Pending()
+	// get highest price transaction queue
+	priceTxs := types.NewTransactionsByPriceAndNonce(pendingTxs)
 
 	for {
-		tx := d.txpool.Pop()
+		tx := priceTxs.Peek()
 		if tx == nil {
 			d.logger.Debug("no more transactions")
 
@@ -121,48 +124,58 @@ func (d *Dev) writeTransactions(gasLimit uint64, transition transitionInterface)
 		}
 
 		if tx.ExceedsBlockGasLimit(gasLimit) {
+			// The address is punished. For current loop, it would not include its transactions any more.
 			d.txpool.Drop(tx)
+			priceTxs.Pop()
 
 			continue
 		}
 
 		if err := transition.Write(tx); err != nil {
-			d.logger.Debug("write transaction failed", "hash", tx.Hash, "from", tx.From,
-				"nonce", tx.Nonce, "err", err)
-
 			//nolint:errorlint
-			if _, ok := err.(*state.GasLimitReachedTransitionApplicationError); ok {
-				// Ignore those out-of-gas transaction whose gas limit too large
-			} else if _, ok := err.(*state.AllGasUsedError); ok {
+			if _, ok := err.(*state.AllGasUsedError); ok {
 				// no more transaction could be packed
+				d.logger.Debug("Not enough gas for further transactions")
+
 				break
+			} else if _, ok := err.(*state.GasLimitReachedTransitionApplicationError); ok {
+				// Ignore transaction when the free gas not enough
+				d.logger.Debug("Gas limit exceeded for current block", "from", tx.From)
+				priceTxs.Pop()
 			} else if nonceErr, ok := err.(*state.NonceTooLowError); ok {
-				// lower nonce tx, demote all promotable transactions
+				// low nonce tx, should reset accounts once done
+				d.logger.Warn("write transaction nonce too low",
+					"hash", tx.Hash, "from", tx.From, "nonce", tx.Nonce)
+				// skip the address, whose txs should be reset first.
 				d.txpool.DemoteAllPromoted(tx, nonceErr.CorrectNonce)
-				d.logger.Error("write transaction nonce too low", "hash", tx.Hash, "from", tx.From,
-					"nonce", tx.Nonce, "err", err)
+				priceTxs.Pop()
 			} else if nonceErr, ok := err.(*state.NonceTooHighError); ok {
-				// higher nonce tx, demote all promotable transactions
+				// high nonce tx, should reset accounts once done
+				d.logger.Error("write miss some transactions with higher nonce",
+					tx.Hash, "from", tx.From, "nonce", tx.Nonce)
 				d.txpool.DemoteAllPromoted(tx, nonceErr.CorrectNonce)
-				d.logger.Error("write miss some transactions with higher nonce", tx.Hash, "from", tx.From,
-					"nonce", tx.Nonce, "err", err)
+				priceTxs.Pop()
 			} else {
 				// no matter what kind of failure, drop is reasonable for not executed it yet
+				d.logger.Debug("write not executed transaction failed",
+					"hash", tx.Hash, "from", tx.From,
+					"nonce", tx.Nonce, "err", err)
 				d.txpool.Drop(tx)
+				priceTxs.Pop()
 			}
 
 			continue
 		}
 
-		// no errors, pop the tx from the pool
-		d.txpool.RemoveExecuted(tx)
+		// no errors, go on
+		priceTxs.Shift()
 
-		successful = append(successful, tx)
+		includedTxs = append(includedTxs, tx)
 	}
 
-	d.logger.Info("picked out txns from pool", "num", len(successful), "remaining", d.txpool.Length())
+	d.logger.Info("picked out txns from pool", "num", len(includedTxs))
 
-	return successful
+	return includedTxs
 }
 
 // writeNewBLock generates a new block based on transactions from the pool,
