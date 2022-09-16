@@ -46,13 +46,10 @@ type blockchainInterface interface {
 }
 
 type txPoolInterface interface {
-	Prepare()
-	Length() uint64
-	Pop() *types.Transaction
-	RemoveExecuted(tx *types.Transaction)
 	Drop(tx *types.Transaction)
 	DemoteAllPromoted(tx *types.Transaction, correctNonce uint64)
 	ResetWithHeaders(headers ...*types.Header)
+	Pending() map[types.Address][]*types.Transaction
 }
 
 type syncerInterface interface {
@@ -627,9 +624,14 @@ func (i *Ibft) buildBlock(snap *Snapshot, parent *types.Header) (*types.Block, e
 	}
 	// If the mechanism is PoS -> build a regular block if it's not an end-of-epoch block
 	// If the mechanism is PoA -> always build a regular block, regardless of epoch
-	txns := []*types.Transaction{}
+	var (
+		txs      []*types.Transaction
+		dropTxs  []*types.Transaction
+		resetTxs []*demoteTransaction
+	)
+
 	if i.shouldWriteTransactions(header.Number) {
-		txns = i.writeTransactions(gasLimit, transition)
+		txs, dropTxs, resetTxs = i.writeTransactions(gasLimit, transition)
 	}
 
 	if err := i.PreStateCommit(header, transition); err != nil {
@@ -652,7 +654,7 @@ func (i *Ibft) buildBlock(snap *Snapshot, parent *types.Header) (*types.Block, e
 	// build the block
 	block := consensus.BuildBlock(consensus.BuildBlockParams{
 		Header:   header,
-		Txns:     txns,
+		Txns:     txs,
 		Receipts: transition.Receipts(),
 	})
 
@@ -668,7 +670,22 @@ func (i *Ibft) buildBlock(snap *Snapshot, parent *types.Header) (*types.Block, e
 	// is sealed after all the committed seals
 	block.Header.ComputeHash()
 
-	i.logger.Info("build block", "number", header.Number, "txns", len(txns))
+	// TODO: remove these logic. ibft should not manipulate the txpool status.
+	// drop account txs first
+	for _, tx := range dropTxs {
+		i.txpool.Drop(tx)
+	}
+	// demote account txs
+	for _, tx := range resetTxs {
+		i.txpool.DemoteAllPromoted(tx.Tx, tx.CorrectNonce)
+	}
+
+	i.logger.Info("build block",
+		"number", header.Number,
+		"txs", len(txs),
+		"dropTxs", len(dropTxs),
+		"resetTxs", len(resetTxs),
+	)
 
 	return block, nil
 }
@@ -678,18 +695,28 @@ type transitionInterface interface {
 	WriteFailedReceipt(txn *types.Transaction) error
 }
 
+type demoteTransaction struct {
+	Tx           *types.Transaction
+	CorrectNonce uint64
+}
+
 // writeTransactions writes transactions from the txpool to the transition object
 // and returns transactions that were included in the transition (new block)
-func (i *Ibft) writeTransactions(gasLimit uint64, transition transitionInterface) []*types.Transaction {
-	var transactions []*types.Transaction
-
-	successTxCount := 0
-	failedTxCount := 0
-
-	i.txpool.Prepare()
+func (i *Ibft) writeTransactions(
+	gasLimit uint64,
+	transition transitionInterface,
+) (
+	includedTransactions []*types.Transaction,
+	shouldDropTxs []*types.Transaction,
+	shouldDemoteTxs []*demoteTransaction,
+) {
+	// get all pending transactions once and for all
+	pendingTxs := i.txpool.Pending()
+	// get highest price transaction queue
+	priceTxs := types.NewTransactionsByPriceAndNonce(pendingTxs)
 
 	for {
-		tx := i.txpool.Pop()
+		tx := priceTxs.Peek()
 		if tx == nil {
 			i.logger.Debug("no more transactions")
 
@@ -697,63 +724,68 @@ func (i *Ibft) writeTransactions(gasLimit uint64, transition transitionInterface
 		}
 
 		if tx.ExceedsBlockGasLimit(gasLimit) {
-			copyTx := tx.Copy()
-			failedTxCount++
-			// The address is punished. For current validator, it would not include its transactions any more.
-			i.txpool.Drop(tx)
+			// the account transactions should be dropped
+			shouldDropTxs = append(shouldDropTxs, tx)
+			// The address is punished. For current loop, it would not include its transactions any more.
+			priceTxs.Pop()
 			// write failed receipts
 			if err := transition.WriteFailedReceipt(tx); err != nil {
-				continue
+				i.logger.Error("write receipt failed", "err", err)
 			}
-
-			transactions = append(transactions, copyTx)
 
 			continue
 		}
 
 		if err := transition.Write(tx); err != nil {
-			i.logger.Debug("write transaction failed", "hash", tx.Hash, "from", tx.From,
-				"nonce", tx.Nonce, "err", err)
-
 			//nolint:errorlint
-			if _, ok := err.(*state.GasLimitReachedTransitionApplicationError); ok {
-				// Ignore transaction when the free gas not enough
-			} else if _, ok := err.(*state.AllGasUsedError); ok {
+			if _, ok := err.(*state.AllGasUsedError); ok {
 				// no more transaction could be packed
+				i.logger.Debug("Not enough gas for further transactions")
+
 				break
+			} else if _, ok := err.(*state.GasLimitReachedTransitionApplicationError); ok {
+				// Ignore transaction when the free gas not enough
+				i.logger.Debug("Gas limit exceeded for current block", "from", tx.From)
+				priceTxs.Pop()
 			} else if nonceErr, ok := err.(*state.NonceTooLowError); ok {
-				// low nonce tx, demote all promotable transactions
-				failedTxCount++
-				i.txpool.DemoteAllPromoted(tx, nonceErr.CorrectNonce)
-				i.logger.Error("write transaction nonce too low", "hash", tx.Hash, "from", tx.From,
-					"nonce", tx.Nonce, "err", err)
+				// low nonce tx, should reset accounts once done
+				i.logger.Warn("write transaction nonce too low",
+					"hash", tx.Hash, "from", tx.From, "nonce", tx.Nonce)
+				// skip the address, whose txs should be reset first.
+				shouldDemoteTxs = append(shouldDemoteTxs, &demoteTransaction{tx, nonceErr.CorrectNonce})
+				// priceTxs.Shift()
+				priceTxs.Pop()
 			} else if nonceErr, ok := err.(*state.NonceTooHighError); ok {
-				// high nonce tx, demote all promotable transactions
-				failedTxCount++
-				i.txpool.DemoteAllPromoted(tx, nonceErr.CorrectNonce)
-				i.logger.Error("write miss some transactions with higher nonce", tx.Hash, "from", tx.From,
-					"nonce", tx.Nonce, "err", err)
+				// high nonce tx, should reset accounts once done
+				i.logger.Error("write miss some transactions with higher nonce",
+					tx.Hash, "from", tx.From, "nonce", tx.Nonce)
+				shouldDemoteTxs = append(shouldDemoteTxs, &demoteTransaction{tx, nonceErr.CorrectNonce})
+				priceTxs.Pop()
 			} else {
-				failedTxCount++
 				// no matter what kind of failure, drop is reasonable for not executed it yet
-				i.txpool.Drop(tx)
+				i.logger.Debug("write not executed transaction failed",
+					"hash", tx.Hash, "from", tx.From,
+					"nonce", tx.Nonce, "err", err)
+				shouldDropTxs = append(shouldDropTxs, tx)
+				priceTxs.Pop()
 			}
 
 			continue
 		}
 
-		// no errors, remove the tx from the pool
-		i.txpool.RemoveExecuted(tx)
+		// no errors, go on
+		priceTxs.Shift()
 
-		successTxCount++
-
-		transactions = append(transactions, tx)
+		includedTransactions = append(includedTransactions, tx)
 	}
 
-	//nolint:lll
-	i.logger.Info("executed txns", "failed ", failedTxCount, "successful", successTxCount, "remaining in pool", i.txpool.Length())
+	i.logger.Info("executed txns",
+		"successful", len(includedTransactions),
+		"shouldDropTxs", len(shouldDropTxs),
+		"shouldDemoteTxs", len(shouldDemoteTxs),
+	)
 
-	return transactions
+	return
 }
 
 // runAcceptState runs the Accept state loop

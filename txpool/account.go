@@ -1,6 +1,7 @@
 package txpool
 
 import (
+	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -199,6 +200,29 @@ func (m *accountsMap) pruneStaleEnqueuedTxs(outdateDuration time.Duration) []*ty
 	})
 
 	return pruned
+}
+
+// poolPendings returns all promoted nonce ascending transactions.
+func (m *accountsMap) poolPendings() map[types.Address][]*types.Transaction {
+	allPromoted := make(map[types.Address][]*types.Transaction)
+
+	m.Range(func(key, value interface{}) bool {
+		addr, _ := key.(types.Address)
+		account := m.get(addr)
+
+		account.promoted.lock(false)
+		defer account.promoted.unlock()
+
+		if account.promoted.length() != 0 {
+			allPromoted[addr] = account.promoted.Transactions()
+		}
+
+		sort.Stable(types.PoolTxByNonce(allPromoted[addr]))
+
+		return true
+	})
+
+	return allPromoted
 }
 
 // An account is the core structure for processing

@@ -1,6 +1,8 @@
 package txpool
 
-import "github.com/dogechain-lab/dogechain/types"
+import (
+	"github.com/dogechain-lab/dogechain/types"
+)
 
 /* QUERY methods */
 // Used to query the pool for specific state info.
@@ -45,4 +47,8 @@ func (p *TxPool) GetTxs(inclQueued bool) (
 	allPromoted, allEnqueued = p.accounts.allTxs(inclQueued)
 
 	return
+}
+
+func (p *TxPool) Pending() map[types.Address][]*types.Transaction {
+	return p.accounts.poolPendings()
 }
