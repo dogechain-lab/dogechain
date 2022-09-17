@@ -79,6 +79,7 @@ type Eth struct {
 	store         ethStore
 	chainID       uint64
 	filterManager *FilterManager
+	priceLimit    uint64
 }
 
 var (
@@ -435,7 +436,12 @@ func (e *Eth) GetStorageAt(
 func (e *Eth) GasPrice() (interface{}, error) {
 	// var avgGasPrice string
 	// Grab the average gas price and convert it to a hex value
+	priceLimit := new(big.Int).SetUint64(e.priceLimit)
 	minGasPrice, _ := new(big.Int).SetString(defaultMinGasPrice, 0)
+
+	if priceLimit.Cmp(minGasPrice) == -1 {
+		priceLimit = minGasPrice
+	}
 
 	// if e.store.GetAvgGasPrice().Cmp(minGasPrice) == -1 {
 	// 	avgGasPrice = hex.EncodeBig(minGasPrice)
@@ -445,7 +451,7 @@ func (e *Eth) GasPrice() (interface{}, error) {
 
 	// return avgGasPrice, nil
 
-	return hex.EncodeBig(minGasPrice), nil
+	return hex.EncodeBig(priceLimit), nil
 }
 
 // Call executes a smart contract call using the transaction object data

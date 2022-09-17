@@ -604,6 +604,7 @@ func (s *Server) setupJSONRPC() error {
 		BatchLengthLimit:         s.config.JSONRPC.BatchLengthLimit,
 		BlockRangeLimit:          s.config.JSONRPC.BlockRangeLimit,
 		EnableWS:                 s.config.JSONRPC.EnableWS,
+		PriceLimit:               s.config.PriceLimit,
 	}
 
 	srv, err := jsonrpc.NewJSONRPC(s.logger, conf)

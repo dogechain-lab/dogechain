@@ -45,6 +45,7 @@ type Dispatcher struct {
 	endpoints               endpoints
 	chainID                 uint64
 	jsonRPCBatchLengthLimit uint64
+	priceLimit              uint64
 }
 
 func newDispatcher(
@@ -53,11 +54,13 @@ func newDispatcher(
 	chainID uint64,
 	jsonRPCBatchLengthLimit uint64,
 	blockRangeLimit uint64,
+	priceLimit uint64,
 ) *Dispatcher {
 	d := &Dispatcher{
 		logger:                  logger.Named("dispatcher"),
 		chainID:                 chainID,
 		jsonRPCBatchLengthLimit: jsonRPCBatchLengthLimit,
+		priceLimit:              priceLimit,
 	}
 
 	if store != nil {
@@ -71,7 +74,13 @@ func newDispatcher(
 }
 
 func (d *Dispatcher) registerEndpoints(store JSONRPCStore) {
-	d.endpoints.Eth = &Eth{d.logger, store, d.chainID, d.filterManager}
+	d.endpoints.Eth = &Eth{
+		logger:        d.logger,
+		store:         store,
+		chainID:       d.chainID,
+		filterManager: d.filterManager,
+		priceLimit:    d.priceLimit,
+	}
 	d.endpoints.Net = &Net{store, d.chainID}
 	d.endpoints.Web3 = &Web3{}
 	d.endpoints.TxPool = &TxPool{store}

@@ -10,7 +10,7 @@ import (
 )
 
 func TestWeb3EndpointSha3(t *testing.T) {
-	dispatcher := newDispatcher(hclog.NewNullLogger(), newMockStore(), 0, 20, 1000)
+	dispatcher := newDispatcher(hclog.NewNullLogger(), newMockStore(), 0, 20, 1000, 0)
 
 	resp, err := dispatcher.Handle([]byte(`{
 		"method": "web3_sha3",
@@ -25,7 +25,7 @@ func TestWeb3EndpointSha3(t *testing.T) {
 }
 
 func TestWeb3EndpointClientVersion(t *testing.T) {
-	dispatcher := newDispatcher(hclog.NewNullLogger(), newMockStore(), 0, 20, 1000)
+	dispatcher := newDispatcher(hclog.NewNullLogger(), newMockStore(), 0, 20, 1000, 0)
 
 	resp, err := dispatcher.Handle([]byte(`{
 		"method": "web3_clientVersion",
