@@ -720,12 +720,12 @@ func TestTransition_RoundChangeState_MaxRound(t *testing.T) {
 func TestWriteTransactions(t *testing.T) {
 	type testParams struct {
 		txns                        []*types.Transaction
-		recoverableTxnsIndexes      []int
-		unrecoverableTxnsIndexes    []int
+		failedTxnsIndexes           []int
 		gasLimitReachedTxnIndex     int
-		expectedTxPoolLength        int
 		expectedIncludedTxnsCount   int
 		expectedFailReceiptsWritten int
+		expectedDropTxnsCount       int
+		expectedDemoteTxnsCount     int
 	}
 
 	type testCase struct {
@@ -735,16 +735,9 @@ func TestWriteTransactions(t *testing.T) {
 
 	setupMockTransition := func(test testCase, mockTxPool *mockTxPool) *mockTransition {
 		mockTransition := &mockTransition{}
-		for _, i := range test.params.recoverableTxnsIndexes {
-			mockTransition.recoverableTransactions = append(
-				mockTransition.recoverableTransactions,
-				mockTxPool.transactions[i],
-			)
-		}
-
-		for _, i := range test.params.unrecoverableTxnsIndexes {
-			mockTransition.unrecoverableTransactions = append(
-				mockTransition.unrecoverableTransactions,
+		for _, i := range test.params.failedTxnsIndexes {
+			mockTransition.failReceiptsWritten = append(
+				mockTransition.failReceiptsWritten,
 				mockTxPool.transactions[i],
 			)
 		}
@@ -758,85 +751,53 @@ func TestWriteTransactions(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			"transaction whose gas exceeds block gas limit is included but with failedReceipt",
+			"valid transaction is included in transition",
 			testParams{
-				[]*types.Transaction{{Nonce: 1, Gas: 10000000000001}, {Nonce: 2, Gas: 10000000000002}, {Nonce: 1}},
-				nil,
-				nil,
-				-1,
-				0,
-				3,
-				2,
+				txns: []*types.Transaction{
+					{Nonce: 1},
+				},
+				failedTxnsIndexes:           nil,
+				gasLimitReachedTxnIndex:     -1,
+				expectedIncludedTxnsCount:   1,
+				expectedFailReceiptsWritten: 0,
+				expectedDropTxnsCount:       0,
+				expectedDemoteTxnsCount:     0,
 			},
 		},
 		{
-			"valid transaction is included in transition",
+			"transaction whose gas exceeds block gas limit is included but with failedReceipt",
 			testParams{
-				[]*types.Transaction{{Nonce: 1}},
-				nil,
-				nil,
-				-1,
-				0,
-				1,
-				0,
+				txns: []*types.Transaction{
+					{Nonce: 1},
+					{Nonce: 2, Gas: 10001}, // exceeds block gas limit, included with failed receipt
+					{Nonce: 3},
+					{Nonce: 4},
+				},
+				failedTxnsIndexes:           nil,
+				gasLimitReachedTxnIndex:     2,
+				expectedIncludedTxnsCount:   3,
+				expectedFailReceiptsWritten: 1, // nonce 2
+				expectedDropTxnsCount:       0,
+				expectedDemoteTxnsCount:     0,
 			},
 		},
-		// {
-		// 	"recoverable transaction is not returned to pool and not included in transition",
-		// 	testParams{
-		// 		[]*types.Transaction{{Nonce: 1}},
-		// 		[]int{0},
-		// 		nil,
-		// 		-1,
-		// 		0,
-		// 		0,
-		// 		0,
-		// 	},
-		// },
-		// {
-		// 	"unrecoverable transaction is not returned to pool and not included in transition",
-		// 	testParams{
-		// 		[]*types.Transaction{{Nonce: 1}},
-		// 		nil,
-		// 		[]int{0},
-		// 		-1,
-		// 		0,
-		// 		0,
-		// 		0,
-		// 	},
-		// },
-		// {
-		// 	"only valid transactions are ever included in transition",
-		// 	testParams{
-		// 		[]*types.Transaction{{Nonce: 1}, {Nonce: 2}, {Nonce: 3}, {Nonce: 4}, {Nonce: 5}},
-		// 		[]int{0},
-		// 		[]int{3, 4},
-		// 		-1,
-		// 		1,
-		// 		2,
-		// 		0,
-		// 	},
-		// },
-		// {
-		// 	"transaction whose gas exceeds block gas limit is included but with failedReceipt",
-		// 	testParams{
-		// 		txns: []*types.Transaction{
-		// 			{Nonce: 1},             // recoverable - returned to pool
-		// 			{Nonce: 2},             // unrecoverable
-		// 			{Nonce: 3},             // included
-		// 			{Nonce: 4, Gas: 10001}, // exceeds block gas limit, included with failed receipt
-		// 			{Nonce: 5},             // gas limit reach, skip
-		// 			{Nonce: 6},             // included when in mock
-		// 			{Nonce: 7},             // included when in mock
-		// 		},
-		// 		recoverableTxnsIndexes:      []int{0},
-		// 		unrecoverableTxnsIndexes:    []int{1},
-		// 		gasLimitReachedTxnIndex:     4,
-		// 		expectedTxPoolLength:        1,
-		// 		expectedIncludedTxnsCount:   4, // nonce: 3,4,6,7
-		// 		expectedFailReceiptsWritten: 1,
-		// 	},
-		// },
+		{
+			"transaction failed account should be dropped",
+			testParams{
+				txns: []*types.Transaction{
+					{Nonce: 1},
+					{Nonce: 2}, // failed, should drop all
+					{Nonce: 3},
+					{Nonce: 4},
+				},
+				failedTxnsIndexes:           []int{1},
+				gasLimitReachedTxnIndex:     -1,
+				expectedIncludedTxnsCount:   0,
+				expectedFailReceiptsWritten: 0,
+				expectedDropTxnsCount:       4,
+				expectedDemoteTxnsCount:     0,
+			},
+		},
 	}
 
 	for _, test := range testCases {
@@ -847,17 +808,12 @@ func TestWriteTransactions(t *testing.T) {
 			m.txpool = mockTxPool
 			mockTransition := setupMockTransition(test, mockTxPool)
 
-			included := m.writeTransactions(1000, mockTransition)
+			included, shouldDropTxs, shouldDemoteTxs := m.writeTransactions(1000, mockTransition)
 
-			assert.Equal(t, uint64(test.params.expectedTxPoolLength), m.txpool.Length())
-			assert.Equal(t, test.params.expectedFailReceiptsWritten, len(mockTransition.failReceiptsWritten))
 			assert.Equal(t, test.params.expectedIncludedTxnsCount, len(included))
-			for _, recoverable := range mockTransition.recoverableTransactions {
-				assert.False(t, mockTxPool.nonceDecreased[recoverable])
-			}
-			for _, unrecoverable := range mockTransition.unrecoverableTransactions {
-				assert.True(t, mockTxPool.nonceDecreased[unrecoverable])
-			}
+			assert.Equal(t, test.params.expectedFailReceiptsWritten, len(mockTransition.failReceiptsWritten))
+			assert.Equal(t, uint64(test.params.expectedDropTxnsCount), len(shouldDropTxs))
+			assert.Equal(t, uint64(test.params.expectedDemoteTxnsCount), len(shouldDemoteTxs))
 		})
 	}
 }
@@ -1028,25 +984,8 @@ type mockTxPool struct {
 	resetWithHeadersParam []*types.Header
 }
 
-func (p *mockTxPool) Prepare() {
-
-}
-
-func (p *mockTxPool) Length() uint64 {
-	return uint64(len(p.transactions) + len(p.demoted))
-}
-
-// simulated the same logic of txpool
-func (p *mockTxPool) Pop() *types.Transaction {
-	if len(p.transactions) == 0 {
-		return nil
-	}
-
-	tx := p.transactions[0]
-	p.transactions = p.transactions[1:]
-
-	return tx
-}
+// interface check
+var _ txPoolInterface = (*mockTxPool)(nil)
 
 func (p *mockTxPool) RemoveExecuted(tx *types.Transaction) {
 	// do nothing
@@ -1069,6 +1008,16 @@ func (p *mockTxPool) Drop(tx *types.Transaction) {
 func (p *mockTxPool) ResetWithHeaders(headers ...*types.Header) {
 	p.resetWithHeaderCalled = true
 	p.resetWithHeadersParam = headers
+}
+
+func (p *mockTxPool) Pending() map[types.Address][]*types.Transaction {
+	txs := make(map[types.Address][]*types.Transaction)
+
+	for _, tx := range p.transactions {
+		txs[tx.From] = append(txs[tx.From], tx)
+	}
+
+	return txs
 }
 
 type mockTransition struct {
