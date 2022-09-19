@@ -18,11 +18,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Go
-        uses: actions/setup-go@master
-        with:
-          go-version: 1.16.x
-
       - name: Prepare
         id: prepare
         run: |
@@ -34,21 +29,21 @@ jobs:
       - name: Run GoReleaser
         run: |
           docker run \
-          		--rm \
-          		--privileged \
-          		-e CGO_ENABLED=1 \
-          		-e GITHUB_TOKEN \
-          		-e DOCKER_USERNAME \
-          		-e DOCKER_PASSWORD \
-          		-e SLACK_WEBHOOK \
-          		-v /var/run/docker.sock:/var/run/docker.sock \
-          		-v `pwd`:/go/src/$(PACKAGE_NAME) \
-          		-w /go/src/$(PACKAGE_NAME) \
-          		ghcr.io/troian/golang-cross:${GOLANG_CROSS_VERSION} \
-          		--rm-dist --skip-validate
+              --rm \
+              --privileged \
+              -e CGO_ENABLED=1 \
+              -e GITHUB_TOKEN \
+              -e DOCKER_USERNAME \
+              -e DOCKER_PASSWORD \
+              -e SLACK_WEBHOOK \
+              -v /var/run/docker.sock:/var/run/docker.sock \
+              -v `pwd`:/go/src/$(PACKAGE_NAME) \
+              -w /go/src/$(PACKAGE_NAME) \
+              ghcr.io/goreleaser/goreleaser-cross:${GOLANG_CROSS_VERSION} \
+              --rm-dist --skip-validate
         env:
           PACKAGE_NAME: github.com/dogechain-lab/dogechain
-          GOLANG_CROSS_VERSION: v1.17.2
+          GOLANG_CROSS_VERSION: v1.17.8
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.prepare.outputs.tag_name }}
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
