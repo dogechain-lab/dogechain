@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/dogechain-lab/dogechain/blockchain"
+	"github.com/dogechain-lab/dogechain/helper/common"
 	"github.com/dogechain-lab/dogechain/helper/progress"
 	"github.com/dogechain-lab/dogechain/network"
 	"github.com/dogechain-lab/dogechain/network/event"
@@ -64,7 +65,7 @@ type Syncer struct {
 	logger     hclog.Logger
 	blockchain blockchainShim
 
-	peers sync.Map // Maps peer.ID -> SyncPeer
+	peers common.ConcurrentMap // Maps peer.ID -> SyncPeer
 
 	serviceV1 *serviceV1
 	stopCh    chan struct{}
@@ -85,6 +86,7 @@ func NewSyncer(logger hclog.Logger, server *network.Server, blockchain blockchai
 		blockchain:      blockchain,
 		server:          server,
 		syncProgression: progress.NewProgressionWrapper(progress.ChainSyncBulk),
+		peers:           common.NewConcurrentMap(),
 	}
 
 	return s

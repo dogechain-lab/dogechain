@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/dogechain-lab/dogechain/command/loadbot/generator"
+	"github.com/dogechain-lab/dogechain/helper/common"
 	"github.com/dogechain-lab/dogechain/helper/tests"
 	txpoolOp "github.com/dogechain-lab/dogechain/txpool/proto"
 	"github.com/golang/protobuf/ptypes/any"
@@ -109,6 +110,7 @@ func NewLoadbot(cfg *Configuration) *Loadbot {
 			FailedTransactionsCount:    0,
 			TransactionDuration: ExecDuration{
 				blockTransactions: make(map[uint64]uint64),
+				turnAroundMap:     common.NewConcurrentMap(),
 			},
 			ContractMetrics: ContractMetricsData{
 				ContractDeploymentDuration: ExecDuration{

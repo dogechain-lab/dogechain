@@ -138,7 +138,7 @@ type TxPool struct {
 	store  store
 
 	// map of all accounts registered by the pool
-	accounts accountsMap
+	accounts *accountsMap
 
 	// all the primaries sorted by max gas price
 	executables *pricedQueue
@@ -220,7 +220,7 @@ func NewTxPool(
 		forks:                  forks,
 		store:                  store,
 		metrics:                metrics,
-		accounts:               accountsMap{},
+		accounts:               newAccountsMap(),
 		executables:            newPricedQueue(),
 		index:                  lookupMap{all: make(map[types.Hash]*types.Transaction)},
 		gauge:                  slotGauge{height: 0, max: maxSlot},

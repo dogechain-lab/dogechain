@@ -1,15 +1,16 @@
 package loadbot
 
 import (
-	"github.com/umbracle/go-web3"
-	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/dogechain-lab/dogechain/helper/common"
+	"github.com/umbracle/go-web3"
 )
 
 type ExecDuration struct {
 	// turnAroundMap maps the transaction hash -> turn around time for passing transactions
-	turnAroundMap     sync.Map
+	turnAroundMap     common.ConcurrentMap
 	turnAroundMapSize uint64
 
 	// blockTransactions maps how many transactions went into a block

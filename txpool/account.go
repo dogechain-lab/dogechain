@@ -5,19 +5,26 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/dogechain-lab/dogechain/helper/common"
 	"github.com/dogechain-lab/dogechain/types"
 )
 
 // Thread safe map of all accounts registered by the pool.
 // Each account (value) is bound to one address (key).
 type accountsMap struct {
-	sync.Map
+	cmap  common.ConcurrentMap
 	count uint64
+}
+
+func newAccountsMap() *accountsMap {
+	return &accountsMap{
+		cmap: common.NewConcurrentMap(),
+	}
 }
 
 // Intializes an account for the given address.
 func (m *accountsMap) initOnce(addr types.Address, nonce uint64) *account {
-	a, _ := m.LoadOrStore(addr, &account{})
+	a, _ := m.cmap.LoadOrStore(addr, &account{})
 	newAccount := a.(*account) //nolint:forcetypeassert
 	// run only once
 	newAccount.init.Do(func() {
@@ -40,7 +47,7 @@ func (m *accountsMap) initOnce(addr types.Address, nonce uint64) *account {
 
 // exists checks if an account exists within the map.
 func (m *accountsMap) exists(addr types.Address) bool {
-	_, ok := m.Load(addr)
+	_, ok := m.cmap.Load(addr)
 
 	return ok
 }
@@ -48,7 +55,7 @@ func (m *accountsMap) exists(addr types.Address) bool {
 // getPrimaries collects the heads (first-in-line transaction)
 // from each of the promoted queues.
 func (m *accountsMap) getPrimaries() (primaries []*types.Transaction) {
-	m.Range(func(key, value interface{}) bool {
+	m.cmap.Range(func(key, value interface{}) bool {
 		addressKey, ok := key.(types.Address)
 		if !ok {
 			return false
@@ -72,7 +79,7 @@ func (m *accountsMap) getPrimaries() (primaries []*types.Transaction) {
 
 // get returns the account associated with the given address.
 func (m *accountsMap) get(addr types.Address) *account {
-	a, ok := m.Load(addr)
+	a, ok := m.cmap.Load(addr)
 	if !ok {
 		return nil
 	}
@@ -87,7 +94,7 @@ func (m *accountsMap) get(addr types.Address) *account {
 
 // promoted returns the number of all promoted transactons.
 func (m *accountsMap) promoted() (total uint64) {
-	m.Range(func(key, value interface{}) bool {
+	m.cmap.Range(func(key, value interface{}) bool {
 		accountKey, ok := key.(types.Address)
 		if !ok {
 			return false
@@ -108,7 +115,7 @@ func (m *accountsMap) promoted() (total uint64) {
 
 // promoted returns the number of all promoted transactons.
 func (m *accountsMap) enqueued() (total uint64) {
-	m.Range(func(key, value interface{}) bool {
+	m.cmap.Range(func(key, value interface{}) bool {
 		accountKey, ok := key.(types.Address)
 		if !ok {
 			return false
@@ -134,7 +141,7 @@ func (m *accountsMap) allTxs(includeEnqueued bool) (
 	allPromoted = make(map[types.Address][]*types.Transaction)
 	allEnqueued = make(map[types.Address][]*types.Transaction)
 
-	m.Range(func(key, value interface{}) bool {
+	m.cmap.Range(func(key, value interface{}) bool {
 		addr, _ := key.(types.Address)
 		account := m.get(addr)
 
@@ -167,7 +174,7 @@ func (m *accountsMap) pruneStaleEnqueuedTxs(outdateDuration time.Duration) []*ty
 		outdateTimeBound = time.Now().Add(-1 * outdateDuration)
 	)
 
-	m.Range(func(_, value interface{}) bool {
+	m.cmap.Range(func(_, value interface{}) bool {
 		account, ok := value.(*account)
 		if !ok {
 			// It shouldn't be. We just do some prevention work.

@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"math"
 	"math/big"
-	"sync"
 	"testing"
 	"time"
 
@@ -74,20 +73,8 @@ func WaitUntilPeerConnected(t *testing.T, syncer *Syncer, numPeer int, timeout t
 		cancel()
 	})
 
-	countMap := func(m *sync.Map) int {
-		count := 0
-
-		m.Range(func(key, value interface{}) bool {
-			count++
-
-			return true
-		})
-
-		return count
-	}
-
 	_, err := tests.RetryUntilTimeout(ctx, func() (interface{}, bool) {
-		num := countMap(&syncer.peers)
+		num := syncer.peers.Len()
 		if num == numPeer {
 			return nil, false
 		}

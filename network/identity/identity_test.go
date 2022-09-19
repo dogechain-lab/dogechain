@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/dogechain-lab/dogechain/helper/common"
 	"github.com/dogechain-lab/dogechain/network/proto"
 	networkTesting "github.com/dogechain-lab/dogechain/network/testing"
 	"github.com/hashicorp/go-hclog"
@@ -25,8 +26,9 @@ func newIdentityService(
 	}
 
 	return &IdentityService{
-		baseServer: baseServer,
-		logger:     hclog.NewNullLogger(),
+		baseServer:             baseServer,
+		logger:                 hclog.NewNullLogger(),
+		pendingPeerConnections: common.NewConcurrentMap(),
 	}
 }
 

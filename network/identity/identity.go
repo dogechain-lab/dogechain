@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 
+	"github.com/dogechain-lab/dogechain/helper/common"
 	"github.com/dogechain-lab/dogechain/network/event"
 	"github.com/hashicorp/go-hclog"
 
@@ -59,9 +59,9 @@ type networkingServer interface {
 type IdentityService struct {
 	proto.UnimplementedIdentityServer
 
-	pendingPeerConnections sync.Map         // Map that keeps track of the pending status of peers; peerID -> bool
-	logger                 hclog.Logger     // The IdentityService logger
-	baseServer             networkingServer // The interface towards the base networking server
+	pendingPeerConnections common.ConcurrentMap // Map that keeps track of the pending status of peers; peerID -> bool
+	logger                 hclog.Logger         // The IdentityService logger
+	baseServer             networkingServer     // The interface towards the base networking server
 
 	chainID int64   // The chain ID of the network
 	hostID  peer.ID // The base networking server's host peer ID
@@ -75,10 +75,11 @@ func NewIdentityService(
 	hostID peer.ID,
 ) *IdentityService {
 	return &IdentityService{
-		logger:     logger.Named("identity"),
-		baseServer: server,
-		chainID:    chainID,
-		hostID:     hostID,
+		logger:                 logger.Named("identity"),
+		baseServer:             server,
+		chainID:                chainID,
+		hostID:                 hostID,
+		pendingPeerConnections: common.NewConcurrentMap(),
 	}
 }
 
