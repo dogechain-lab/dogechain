@@ -774,37 +774,36 @@ func TestWriteTransactions(t *testing.T) {
 					{Nonce: 4},
 				},
 				failedTxnsIndexes:           nil,
-				gasLimitReachedTxnIndex:     2,
-				expectedIncludedTxnsCount:   3,
+				gasLimitReachedTxnIndex:     1,
+				expectedIncludedTxnsCount:   1, // nonce 1
 				expectedFailReceiptsWritten: 1, // nonce 2
-				expectedDropTxnsCount:       0,
+				expectedDropTxnsCount:       1, // nonce 2
 				expectedDemoteTxnsCount:     0,
 			},
 		},
-		{
-			"transaction failed account should be dropped",
-			testParams{
-				txns: []*types.Transaction{
-					{Nonce: 1},
-					{Nonce: 2}, // failed, should drop all
-					{Nonce: 3},
-					{Nonce: 4},
-				},
-				failedTxnsIndexes:           []int{1},
-				gasLimitReachedTxnIndex:     -1,
-				expectedIncludedTxnsCount:   0,
-				expectedFailReceiptsWritten: 0,
-				expectedDropTxnsCount:       4,
-				expectedDemoteTxnsCount:     0,
-			},
-		},
+		// {
+		// 	"transaction failed account should be dropped",
+		// 	testParams{
+		// 		txns: []*types.Transaction{
+		// 			{Nonce: 1},
+		// 			{Nonce: 2},
+		// 			{Nonce: 3}, // failed, should drop all
+		// 			{Nonce: 4},
+		// 		},
+		// 		failedTxnsIndexes:           []int{2},
+		// 		gasLimitReachedTxnIndex:     -1,
+		// 		expectedIncludedTxnsCount:   2, // nonce 1, 2
+		// 		expectedFailReceiptsWritten: 2,
+		// 		expectedDropTxnsCount:       1, // nonce 3
+		// 		expectedDemoteTxnsCount:     0,
+		// 	},
+		// },
 	}
 
 	for _, test := range testCases {
 		t.Run(test.description, func(t *testing.T) {
 			m := newMockIbft(t, []string{"A", "B", "C"}, "A")
-			mockTxPool := &mockTxPool{}
-			mockTxPool.transactions = append(mockTxPool.transactions, test.params.txns...)
+			mockTxPool := newMockTxPool(test.params.txns)
 			m.txpool = mockTxPool
 			mockTransition := setupMockTransition(test, mockTxPool)
 
@@ -812,8 +811,8 @@ func TestWriteTransactions(t *testing.T) {
 
 			assert.Equal(t, test.params.expectedIncludedTxnsCount, len(included))
 			assert.Equal(t, test.params.expectedFailReceiptsWritten, len(mockTransition.failReceiptsWritten))
-			assert.Equal(t, uint64(test.params.expectedDropTxnsCount), len(shouldDropTxs))
-			assert.Equal(t, uint64(test.params.expectedDemoteTxnsCount), len(shouldDemoteTxs))
+			assert.Equal(t, test.params.expectedDropTxnsCount, len(shouldDropTxs))
+			assert.Equal(t, test.params.expectedDemoteTxnsCount, len(shouldDemoteTxs))
 		})
 	}
 }
@@ -823,10 +822,9 @@ func TestRunSyncState_NewHeadReceivedFromPeer_CallsTxPoolResetWithHeaders(t *tes
 	m.setState(SyncState)
 
 	expectedNewBlockToSync := &types.Block{Header: &types.Header{Number: 1}}
-	mockSyncer := &mockSyncer{}
-	mockSyncer.receivedNewHeadFromPeer = expectedNewBlockToSync
+	mockSyncer := newMockSyncer(nil, expectedNewBlockToSync, nil, false, nil)
 	m.syncer = mockSyncer
-	mockTxPool := &mockTxPool{}
+	mockTxPool := newMockTxPool(nil)
 	m.txpool = mockTxPool
 
 	// we need to change state from Sync in order to break from the loop inside runSyncState
@@ -854,10 +852,8 @@ func TestRunSyncState_BulkSyncWithPeer_CallsTxPoolResetWithHeaders(t *testing.T)
 		{Header: &types.Header{Number: 2}},
 		{Header: &types.Header{Number: 3}},
 	}
-	mockSyncer := &mockSyncer{}
-	mockSyncer.bulkSyncBlocksFromPeer = expectedNewBlocksToSync
-	m.syncer = mockSyncer
-	mockTxPool := &mockTxPool{}
+	m.syncer = newMockSyncer(expectedNewBlocksToSync, nil, nil, false, nil)
+	mockTxPool := newMockTxPool(nil)
 	m.txpool = mockTxPool
 
 	// we need to change state from Sync in order to break from the loop inside runSyncState
@@ -899,11 +895,8 @@ func TestRunSyncState_Unlock_After_Sync(t *testing.T) {
 		{Header: &types.Header{Number: 3}},
 	}
 
-	m.syncer = &mockSyncer{
-		bulkSyncBlocksFromPeer: expectedNewBlocksToSync,
-		blockchain:             blockchain,
-	}
-	m.txpool = &mockTxPool{}
+	m.syncer = newMockSyncer(expectedNewBlocksToSync, nil, nil, false, blockchain)
+	m.txpool = newMockTxPool(nil)
 
 	// we need to change state from Sync in order to break from the loop inside runSyncState
 	stateChangeDelay := time.NewTimer(100 * time.Millisecond)
@@ -929,6 +922,22 @@ type mockSyncer struct {
 	broadcastedBlock        *types.Block
 	broadcastCalled         bool
 	blockchain              blockchainInterface
+}
+
+func newMockSyncer(
+	bulkSyncBlocksFromPeer []*types.Block,
+	receivedNewHeadFromPeer *types.Block,
+	broadcastedBlock *types.Block,
+	broadcastCalled bool,
+	blockchain blockchainInterface,
+) *mockSyncer {
+	return &mockSyncer{
+		bulkSyncBlocksFromPeer:  bulkSyncBlocksFromPeer,
+		receivedNewHeadFromPeer: receivedNewHeadFromPeer,
+		broadcastedBlock:        broadcastedBlock,
+		broadcastCalled:         broadcastCalled,
+		blockchain:              blockchain,
+	}
 }
 
 func (s *mockSyncer) Start() {}
@@ -982,6 +991,12 @@ type mockTxPool struct {
 	nonceDecreased        map[*types.Transaction]bool
 	resetWithHeaderCalled bool
 	resetWithHeadersParam []*types.Header
+}
+
+func newMockTxPool(txs []*types.Transaction) *mockTxPool {
+	return &mockTxPool{
+		transactions: txs,
+	}
 }
 
 // interface check
@@ -1130,7 +1145,7 @@ func (m *mockIbft) CalculateGasLimit(number uint64) (uint64, error) {
 	return m.blockchain.CalculateGasLimit(number)
 }
 
-func newMockIbft(t *testing.T, accounts []string, account string) *mockIbft {
+func newMockIbft(t *testing.T, accounts []string, validatorAccount string) *mockIbft {
 	t.Helper()
 
 	pool := newTesterAccountPool()
@@ -1145,13 +1160,13 @@ func newMockIbft(t *testing.T, accounts []string, account string) *mockIbft {
 
 	var addr *testerAccount
 
-	if account == "" {
+	if validatorAccount == "" {
 		// account not in validator set, create a new one that is not part
 		// of the genesis
 		pool.add("xx")
 		addr = pool.get("xx")
 	} else {
-		addr = pool.get(account)
+		addr = pool.get(validatorAccount)
 	}
 
 	ibft := &Ibft{
