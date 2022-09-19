@@ -21,11 +21,15 @@ build:
 	$(eval LATEST_VERSION = $(shell git describe --tags --abbrev=0))
 	$(eval COMMIT_HASH = $(shell git rev-parse --short HEAD))
 	$(eval DATE = $(shell date +'%Y-%m-%d_%T'))
-	go build -ldflags="-X 'github.com/dogechain-lab/dogechain/versioning.Version=$(LATEST_VERSION)+$(COMMIT_HASH)+$(DATE)'" main.go
+	go build -o dogechain -ldflags="-X 'github.com/dogechain-lab/dogechain/versioning.Version=$(LATEST_VERSION)+$(COMMIT_HASH)+$(DATE)'" main.go
 
 .PHONY: lint
 lint:
 	golangci-lint run -c lint-rule.yaml --timeout=2m
+
+.PHONY: test
+test:
+	PATH=$(shell pwd):${PATH} go test -coverprofile coverage.out -timeout 28m ./...
 
 .PHONY: generate-bsd-licenses
 generate-bsd-licenses:

@@ -19,3 +19,7 @@ main
 # MacOS Leftovers
 .DS_Store
 .vscode
+
+dogechain
+coverage.out
+
