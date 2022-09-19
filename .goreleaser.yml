@@ -62,6 +62,8 @@ archives:
   - files:
       - LICENSE
       - README.md
+      - src: mainnet-genesis.json
+        dst: genesis.json
 
 snapshot:
   name_template: "{{ .Tag }}.next"
