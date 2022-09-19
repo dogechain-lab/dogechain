@@ -43,7 +43,7 @@ jobs:
               --rm-dist --skip-validate
         env:
           PACKAGE_NAME: github.com/dogechain-lab/dogechain
-          GOLANG_CROSS_VERSION: v1.17.8
+          GOLANG_CROSS_VERSION: v1.17.9
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.prepare.outputs.tag_name }}
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
