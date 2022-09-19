@@ -40,6 +40,7 @@ func TestTransactionTimeSort(t *testing.T) {
 
 	// Generate a batch of transactions with overlapping prices, but different creation times
 	groups := map[Address][]*Transaction{}
+
 	for start, addr := range addrs {
 		// no sign, not matter in test
 		tx := &Transaction{
@@ -61,6 +62,7 @@ func TestTransactionTimeSort(t *testing.T) {
 
 	for tx := txset.Peek(); tx != nil; tx = txset.Peek() {
 		txs = append(txs, tx)
+
 		txset.Shift()
 	}
 
@@ -70,6 +72,7 @@ func TestTransactionTimeSort(t *testing.T) {
 
 	for i, txi := range txs {
 		fromi := txi.From
+
 		if i+1 < len(txs) {
 			next := txs[i+1]
 			fromNext := next.From
