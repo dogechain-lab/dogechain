@@ -1,11 +1,11 @@
 //nolint:stylecheck
-package storage
+package kvstorage
 
 import (
 	"encoding/binary"
-	"fmt"
 	"math/big"
 
+	"github.com/dogechain-lab/dogechain/blockchain/storage"
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/dogechain-lab/fastrlp"
 	"github.com/hashicorp/go-hclog"
@@ -48,11 +48,10 @@ var (
 	EMPTY  = []byte("empty")
 )
 
-// KV is a key value storage interface.
-//
-// KV = Key-Value
+// KV is a generic key-value store, need close it
 type KV interface {
 	Close() error
+
 	Set(p []byte, v []byte) error
 	Get(p []byte) ([]byte, bool, error)
 }
@@ -61,10 +60,9 @@ type KV interface {
 type KeyValueStorage struct {
 	logger hclog.Logger
 	db     KV
-	Db     KV
 }
 
-func NewKeyValueStorage(logger hclog.Logger, db KV) Storage {
+func newKeyValueStorage(logger hclog.Logger, db KV) storage.Storage {
 	return &KeyValueStorage{logger: logger, db: db}
 }
 
@@ -136,14 +134,14 @@ func (s *KeyValueStorage) WriteHeadNumber(n uint64) error {
 
 // WriteForks writes the current forks
 func (s *KeyValueStorage) WriteForks(forks []types.Hash) error {
-	ff := Forks(forks)
+	ff := storage.Forks(forks)
 
 	return s.writeRLP(FORK, EMPTY, &ff)
 }
 
 // ReadForks read the current forks
 func (s *KeyValueStorage) ReadForks() ([]types.Hash, error) {
-	forks := &Forks{}
+	forks := &storage.Forks{}
 	err := s.readRLP(FORK, EMPTY, forks)
 
 	return *forks, err
@@ -297,8 +295,6 @@ func (s *KeyValueStorage) writeRLP(p, k []byte, raw types.RLPMarshaler) error {
 	return s.set(p, k, data)
 }
 
-var ErrNotFound = fmt.Errorf("not found")
-
 func (s *KeyValueStorage) readRLP(p, k []byte, raw types.RLPUnmarshaler) error {
 	p = append(p, k...)
 	data, ok, err := s.db.Get(p)
@@ -308,7 +304,7 @@ func (s *KeyValueStorage) readRLP(p, k []byte, raw types.RLPUnmarshaler) error {
 	}
 
 	if !ok {
-		return ErrNotFound
+		return storage.ErrNotFound
 	}
 
 	if obj, ok := raw.(types.RLPStoreUnmarshaler); ok {

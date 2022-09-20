@@ -8,10 +8,11 @@ import (
 	"testing"
 
 	"github.com/dogechain-lab/dogechain/blockchain/storage"
-	"github.com/dogechain-lab/dogechain/blockchain/storage/memory"
+	"github.com/dogechain-lab/dogechain/blockchain/storage/kvstorage"
 	"github.com/dogechain-lab/dogechain/chain"
 	"github.com/dogechain-lab/dogechain/state"
 	"github.com/dogechain-lab/dogechain/types"
+	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -541,7 +542,7 @@ func TestForkUnknownParents(t *testing.T) {
 }
 
 func TestBlockchainWriteBody(t *testing.T) {
-	storage, err := memory.NewMemoryStorage(nil)
+	storage, err := kvstorage.NewMemoryStorageBuilder(hclog.NewNullLogger()).Build()
 	assert.NoError(t, err)
 
 	b := &Blockchain{

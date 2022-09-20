@@ -13,13 +13,14 @@ import (
 
 	"github.com/dogechain-lab/dogechain/archive"
 	"github.com/dogechain-lab/dogechain/blockchain"
-	"github.com/dogechain-lab/dogechain/blockchain/storage/leveldb"
+	"github.com/dogechain-lab/dogechain/blockchain/storage/kvstorage"
 	"github.com/dogechain-lab/dogechain/chain"
 	"github.com/dogechain-lab/dogechain/consensus"
 	"github.com/dogechain-lab/dogechain/crypto"
 	"github.com/dogechain-lab/dogechain/graphql"
 	"github.com/dogechain-lab/dogechain/helper/common"
 	"github.com/dogechain-lab/dogechain/helper/keccak"
+	"github.com/dogechain-lab/dogechain/helper/kvdb"
 	"github.com/dogechain-lab/dogechain/helper/progress"
 	"github.com/dogechain-lab/dogechain/jsonrpc"
 	"github.com/dogechain-lab/dogechain/network"
@@ -130,6 +131,22 @@ func newLoggerFromConfig(config *Config) (hclog.Logger, error) {
 	return newCLILogger(config), nil
 }
 
+func newLevelDBBuilder(logger hclog.Logger, config *Config, path string) kvdb.LevelDBBuilder {
+	leveldbBuilder := kvdb.NewLevelDBBuilder(
+		logger,
+		path,
+	)
+
+	leveldbBuilder.SetCacheSize(config.LeveldbOptions.CacheSize).
+		SetHandles(config.LeveldbOptions.Handles).
+		SetBloomKeyBits(config.LeveldbOptions.BloomKeyBits).
+		SetCompactionTableSize(config.LeveldbOptions.CompactionTableSize).
+		SetCompactionTotalSize(config.LeveldbOptions.CompactionTotalSize).
+		SetNoSync(config.LeveldbOptions.NoSync)
+
+	return leveldbBuilder
+}
+
 // NewServer creates a new Minimal server, using the passed in configuration
 func NewServer(config *Config) (*Server, error) {
 	logger, err := newLoggerFromConfig(config)
@@ -183,7 +200,16 @@ func NewServer(config *Config) (*Server, error) {
 	}
 
 	// start blockchain object
-	stateStorage, err := itrie.NewLevelDBStorage(filepath.Join(m.config.DataDir, "trie"), logger)
+	stateStorage, err := func() (itrie.Storage, error) {
+		leveldbBuilder := newLevelDBBuilder(
+			logger,
+			config,
+			filepath.Join(m.config.DataDir, "trie"),
+		)
+
+		return itrie.NewLevelDBStorage(leveldbBuilder)
+	}()
+
 	if err != nil {
 		return nil, err
 	}
@@ -202,23 +228,17 @@ func NewServer(config *Config) (*Server, error) {
 	config.Chain.Genesis.StateRoot = genesisRoot
 
 	// create leveldb storageBuilder
-	leveldbBuilder := leveldb.NewBuilder(
+	leveldbBuilder := newLevelDBBuilder(
 		logger,
+		config,
 		filepath.Join(m.config.DataDir, "blockchain"),
 	)
-
-	leveldbBuilder.SetCacheSize(config.LeveldbOptions.CacheSize).
-		SetHandles(config.LeveldbOptions.Handles).
-		SetBloomKeyBits(config.LeveldbOptions.BloomKeyBits).
-		SetCompactionTableSize(config.LeveldbOptions.CompactionTableSize).
-		SetCompactionTotalSize(config.LeveldbOptions.CompactionTotalSize).
-		SetNoSync(config.LeveldbOptions.NoSync)
 
 	// blockchain object
 	m.blockchain, err = blockchain.NewBlockchain(
 		logger,
 		config.Chain,
-		leveldbBuilder,
+		kvstorage.NewLevelDBStorageBuilder(logger, leveldbBuilder),
 		nil,
 		m.executor,
 	)

@@ -34,8 +34,8 @@ func (s *State) NewSnapshot() state.Snapshot {
 	return t
 }
 
-func (s *State) SetCode(hash types.Hash, code []byte) {
-	s.storage.SetCode(hash, code)
+func (s *State) SetCode(hash types.Hash, code []byte) error {
+	return s.storage.SetCode(hash, code)
 }
 
 func (s *State) GetCode(hash types.Hash) ([]byte, bool) {

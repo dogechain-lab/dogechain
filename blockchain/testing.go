@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/dogechain-lab/dogechain/blockchain/storage"
+	"github.com/dogechain-lab/dogechain/blockchain/storage/kvstorage"
 	"github.com/dogechain-lab/dogechain/chain"
 	"github.com/dogechain-lab/dogechain/state"
 	itrie "github.com/dogechain-lab/dogechain/state/immutable-trie"
@@ -331,7 +332,13 @@ func newBlockChain(config *chain.Chain, executor Executor) (*Blockchain, error) 
 		executor = &mockExecutor{}
 	}
 
-	b, err := NewBlockchain(hclog.NewNullLogger(), config, nil, &MockVerifier{}, executor)
+	b, err := NewBlockchain(
+		hclog.NewNullLogger(),
+		config,
+		kvstorage.NewMemoryStorageBuilder(hclog.NewNullLogger()),
+		&MockVerifier{},
+		executor,
+	)
 	if err != nil {
 		return nil, err
 	}

@@ -1,14 +1,12 @@
 package itrie
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/dogechain-lab/dogechain/helper/hex"
+	"github.com/dogechain-lab/dogechain/helper/kvdb"
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/dogechain-lab/fastrlp"
-	"github.com/hashicorp/go-hclog"
-	"github.com/syndtr/goleveldb/leveldb"
 )
 
 var parserPool fastrlp.ParserPool
@@ -19,82 +17,64 @@ var (
 )
 
 type Batch interface {
-	Put(k, v []byte)
-	Write()
+	Set(k, v []byte)
+	Write() error
 }
 
 // Storage stores the trie
 type Storage interface {
-	Put(k, v []byte)
-	Get(k []byte) ([]byte, bool)
-	Batch() Batch
-	SetCode(hash types.Hash, code []byte)
+	Set(k, v []byte) error
+	Get(k []byte) ([]byte, bool, error)
+
+	SetCode(hash types.Hash, code []byte) error
 	GetCode(hash types.Hash) ([]byte, bool)
+
+	Batch() Batch
 
 	Close() error
 }
 
-// KVStorage is a k/v storage on memory using leveldb
-type KVStorage struct {
-	db *leveldb.DB
+// wrap generic kvdb storage to implement Storage interface
+type kvStorage struct {
+	db kvdb.KVBatchStorage
 }
 
-// KVBatch is a batch write for leveldb
-type KVBatch struct {
-	db    *leveldb.DB
-	batch *leveldb.Batch
+func (kv *kvStorage) Get(k []byte) ([]byte, bool, error) {
+	return kv.db.Get(k)
 }
 
-func (b *KVBatch) Put(k, v []byte) {
-	b.batch.Put(k, v)
+func (kv *kvStorage) Set(k, v []byte) error {
+	return kv.db.Set(k, v)
 }
 
-func (b *KVBatch) Write() {
-	_ = b.db.Write(b.batch, nil)
+func (kv *kvStorage) SetCode(hash types.Hash, code []byte) error {
+	return kv.db.Set(append(codePrefix, hash.Bytes()...), code)
 }
 
-func (kv *KVStorage) SetCode(hash types.Hash, code []byte) {
-	kv.Put(append(codePrefix, hash.Bytes()...), code)
-}
-
-func (kv *KVStorage) GetCode(hash types.Hash) ([]byte, bool) {
-	return kv.Get(append(codePrefix, hash.Bytes()...))
-}
-
-func (kv *KVStorage) Batch() Batch {
-	return &KVBatch{db: kv.db, batch: &leveldb.Batch{}}
-}
-
-func (kv *KVStorage) Put(k, v []byte) {
-	_ = kv.db.Put(k, v, nil)
-}
-
-func (kv *KVStorage) Get(k []byte) ([]byte, bool) {
-	data, err := kv.db.Get(k, nil)
-	if err != nil {
-		if errors.Is(err, leveldb.ErrNotFound) {
-			return nil, false
-		} else if errors.Is(err, leveldb.ErrClosed) {
-			return nil, false
-		} else {
-			panic(err)
-		}
+func (kv *kvStorage) GetCode(hash types.Hash) ([]byte, bool) {
+	v, ok, _ := kv.db.Get(append(codePrefix, hash.Bytes()...))
+	if !ok {
+		return []byte{}, false
 	}
 
-	return data, true
+	return v, true
 }
 
-func (kv *KVStorage) Close() error {
+func (kv *kvStorage) Batch() Batch {
+	return kv.db.Batch()
+}
+
+func (kv *kvStorage) Close() error {
 	return kv.db.Close()
 }
 
-func NewLevelDBStorage(path string, logger hclog.Logger) (Storage, error) {
-	db, err := leveldb.OpenFile(path, nil)
+func NewLevelDBStorage(leveldbBuilder kvdb.LevelDBBuilder) (Storage, error) {
+	db, err := leveldbBuilder.Build()
 	if err != nil {
 		return nil, err
 	}
 
-	return &KVStorage{db}, nil
+	return &kvStorage{db: db}, nil
 }
 
 type memStorage struct {
@@ -111,23 +91,27 @@ func NewMemoryStorage() Storage {
 	return &memStorage{db: map[string][]byte{}, code: map[string][]byte{}}
 }
 
-func (m *memStorage) Put(p []byte, v []byte) {
+func (m *memStorage) Set(p []byte, v []byte) error {
 	buf := make([]byte, len(v))
 	copy(buf[:], v[:])
 	m.db[hex.EncodeToHex(p)] = buf
+
+	return nil
 }
 
-func (m *memStorage) Get(p []byte) ([]byte, bool) {
+func (m *memStorage) Get(p []byte) ([]byte, bool, error) {
 	v, ok := m.db[hex.EncodeToHex(p)]
 	if !ok {
-		return []byte{}, false
+		return []byte{}, false, nil
 	}
 
-	return v, true
+	return v, true, nil
 }
 
-func (m *memStorage) SetCode(hash types.Hash, code []byte) {
+func (m *memStorage) SetCode(hash types.Hash, code []byte) error {
 	m.code[hash.String()] = code
+
+	return nil
 }
 
 func (m *memStorage) GetCode(hash types.Hash) ([]byte, bool) {
@@ -144,18 +128,19 @@ func (m *memStorage) Close() error {
 	return nil
 }
 
-func (m *memBatch) Put(p, v []byte) {
+func (m *memBatch) Set(p, v []byte) {
 	buf := make([]byte, len(v))
 	copy(buf[:], v[:])
 	(*m.db)[hex.EncodeToHex(p)] = buf
 }
 
-func (m *memBatch) Write() {
+func (m *memBatch) Write() error {
+	return nil
 }
 
 // GetNode retrieves a node from storage
 func GetNode(root []byte, storage Storage) (Node, bool, error) {
-	data, ok := storage.Get(root)
+	data, ok, _ := storage.Get(root)
 	if !ok {
 		return nil, false, nil
 	}
