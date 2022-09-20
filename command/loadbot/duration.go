@@ -4,13 +4,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/dogechain-lab/dogechain/helper/common"
+	cmap "github.com/dogechain-lab/dogechain/helper/concurrentmap"
 	"github.com/umbracle/go-web3"
 )
 
 type ExecDuration struct {
 	// turnAroundMap maps the transaction hash -> turn around time for passing transactions
-	turnAroundMap     common.ConcurrentMap
+	turnAroundMap     cmap.ConcurrentMap
 	turnAroundMapSize uint64
 
 	// blockTransactions maps how many transactions went into a block

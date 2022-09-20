@@ -5,7 +5,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/dogechain-lab/dogechain/helper/common"
+	cmap "github.com/dogechain-lab/dogechain/helper/concurrentmap"
 	"github.com/dogechain-lab/dogechain/types"
 )
 
@@ -15,13 +15,13 @@ type accountQueue struct {
 	sync.RWMutex
 	wLock uint32
 	queue minNonceQueue
-	txs   common.ConcurrentMap // nonce filter transactions
+	txs   cmap.ConcurrentMap // nonce filter transactions
 }
 
 func newAccountQueue() *accountQueue {
 	q := accountQueue{
 		queue: make(minNonceQueue, 0),
-		txs:   common.NewConcurrentMap(),
+		txs:   cmap.NewConcurrentMap(),
 	}
 
 	heap.Init(&q.queue)

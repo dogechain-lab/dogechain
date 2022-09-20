@@ -15,7 +15,7 @@ import (
 	noise "github.com/libp2p/go-libp2p-noise"
 	rawGrpc "google.golang.org/grpc"
 
-	helper "github.com/dogechain-lab/dogechain/helper/common"
+	cmap "github.com/dogechain-lab/dogechain/helper/concurrentmap"
 	peerEvent "github.com/dogechain-lab/dogechain/network/event"
 	"github.com/dogechain-lab/dogechain/secrets"
 	"github.com/hashicorp/go-hclog"
@@ -85,7 +85,7 @@ type Server struct {
 
 	connectionCounts *ConnectionInfo
 
-	temporaryDials helper.ConcurrentMap // map of temporary connections; peerID -> bool
+	temporaryDials cmap.ConcurrentMap // map of temporary connections; peerID -> bool
 
 	bootnodes *bootnodesWrapper // reference of all bootnodes for the node
 }
@@ -158,7 +158,7 @@ func NewServer(logger hclog.Logger, config *Config) (*Server, error) {
 			config.MaxInboundPeers,
 			config.MaxOutboundPeers,
 		),
-		temporaryDials: helper.NewConcurrentMap(),
+		temporaryDials: cmap.NewConcurrentMap(),
 	}
 
 	// start gossip protocol
