@@ -111,8 +111,10 @@ func TestEventManager_SignalEvent(t *testing.T) {
 	supportedEventsProcessed := 0
 
 	completed := false
+	delay := time.NewTimer(5 * time.Second)
+
 	for !completed {
-		delay := time.NewTimer(5 * time.Second)
+		delay.Reset(5 * time.Second)
 
 		select {
 		case event := <-subscription.subscriptionChannel:
