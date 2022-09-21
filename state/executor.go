@@ -621,6 +621,15 @@ func (t *Transition) Call2(
 	value *big.Int,
 	gas uint64,
 ) *runtime.ExecutionResult {
+	code := t.state.GetCode(to)
+	if len(code) == 0 {
+		// might be caused by close db
+		t.logger.Info("transition Call2 stop due to empty code")
+
+		return &runtime.ExecutionResult{
+			Err: runtime.ErrCodeEmpty,
+		}
+	}
 	c := runtime.NewContractCall(1, caller, caller, to, value, gas, t.state.GetCode(to), input)
 
 	return t.applyCall(c, runtime.Call, t)

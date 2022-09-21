@@ -420,7 +420,10 @@ func (txn *Txn) GetCode(addr types.Address) []byte {
 	}
 
 	code, _ := txn.state.GetCode(types.BytesToHash(object.Account.CodeHash))
-	txn.codeCache.Add(addr, code)
+	if len(code) > 0 {
+		// code might be empty when closed
+		txn.codeCache.Add(addr, code)
+	}
 
 	return code
 }

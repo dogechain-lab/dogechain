@@ -1,6 +1,7 @@
 package itrie
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/dogechain-lab/dogechain/helper/hex"
@@ -71,7 +72,9 @@ func (kv *KVStorage) Put(k, v []byte) {
 func (kv *KVStorage) Get(k []byte) ([]byte, bool) {
 	data, err := kv.db.Get(k, nil)
 	if err != nil {
-		if err.Error() == "leveldb: not found" {
+		if errors.Is(err, leveldb.ErrNotFound) {
+			return nil, false
+		} else if errors.Is(err, leveldb.ErrClosed) {
 			return nil, false
 		} else {
 			panic(err)

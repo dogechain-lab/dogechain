@@ -107,6 +107,7 @@ var (
 	ErrDepth                    = errors.New("max call depth exceeded")
 	ErrExecutionReverted        = errors.New("execution was reverted")
 	ErrCodeStoreOutOfGas        = errors.New("contract creation code storage out of gas")
+	ErrCodeEmpty                = errors.New("contract code empty")
 )
 
 type CallType int
