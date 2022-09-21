@@ -92,6 +92,7 @@ type Verifier interface {
 	PreStateCommit(header *types.Header, txn *state.Transition) error
 }
 
+//nolint:lll
 type Executor interface {
 	ProcessBlock(parentRoot types.Hash, block *types.Block, blockCreator types.Address, stop *bool) (*state.Transition, error)
 }

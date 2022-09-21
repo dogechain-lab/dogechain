@@ -637,6 +637,7 @@ func (t *Transition) Call2(
 			Err: runtime.ErrCodeEmpty,
 		}
 	}
+
 	c := runtime.NewContractCall(1, caller, caller, to, value, gas, t.state.GetCode(to), input)
 
 	return t.applyCall(c, runtime.Call, t)
