@@ -93,6 +93,7 @@ func (e *Executor) ProcessBlock(
 	parentRoot types.Hash,
 	block *types.Block,
 	blockCreator types.Address,
+	stop *bool,
 ) (*Transition, error) {
 	txn, err := e.BeginTxn(parentRoot, block.Header, blockCreator)
 	if err != nil {
@@ -102,6 +103,11 @@ func (e *Executor) ProcessBlock(
 	txn.block = block
 
 	for _, t := range block.Transactions {
+		if *stop {
+			// halt more elegantly
+			return nil, ErrExecutionStop
+		}
+
 		if t.ExceedsBlockGasLimit(block.Header.GasLimit) {
 			if err := txn.WriteFailedReceipt(t); err != nil {
 				return nil, err
@@ -449,6 +455,7 @@ var (
 	ErrNotEnoughIntrinsicGas = errors.New("not enough gas supplied for intrinsic gas costs")
 	ErrNotEnoughFunds        = errors.New("not enough funds for transfer with given value")
 	ErrAllGasUsed            = errors.New("all gas used")
+	ErrExecutionStop         = errors.New("execution stop")
 )
 
 type TransitionApplicationError struct {

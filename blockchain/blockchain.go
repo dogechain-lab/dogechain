@@ -43,9 +43,10 @@ var (
 type Blockchain struct {
 	logger hclog.Logger // The logger object
 
-	db        storage.Storage // The Storage object (database)
-	consensus Verifier
-	executor  Executor
+	db          storage.Storage // The Storage object (database)
+	consensus   Verifier
+	executor    Executor
+	executeStop bool // used in executor halting
 
 	config  *chain.Chain // Config containing chain information
 	genesis types.Hash   // The hash of the genesis block
@@ -92,7 +93,7 @@ type Verifier interface {
 }
 
 type Executor interface {
-	ProcessBlock(parentRoot types.Hash, block *types.Block, blockCreator types.Address) (*state.Transition, error)
+	ProcessBlock(parentRoot types.Hash, block *types.Block, blockCreator types.Address, stop *bool) (*state.Transition, error)
 }
 
 type BlockResult struct {
@@ -844,7 +845,7 @@ func (b *Blockchain) executeBlockTransactions(block *types.Block) (*BlockResult,
 		return nil, err
 	}
 
-	txn, err := b.executor.ProcessBlock(parent.StateRoot, block, blockCreator)
+	txn, err := b.executor.ProcessBlock(parent.StateRoot, block, blockCreator, &b.executeStop)
 	if err != nil {
 		return nil, err
 	}
@@ -1303,5 +1304,7 @@ func (b *Blockchain) GetBlockByNumber(blockNumber uint64, full bool) (*types.Blo
 
 // Close closes the DB connection
 func (b *Blockchain) Close() error {
+	b.executeStop = true
+
 	return b.db.Close()
 }
