@@ -34,13 +34,15 @@ func TestSubscriptionLinear(t *testing.T) {
 		evnt.AddNewHeader(&types.Header{Number: uint64(i)})
 		e.push(evnt)
 
+		timeoutDelay := time.NewTimer(1 * time.Second)
+
 		// it should fire updateCh
 		select {
 		case evnt := <-eventCh:
 			if evnt.NewChain[0].Number != uint64(i) {
 				t.Fatal("bad")
 			}
-		case <-time.After(1 * time.Second):
+		case <-timeoutDelay.C:
 			t.Fatal("timeout")
 		}
 	}

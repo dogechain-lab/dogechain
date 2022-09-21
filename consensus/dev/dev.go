@@ -74,8 +74,10 @@ func (d *Dev) nextNotify() chan struct{} {
 		d.interval = 1
 	}
 
+	delay := time.NewTimer(time.Duration(d.interval) * time.Second)
+
 	go func() {
-		<-time.After(time.Duration(d.interval) * time.Second)
+		<-delay.C
 		d.notifyCh <- struct{}{}
 	}()
 

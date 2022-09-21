@@ -205,10 +205,12 @@ func TryPopBlock(t *testing.T, syncer *Syncer, peerID peer.ID, timeout time.Dura
 		}
 	}()
 
+	delay := time.NewTimer(timeout)
+
 	select {
 	case block := <-blockCh:
 		return block, true
-	case <-time.After(timeout):
+	case <-delay.C:
 		return nil, false
 	}
 }

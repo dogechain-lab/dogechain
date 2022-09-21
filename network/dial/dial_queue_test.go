@@ -36,19 +36,26 @@ func TestDialQueue(t *testing.T) {
 		done <- struct{}{}
 	}()
 
-	// we should not get any peer now
-	select {
-	case <-done:
-		t.Fatal("not expected")
-	case <-time.After(1 * time.Second):
+	{
+		delay := time.NewTimer(1 * time.Second)
+		// we should not get any peer now
+		select {
+		case <-done:
+			t.Fatal("not expected")
+		case <-delay.C:
+		}
 	}
 
 	q.AddTask(info0, 1)
 
-	select {
-	case <-done:
-	case <-time.After(1 * time.Second):
-		t.Fatal("timeout")
+	{
+		delay := time.NewTimer(1 * time.Second)
+
+		select {
+		case <-done:
+		case <-delay.C:
+			t.Fatal("timeout")
+		}
 	}
 }
 

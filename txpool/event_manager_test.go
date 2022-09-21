@@ -112,6 +112,8 @@ func TestEventManager_SignalEvent(t *testing.T) {
 
 	completed := false
 	for !completed {
+		delay := time.NewTimer(5 * time.Second)
+
 		select {
 		case event := <-subscription.subscriptionChannel:
 			eventsProcessed++
@@ -124,7 +126,7 @@ func TestEventManager_SignalEvent(t *testing.T) {
 				supportedEventsProcessed == validEvents {
 				completed = true
 			}
-		case <-time.After(time.Second * 5):
+		case <-delay.C:
 			completed = true
 		}
 	}
@@ -157,6 +159,8 @@ func TestEventManager_SignalEventOrder(t *testing.T) {
 
 	wg.Add(totalEvents)
 
+	timeoutDelay := time.NewTimer(5 * time.Second)
+
 	go func() {
 		for {
 			select {
@@ -168,7 +172,7 @@ func TestEventManager_SignalEventOrder(t *testing.T) {
 
 					wg.Done()
 				}
-			case <-time.After(time.Second * 5):
+			case <-timeoutDelay.C:
 				for i := 0; i < totalEvents-eventsProcessed; i++ {
 					wg.Done()
 				}

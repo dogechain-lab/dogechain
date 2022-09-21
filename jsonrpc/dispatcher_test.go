@@ -82,9 +82,11 @@ func TestDispatcher_HandleWebsocketConnection_EthSubscribe(t *testing.T) {
 			},
 		})
 
+		delayTimer := time.NewTimer(2 * time.Second)
+
 		select {
 		case <-mockConnection.msgCh:
-		case <-time.After(2 * time.Second):
+		case <-delayTimer.C:
 			t.Fatal("\"newHeads\" event not received in 2 seconds")
 		}
 	})

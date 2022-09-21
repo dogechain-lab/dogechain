@@ -68,10 +68,12 @@ func HandleSignals(
 		close(gracefulCh)
 	}()
 
+	timeoutDelay := time.NewTimer(5 * time.Second)
+
 	select {
 	case <-signalCh:
 		return errors.New("shutdown by signal channel")
-	case <-time.After(5 * time.Second):
+	case <-timeoutDelay.C:
 		return errors.New("shutdown by timeout")
 	case <-gracefulCh:
 		return nil

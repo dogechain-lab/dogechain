@@ -873,10 +873,10 @@ func TestRunSyncState_NewHeadReceivedFromPeer_CallsTxPoolResetWithHeaders(t *tes
 	m.txpool = mockTxPool
 
 	// we need to change state from Sync in order to break from the loop inside runSyncState
-	stateChangeDelay := time.After(100 * time.Millisecond)
+	stateChangeDelay := time.NewTimer(100 * time.Millisecond)
 
 	go func() {
-		<-stateChangeDelay
+		<-stateChangeDelay.C
 		m.setState(AcceptState)
 	}()
 
@@ -904,10 +904,10 @@ func TestRunSyncState_BulkSyncWithPeer_CallsTxPoolResetWithHeaders(t *testing.T)
 	m.txpool = mockTxPool
 
 	// we need to change state from Sync in order to break from the loop inside runSyncState
-	stateChangeDelay := time.After(100 * time.Millisecond)
+	stateChangeDelay := time.NewTimer(100 * time.Millisecond)
 
 	go func() {
-		<-stateChangeDelay
+		<-stateChangeDelay.C
 		m.setState(AcceptState)
 	}()
 
@@ -949,10 +949,10 @@ func TestRunSyncState_Unlock_After_Sync(t *testing.T) {
 	m.txpool = &mockTxPool{}
 
 	// we need to change state from Sync in order to break from the loop inside runSyncState
-	stateChangeDelay := time.After(100 * time.Millisecond)
+	stateChangeDelay := time.NewTimer(100 * time.Millisecond)
 
 	go func() {
-		<-stateChangeDelay
+		<-stateChangeDelay.C
 		m.setState(AcceptState)
 	}()
 

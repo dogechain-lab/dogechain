@@ -825,8 +825,10 @@ func (i *Ibft) runAcceptState() { // start new round
 			// calculate how much time do we have to wait to mine the block
 			delay := time.Until(time.Unix(int64(i.state.block.Header.Timestamp), 0))
 
+			delayTimer := time.NewTimer(delay)
+
 			select {
-			case <-time.After(delay):
+			case <-delayTimer.C:
 			case <-i.closeCh:
 				return
 			}
@@ -1435,7 +1437,7 @@ func (i *Ibft) Close() error {
 
 // getNextMessage reads a new message from the message queue
 func (i *Ibft) getNextMessage(timeout time.Duration) (*proto.MessageReq, bool) {
-	timeoutCh := time.After(timeout)
+	timeoutCh := time.NewTimer(timeout)
 
 	for {
 		msg := i.msgQueue.readMessage(i.getState(), i.state.view)
@@ -1452,7 +1454,7 @@ func (i *Ibft) getNextMessage(timeout time.Duration) (*proto.MessageReq, bool) {
 		// wait until there is a new message or
 		// someone closes the stopCh (i.e. timeout for round change)
 		select {
-		case <-timeoutCh:
+		case <-timeoutCh.C:
 			i.logger.Info("unable to read new message from the message queue", "timeout expired", timeout)
 
 			return nil, true
