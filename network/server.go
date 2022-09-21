@@ -584,7 +584,7 @@ func (s *Server) Close() error {
 	err := s.host.Close()
 	s.dialQueue.Close()
 
-	if !s.config.NoDiscover {
+	if s.discovery != nil {
 		s.discovery.Close()
 	}
 
