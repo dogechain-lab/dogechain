@@ -279,10 +279,14 @@ func (p *TxPool) Start() {
 			select {
 			case <-p.shutdownCh:
 				return
-			case req := <-p.enqueueReqCh:
-				go p.handleEnqueueRequest(req)
-			case req := <-p.promoteReqCh:
-				go p.handlePromoteRequest(req)
+			case req, ok := <-p.enqueueReqCh:
+				if ok {
+					go p.handleEnqueueRequest(req)
+				}
+			case req, ok := <-p.promoteReqCh:
+				if ok {
+					go p.handlePromoteRequest(req)
+				}
 			case _, ok := <-p.pruneAccountTicker.C:
 				if ok { // readable
 					go p.pruneStaleAccounts()
@@ -296,7 +300,12 @@ func (p *TxPool) Start() {
 func (p *TxPool) Close() {
 	p.pruneAccountTicker.Stop()
 	p.eventManager.Close()
+	// stop
 	p.shutdownCh <- struct{}{}
+	// close all channels
+	close(p.enqueueReqCh)
+	close(p.promoteReqCh)
+	close(p.shutdownCh)
 }
 
 // SetSigner sets the signer the pool will use
