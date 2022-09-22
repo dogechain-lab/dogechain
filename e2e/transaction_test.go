@@ -188,88 +188,87 @@ func TestEthTransfer(t *testing.T) {
 	rpcClient := srv.JSONRPC()
 
 	for _, testCase := range testTable {
-		t.Run(testCase.name, func(t *testing.T) {
-			// Fetch the balances before sending
-			balanceSender, err := rpcClient.Eth().GetBalance(
-				web3.Address(testCase.sender),
-				web3.Latest,
+		// Fetch the balances before sending
+		balanceSender, err := rpcClient.Eth().GetBalance(
+			web3.Address(testCase.sender),
+			web3.Latest,
+		)
+		assert.NoError(t, err, testCase.name)
+
+		balanceReceiver, err := rpcClient.Eth().GetBalance(
+			web3.Address(testCase.recipient),
+			web3.Latest,
+		)
+		assert.NoError(t, err, testCase.name)
+
+		// Set the preSend balances
+		previousSenderBalance := balanceSender
+		previousReceiverBalance := balanceReceiver
+
+		// Do the transfer
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		txn := &framework.PreparedTransaction{
+			From:     testCase.sender,
+			To:       &testCase.recipient,
+			GasPrice: big.NewInt(1048576),
+			Gas:      1000000,
+			Value:    testCase.amount,
+		}
+
+		receipt, err := srv.SendRawTx(ctx, txn, testCase.senderKey)
+
+		if testCase.shouldSucceed {
+			assert.NoError(t, err, testCase.name)
+			assert.NotNil(t, receipt, testCase.name)
+		} else { // When an invalid transaction is supplied, there should be no receipt.
+			assert.Error(t, err, testCase.name)
+			assert.Nil(t, receipt, testCase.name)
+		}
+
+		// Fetch the balances after sending
+		balanceSender, err = rpcClient.Eth().GetBalance(
+			web3.Address(testCase.sender),
+			web3.Latest,
+		)
+		assert.NoError(t, err, testCase.name)
+
+		balanceReceiver, err = rpcClient.Eth().GetBalance(
+			web3.Address(testCase.recipient),
+			web3.Latest,
+		)
+		assert.NoError(t, err, testCase.name)
+
+		expectedSenderBalance := previousSenderBalance
+		expectedReceiverBalance := previousReceiverBalance
+
+		if testCase.shouldSucceed {
+			fee := new(big.Int).Mul(
+				big.NewInt(int64(receipt.GasUsed)),
+				txn.GasPrice,
 			)
-			assert.NoError(t, err)
 
-			balanceReceiver, err := rpcClient.Eth().GetBalance(
-				web3.Address(testCase.recipient),
-				web3.Latest,
+			expectedSenderBalance = previousSenderBalance.Sub(
+				previousSenderBalance,
+				new(big.Int).Add(testCase.amount, fee),
 			)
-			assert.NoError(t, err)
 
-			// Set the preSend balances
-			previousSenderBalance := balanceSender
-			previousReceiverBalance := balanceReceiver
-
-			// Do the transfer
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-
-			txn := &framework.PreparedTransaction{
-				From:     testCase.sender,
-				To:       &testCase.recipient,
-				GasPrice: big.NewInt(1048576),
-				Gas:      1000000,
-				Value:    testCase.amount,
-			}
-
-			receipt, err := srv.SendRawTx(ctx, txn, testCase.senderKey)
-
-			if testCase.shouldSucceed {
-				assert.NoError(t, err)
-				assert.NotNil(t, receipt)
-			} else { // When an invalid transaction is supplied, there should be no receipt.
-				assert.Error(t, err)
-				assert.Nil(t, receipt)
-			}
-
-			// Fetch the balances after sending
-			balanceSender, err = rpcClient.Eth().GetBalance(
-				web3.Address(testCase.sender),
-				web3.Latest,
+			expectedReceiverBalance = previousReceiverBalance.Add(
+				previousReceiverBalance,
+				testCase.amount,
 			)
-			assert.NoError(t, err)
+		}
 
-			balanceReceiver, err = rpcClient.Eth().GetBalance(
-				web3.Address(testCase.recipient),
-				web3.Latest,
-			)
-			assert.NoError(t, err)
-
-			expectedSenderBalance := previousSenderBalance
-			expectedReceiverBalance := previousReceiverBalance
-			if testCase.shouldSucceed {
-				fee := new(big.Int).Mul(
-					big.NewInt(int64(receipt.GasUsed)),
-					txn.GasPrice,
-				)
-
-				expectedSenderBalance = previousSenderBalance.Sub(
-					previousSenderBalance,
-					new(big.Int).Add(testCase.amount, fee),
-				)
-
-				expectedReceiverBalance = previousReceiverBalance.Add(
-					previousReceiverBalance,
-					testCase.amount,
-				)
-			}
-
-			// Check the balances
-			assert.Equalf(t,
-				expectedSenderBalance,
-				balanceSender,
-				"Sender balance incorrect")
-			assert.Equalf(t,
-				expectedReceiverBalance,
-				balanceReceiver,
-				"Receiver balance incorrect")
-		})
+		// Check the balances
+		assert.Equalf(t,
+			expectedSenderBalance,
+			balanceSender,
+			testCase.name+": Sender balance incorrect")
+		assert.Equalf(t,
+			expectedReceiverBalance,
+			balanceReceiver,
+			testCase.name+": Receiver balance incorrect")
 	}
 }
 
