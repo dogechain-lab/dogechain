@@ -167,11 +167,11 @@ func (t *TestServer) ReleaseReservedPorts() {
 }
 
 func (t *TestServer) Stop() {
-	t.ReleaseReservedPorts()
-
 	if t.cmd != nil {
-		if err := t.cmd.Process.Kill(); err != nil {
+		if err := processKill(t.cmd); err != nil {
 			t.t.Error(err)
+		} else {
+			t.ReleaseReservedPorts()
 		}
 	}
 }
@@ -194,9 +194,7 @@ func (t *TestServer) SecretsInit() (*InitIBFTResult, error) {
 	args = append(args, commandSlice...)
 	args = append(args, "--data-dir", t.Config.IBFTDir)
 
-	cmd := exec.Command(binaryName, args...)
-	cmd.Dir = t.Config.RootDir
-
+	cmd := execCommand(t.Config.RootDir, binaryName, args...)
 	if _, err := cmd.Output(); err != nil {
 		return nil, err
 	}
@@ -312,8 +310,7 @@ func (t *TestServer) GenerateGenesis() error {
 		args = append(args, "--bridge-signer", signer.String())
 	}
 
-	cmd := exec.Command(binaryName, args...)
-	cmd.Dir = t.Config.RootDir
+	cmd := execCommand(t.Config.RootDir, binaryName, args...)
 
 	return cmd.Run()
 }
@@ -374,8 +371,7 @@ func (t *TestServer) Start(ctx context.Context) error {
 	t.ReleaseReservedPorts()
 
 	// Start the server
-	t.cmd = exec.Command(binaryName, args...)
-	t.cmd.Dir = t.Config.RootDir
+	t.cmd = execCommand(t.Config.RootDir, binaryName, args...)
 
 	if t.Config.ShowsLog {
 		stdout := io.Writer(os.Stdout)
@@ -386,6 +382,11 @@ func (t *TestServer) Start(ctx context.Context) error {
 	if err := t.cmd.Start(); err != nil {
 		return err
 	}
+
+	// fix defunct process
+	go func() {
+		t.cmd.Wait()
+	}()
 
 	_, err := tests.RetryUntilTimeout(ctx, func() (interface{}, bool) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -426,8 +427,7 @@ func (t *TestServer) SwitchIBFTType(typ ibft.MechanismType, from uint64, to, dep
 	}
 
 	// Start the server
-	t.cmd = exec.Command(binaryName, args...)
-	t.cmd.Dir = t.Config.RootDir
+	t.cmd = execCommand(t.Config.RootDir, binaryName, args...)
 
 	if t.Config.ShowsLog {
 		stdout := io.Writer(os.Stdout)

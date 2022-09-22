@@ -51,7 +51,10 @@ func CreateSyncer(t *testing.T, blockchain blockchainShim, serverCfg *func(c *ne
 	}
 
 	srv, createErr := network.CreateServer(&network.CreateServerParams{
-		ConfigCallback: *serverCfg,
+		ConfigCallback: func(c *network.Config) {
+			c.DataDir = t.TempDir()
+			(*serverCfg)(c)
+		},
 	})
 	if createErr != nil {
 		t.Fatalf("Unable to create networking server, %v", createErr)
