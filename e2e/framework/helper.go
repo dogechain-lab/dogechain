@@ -388,6 +388,7 @@ func FindAvailablePorts(n, from, to int) ([]ReservedPort, error) {
 		newPort := FindAvailablePort(nextFrom, to)
 		if newPort == nil {
 			nextFrom = nextFrom + 1
+
 			continue
 		}
 
