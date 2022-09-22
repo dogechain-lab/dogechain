@@ -30,6 +30,10 @@ import (
 	empty "google.golang.org/protobuf/types/known/emptypb"
 )
 
+var (
+	DefaultTimeout = time.Minute
+)
+
 func EthToWei(ethValue int64) *big.Int {
 	return EthToWeiPrecise(ethValue, 18)
 }

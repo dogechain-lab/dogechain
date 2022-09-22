@@ -51,6 +51,7 @@ type TestServerConfig struct {
 	BridgeSigners  []types.Address      // bridge contract signers
 	IsWSEnable     bool                 // enable websocket or not
 	RestoreFile    string               // blockchain restore file
+	BlockTime      uint64               // minimum block generation time (in s)
 }
 
 // DataDir returns path of data directory server uses
@@ -174,4 +175,8 @@ func (t *TestServerConfig) EnableWebSocket() {
 
 func (t *TestServerConfig) SetRestoreFile(path string) {
 	t.RestoreFile = path
+}
+
+func (t *TestServerConfig) SetBlockTime(blockTime uint64) {
+	t.BlockTime = blockTime
 }
