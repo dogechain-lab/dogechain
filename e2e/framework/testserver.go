@@ -156,22 +156,10 @@ func (t *TestServer) IBFTOperator() ibftOp.IbftOperatorClient {
 	return ibftOp.NewIbftOperatorClient(conn)
 }
 
-func (t *TestServer) ReleaseReservedPorts() {
-	for _, p := range t.Config.ReservedPorts {
-		if err := p.Close(); err != nil {
-			t.t.Error(err)
-		}
-	}
-
-	t.Config.ReservedPorts = nil
-}
-
 func (t *TestServer) Stop() {
 	if t.cmd != nil {
 		if err := processKill(t.cmd); err != nil {
 			t.t.Error(err)
-		} else {
-			t.ReleaseReservedPorts()
 		}
 	}
 }
@@ -367,8 +355,6 @@ func (t *TestServer) Start(ctx context.Context) error {
 	if t.Config.BlockGasTarget != 0 {
 		args = append(args, "--block-gas-target", *types.EncodeUint64(t.Config.BlockGasTarget))
 	}
-
-	t.ReleaseReservedPorts()
 
 	// Start the server
 	t.cmd = execCommand(t.Config.RootDir, binaryName, args...)
