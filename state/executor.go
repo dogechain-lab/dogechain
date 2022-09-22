@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"sync/atomic"
 
 	"github.com/dogechain-lab/dogechain/chain"
 	"github.com/dogechain-lab/dogechain/contracts/bridge"
@@ -36,6 +37,7 @@ type Executor struct {
 	runtimes []runtime.Runtime
 	state    State
 	GetHash  GetHashByNumberHelper
+	stopped  uint32 // atomic flag for stopping
 
 	PostHook func(txn *Transition)
 }
@@ -93,7 +95,6 @@ func (e *Executor) ProcessBlock(
 	parentRoot types.Hash,
 	block *types.Block,
 	blockCreator types.Address,
-	stop *bool,
 ) (*Transition, error) {
 	txn, err := e.BeginTxn(parentRoot, block.Header, blockCreator)
 	if err != nil {
@@ -103,7 +104,7 @@ func (e *Executor) ProcessBlock(
 	txn.block = block
 
 	for _, t := range block.Transactions {
-		if *stop {
+		if e.IsStopped() {
 			// halt more elegantly
 			return nil, ErrExecutionStop
 		}
@@ -122,6 +123,14 @@ func (e *Executor) ProcessBlock(
 	}
 
 	return txn, nil
+}
+
+func (e *Executor) IsStopped() bool {
+	return atomic.LoadUint32(&e.stopped) > 0
+}
+
+func (e *Executor) Stop() {
+	atomic.StoreUint32(&e.stopped, 1)
 }
 
 // StateAt returns snapshot at given root
@@ -629,16 +638,7 @@ func (t *Transition) Call2(
 	gas uint64,
 ) *runtime.ExecutionResult {
 	code := t.state.GetCode(to)
-	if len(code) == 0 {
-		// might be caused by close db
-		t.logger.Info("transition Call2 stop due to empty code")
-
-		return &runtime.ExecutionResult{
-			Err: runtime.ErrCodeEmpty,
-		}
-	}
-
-	c := runtime.NewContractCall(1, caller, caller, to, value, gas, t.state.GetCode(to), input)
+	c := runtime.NewContractCall(1, caller, caller, to, value, gas, code, input)
 
 	return t.applyCall(c, runtime.Call, t)
 }

@@ -290,13 +290,16 @@ func (m *mockExecutor) ProcessBlock(
 	parentRoot types.Hash,
 	block *types.Block,
 	blockCreator types.Address,
-	stop *bool,
 ) (*state.Transition, error) {
 	if m.processBlockFn != nil {
 		return m.processBlockFn(parentRoot, block, blockCreator)
 	}
 
 	return nil, nil
+}
+
+func (m *mockExecutor) Stop() {
+	// do nothing
 }
 
 func (m *mockExecutor) HookProcessBlock(fn processBlockDelegate) {

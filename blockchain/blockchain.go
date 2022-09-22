@@ -37,16 +37,17 @@ var (
 	ErrInvalidStateRoot     = errors.New("invalid block state root")
 	ErrInvalidGasUsed       = errors.New("invalid block gas used")
 	ErrInvalidReceiptsRoot  = errors.New("invalid block receipts root")
+	ErrClosed               = errors.New("blockchain is closed")
 )
 
 // Blockchain is a blockchain reference
 type Blockchain struct {
 	logger hclog.Logger // The logger object
 
-	db          storage.Storage // The Storage object (database)
-	consensus   Verifier
-	executor    Executor
-	executeStop bool // used in executor halting
+	db        storage.Storage // The Storage object (database)
+	consensus Verifier
+	executor  Executor
+	stopped   uint32 // used in executor halting
 
 	config  *chain.Chain // Config containing chain information
 	genesis types.Hash   // The hash of the genesis block
@@ -92,9 +93,9 @@ type Verifier interface {
 	PreStateCommit(header *types.Header, txn *state.Transition) error
 }
 
-//nolint:lll
 type Executor interface {
-	ProcessBlock(parentRoot types.Hash, block *types.Block, blockCreator types.Address, stop *bool) (*state.Transition, error)
+	ProcessBlock(parentRoot types.Hash, block *types.Block, blockCreator types.Address) (*state.Transition, error)
+	Stop()
 }
 
 type BlockResult struct {
@@ -846,7 +847,7 @@ func (b *Blockchain) executeBlockTransactions(block *types.Block) (*BlockResult,
 		return nil, err
 	}
 
-	txn, err := b.executor.ProcessBlock(parent.StateRoot, block, blockCreator, &b.executeStop)
+	txn, err := b.executor.ProcessBlock(parent.StateRoot, block, blockCreator)
 	if err != nil {
 		return nil, err
 	}
@@ -863,6 +864,11 @@ func (b *Blockchain) executeBlockTransactions(block *types.Block) (*BlockResult,
 		txn.Txn(),
 		b.logger,
 	)
+
+	if b.isStopped() {
+		// execute stop, should not commit
+		return nil, ErrClosed
+	}
 
 	_, root := txn.Commit()
 
@@ -1305,7 +1311,17 @@ func (b *Blockchain) GetBlockByNumber(blockNumber uint64, full bool) (*types.Blo
 
 // Close closes the DB connection
 func (b *Blockchain) Close() error {
-	b.executeStop = true
+	b.executor.Stop()
+	b.stop()
 
+	// close db at last
 	return b.db.Close()
+}
+
+func (b *Blockchain) stop() {
+	atomic.StoreUint32(&b.stopped, 1)
+}
+
+func (b *Blockchain) isStopped() bool {
+	return atomic.LoadUint32(&b.stopped) > 0
 }
