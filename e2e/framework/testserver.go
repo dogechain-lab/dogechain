@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -44,10 +45,12 @@ import (
 type TestServerConfigCallback func(*TestServerConfig)
 
 const (
-	serverIP    = "127.0.0.1"
-	initialPort = 12000
-	binaryName  = "dogechain"
+	serverIP   = "127.0.0.1"
+	binaryName = "dogechain"
 )
+
+var lock sync.Mutex
+var initialPort = 12000
 
 type TestServer struct {
 	t *testing.T
@@ -59,11 +62,16 @@ type TestServer struct {
 func NewTestServer(t *testing.T, rootDir string, callback TestServerConfigCallback) *TestServer {
 	t.Helper()
 
-	// Reserve ports
-	ports, err := FindAvailablePorts(3, initialPort, initialPort+10000)
+	lock.Lock()
+	defer lock.Unlock()
+
+	// never use the same port
+	ports, err := FindAvailablePorts(3, initialPort, 65534)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	initialPort = ports[2].Port() + 1
 
 	// Sets the services to start on open ports
 	config := &TestServerConfig{
@@ -156,7 +164,19 @@ func (t *TestServer) IBFTOperator() ibftOp.IbftOperatorClient {
 	return ibftOp.NewIbftOperatorClient(conn)
 }
 
+func (t *TestServer) ReleaseReservedPorts() {
+	for _, p := range t.Config.ReservedPorts {
+		if err := p.Close(); err != nil {
+			t.t.Error(err)
+		}
+	}
+
+	t.Config.ReservedPorts = nil
+}
+
 func (t *TestServer) Stop() {
+	t.ReleaseReservedPorts()
+
 	if t.cmd != nil {
 		if err := processKill(t.cmd); err != nil {
 			t.t.Error(err)
@@ -355,6 +375,8 @@ func (t *TestServer) Start(ctx context.Context) error {
 	if t.Config.BlockGasTarget != 0 {
 		args = append(args, "--block-gas-target", *types.EncodeUint64(t.Config.BlockGasTarget))
 	}
+
+	t.ReleaseReservedPorts()
 
 	// Start the server
 	t.cmd = execCommand(t.Config.RootDir, binaryName, args...)

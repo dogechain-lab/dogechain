@@ -381,18 +381,14 @@ func FindAvailablePort(from, to int) *ReservedPort {
 }
 
 func FindAvailablePorts(n, from, to int) ([]ReservedPort, error) {
-	ports := make([]ReservedPort, 0, n)
+	ports := []ReservedPort{}
 	nextFrom := from
 
 	for i := 0; i < n; i++ {
 		newPort := FindAvailablePort(nextFrom, to)
 		if newPort == nil {
-			// Close current reserved ports
-			for _, p := range ports {
-				p.Close()
-			}
-
-			return nil, errors.New("couldn't reserve required number of ports")
+			nextFrom = nextFrom + 1
+			continue
 		}
 
 		ports = append(ports, *newPort)
