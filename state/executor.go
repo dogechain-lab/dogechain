@@ -12,6 +12,7 @@ import (
 	"github.com/dogechain-lab/dogechain/contracts/systemcontracts"
 	"github.com/dogechain-lab/dogechain/crypto"
 	"github.com/dogechain-lab/dogechain/state/runtime"
+	"github.com/dogechain-lab/dogechain/state/tracer"
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/hashicorp/go-hclog"
 )
@@ -183,6 +184,8 @@ func (e *Executor) BeginTxn(
 
 		receipts: []*types.Receipt{},
 		totalGas: 0,
+		// set a dummy tracer to 'collect' tracing
+		tracer: tracer.NewDummyTracer(),
 	}
 
 	return txn, nil
@@ -207,6 +210,17 @@ type Transition struct {
 	// result
 	receipts []*types.Receipt
 	totalGas uint64
+
+	// tracer for debugging, set a dummy tracer to 'collect' tracing,
+	// then we wouldn't have to judge any tracing flag
+	tracer tracer.Tracer
+}
+
+// SetTracer sets a non nil tracer to it
+func (t *Transition) SetTracer(tracer tracer.Tracer) {
+	if tracer != nil {
+		t.tracer = tracer
+	}
 }
 
 func (t *Transition) TotalGas() uint64 {

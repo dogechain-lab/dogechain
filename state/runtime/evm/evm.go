@@ -7,6 +7,7 @@ import (
 	"github.com/dogechain-lab/dogechain/state/runtime"
 )
 
+// runtime interface compatible
 var _ runtime.Runtime = &EVM{}
 
 // EVM is the ethereum virtual machine
