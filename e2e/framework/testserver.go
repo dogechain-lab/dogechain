@@ -383,6 +383,8 @@ func (t *TestServer) Start(ctx context.Context) error {
 		return err
 	}
 
+	registerPID(t.cmd)
+
 	// fix defunct process
 	go func() {
 		_ = t.cmd.Wait()

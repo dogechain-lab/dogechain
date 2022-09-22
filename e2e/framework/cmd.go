@@ -7,6 +7,10 @@ import (
 	"os/exec"
 )
 
+func registerPID(cmd *exec.Cmd) {
+	// ignore
+}
+
 func execCommand(workdir, name string, args ...string) *exec.Cmd {
 	cmd := exec.Command(binaryName, args...)
 	cmd.Dir = workdir
