@@ -170,12 +170,18 @@ func TestTxPool_TransactionCoalescing(t *testing.T) {
 	referenceKey, referenceAddr := tests.GenerateKeyAndAddr(t)
 	defaultBalance := framework.EthToWei(10)
 
+	fakeAddr := types.StringToAddress("0x1234")
+
 	// Set up the test server
 	ibftManager := framework.NewIBFTServersManager(
 		t,
 		1,
 		IBFTDirPrefix,
 		func(i int, config *framework.TestServerConfig) {
+			config.SetIBFTPoS(true)
+			config.SetValidatorSetOwner(fakeAddr)
+			config.SetBridgeOwner(fakeAddr)
+			config.SetBridgeSigners([]types.Address{fakeAddr})
 			config.SetSeal(true)
 			config.Premine(referenceAddr, defaultBalance)
 			config.SetBlockTime(1)
@@ -239,9 +245,9 @@ func TestTxPool_TransactionCoalescing(t *testing.T) {
 	for i := 0; i < len(nonces); i++ {
 		addReq := generateReq(nonces[i])
 
-		addCtx, addCtxCn := context.WithTimeout(context.Background(), framework.DefaultTimeout)
+		ctx, cancelFn := context.WithTimeout(context.Background(), 10*time.Second)
 
-		addResp, addErr := clt.AddTxn(addCtx, addReq)
+		addResp, addErr := clt.AddTxn(ctx, addReq)
 		if addErr != nil {
 			t.Fatalf("Unable to add txn, %v", addErr)
 		}
@@ -250,11 +256,11 @@ func TestTxPool_TransactionCoalescing(t *testing.T) {
 			txHash: web3.HexToHash(addResp.TxHash),
 		})
 
-		addCtxCn()
+		cancelFn()
 	}
 
 	// Wait for the first transaction to go through
-	ctx, cancelFn := context.WithTimeout(context.Background(), framework.DefaultTimeout)
+	ctx, cancelFn := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelFn()
 
 	receipt, receiptErr := tests.WaitForReceipt(ctx, client.Eth(), testTransactions[0].txHash)
@@ -276,7 +282,7 @@ func TestTxPool_TransactionCoalescing(t *testing.T) {
 	// Add the transaction with the gap nonce value
 	addReq := generateReq(1)
 
-	addCtx, addCtxCn := context.WithTimeout(context.Background(), framework.DefaultTimeout)
+	addCtx, addCtxCn := context.WithTimeout(context.Background(), 10*time.Second)
 	defer addCtxCn()
 
 	addResp, addErr := clt.AddTxn(addCtx, addReq)
@@ -291,7 +297,7 @@ func TestTxPool_TransactionCoalescing(t *testing.T) {
 	// Start from 1 since there was previously a txn with nonce 0
 	for i := 1; i < len(testTransactions); i++ {
 		// Wait for the first transaction to go through
-		ctx, cancelFn := context.WithTimeout(context.Background(), framework.DefaultTimeout)
+		ctx, cancelFn := context.WithTimeout(context.Background(), 10*time.Second)
 
 		receipt, receiptErr := tests.WaitForReceipt(ctx, client.Eth(), testTransactions[i].txHash)
 		if receiptErr != nil {
