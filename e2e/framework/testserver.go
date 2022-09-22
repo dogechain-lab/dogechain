@@ -385,7 +385,7 @@ func (t *TestServer) Start(ctx context.Context) error {
 
 	// fix defunct process
 	go func() {
-		t.cmd.Wait()
+		_ = t.cmd.Wait()
 	}()
 
 	_, err := tests.RetryUntilTimeout(ctx, func() (interface{}, bool) {
