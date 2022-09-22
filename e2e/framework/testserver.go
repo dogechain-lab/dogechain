@@ -302,6 +302,11 @@ func (t *TestServer) GenerateGenesis() error {
 	blockGasLimit := strconv.FormatUint(t.Config.BlockGasLimit, 10)
 	args = append(args, "--block-gas-limit", blockGasLimit)
 
+	// add validatorset contract owner
+	if t.Config.ValidatorSetOwner != types.ZeroAddress {
+		args = append(args, "--validatorset-owner", t.Config.ValidatorSetOwner.String())
+	}
+
 	// add bridge contract owner
 	if t.Config.BridgeOwner != types.ZeroAddress {
 		args = append(args, "--bridge-owner", t.Config.BridgeOwner.String())

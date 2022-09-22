@@ -36,22 +36,23 @@ type TestServerConfig struct {
 	PremineAccts            []*SrvAccount // Accounts with existing balances (genesis accounts)
 	GenesisValidatorBalance *big.Int      // Genesis the balance for the validators
 	// List of initial staking addresses for the ValidatorSet SC with dev consensus
-	DevStakers     []types.Address
-	Consensus      ConsensusType        // Consensus MechanismType
-	Bootnodes      []string             // Bootnode Addresses
-	PriceLimit     *uint64              // Minimum gas price limit to enforce for acceptance into the pool
-	DevInterval    int                  // Dev consensus update interval [s]
-	EpochSize      uint64               // The epoch size in blocks for the IBFT layer
-	BlockGasLimit  uint64               // Block gas limit
-	BlockGasTarget uint64               // Gas target for new blocks
-	ShowsLog       bool                 // Flag specifying if logs are shown
-	IsPos          bool                 // Specifies the mechanism used for IBFT (PoA / PoS)
-	Signer         *crypto.EIP155Signer // Signer used for transactions
-	BridgeOwner    types.Address        // bridge contract owner
-	BridgeSigners  []types.Address      // bridge contract signers
-	IsWSEnable     bool                 // enable websocket or not
-	RestoreFile    string               // blockchain restore file
-	BlockTime      uint64               // minimum block generation time (in s)
+	DevStakers        []types.Address
+	Consensus         ConsensusType        // Consensus MechanismType
+	Bootnodes         []string             // Bootnode Addresses
+	PriceLimit        *uint64              // Minimum gas price limit to enforce for acceptance into the pool
+	DevInterval       int                  // Dev consensus update interval [s]
+	EpochSize         uint64               // The epoch size in blocks for the IBFT layer
+	BlockGasLimit     uint64               // Block gas limit
+	BlockGasTarget    uint64               // Gas target for new blocks
+	ShowsLog          bool                 // Flag specifying if logs are shown
+	IsPos             bool                 // Specifies the mechanism used for IBFT (PoA / PoS)
+	Signer            *crypto.EIP155Signer // Signer used for transactions
+	ValidatorSetOwner types.Address        // validatorset contract owner
+	BridgeOwner       types.Address        // bridge contract owner
+	BridgeSigners     []types.Address      // bridge contract signers
+	IsWSEnable        bool                 // enable websocket or not
+	RestoreFile       string               // blockchain restore file
+	BlockTime         uint64               // minimum block generation time (in s)
 }
 
 // DataDir returns path of data directory server uses
@@ -159,6 +160,10 @@ func (t *TestServerConfig) SetShowsLog(f bool) {
 // It controls the rate at which the validator set is updated
 func (t *TestServerConfig) SetEpochSize(epochSize uint64) {
 	t.EpochSize = epochSize
+}
+
+func (t *TestServerConfig) SetValidatorSetOwner(owner types.Address) {
+	t.ValidatorSetOwner = owner
 }
 
 func (t *TestServerConfig) SetBridgeOwner(owner types.Address) {

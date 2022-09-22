@@ -437,6 +437,7 @@ func NewTestServers(t *testing.T, num int, conf func(*TestServerConfig)) []*Test
 		srv := NewTestServer(t, dataDir, conf)
 		srv.Config.SetBootnodes(bootnodes)
 		// do not forget to set the must options
+		srv.Config.SetValidatorSetOwner(owner)
 		srv.Config.SetBridgeOwner(owner)
 		srv.Config.SetBridgeSigners(signers)
 
