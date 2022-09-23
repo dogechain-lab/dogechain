@@ -1133,25 +1133,6 @@ func opCall(op OpCode) instruction {
 			return
 		}
 
-		var callType runtime.CallType
-
-		switch op {
-		case CALL:
-			callType = runtime.Call
-
-		case CALLCODE:
-			callType = runtime.CallCode
-
-		case DELEGATECALL:
-			callType = runtime.DelegateCall
-
-		case STATICCALL:
-			callType = runtime.StaticCall
-
-		default:
-			panic("not expected")
-		}
-
 		contract, offset, size, err := c.buildCallContract(op)
 		if err != nil {
 			c.push1().Set(zero)
@@ -1167,7 +1148,7 @@ func opCall(op OpCode) instruction {
 			return
 		}
 
-		contract.Type = callType
+		contract.Type = OpCode2RuntimeType(op)
 
 		result := c.host.Callx(contract, c.host)
 

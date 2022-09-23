@@ -2,6 +2,8 @@ package evm
 
 import (
 	"fmt"
+
+	"github.com/dogechain-lab/dogechain/state/runtime"
 )
 
 // OpCode is the EVM operation code
@@ -358,4 +360,42 @@ func init() {
 
 func (op OpCode) String() string {
 	return opCodeToString[op]
+}
+
+func RuntimeType2OpCode(typ runtime.CallType) OpCode {
+	switch typ {
+	case runtime.Call:
+		return CALL
+	case runtime.CallCode:
+		return CALLCODE
+	case runtime.DelegateCall:
+		return DELEGATECALL
+	case runtime.StaticCall:
+		return STATICCALL
+	case runtime.Create:
+		return CREATE
+	case runtime.Create2:
+		return CREATE2
+	}
+
+	panic("not supported runtime type")
+}
+
+func OpCode2RuntimeType(op OpCode) runtime.CallType {
+	switch op {
+	case CALL:
+		return runtime.Call
+	case CALLCODE:
+		return runtime.CallCode
+	case DELEGATECALL:
+		return runtime.DelegateCall
+	case STATICCALL:
+		return runtime.StaticCall
+	case CREATE:
+		return runtime.Create
+	case CREATE2:
+		return runtime.Create2
+	}
+
+	panic("not expected opcode")
 }
