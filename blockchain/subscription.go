@@ -167,7 +167,6 @@ func (e *eventStream) subscribe() *subscription {
 		updateCh: e.newUpdateCh(),
 		closeCh:  make(chan void),
 	}
-
 }
 
 // newUpdateCh returns the event update channel
