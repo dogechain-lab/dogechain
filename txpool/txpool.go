@@ -6,17 +6,16 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/go-kit/kit/metrics"
-	"github.com/golang/protobuf/ptypes/any"
-	"github.com/hashicorp/go-hclog"
-	"google.golang.org/grpc"
-
 	"github.com/dogechain-lab/dogechain/blockchain"
 	"github.com/dogechain-lab/dogechain/chain"
 	"github.com/dogechain-lab/dogechain/network"
 	"github.com/dogechain-lab/dogechain/state"
 	"github.com/dogechain-lab/dogechain/txpool/proto"
 	"github.com/dogechain-lab/dogechain/types"
+	"github.com/go-kit/kit/metrics"
+	"github.com/golang/protobuf/ptypes/any"
+	"github.com/hashicorp/go-hclog"
+	"google.golang.org/grpc"
 )
 
 const (
@@ -225,10 +224,11 @@ func NewTxPool(
 		index:                  lookupMap{all: make(map[types.Hash]*types.Transaction)},
 		gauge:                  slotGauge{height: 0, max: maxSlot},
 		priceLimit:             config.PriceLimit,
-		sealing:                config.Sealing,
 		pruneTick:              time.Second * time.Duration(pruneTickSeconds),
 		promoteOutdateDuration: time.Second * time.Duration(promoteOutdateSeconds),
 	}
+
+	pool.SetSealing(config.Sealing) // sealing flag
 
 	// Attach the event manager
 	pool.eventManager = newEventManager(pool.logger)
@@ -240,6 +240,7 @@ func NewTxPool(
 			return nil, err
 		}
 
+		// subscribe txpool topic to make a full-message peerings
 		if subscribeErr := topic.Subscribe(pool.addGossipTx); subscribeErr != nil {
 			return nil, fmt.Errorf("unable to subscribe to gossip topic, %w", subscribeErr)
 		}
@@ -263,6 +264,16 @@ func NewTxPool(
 	}
 
 	return pool, nil
+}
+
+// SetSealing sets the sealing flag
+func (p *TxPool) SetSealing(sealing bool) {
+	p.sealing = sealing
+}
+
+// sealing returns the current set sealing flag
+func (p *TxPool) getSealing() bool {
+	return p.sealing
 }
 
 // Start runs the pool's main loop in the background.
@@ -817,10 +828,10 @@ func (p *TxPool) pruneEnqueuedTxs(pruned []*types.Transaction) {
 	p.decreaseQueueGauge(pruned, p.metrics.EnqueueTxs, proto.EventType_PRUNED_ENQUEUED)
 }
 
-// addGossipTx handles receiving transactions
-// gossiped by the network.
+// addGossipTx handles receiving transactions gossiped by the network.
 func (p *TxPool) addGossipTx(obj interface{}) {
-	if !p.sealing {
+	if !p.getSealing() {
+		// we're not validator, not interested in it
 		return
 	}
 
