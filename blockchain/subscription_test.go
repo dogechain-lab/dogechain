@@ -1,51 +1,55 @@
 package blockchain
 
 import (
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/dogechain-lab/dogechain/types"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestSubscriptionLinear(t *testing.T) {
-	e := &eventStream{}
+func TestSubscription(t *testing.T) {
+	t.Parallel()
 
-	// add a genesis block to eventstream
-	e.push(&Event{
-		NewChain: []*types.Header{
-			{Number: 0},
-		},
-	})
+	var (
+		e              = &eventStream{}
+		sub            = e.subscribe()
+		caughtEventNum = uint64(0)
+		event          = &Event{
+			NewChain: []*types.Header{
+				{
+					Number: 100,
+				},
+			},
+		}
 
-	sub := e.subscribe()
+		wg sync.WaitGroup
+	)
 
-	eventCh := make(chan *Event)
+	defer sub.Close()
+
+	updateCh := sub.GetEventCh()
+
+	wg.Add(1)
 
 	go func() {
-		for {
-			task := sub.GetEvent()
-			eventCh <- task
+		defer wg.Done()
+
+		select {
+		case ev := <-updateCh:
+			caughtEventNum = ev.NewChain[0].Number
+		case <-time.After(5 * time.Second):
 		}
 	}()
 
-	for i := 1; i < 10; i++ {
-		evnt := &Event{}
+	// Send the event to the channel
+	e.push(event)
 
-		evnt.AddNewHeader(&types.Header{Number: uint64(i)})
-		e.push(evnt)
+	// Wait for the event to be parsed
+	wg.Wait()
 
-		timeoutDelay := time.NewTimer(1 * time.Second)
-
-		// it should fire updateCh
-		select {
-		case evnt := <-eventCh:
-			if evnt.NewChain[0].Number != uint64(i) {
-				t.Fatal("bad")
-			}
-		case <-timeoutDelay.C:
-			t.Fatal("timeout")
-		}
-	}
+	assert.Equal(t, event.NewChain[0].Number, caughtEventNum)
 }
 
 func TestSubscriptionSlowConsumer(t *testing.T) {

@@ -47,9 +47,8 @@ func (m *MockSubscription) Close() {
 
 // subscription is the Blockchain event subscription object
 type subscription struct {
-	updateCh chan void  // Channel for update information
-	closeCh  chan void  // Channel for close signals
-	elem     *eventElem // Reference to the blockchain event wrapper
+	updateCh chan *Event // Channel for update information
+	closeCh  chan void   // Channel for close signals
 }
 
 // GetEventCh creates a new event channel, and returns it
@@ -72,17 +71,10 @@ func (s *subscription) GetEventCh() chan *Event {
 // GetEvent returns the event from the subscription (BLOCKING)
 func (s *subscription) GetEvent() *Event {
 	for {
-		if s.elem.next != nil {
-			s.elem = s.elem.next
-			evnt := s.elem.event
-
-			return evnt
-		}
-
 		// Wait for an update
 		select {
-		case <-s.updateCh:
-			continue
+		case ev := <-s.updateCh:
+			return ev
 		case <-s.closeCh:
 			return nil
 		}
@@ -117,7 +109,7 @@ type Event struct {
 	Type EventType
 
 	// Source is the source that generated the blocks for the event
-	// right now it can be either the Sealer or the Syncer. TODO
+	// right now it can be either the Sealer or the Syncer
 	Source string
 }
 
@@ -160,73 +152,45 @@ func (b *Blockchain) SubscribeEvents() Subscription {
 	return b.stream.subscribe()
 }
 
-// eventElem contains the event, as well as the next list event
-type eventElem struct {
-	event *Event
-	next  *eventElem
-}
-
 // eventStream is the structure that contains the event list,
 // as well as the update channel which it uses to notify of updates
 type eventStream struct {
 	lock sync.Mutex
-	head *eventElem
 
 	// channel to notify updates
-	updateCh []chan void
+	updateCh []chan *Event
 }
 
 // subscribe Creates a new blockchain event subscription
 func (e *eventStream) subscribe() *subscription {
-	head, updateCh := e.Head()
-	s := &subscription{
-		elem:     head,
-		updateCh: updateCh,
+	return &subscription{
+		updateCh: e.newUpdateCh(),
 		closeCh:  make(chan void),
 	}
 
-	return s
 }
 
-// Head returns the event list head
-func (e *eventStream) Head() (*eventElem, chan void) {
+// newUpdateCh returns the event update channel
+func (e *eventStream) newUpdateCh() chan *Event {
 	e.lock.Lock()
-	head := e.head
+	defer e.lock.Unlock()
 
-	ch := make(chan void)
-
-	if e.updateCh == nil {
-		e.updateCh = make([]chan void, 0)
-	}
-
+	ch := make(chan *Event, 1)
 	e.updateCh = append(e.updateCh, ch)
 
-	e.lock.Unlock()
-
-	return head, ch
+	return ch
 }
 
 // push adds a new Event, and notifies listeners
 func (e *eventStream) push(event *Event) {
 	e.lock.Lock()
-
-	newHead := &eventElem{
-		event: event,
-	}
-
-	if e.head != nil {
-		e.head.next = newHead
-	}
-
-	e.head = newHead
+	defer e.lock.Unlock()
 
 	// Notify the listeners
 	for _, update := range e.updateCh {
 		select {
-		case update <- void{}:
+		case update <- event:
 		default:
 		}
 	}
-
-	e.lock.Unlock()
 }
