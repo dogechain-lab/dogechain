@@ -34,19 +34,19 @@ func NewDummyTracer() Tracer {
 	return &dummyTracer{}
 }
 
-func (d *dummyTracer) CaptureStart(env *evm.EVM, from types.Address, to types.Address,
-	create bool, input []byte, gas uint64, value *big.Int) {
+func (d *dummyTracer) CaptureStart(txn evm.Txn, from, to types.Address, create bool,
+	input []byte, gas uint64, value *big.Int) {
 }
-func (d *dummyTracer) CaptureState(pc uint64, op evm.OpCode, gas, cost uint64,
-	scope *evm.ScopeContext, rData []byte, depth int, err error) {
+func (d *dummyTracer) CaptureState(ctx evm.ScopeContext, pc uint64, op evm.OpCode,
+	gas, cost uint64, rData []byte, depth int, err error) {
 }
-func (d *dummyTracer) CaptureEnter(typ evm.OpCode, from types.Address, to types.Address,
+func (d *dummyTracer) CaptureEnter(typ evm.OpCode, from, to types.Address,
 	input []byte, gas uint64, value *big.Int) {
 }
 func (d *dummyTracer) CaptureExit(output []byte, gasUsed uint64, err error) {
 }
-func (d *dummyTracer) CaptureFault(pc uint64, op evm.OpCode, gas, cost uint64,
-	scope *evm.ScopeContext, depth int, err error) {
+func (d *dummyTracer) CaptureFault(ctx evm.ScopeContext, pc uint64, op evm.OpCode,
+	gas, cost uint64, depth int, err error) {
 }
 func (d *dummyTracer) CaptureEnd(output []byte, gasUsed uint64, t time.Duration, err error) {
 }
