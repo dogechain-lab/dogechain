@@ -121,6 +121,24 @@ const (
 	Create2
 )
 
+func IsCreateType(typ CallType) bool {
+	switch typ {
+	case Create, Create2:
+		return true
+	}
+
+	return false
+}
+
+func IsCallType(typ CallType) bool {
+	switch typ {
+	case Call, CallCode, DelegateCall, StaticCall:
+		return true
+	}
+
+	return false
+}
+
 // Runtime can process contracts
 type Runtime interface {
 	Run(c *Contract, host Host, config *chain.ForksInTime) *ExecutionResult
