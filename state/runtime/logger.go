@@ -1,10 +1,9 @@
-package evm
+package runtime
 
 import (
 	"math/big"
 	"time"
 
-	"github.com/dogechain-lab/dogechain/state/runtime"
 	"github.com/dogechain-lab/dogechain/types"
 )
 
@@ -19,7 +18,7 @@ type Txn interface {
 type ScopeContext interface {
 	Memory() []byte
 	Stack() []*big.Int
-	Contract() *runtime.Contract
+	Contract() *Contract
 }
 
 // EVMLogger is used to collect execution traces from an EVM transaction execution.
@@ -28,9 +27,9 @@ type ScopeContext interface {
 // retain them beyond the current call.
 type EVMLogger interface {
 	CaptureStart(txn Txn, from, to types.Address, create bool, input []byte, gas uint64, value *big.Int)
-	CaptureState(ctx ScopeContext, pc uint64, op OpCode, gas, cost uint64, rData []byte, depth int, err error)
-	CaptureEnter(typ OpCode, from, to types.Address, input []byte, gas uint64, value *big.Int)
+	CaptureState(ctx ScopeContext, pc uint64, op int, gas, cost uint64, rData []byte, depth int, err error)
+	CaptureEnter(typ int, from, to types.Address, input []byte, gas uint64, value *big.Int)
 	CaptureExit(output []byte, gasUsed uint64, err error)
-	CaptureFault(ctx ScopeContext, pc uint64, op OpCode, gas, cost uint64, depth int, err error)
+	CaptureFault(ctx ScopeContext, pc uint64, op int, gas, cost uint64, depth int, err error)
 	CaptureEnd(output []byte, gasUsed uint64, t time.Duration, err error)
 }

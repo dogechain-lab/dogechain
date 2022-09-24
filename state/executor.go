@@ -223,6 +223,14 @@ func (t *Transition) SetTracer(tracer tracer.Tracer) {
 	}
 }
 
+func (t *Transition) GetEVMLogger() runtime.EVMLogger {
+	if t.tracer != nil {
+		return t.tracer
+	}
+
+	return tracer.NewDummyTracer()
+}
+
 func (t *Transition) TotalGas() uint64 {
 	return t.totalGas
 }

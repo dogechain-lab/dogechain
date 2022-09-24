@@ -69,6 +69,7 @@ type Host interface {
 	Callx(*Contract, Host) *ExecutionResult
 	Empty(addr types.Address) bool
 	GetNonce(addr types.Address) uint64
+	GetEVMLogger() EVMLogger
 }
 
 // ExecutionResult includes all output after executing given evm
