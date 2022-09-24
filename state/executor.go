@@ -6,12 +6,14 @@ import (
 	"math"
 	"math/big"
 	"sync/atomic"
+	"time"
 
 	"github.com/dogechain-lab/dogechain/chain"
 	"github.com/dogechain-lab/dogechain/contracts/bridge"
 	"github.com/dogechain-lab/dogechain/contracts/systemcontracts"
 	"github.com/dogechain-lab/dogechain/crypto"
 	"github.com/dogechain-lab/dogechain/state/runtime"
+	"github.com/dogechain-lab/dogechain/state/runtime/evm"
 	"github.com/dogechain-lab/dogechain/state/tracer"
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/hashicorp/go-hclog"
@@ -707,6 +709,16 @@ func (t *Transition) applyCall(
 		}
 	}
 
+	var result *runtime.ExecutionResult
+
+	if c.Depth == 0 {
+		t.tracer.CaptureStart(t.Txn(), c.Caller, c.Address, false, c.Input, c.Gas, c.Value)
+		defer t.tracer.CaptureEnd(result.ReturnValue, result.GasUsed, time.Since(time.Now()), result.Err)
+	} else {
+		t.tracer.CaptureEnter(int(evm.RuntimeType2OpCode(callType)), c.Caller, c.Address, c.Input, c.Gas, c.Value)
+		defer t.tracer.CaptureExit(result.ReturnValue, result.GasUsed, result.Err)
+	}
+
 	//nolint:ifshort
 	snapshot := t.state.Snapshot()
 	t.state.TouchAccount(c.Address)
@@ -714,14 +726,16 @@ func (t *Transition) applyCall(
 	if callType == runtime.Call {
 		// Transfers only allowed on calls
 		if err := t.transfer(c.Caller, c.Address, c.Value); err != nil {
-			return &runtime.ExecutionResult{
+			result = &runtime.ExecutionResult{
 				GasLeft: c.Gas,
 				Err:     err,
 			}
+
+			return result
 		}
 	}
 
-	result := t.run(c, host)
+	result = t.run(c, host)
 	if result.Failed() {
 		t.state.RevertToSnapshot(snapshot)
 	}
@@ -776,15 +790,27 @@ func (t *Transition) applyCreate(c *runtime.Contract, host runtime.Host) *runtim
 		t.state.IncrNonce(c.Address)
 	}
 
+	var result *runtime.ExecutionResult
+
+	if c.Depth == 0 {
+		t.tracer.CaptureStart(t.Txn(), c.Caller, c.Address, true, c.Input, c.Gas, c.Value)
+		defer t.tracer.CaptureEnd(result.ReturnValue, result.GasUsed, time.Since(time.Now()), result.Err)
+	} else {
+		t.tracer.CaptureEnter(int(evm.RuntimeType2OpCode(c.Type)), c.Caller, c.Address, c.Input, c.Gas, c.Value)
+		defer t.tracer.CaptureExit(result.ReturnValue, result.GasUsed, result.Err)
+	}
+
 	// Transfer the value
 	if err := t.transfer(c.Caller, c.Address, c.Value); err != nil {
-		return &runtime.ExecutionResult{
+		result = &runtime.ExecutionResult{
 			GasLeft: gasLimit,
 			Err:     err,
 		}
+
+		return result
 	}
 
-	result := t.run(c, host)
+	result = t.run(c, host)
 
 	if result.Failed() {
 		t.state.RevertToSnapshot(snapshot)
