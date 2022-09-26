@@ -106,56 +106,90 @@ func (l *StructLogger) CaptureStart(txn runtime.Txn, from, to types.Address,
 // CaptureState logs a new structured log message and pushes it out to the environment
 //
 // CaptureState also tracks SLOAD/SSTORE ops to track storage change.
-func (l *StructLogger) CaptureState(ctx runtime.ScopeContext, pc uint64, opCode int, gas, cost uint64,
-	rData []byte, depth int, err error) {
-	// memory := scope.Memory
-	// stack := scope.Stack
-	// contract := scope.Contract
+func (l *StructLogger) CaptureState(
+	ctx runtime.ScopeContext,
+	pc uint64,
+	opCode int,
+	gas, cost uint64,
+	rData []byte,
+	depth int,
+	err error,
+) {
+	memory := ctx.Memory()
+	stack := ctx.Stack()
+	contract := ctx.Contract()
 
-	// // Copy a snapshot of the current memory state to a new buffer
-	// mem := make([]byte, len(memory.Data()))
-	// copy(mem, memory.Data())
-	// // Copy a snapshot of the current stack state to a new buffer
-	// stck := make([]uint256.Int, len(stack.Data()))
-	// for i, item := range stack.Data() {
-	// 	stck[i] = item
-	// }
-	// // Copy stack data
-	// stackData := stack.Data()
-	// stackLen := len(stackData)
-	// // Copy a snapshot of the current storage to a new container
-	// var storage Storage
-	// if op == evm.SLOAD || op == evm.SSTORE {
-	// 	// initialise new changed values storage container for this contract
-	// 	// if not present.
-	// 	if l.storage[contract.Address()] == nil {
-	// 		l.storage[contract.Address()] = make(Storage)
-	// 	}
-	// 	// capture SLOAD opcodes and record the read entry in the local storage
-	// 	if op == evm.SLOAD && stackLen >= 1 {
-	// 		var (
-	// 			address = types.Hash(stackData[stackLen-1].Bytes32())
-	// 			value   = l.txn.GetState(contract.Address(), address)
-	// 		)
-	// 		l.storage[contract.Address()][address] = value
-	// 		storage = l.storage[contract.Address()].Copy()
-	// 	} else if op == vm.SSTORE && stackLen >= 2 {
-	// 		// capture SSTORE opcodes and record the written entry in the local storage.
-	// 		var (
-	// 			value   = types.Hash(stackData[stackLen-2].Bytes32())
-	// 			address = types.Hash(stackData[stackLen-1].Bytes32())
-	// 		)
-	// 		l.storage[contract.Address()][address] = value
-	// 		storage = l.storage[contract.Address()].Copy()
-	// 	}
-	// }
+	// Copy a snapshot of the current memory state to a new buffer
+	mem := make([]byte, len(memory))
+	copy(mem, memory)
 
-	// // Copy return data
-	// rdata := make([]byte, len(rData))
-	// copy(rdata, rData)
-	// // create a new snapshot of the EVM.
-	// log := StructLog{pc, op, gas, cost, mem, memory.Len(), stck, rdata, storage, depth, l.txn.GetRefund(), err}
-	// l.logs = append(l.logs, log)
+	// Copy a snapshot of the current stack state to a new buffer
+	stck := make([]*big.Int, len(stack))
+	for i, item := range stack {
+		stck[i] = new(big.Int).SetBytes(item.Bytes())
+	}
+
+	// Copy stack data
+	stackData := stack
+	stackLen := len(stackData)
+
+	// Copy a snapshot of the current storage to a new container
+	var storage Storage
+	if opCode == evm.SLOAD || opCode == evm.SSTORE {
+		// initialise new changed values storage container for this contract
+		// if not present.
+		if l.storage[contract.Address] == nil {
+			l.storage[contract.Address] = make(Storage)
+		}
+
+		var (
+			address, value types.Hash
+		)
+
+		switch opCode {
+		case evm.SLOAD:
+			if stackLen < 1 {
+				break
+			}
+
+			// capture SLOAD opcodes and record the read entry in the local storage
+			address = types.BytesToHash(stackData[stackLen-1].Bytes())
+			value = l.txn.GetState(contract.Address, address)
+			l.storage[contract.Address][address] = value
+			storage = l.storage[contract.Address].Copy()
+		case evm.SSTORE:
+			if stackLen < 2 {
+				break
+			}
+
+			// capture SSTORE opcodes and record the written entry in the local storage.
+			value = types.BytesToHash(stackData[stackLen-2].Bytes())
+			address = types.BytesToHash(stackData[stackLen-1].Bytes())
+			l.storage[contract.Address][address] = value
+			storage = l.storage[contract.Address].Copy()
+		}
+	}
+
+	// Copy return data
+	rdata := make([]byte, len(rData))
+	copy(rdata, rData)
+
+	// create a new snapshot of the EVM.
+	log := StructLog{
+		Pc:            pc,
+		Op:            opCode,
+		Gas:           gas,
+		GasCost:       cost,
+		Memory:        mem,
+		MemorySize:    len(memory),
+		Stack:         stck,
+		ReturnData:    rdata,
+		Storage:       storage,
+		Depth:         depth,
+		RefundCounter: l.txn.GetRefund(),
+		Err:           err,
+	}
+	l.logs = append(l.logs, log)
 }
 
 func (l *StructLogger) CaptureEnter(opCode int, from, to types.Address,
@@ -201,13 +235,13 @@ func WriteTrace(writer io.Writer, logs []StructLog) {
 
 		fmt.Fprintln(writer)
 
-		// if len(log.Stack) > 0 {
-		// 	fmt.Fprintln(writer, "Stack:")
+		if len(log.Stack) > 0 {
+			fmt.Fprintln(writer, "Stack:")
 
-		// 	for i := len(log.Stack) - 1; i >= 0; i-- {
-		// 		fmt.Fprintf(writer, "%08d  %s\n", len(log.Stack)-i-1, log.Stack[i].Text(16))
-		// 	}
-		// }
+			for i := len(log.Stack) - 1; i >= 0; i-- {
+				fmt.Fprintf(writer, "%08d  %s\n", len(log.Stack)-i-1, log.Stack[i].Text(16))
+			}
+		}
 
 		if len(log.Memory) > 0 {
 			fmt.Fprintln(writer, "Memory:")
