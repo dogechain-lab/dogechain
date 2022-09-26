@@ -6,7 +6,6 @@ import (
 
 	"github.com/dogechain-lab/dogechain/chain"
 	"github.com/dogechain-lab/dogechain/state/runtime"
-	"github.com/dogechain-lab/dogechain/state/tracer"
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -89,7 +88,7 @@ func (m *mockHost) GetNonce(addr types.Address) uint64 {
 }
 
 func (m *mockHost) GetEVMLogger() runtime.EVMLogger {
-	return tracer.NewDummyTracer()
+	return runtime.NewDummyLogger()
 }
 
 func TestRun(t *testing.T) {
