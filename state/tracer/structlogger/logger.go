@@ -46,14 +46,14 @@ type StructLog struct {
 }
 
 func (s StructLog) MarshalJSON() ([]byte, error) {
-	s.OpName = s.opName()
+	s.OpName = s.GetOpName()
 	s.ErrorString = s.errorString()
 
 	return json.Marshal(&s)
 }
 
-// opName formats the operand name in a human-readable format.
-func (s *StructLog) opName() string {
+// GetOpName formats the operand name in a human-readable format.
+func (s *StructLog) GetOpName() string {
 	return opInt2CodeName(s.Op)
 }
 
@@ -75,14 +75,15 @@ type StructLogger struct {
 	txn runtime.Txn
 
 	storage map[types.Address]Storage
-	logs    []StructLog
+	logs    []*StructLog
 	output  []byte
 	err     error
 }
 
 // NewStructLogger returns a new logger
-func NewStructLogger() *StructLogger {
+func NewStructLogger(txn runtime.Txn) *StructLogger {
 	logger := &StructLogger{
+		txn:     txn,
 		storage: make(map[types.Address]Storage),
 	}
 
@@ -107,7 +108,7 @@ func (l *StructLogger) CaptureStart(txn runtime.Txn, from, to types.Address,
 //
 // CaptureState also tracks SLOAD/SSTORE ops to track storage change.
 func (l *StructLogger) CaptureState(
-	ctx runtime.ScopeContext,
+	ctx *runtime.ScopeContext,
 	pc uint64,
 	opCode int,
 	gas, cost uint64,
@@ -115,9 +116,9 @@ func (l *StructLogger) CaptureState(
 	depth int,
 	err error,
 ) {
-	memory := ctx.Memory()
-	stack := ctx.Stack()
-	contract := ctx.Contract()
+	memory := ctx.Memory
+	stack := ctx.Stack
+	contractAddress := ctx.ContractAddress
 
 	// Copy a snapshot of the current memory state to a new buffer
 	mem := make([]byte, len(memory))
@@ -138,8 +139,8 @@ func (l *StructLogger) CaptureState(
 	if opCode == evm.SLOAD || opCode == evm.SSTORE {
 		// initialise new changed values storage container for this contract
 		// if not present.
-		if l.storage[contract.Address] == nil {
-			l.storage[contract.Address] = make(Storage)
+		if l.storage[contractAddress] == nil {
+			l.storage[contractAddress] = make(Storage)
 		}
 
 		var (
@@ -154,9 +155,9 @@ func (l *StructLogger) CaptureState(
 
 			// capture SLOAD opcodes and record the read entry in the local storage
 			address = types.BytesToHash(stackData[stackLen-1].Bytes())
-			value = l.txn.GetState(contract.Address, address)
-			l.storage[contract.Address][address] = value
-			storage = l.storage[contract.Address].Copy()
+			value = l.txn.GetState(contractAddress, address)
+			l.storage[contractAddress][address] = value
+			storage = l.storage[contractAddress].Copy()
 		case evm.SSTORE:
 			if stackLen < 2 {
 				break
@@ -165,8 +166,8 @@ func (l *StructLogger) CaptureState(
 			// capture SSTORE opcodes and record the written entry in the local storage.
 			value = types.BytesToHash(stackData[stackLen-2].Bytes())
 			address = types.BytesToHash(stackData[stackLen-1].Bytes())
-			l.storage[contract.Address][address] = value
-			storage = l.storage[contract.Address].Copy()
+			l.storage[contractAddress][address] = value
+			storage = l.storage[contractAddress].Copy()
 		}
 	}
 
@@ -175,7 +176,7 @@ func (l *StructLogger) CaptureState(
 	copy(rdata, rData)
 
 	// create a new snapshot of the EVM.
-	log := StructLog{
+	l.logs = append(l.logs, &StructLog{
 		Pc:            pc,
 		Op:            opCode,
 		Gas:           gas,
@@ -188,8 +189,7 @@ func (l *StructLogger) CaptureState(
 		Depth:         depth,
 		RefundCounter: l.txn.GetRefund(),
 		Err:           err,
-	}
-	l.logs = append(l.logs, log)
+	})
 }
 
 func (l *StructLogger) CaptureEnter(opCode int, from, to types.Address,
@@ -200,7 +200,7 @@ func (l *StructLogger) CaptureExit(output []byte, gasUsed uint64, err error) {}
 
 // CaptureFault implements the EVMLogger interface to trace an execution fault
 // while running an opcode.
-func (l *StructLogger) CaptureFault(ctx runtime.ScopeContext, pc uint64, opCode int, gas, cost uint64,
+func (l *StructLogger) CaptureFault(ctx *runtime.ScopeContext, pc uint64, opCode int, gas, cost uint64,
 	depth int, err error) {
 }
 
@@ -211,7 +211,7 @@ func (l *StructLogger) CaptureEnd(output []byte, gasUsed uint64, t time.Duration
 }
 
 // StructLogs returns the captured log entries.
-func (l *StructLogger) StructLogs() []StructLog { return l.logs }
+func (l *StructLogger) StructLogs() []*StructLog { return l.logs }
 
 // Error returns the VM error captured by the trace.
 func (l *StructLogger) Error() error { return l.err }
