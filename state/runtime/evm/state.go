@@ -236,15 +236,35 @@ func (c *state) formatPanicDesc() error {
 
 // Run executes the virtual machine
 func (c *state) Run() (ret []byte, vmerr error) {
+	var (
+		logged     bool // deferred EVMLogger should ignore already logged steps
+		executedIp uint64
+	)
+
 	defer func(vmerr *error) {
 		// recover from any runtime panic
 		if e := recover(); e != nil {
 			*vmerr = c.formatPanicDesc()
 		}
+
+		ip := executedIp - 1
+		op := int(c.code[ip])
+
+		if vmerr != nil {
+			if !logged {
+				c.captureState(ip, op, *vmerr)
+			} else {
+				c.captureFault(ip, op, *vmerr)
+			}
+		}
 	}(&vmerr)
 
 	codeSize := len(c.code)
 	for !c.stop {
+		// real exected ip
+		executedIp++
+		logged = false
+
 		if c.ip >= codeSize {
 			c.halt()
 
@@ -272,6 +292,9 @@ func (c *state) Run() (ret []byte, vmerr error) {
 			break
 		}
 
+		c.captureState(uint64(c.ip), int(op), nil)
+		logged = true
+
 		// execute the instruction
 		inst.inst(c)
 
@@ -289,6 +312,39 @@ func (c *state) Run() (ret []byte, vmerr error) {
 	}
 
 	return c.ret, vmerr
+}
+
+func (c *state) captureState(ip uint64, op int, err error) {
+	c.host.GetEVMLogger().CaptureState(
+		&runtime.ScopeContext{
+			Memory:          c.memory,
+			Stack:           c.stack,
+			ContractAddress: c.msg.CodeAddress,
+		},
+		ip,
+		op,
+		c.gas,
+		c.lastGasCost,
+		c.returnData,
+		c.msg.Depth,
+		err,
+	)
+}
+
+func (c *state) captureFault(ip uint64, op int, err error) {
+	c.host.GetEVMLogger().CaptureFault(
+		&runtime.ScopeContext{
+			Memory:          c.memory,
+			Stack:           c.stack,
+			ContractAddress: c.msg.Address,
+		},
+		ip,
+		op,
+		c.gas,
+		c.lastGasCost,
+		c.msg.Depth,
+		err,
+	)
 }
 
 func (c *state) inStaticCall() bool {
