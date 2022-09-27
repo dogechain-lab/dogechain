@@ -187,7 +187,7 @@ func (e *Executor) BeginTxn(
 		receipts: []*types.Receipt{},
 		totalGas: 0,
 		// set a dummy tracer to 'collect' tracing
-		tracer: tracer.NewDummyTracer(),
+		evmLogger: runtime.NewDummyLogger(),
 	}
 
 	return txn, nil
@@ -213,21 +213,21 @@ type Transition struct {
 	receipts []*types.Receipt
 	totalGas uint64
 
-	// tracer for debugging, set a dummy tracer to 'collect' tracing,
+	// evmLogger for debugging, set a dummy logger to 'collect' tracing,
 	// then we wouldn't have to judge any tracing flag
-	tracer tracer.Tracer
+	evmLogger runtime.EVMLogger
 }
 
-// SetTracer sets a non nil tracer to it
-func (t *Transition) SetTracer(tracer tracer.Tracer) {
-	if tracer != nil {
-		t.tracer = tracer
+// SetEVMLogger sets a non nil tracer to it
+func (t *Transition) SetEVMLogger(logger runtime.EVMLogger) {
+	if logger != nil {
+		t.evmLogger = logger
 	}
 }
 
 func (t *Transition) GetEVMLogger() runtime.EVMLogger {
-	if t.tracer != nil {
-		return t.tracer
+	if t.evmLogger != nil {
+		return t.evmLogger
 	}
 
 	return tracer.NewDummyTracer()
@@ -712,11 +712,19 @@ func (t *Transition) applyCall(
 	var result *runtime.ExecutionResult
 
 	if c.Depth == 0 {
-		t.tracer.CaptureStart(t.Txn(), c.Caller, c.Address, false, c.Input, c.Gas, c.Value)
-		defer t.tracer.CaptureEnd(result.ReturnValue, result.GasUsed, time.Since(time.Now()), result.Err)
+		t.evmLogger.CaptureStart(t.Txn(), c.Caller, c.Address, false, c.Input, c.Gas, c.Value)
+		defer func(result *runtime.ExecutionResult) {
+			if result != nil {
+				t.evmLogger.CaptureEnd(result.ReturnValue, result.GasUsed, time.Since(time.Now()), result.Err)
+			}
+		}(result)
 	} else {
-		t.tracer.CaptureEnter(int(evm.RuntimeType2OpCode(callType)), c.Caller, c.Address, c.Input, c.Gas, c.Value)
-		defer t.tracer.CaptureExit(result.ReturnValue, result.GasUsed, result.Err)
+		t.evmLogger.CaptureEnter(int(evm.RuntimeType2OpCode(callType)), c.Caller, c.Address, c.Input, c.Gas, c.Value)
+		defer func(result *runtime.ExecutionResult) {
+			if result != nil {
+				t.evmLogger.CaptureExit(result.ReturnValue, result.GasUsed, result.Err)
+			}
+		}(result)
 	}
 
 	//nolint:ifshort
@@ -793,11 +801,19 @@ func (t *Transition) applyCreate(c *runtime.Contract, host runtime.Host) *runtim
 	var result *runtime.ExecutionResult
 
 	if c.Depth == 0 {
-		t.tracer.CaptureStart(t.Txn(), c.Caller, c.Address, true, c.Input, c.Gas, c.Value)
-		defer t.tracer.CaptureEnd(result.ReturnValue, result.GasUsed, time.Since(time.Now()), result.Err)
+		t.evmLogger.CaptureStart(t.Txn(), c.Caller, c.Address, true, c.Input, c.Gas, c.Value)
+		defer func(result *runtime.ExecutionResult) {
+			if result != nil {
+				t.evmLogger.CaptureEnd(result.ReturnValue, result.GasUsed, time.Since(time.Now()), result.Err)
+			}
+		}(result)
 	} else {
-		t.tracer.CaptureEnter(int(evm.RuntimeType2OpCode(c.Type)), c.Caller, c.Address, c.Input, c.Gas, c.Value)
-		defer t.tracer.CaptureExit(result.ReturnValue, result.GasUsed, result.Err)
+		t.evmLogger.CaptureEnter(int(evm.RuntimeType2OpCode(c.Type)), c.Caller, c.Address, c.Input, c.Gas, c.Value)
+		defer func(result *runtime.ExecutionResult) {
+			if result != nil {
+				t.evmLogger.CaptureExit(result.ReturnValue, result.GasUsed, result.Err)
+			}
+		}(result)
 	}
 
 	// Transfer the value
