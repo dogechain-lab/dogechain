@@ -609,6 +609,50 @@ func (j *jsonRPCHub) GetSyncProgression() *progress.Progression {
 	return nil
 }
 
+func (j *jsonRPCHub) StateAtTransaction(block *types.Block, txIndex int) (*state.Transition, error) {
+	if block.Number() == 0 {
+		return nil, errors.New("no transaction in genesis")
+	}
+
+	if txIndex < 0 {
+		return nil, errors.New("invalid transaction index")
+	}
+
+	// get parent header
+	parent, exists := j.GetParent(block.Header)
+	if !exists {
+		return nil, fmt.Errorf("parent %s not found", block.ParentHash())
+	}
+
+	// block creator
+	blockCreator, err := j.GetConsensus().GetBlockCreator(block.Header)
+	if err != nil {
+		return nil, err
+	}
+
+	// begin transition, use parent block
+	txn, err := j.BeginTxn(parent.StateRoot, parent, blockCreator)
+	if err != nil {
+		return nil, err
+	}
+
+	if txIndex == 0 {
+		return txn, nil
+	}
+
+	for idx, tx := range block.Transactions {
+		if idx == txIndex {
+			return txn, nil
+		}
+
+		if _, err := txn.Apply(tx); err != nil {
+			return nil, fmt.Errorf("transaction %s failed: %v", tx.Hash, err)
+		}
+	}
+
+	return nil, fmt.Errorf("transaction index %d out of range for block %s", txIndex, block.Hash())
+}
+
 // SETUP //
 
 // setupJSONRCP sets up the JSONRPC server, using the set configuration

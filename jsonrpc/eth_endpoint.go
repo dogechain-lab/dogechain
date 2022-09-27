@@ -64,6 +64,10 @@ type ethBlockchainStore interface {
 
 	// GetSyncProgression retrieves the current sync progression, if any
 	GetSyncProgression() *progress.Progression
+
+	// StateAtTransaction returns the execution environment of a certain transaction.
+	// The transition should not commit, it shall be collected by GC.
+	StateAtTransaction(block *types.Block, txIndex int) (*state.Transition, error)
 }
 
 // ethStore provides access to the methods needed by eth endpoint
