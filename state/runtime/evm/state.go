@@ -60,8 +60,13 @@ type state struct {
 	config *chain.ForksInTime
 
 	// memory
+<<<<<<< HEAD
 	memory      []byte // increase capacity by words (1 word = 32 bytes). cap = len. but offset not equal to length
 	lastGasCost uint64
+=======
+	memory      []byte
+	lastGasCost uint64 // caching gas before memory extension
+>>>>>>> 52aa52ca (Copy memory before executing)
 
 	// stack
 	stack []*big.Int
@@ -238,11 +243,11 @@ func (c *state) formatPanicDesc() error {
 func (c *state) Run() (ret []byte, vmerr error) {
 	var (
 		executedIp uint64
-		logged     bool   // deferred EVMLogger should ignore already logged steps
-		gasBefore  uint64 // for EVMLogger to log gas remaining before execution
-		gasAfter   uint64 // gas after used
-		// memory     []byte     // copy memory before execution
-		stack []*big.Int // copy stack before execution
+		logged     bool       // deferred EVMLogger should ignore already logged steps
+		gasBefore  uint64     // for EVMLogger to log gas remaining before execution
+		gasAfter   uint64     // gas after used
+		memory     []byte     // copy memory before execution
+		stack      []*big.Int // copy stack before execution
 		// res        []byte // result of the opcode execution function
 	)
 
@@ -261,17 +266,17 @@ func (c *state) Run() (ret []byte, vmerr error) {
 		gasAfter = c.gas
 
 		if !logged {
-			c.captureState(ip, op, stack, gasBefore, gasBefore-gasAfter, *vmerr)
+			c.captureState(ip, op, memory, stack, gasBefore, gasBefore-gasAfter, *vmerr)
 		} else {
-			c.captureFault(ip, op, stack, gasBefore, gasBefore-gasAfter, *vmerr)
+			c.captureFault(ip, op, memory, stack, gasBefore, gasBefore-gasAfter, *vmerr)
 		}
 	}(&vmerr)
 
 	codeSize := len(c.code)
 	for !c.stop {
 		// capture pre-execution values for tracing
-		executedIp, stack, logged, gasBefore, gasAfter =
-			uint64(c.ip), c.stack[:c.sp], false, c.gas, c.gas
+		executedIp, memory, stack, logged, gasBefore, gasAfter =
+			uint64(c.ip), c.memory, c.stack[:c.sp], false, c.gas, c.gas
 
 		if c.ip >= codeSize {
 			c.halt()
@@ -307,7 +312,7 @@ func (c *state) Run() (ret []byte, vmerr error) {
 		gasAfter = c.gas
 
 		// capture execute state
-		c.captureState(executedIp, int(op), stack, gasBefore, gasBefore-gasAfter, nil)
+		c.captureState(executedIp, int(op), memory, stack, gasBefore, gasBefore-gasAfter, nil)
 		logged = true
 
 		// check if stack size exceeds the max size
@@ -326,12 +331,12 @@ func (c *state) Run() (ret []byte, vmerr error) {
 	return c.ret, vmerr
 }
 
-func (c *state) captureState(ip uint64, op int, stack []*big.Int, gas, gasCost uint64, err error) {
+func (c *state) captureState(ip uint64, op int, memory []byte, stack []*big.Int, gas, gasCost uint64, err error) {
 	c.host.GetEVMLogger().CaptureState(
 		&runtime.ScopeContext{
-			Memory:          c.memory,
+			Memory:          memory,
 			Stack:           stack,
-			ContractAddress: c.msg.CodeAddress,
+			ContractAddress: c.msg.Address,
 		},
 		ip,
 		op,
@@ -343,10 +348,10 @@ func (c *state) captureState(ip uint64, op int, stack []*big.Int, gas, gasCost u
 	)
 }
 
-func (c *state) captureFault(ip uint64, op int, stack []*big.Int, gas, gasCost uint64, err error) {
+func (c *state) captureFault(ip uint64, op int, memory []byte, stack []*big.Int, gas, gasCost uint64, err error) {
 	c.host.GetEVMLogger().CaptureFault(
 		&runtime.ScopeContext{
-			Memory:          c.memory,
+			Memory:          memory,
 			Stack:           stack,
 			ContractAddress: c.msg.Address,
 		},
