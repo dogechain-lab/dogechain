@@ -33,6 +33,7 @@ func Min(a, b uint64) uint64 {
 	return b
 }
 
+// ClampInt64ToInt returns the int64 value clamped to the range of an int
 func ClampInt64ToInt(v int64) int {
 	if v > math.MaxInt32 {
 		return math.MaxInt32
