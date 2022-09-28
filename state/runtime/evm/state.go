@@ -237,8 +237,13 @@ func (c *state) formatPanicDesc() error {
 // Run executes the virtual machine
 func (c *state) Run() (ret []byte, vmerr error) {
 	var (
-		logged     bool // deferred EVMLogger should ignore already logged steps
 		executedIp uint64
+		logged     bool   // deferred EVMLogger should ignore already logged steps
+		gasBefore  uint64 // for EVMLogger to log gas remaining before execution
+		gasAfter   uint64 // gas after used
+		// memory []byte // copy memory
+		// stack []*big.Int // copy
+		// res        []byte // result of the opcode execution function
 	)
 
 	defer func(vmerr *error) {
@@ -247,23 +252,25 @@ func (c *state) Run() (ret []byte, vmerr error) {
 			*vmerr = c.formatPanicDesc()
 		}
 
-		ip := executedIp - 1
-		op := int(c.code[ip])
+		if *vmerr == nil {
+			return
+		}
 
-		if vmerr != nil {
-			if !logged {
-				c.captureState(ip, op, *vmerr)
-			} else {
-				c.captureFault(ip, op, *vmerr)
-			}
+		ip := executedIp
+		op := int(c.code[ip])
+		gasAfter = c.gas
+
+		if !logged {
+			c.captureState(ip, op, gasBefore, gasBefore-gasAfter, *vmerr)
+		} else {
+			c.captureFault(ip, op, gasBefore, gasBefore-gasAfter, *vmerr)
 		}
 	}(&vmerr)
 
 	codeSize := len(c.code)
 	for !c.stop {
-		// real exected ip
-		executedIp++
-		logged = false
+		// capture pre-execution values for tracing
+		executedIp, logged, gasBefore, gasAfter = uint64(c.ip), false, c.gas, c.gas
 
 		if c.ip >= codeSize {
 			c.halt()
@@ -279,6 +286,7 @@ func (c *state) Run() (ret []byte, vmerr error) {
 
 			break
 		}
+
 		// check if the depth of the stack is enough for the instruction
 		if c.sp < inst.stack {
 			c.exit(errStackUnderflow)
@@ -292,11 +300,14 @@ func (c *state) Run() (ret []byte, vmerr error) {
 			break
 		}
 
-		c.captureState(uint64(c.ip), int(op), nil)
-		logged = true
-
 		// execute the instruction
 		inst.inst(c)
+
+		gasAfter = c.gas
+
+		// capture execute state
+		c.captureState(executedIp, int(op), gasBefore, gasBefore-gasAfter, nil)
+		logged = true
 
 		// check if stack size exceeds the max size
 		if c.sp > stackSize {
@@ -314,7 +325,7 @@ func (c *state) Run() (ret []byte, vmerr error) {
 	return c.ret, vmerr
 }
 
-func (c *state) captureState(ip uint64, op int, err error) {
+func (c *state) captureState(ip uint64, op int, gas, gasCost uint64, err error) {
 	c.host.GetEVMLogger().CaptureState(
 		&runtime.ScopeContext{
 			Memory:          c.memory,
@@ -323,15 +334,15 @@ func (c *state) captureState(ip uint64, op int, err error) {
 		},
 		ip,
 		op,
-		c.gas,
-		c.lastGasCost,
+		gas,
+		gasCost,
 		c.returnData,
 		c.msg.Depth,
 		err,
 	)
 }
 
-func (c *state) captureFault(ip uint64, op int, err error) {
+func (c *state) captureFault(ip uint64, op int, gas, gasCost uint64, err error) {
 	c.host.GetEVMLogger().CaptureFault(
 		&runtime.ScopeContext{
 			Memory:          c.memory,
@@ -340,8 +351,8 @@ func (c *state) captureFault(ip uint64, op int, err error) {
 		},
 		ip,
 		op,
-		c.gas,
-		c.lastGasCost,
+		gas,
+		gasCost,
 		c.msg.Depth,
 		err,
 	)
