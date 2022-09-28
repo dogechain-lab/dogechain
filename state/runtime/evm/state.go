@@ -60,13 +60,8 @@ type state struct {
 	config *chain.ForksInTime
 
 	// memory
-<<<<<<< HEAD
 	memory      []byte // increase capacity by words (1 word = 32 bytes). cap = len. but offset not equal to length
-	lastGasCost uint64
-=======
-	memory      []byte
 	lastGasCost uint64 // caching gas before memory extension
->>>>>>> 52aa52ca (Copy memory before executing)
 
 	// stack
 	stack []*big.Int
@@ -242,6 +237,8 @@ func (c *state) formatPanicDesc() error {
 // Run executes the virtual machine
 func (c *state) Run() (ret []byte, vmerr error) {
 	var (
+		logger    = c.host.GetEVMLogger()
+		needDebug bool
 		//nolint:stylecheck
 		executedIp uint64
 		logged     bool       // deferred EVMLogger should ignore already logged steps
@@ -252,13 +249,21 @@ func (c *state) Run() (ret []byte, vmerr error) {
 		// res        []byte // result of the opcode execution function
 	)
 
-	defer func(vmerr *error) {
+	// only real tracer need
+	switch logger.(type) {
+	case *runtime.DummyLogger:
+		// do nothing
+	default:
+		needDebug = true
+	}
+
+	defer func(needDebug bool, vmerr *error) {
 		// recover from any runtime panic
 		if e := recover(); e != nil {
 			*vmerr = c.formatPanicDesc()
 		}
 
-		if *vmerr == nil {
+		if !needDebug || *vmerr == nil {
 			return
 		}
 
@@ -271,17 +276,19 @@ func (c *state) Run() (ret []byte, vmerr error) {
 		} else {
 			c.captureFault(ip, op, memory, stack, gasBefore, gasBefore-gasAfter, *vmerr)
 		}
-	}(&vmerr)
+	}(needDebug, &vmerr)
 
 	codeSize := len(c.code)
 
 	for !c.stop {
-		// capture pre-execution values for tracing
-		executedIp, memory, stack, logged, gasBefore, gasAfter =
-			uint64(c.ip), c.memory, make([]*big.Int, c.sp), false, c.gas, c.gas
-			// deep copy
-		for i, v := range c.stack[:c.sp] {
-			stack[i] = new(big.Int).Set(v)
+		if needDebug {
+			// capture pre-execution values for tracing
+			executedIp, memory, stack, logged, gasBefore, gasAfter =
+				uint64(c.ip), c.memory, make([]*big.Int, c.sp), false, c.gas, c.gas
+				// deep copy
+			for i, v := range c.stack[:c.sp] {
+				stack[i] = new(big.Int).Set(v)
+			}
 		}
 
 		if c.ip >= codeSize {
@@ -317,10 +324,12 @@ func (c *state) Run() (ret []byte, vmerr error) {
 
 		gasAfter = c.gas
 
-		// capture execute state
-		c.captureState(executedIp, int(op), memory, stack, gasBefore, gasBefore-gasAfter, nil)
-		// the state is logged
-		logged = true
+		if needDebug {
+			// capture execute state
+			c.captureState(executedIp, int(op), memory, stack, gasBefore, gasBefore-gasAfter, nil)
+			// the state is logged
+			logged = true
+		}
 
 		// check if stack size exceeds the max size
 		if c.sp > stackSize {

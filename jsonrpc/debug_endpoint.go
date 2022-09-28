@@ -67,9 +67,7 @@ func (d *Debug) TraceTransaction(hash types.Hash) (interface{}, error) {
 }
 
 func (d *Debug) traceTx(txn *state.Transition, tx *types.Transaction) (interface{}, error) {
-	var (
-		tracer runtime.EVMLogger = structlogger.NewStructLogger(txn.Txn())
-	)
+	var tracer runtime.EVMLogger = structlogger.NewStructLogger(txn.Txn())
 
 	txn.SetEVMLogger(tracer)
 
