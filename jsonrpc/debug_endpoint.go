@@ -126,6 +126,9 @@ func FormatLogs(logs []*structlogger.StructLog) []StructLogRes {
 	formatted := make([]StructLogRes, len(logs))
 
 	for index, trace := range logs {
+		trace.OpName = trace.GetOpName()
+		trace.ErrorString = trace.GetErrorString()
+
 		formatted[index] = StructLogRes{
 			Pc:      trace.Pc,
 			Op:      trace.OpName,
@@ -144,7 +147,7 @@ func FormatLogs(logs []*structlogger.StructLog) []StructLogRes {
 			formatted[index].Stack = &stack
 		}
 
-		if trace.Memory != nil {
+		if len(trace.Memory) > 0 {
 			memory := make([]string, 0, (len(trace.Memory)+31)/32)
 			for i := 0; i+32 <= len(trace.Memory); i += 32 {
 				memory = append(memory, fmt.Sprintf("%x", trace.Memory[i:i+32]))
@@ -153,7 +156,7 @@ func FormatLogs(logs []*structlogger.StructLog) []StructLogRes {
 			formatted[index].Memory = &memory
 		}
 
-		if trace.Storage != nil {
+		if len(trace.Storage) > 0 {
 			storage := make(map[string]string)
 			for i, storageValue := range trace.Storage {
 				storage[fmt.Sprintf("%x", i)] = fmt.Sprintf("%x", storageValue)
