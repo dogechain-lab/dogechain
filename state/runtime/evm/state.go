@@ -242,6 +242,7 @@ func (c *state) formatPanicDesc() error {
 // Run executes the virtual machine
 func (c *state) Run() (ret []byte, vmerr error) {
 	var (
+		//nolint:stylecheck
 		executedIp uint64
 		logged     bool       // deferred EVMLogger should ignore already logged steps
 		gasBefore  uint64     // for EVMLogger to log gas remaining before execution
@@ -273,6 +274,7 @@ func (c *state) Run() (ret []byte, vmerr error) {
 	}(&vmerr)
 
 	codeSize := len(c.code)
+
 	for !c.stop {
 		// capture pre-execution values for tracing
 		executedIp, memory, stack, logged, gasBefore, gasAfter =
@@ -313,6 +315,7 @@ func (c *state) Run() (ret []byte, vmerr error) {
 
 		// capture execute state
 		c.captureState(executedIp, int(op), memory, stack, gasBefore, gasBefore-gasAfter, nil)
+		// the state is logged
 		logged = true
 
 		// check if stack size exceeds the max size

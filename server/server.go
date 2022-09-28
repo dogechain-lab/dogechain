@@ -646,7 +646,7 @@ func (j *jsonRPCHub) StateAtTransaction(block *types.Block, txIndex int) (*state
 		}
 
 		if _, err := txn.Apply(tx); err != nil {
-			return nil, fmt.Errorf("transaction %s failed: %v", tx.Hash, err)
+			return nil, fmt.Errorf("transaction %s failed: %w", tx.Hash, err)
 		}
 	}
 

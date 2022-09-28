@@ -713,6 +713,7 @@ func (t *Transition) applyCall(
 
 	if c.Depth == 0 {
 		t.evmLogger.CaptureStart(t.Txn(), c.Caller, c.Address, false, c.Input, c.Gas, c.Value)
+
 		defer func(result *runtime.ExecutionResult) {
 			if result != nil {
 				t.evmLogger.CaptureEnd(result.ReturnValue, result.GasUsed, time.Since(time.Now()), result.Err)
@@ -720,6 +721,7 @@ func (t *Transition) applyCall(
 		}(result)
 	} else {
 		t.evmLogger.CaptureEnter(int(evm.RuntimeType2OpCode(callType)), c.Caller, c.Address, c.Input, c.Gas, c.Value)
+
 		defer func(result *runtime.ExecutionResult) {
 			if result != nil {
 				t.evmLogger.CaptureExit(result.ReturnValue, result.GasUsed, result.Err)
@@ -802,6 +804,7 @@ func (t *Transition) applyCreate(c *runtime.Contract, host runtime.Host) *runtim
 
 	if c.Depth == 0 {
 		t.evmLogger.CaptureStart(t.Txn(), c.Caller, c.Address, true, c.Input, c.Gas, c.Value)
+
 		defer func(result *runtime.ExecutionResult) {
 			if result != nil {
 				t.evmLogger.CaptureEnd(result.ReturnValue, result.GasUsed, time.Since(time.Now()), result.Err)
@@ -809,6 +812,7 @@ func (t *Transition) applyCreate(c *runtime.Contract, host runtime.Host) *runtim
 		}(result)
 	} else {
 		t.evmLogger.CaptureEnter(int(evm.RuntimeType2OpCode(c.Type)), c.Caller, c.Address, c.Input, c.Gas, c.Value)
+
 		defer func(result *runtime.ExecutionResult) {
 			if result != nil {
 				t.evmLogger.CaptureExit(result.ReturnValue, result.GasUsed, result.Err)
