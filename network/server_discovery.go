@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"time"
 
+	helperCommon "github.com/dogechain-lab/dogechain/helper/common"
 	"github.com/dogechain-lab/dogechain/network/common"
 	"github.com/dogechain-lab/dogechain/network/discovery"
 	"github.com/dogechain-lab/dogechain/network/grpc"
@@ -192,7 +193,10 @@ func (s *Server) setupDiscovery() error {
 	keyID := kb.ConvertPeerID(s.host.ID())
 
 	routingTable, err := kb.NewRoutingTable(
-		defaultBucketSize,
+		helperCommon.MaxInt(
+			helperCommon.ClampInt64ToInt(s.config.MaxPeers),
+			defaultBucketSize,
+		),
 		keyID,
 		time.Minute,
 		s.host.Peerstore(),

@@ -33,6 +33,27 @@ func Min(a, b uint64) uint64 {
 	return b
 }
 
+func ClampInt64ToInt(v int64) int {
+	if v > math.MaxInt32 {
+		return math.MaxInt32
+	}
+
+	if v < math.MinInt32 {
+		return math.MinInt32
+	}
+
+	return int(v)
+}
+
+// MaxInt returns the strictly bigger int number
+func MaxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+
+	return b
+}
+
 // Max returns the strictly bigger number
 func Max(a, b uint64) uint64 {
 	if a > b {
