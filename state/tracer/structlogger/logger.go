@@ -47,7 +47,7 @@ type StructLog struct {
 
 func (s StructLog) MarshalJSON() ([]byte, error) {
 	s.OpName = s.GetOpName()
-	s.ErrorString = s.errorString()
+	s.ErrorString = s.GetErrorString()
 
 	return json.Marshal(&s)
 }
@@ -57,8 +57,8 @@ func (s *StructLog) GetOpName() string {
 	return opInt2CodeName(s.Op)
 }
 
-// errorString formats the log's error as a string.
-func (s *StructLog) errorString() string {
+// GetErrorString formats the log's error as a string.
+func (s *StructLog) GetErrorString() string {
 	if s.Err != nil {
 		return s.Err.Error()
 	}
@@ -116,13 +116,13 @@ func (l *StructLogger) CaptureState(
 	depth int,
 	err error,
 ) {
-	memory := ctx.Memory
+	// memory := ctx.Memory
 	stack := ctx.Stack
 	contractAddress := ctx.ContractAddress
 
-	// Copy a snapshot of the current memory state to a new buffer
-	mem := make([]byte, len(memory))
-	copy(mem, memory)
+	// // Copy a snapshot of the current memory state to a new buffer
+	// mem := make([]byte, len(memory))
+	// copy(mem, memory)
 
 	// Copy a snapshot of the current stack state to a new buffer
 	stck := make([]*big.Int, len(stack))
@@ -177,12 +177,12 @@ func (l *StructLogger) CaptureState(
 
 	// create a new snapshot of the EVM.
 	l.logs = append(l.logs, &StructLog{
-		Pc:            pc,
-		Op:            opCode,
-		Gas:           gas,
-		GasCost:       cost,
-		Memory:        mem,
-		MemorySize:    len(memory),
+		Pc:      pc,
+		Op:      opCode,
+		Gas:     gas,
+		GasCost: cost,
+		// Memory:        mem,
+		// MemorySize:    len(memory),
 		Stack:         stck,
 		ReturnData:    rdata,
 		Storage:       storage,
