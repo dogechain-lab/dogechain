@@ -141,7 +141,7 @@ func FormatLogs(logs []*structlogger.StructLog) []StructLogRes {
 		if trace.Stack != nil {
 			stack := make([]string, len(trace.Stack))
 			for i, stackValue := range trace.Stack {
-				stack[i] = stackValue.Text(16)
+				stack[i] = *types.EncodeBigInt(stackValue)
 			}
 
 			formatted[index].Stack = &stack
