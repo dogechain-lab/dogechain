@@ -278,7 +278,11 @@ func (c *state) Run() (ret []byte, vmerr error) {
 	for !c.stop {
 		// capture pre-execution values for tracing
 		executedIp, memory, stack, logged, gasBefore, gasAfter =
-			uint64(c.ip), c.memory, c.stack[:c.sp], false, c.gas, c.gas
+			uint64(c.ip), c.memory, make([]*big.Int, c.sp), false, c.gas, c.gas
+			// deep copy
+		for i, v := range c.stack[:c.sp] {
+			stack[i] = new(big.Int).Set(v)
+		}
 
 		if c.ip >= codeSize {
 			c.halt()
