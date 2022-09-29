@@ -74,6 +74,7 @@ type Ibft struct {
 	blockchain blockchainInterface // Interface exposed by the blockchain layer
 	executor   *state.Executor     // Reference to the state executor
 	closeCh    chan struct{}       // Channel for closing
+	isClosed   bool
 
 	validatorKey     *ecdsa.PrivateKey // Private key for the validator
 	validatorKeyAddr types.Address
@@ -1427,6 +1428,12 @@ func (i *Ibft) IsLastOfEpoch(number uint64) bool {
 
 // Close closes the IBFT consensus mechanism, and does write back to disk
 func (i *Ibft) Close() error {
+	if i.isClosed {
+		i.logger.Error("IBFT consensus is Closed")
+		return nil
+	}
+	i.isClosed = true
+
 	close(i.closeCh)
 
 	if i.config.Path != "" {
