@@ -230,6 +230,7 @@ func (i *Ibft) GetSyncProgression() *progress.Progression {
 
 type transport interface {
 	Gossip(msg *proto.MessageReq) error
+	Close() error
 }
 
 // Define the IBFT libp2p protocol
@@ -242,6 +243,10 @@ type gossipTransport struct {
 // Gossip publishes a new message to the topic
 func (g *gossipTransport) Gossip(msg *proto.MessageReq) error {
 	return g.topic.Publish(msg)
+}
+
+func (g *gossipTransport) Close() error {
+	return g.topic.Close()
 }
 
 // GetIBFTForks returns IBFT fork configurations from chain config
@@ -1431,6 +1436,8 @@ func (i *Ibft) Close() error {
 			return err
 		}
 	}
+
+	i.transport.Close()
 
 	return nil
 }

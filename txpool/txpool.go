@@ -313,6 +313,7 @@ func (p *TxPool) Close() {
 	p.eventManager.Close()
 	// stop
 	p.shutdownCh <- struct{}{}
+	p.topic.Close()
 	// close all channels
 	close(p.enqueueReqCh)
 	close(p.promoteReqCh)

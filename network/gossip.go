@@ -3,6 +3,9 @@ package network
 import (
 	"context"
 	"reflect"
+	"runtime"
+	"sync"
+	"sync/atomic"
 
 	"github.com/hashicorp/go-hclog"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -19,9 +22,11 @@ const (
 type Topic struct {
 	logger hclog.Logger
 
-	topic   *pubsub.Topic
-	typ     reflect.Type
-	closeCh chan struct{}
+	topic *pubsub.Topic
+	typ   reflect.Type
+
+	wg            *sync.WaitGroup
+	unsubscribeCh chan struct{}
 }
 
 func (t *Topic) createObj() proto.Message {
@@ -53,15 +58,47 @@ func (t *Topic) Subscribe(handler func(obj interface{})) error {
 	return nil
 }
 
+func (t *Topic) Close() error {
+	close(t.unsubscribeCh)
+	t.wg.Wait()
+
+	return t.topic.Close()
+}
+
 func (t *Topic) readLoop(sub *pubsub.Subscription, handler func(obj interface{})) {
 	ctx, cancelFn := context.WithCancel(context.Background())
 
+	var unsubscribe int32 = 0
+
+	workqueue := make(chan proto.Message, runtime.NumCPU())
+
+	t.wg.Add(1)
+
 	go func() {
-		<-t.closeCh
+		<-t.unsubscribeCh
+		atomic.StoreInt32(&unsubscribe, 1)
+
+		close(workqueue)
+
 		cancelFn()
+		sub.Cancel()
+		t.wg.Done()
 	}()
 
-	for {
+	for i := 0; i < runtime.NumCPU(); i++ {
+		go func() {
+			for {
+				obj, ok := <-workqueue
+				if !ok {
+					return
+				}
+
+				handler(obj)
+			}
+		}()
+	}
+
+	for atomic.LoadInt32(&unsubscribe) == 0 {
 		msg, err := sub.Next(ctx)
 		if err != nil {
 			t.logger.Error("failed to get topic", "err", err)
@@ -69,16 +106,14 @@ func (t *Topic) readLoop(sub *pubsub.Subscription, handler func(obj interface{})
 			continue
 		}
 
-		go func() {
-			obj := t.createObj()
-			if err := proto.Unmarshal(msg.Data, obj); err != nil {
-				t.logger.Error("failed to unmarshal topic", "err", err)
+		obj := t.createObj()
+		if err := proto.Unmarshal(msg.Data, obj); err != nil {
+			t.logger.Error("failed to unmarshal topic", "err", err)
 
-				return
-			}
+			return
+		}
 
-			handler(obj)
-		}()
+		workqueue <- obj
 	}
 }
 
@@ -90,8 +125,12 @@ func (s *Server) NewTopic(protoID string, obj proto.Message) (*Topic, error) {
 
 	tt := &Topic{
 		logger: s.logger.Named(protoID),
-		topic:  topic,
-		typ:    reflect.TypeOf(obj).Elem(),
+
+		topic: topic,
+		typ:   reflect.TypeOf(obj).Elem(),
+
+		wg:            &sync.WaitGroup{},
+		unsubscribeCh: make(chan struct{}),
 	}
 
 	return tt, nil
