@@ -67,22 +67,21 @@ func (t *Topic) Close() error {
 }
 
 func (t *Topic) readLoop(sub *pubsub.Subscription, handler func(obj interface{})) {
-	ctx, cancelFn := context.WithCancel(context.Background())
-
+	ctx := context.Background()
 	unsubscribe := atomic.NewBool(false)
 	workqueue := make(chan proto.Message, runtime.NumCPU())
 
 	t.wg.Add(1)
 
 	go func() {
+		defer t.wg.Done()
+
 		<-t.unsubscribeCh
 		unsubscribe.Store(true)
 
 		close(workqueue)
 
-		cancelFn()
 		sub.Cancel()
-		t.wg.Done()
 	}()
 
 	for i := 0; i < runtime.NumCPU(); i++ {
