@@ -109,8 +109,9 @@ func (t *Topic) readLoop(sub *pubsub.Subscription, handler func(obj interface{})
 		obj := t.createObj()
 		if err := proto.Unmarshal(msg.Data, obj); err != nil {
 			t.logger.Error("failed to unmarshal topic", "err", err)
+			t.logger.Error("unmarshal message from", "peer", msg.GetFrom())
 
-			return
+			continue
 		}
 
 		workqueue <- obj
