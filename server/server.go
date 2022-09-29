@@ -142,6 +142,8 @@ func newLevelDBBuilder(logger hclog.Logger, config *Config, path string) kvdb.Le
 		SetBloomKeyBits(config.LeveldbOptions.BloomKeyBits).
 		SetCompactionTableSize(config.LeveldbOptions.CompactionTableSize).
 		SetCompactionTotalSize(config.LeveldbOptions.CompactionTotalSize).
+		SetCompactionTotalSizeMultiplier(config.LeveldbOptions.CompactionTableSizeMultiplier).
+		SetDisableCompression(config.LeveldbOptions.DisbableCompression).
 		SetNoSync(config.LeveldbOptions.NoSync)
 
 	return leveldbBuilder

@@ -152,6 +152,20 @@ func setFlags(cmd *cobra.Command) {
 			"limits leveldb total size of 'sorted table' for each level in MB",
 		)
 
+		cmd.Flags().Float64Var(
+			&params.leveldbTableSizeMultiplier,
+			leveldbTableSizeMultiplierFlag,
+			kvdb.DefaultLevelDBCompactionTableSizeMultiplier,
+			"set leveldb SST table size multiplier",
+		)
+
+		cmd.Flags().BoolVar(
+			&params.leveldbDisableCompression,
+			leveldbDisableCompressionFlag,
+			kvdb.DefaultLevelDBDisableCompression,
+			"disable leveldb compression",
+		)
+
 		cmd.Flags().BoolVar(
 			&params.leveldbNoSync,
 			leveldbNoSyncFlag,

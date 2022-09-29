@@ -21,8 +21,12 @@ const (
 	DefaultLevelDBHandles             = 512  // files handles to leveldb open files
 	DefaultLevelDBBloomKeyBits        = 2048 // bloom filter bits (256 bytes)
 	DefaultLevelDBCompactionTableSize = 8    // 8  MiB
-	DefaultLevelDBCompactionTotalSize = 32   // 32 MiB
-	DefaultLevelDBNoSync              = false
+	DefaultLevelDBCompactionTotalSize = 16   // 16 MiB
+
+	DefaultLevelDBCompactionTableSizeMultiplier = 1.0 // 1.1 per-level multiplier
+
+	DefaultLevelDBDisableCompression = false // disable compression
+	DefaultLevelDBNoSync             = false // disable sync wrtie
 )
 
 func max(a, b int) int {
@@ -48,6 +52,12 @@ type LevelDBBuilder interface {
 
 	// set compaction table total size
 	SetCompactionTotalSize(int) LevelDBBuilder
+
+	// set compaction table size multiplier
+	SetCompactionTotalSizeMultiplier(float64) LevelDBBuilder
+
+	// set disable compression
+	SetDisableCompression(bool) LevelDBBuilder
 
 	// set no sync
 	SetNoSync(bool) LevelDBBuilder
@@ -116,6 +126,32 @@ func (builder *leveldbBuilder) SetCompactionTotalSize(compactionTotalSize int) L
 	return builder
 }
 
+func (builder *leveldbBuilder) SetCompactionTotalSizeMultiplier(multi float64) LevelDBBuilder {
+	builder.options.CompactionTableSizeMultiplier = multi
+
+	builder.logger.Info("leveldb",
+		"CompactionTableSizeMultiplier", fmt.Sprintf("%f", multi),
+	)
+
+	return builder
+}
+
+func (builder *leveldbBuilder) SetDisableCompression(disable bool) LevelDBBuilder {
+	builder.options.Compression = func() opt.Compression {
+		if disable {
+			return opt.NoCompression
+		} else {
+			return opt.DefaultCompression
+		}
+	}()
+
+	builder.logger.Info("leveldb",
+		"DisableCompression", disable,
+	)
+
+	return builder
+}
+
 func (builder *leveldbBuilder) SetNoSync(noSync bool) LevelDBBuilder {
 	builder.options.NoSync = noSync
 
@@ -141,13 +177,15 @@ func NewLevelDBBuilder(logger hclog.Logger, path string) LevelDBBuilder {
 		logger: logger,
 		path:   path,
 		options: &opt.Options{
-			OpenFilesCacheCapacity: minLevelDBHandles,
-			CompactionTableSize:    DefaultLevelDBCompactionTableSize * opt.MiB,
-			CompactionTotalSize:    DefaultLevelDBCompactionTotalSize * opt.MiB,
-			BlockCacheCapacity:     minLevelDBCache / 2 * opt.MiB,
-			WriteBuffer:            minLevelDBCache / 4 * opt.MiB,
-			Filter:                 filter.NewBloomFilter(DefaultLevelDBBloomKeyBits),
-			NoSync:                 false,
+			OpenFilesCacheCapacity:        minLevelDBHandles,
+			CompactionTableSize:           DefaultLevelDBCompactionTableSize * opt.MiB,
+			CompactionTotalSize:           DefaultLevelDBCompactionTotalSize * opt.MiB,
+			CompactionTableSizeMultiplier: DefaultLevelDBCompactionTableSizeMultiplier,
+			BlockCacheCapacity:            minLevelDBCache / 2 * opt.MiB,
+			WriteBuffer:                   minLevelDBCache / 4 * opt.MiB,
+			Filter:                        filter.NewBloomFilter(DefaultLevelDBBloomKeyBits),
+			Compression:                   opt.DefaultCompression,
+			NoSync:                        false,
 		},
 	}
 }

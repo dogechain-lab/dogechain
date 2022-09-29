@@ -14,15 +14,19 @@ import (
 )
 
 const (
-	configFlag                   = "config"
-	genesisPathFlag              = "chain"
-	dataDirFlag                  = "data-dir"
-	leveldbCacheFlag             = "leveldb.cache-size"
-	leveldbHandlesFlag           = "leveldb.handles"
-	leveldbBloomKeyBitsFlag      = "leveldb.bloom-bits"
-	leveldbTableSizeFlag         = "leveldb.table-size"
-	leveldbTotalTableSizeFlag    = "leveldb.total-table-size"
-	leveldbNoSyncFlag            = "leveldb.nosync"
+	configFlag      = "config"
+	genesisPathFlag = "chain"
+	dataDirFlag     = "data-dir"
+
+	leveldbCacheFlag               = "leveldb.cache-size"
+	leveldbHandlesFlag             = "leveldb.handles"
+	leveldbBloomKeyBitsFlag        = "leveldb.bloom-bits"
+	leveldbTableSizeFlag           = "leveldb.table-size"
+	leveldbTableSizeMultiplierFlag = "leveldb.table-size-multi"
+	leveldbTotalTableSizeFlag      = "leveldb.total-table-size"
+	leveldbDisableCompressionFlag  = "leveldb.disable-compression"
+	leveldbNoSyncFlag              = "leveldb.nosync"
+
 	libp2pAddressFlag            = "libp2p"
 	prometheusAddressFlag        = "prometheus"
 	natFlag                      = "nat"
@@ -78,7 +82,11 @@ type serverParams struct {
 	leveldbBloomKeyBits   int
 	leveldbTableSize      int
 	leveldbTotalTableSize int
-	leveldbNoSync         bool
+
+	leveldbTableSizeMultiplier float64
+
+	leveldbDisableCompression bool
+	leveldbNoSync             bool
 
 	libp2pAddress     *net.TCPAddr
 	prometheusAddress *net.TCPAddr
@@ -212,12 +220,14 @@ func (p *serverParams) generateConfig() *server.Config {
 		SecretsManager:        p.secretsConfig,
 		RestoreFile:           p.getRestoreFilePath(),
 		LeveldbOptions: &server.LeveldbOptions{
-			CacheSize:           p.leveldbCacheSize,
-			Handles:             p.leveldbHandles,
-			BloomKeyBits:        p.leveldbBloomKeyBits,
-			CompactionTableSize: p.leveldbTableSize,
-			CompactionTotalSize: p.leveldbTotalTableSize,
-			NoSync:              p.leveldbNoSync,
+			CacheSize:                     p.leveldbCacheSize,
+			Handles:                       p.leveldbHandles,
+			BloomKeyBits:                  p.leveldbBloomKeyBits,
+			CompactionTableSize:           p.leveldbTableSize,
+			CompactionTotalSize:           p.leveldbTotalTableSize,
+			CompactionTableSizeMultiplier: p.leveldbTableSizeMultiplier,
+			DisbableCompression:           p.leveldbDisableCompression,
+			NoSync:                        p.leveldbNoSync,
 		},
 		BlockTime:    p.rawConfig.BlockTime,
 		LogLevel:     hclog.LevelFromString(p.rawConfig.LogLevel),

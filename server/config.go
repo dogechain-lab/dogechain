@@ -56,6 +56,10 @@ type LeveldbOptions struct {
 	BloomKeyBits        int
 	CompactionTableSize int
 	CompactionTotalSize int
+
+	CompactionTableSizeMultiplier float64
+
+	DisbableCompression bool
 	NoSync              bool
 }
 
