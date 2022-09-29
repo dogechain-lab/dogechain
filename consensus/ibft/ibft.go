@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"time"
 
+	"go.uber.org/atomic"
+
 	"github.com/dogechain-lab/dogechain/consensus"
 	"github.com/dogechain-lab/dogechain/consensus/ibft/proto"
 	"github.com/dogechain-lab/dogechain/contracts/upgrader"
@@ -74,7 +76,7 @@ type Ibft struct {
 	blockchain blockchainInterface // Interface exposed by the blockchain layer
 	executor   *state.Executor     // Reference to the state executor
 	closeCh    chan struct{}       // Channel for closing
-	isClosed   bool
+	isClosed   *atomic.Bool
 
 	validatorKey     *ecdsa.PrivateKey // Private key for the validator
 	validatorKeyAddr types.Address
@@ -162,6 +164,7 @@ func Factory(
 		blockchain:     params.Blockchain,
 		executor:       params.Executor,
 		closeCh:        make(chan struct{}),
+		isClosed:       atomic.NewBool(false),
 		txpool:         params.Txpool,
 		state:          &currentState{},
 		network:        params.Network,
@@ -1428,13 +1431,13 @@ func (i *Ibft) IsLastOfEpoch(number uint64) bool {
 
 // Close closes the IBFT consensus mechanism, and does write back to disk
 func (i *Ibft) Close() error {
-	if i.isClosed {
+	if i.isClosed.Load() {
 		i.logger.Error("IBFT consensus is Closed")
 
 		return nil
 	}
 
-	i.isClosed = true
+	i.isClosed.Store(true)
 
 	close(i.closeCh)
 

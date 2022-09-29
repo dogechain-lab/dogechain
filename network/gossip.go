@@ -5,7 +5,8 @@ import (
 	"reflect"
 	"runtime"
 	"sync"
-	"sync/atomic"
+
+	"go.uber.org/atomic"
 
 	"github.com/hashicorp/go-hclog"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -25,7 +26,7 @@ type Topic struct {
 	topic *pubsub.Topic
 	typ   reflect.Type
 
-	wg            *sync.WaitGroup
+	wg            sync.WaitGroup
 	unsubscribeCh chan struct{}
 }
 
@@ -68,15 +69,14 @@ func (t *Topic) Close() error {
 func (t *Topic) readLoop(sub *pubsub.Subscription, handler func(obj interface{})) {
 	ctx, cancelFn := context.WithCancel(context.Background())
 
-	var unsubscribe int32 = 0
-
+	unsubscribe := atomic.NewBool(false)
 	workqueue := make(chan proto.Message, runtime.NumCPU())
 
 	t.wg.Add(1)
 
 	go func() {
 		<-t.unsubscribeCh
-		atomic.StoreInt32(&unsubscribe, 1)
+		unsubscribe.Store(true)
 
 		close(workqueue)
 
@@ -98,7 +98,7 @@ func (t *Topic) readLoop(sub *pubsub.Subscription, handler func(obj interface{})
 		}()
 	}
 
-	for atomic.LoadInt32(&unsubscribe) == 0 {
+	for !unsubscribe.Load() {
 		msg, err := sub.Next(ctx)
 		if err != nil {
 			t.logger.Error("failed to get topic", "err", err)
@@ -129,7 +129,6 @@ func (s *Server) NewTopic(protoID string, obj proto.Message) (*Topic, error) {
 		topic: topic,
 		typ:   reflect.TypeOf(obj).Elem(),
 
-		wg:            &sync.WaitGroup{},
 		unsubscribeCh: make(chan struct{}),
 	}
 

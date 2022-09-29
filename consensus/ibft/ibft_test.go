@@ -18,6 +18,7 @@ import (
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/atomic"
 	anypb "google.golang.org/protobuf/types/known/anypb"
 )
 
@@ -1211,6 +1212,7 @@ func newMockIbft(t *testing.T, accounts []string, account string) *mockIbft {
 		validatorKey:     addr.priv,
 		validatorKeyAddr: addr.Address(),
 		closeCh:          make(chan struct{}),
+		isClosed:         atomic.NewBool(false),
 		updateCh:         make(chan struct{}),
 		operator:         &operator{},
 		state:            newState(),
@@ -1269,6 +1271,7 @@ func newMockIBFTWithMockBlockchain(
 		validatorKey:     addr.priv,
 		validatorKeyAddr: addr.Address(),
 		closeCh:          make(chan struct{}),
+		isClosed:         atomic.NewBool(false),
 		updateCh:         make(chan struct{}),
 		operator:         &operator{},
 		state:            newState(),
