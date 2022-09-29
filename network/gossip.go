@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"runtime"
 	"sync"
+	"time"
 
 	"go.uber.org/atomic"
 
@@ -67,7 +68,7 @@ func (t *Topic) Close() error {
 }
 
 func (t *Topic) readLoop(sub *pubsub.Subscription, handler func(obj interface{})) {
-	ctx := context.Background()
+	ctx, cancelFn := context.WithCancel(context.Background())
 	unsubscribe := atomic.NewBool(false)
 	workqueue := make(chan proto.Message, runtime.NumCPU())
 
@@ -81,7 +82,23 @@ func (t *Topic) readLoop(sub *pubsub.Subscription, handler func(obj interface{})
 
 		close(workqueue)
 
-		sub.Cancel()
+		// send cancel timeout
+		timeout := time.NewTimer(30 * time.Second)
+		defer timeout.Stop()
+
+		cancelCh := make(chan struct{}, 1)
+
+		go func() {
+			sub.Cancel()
+			cancelCh <- struct{}{}
+		}()
+
+		select {
+		case <-timeout.C:
+			cancelFn()
+		case <-cancelCh:
+			return
+		}
 	}()
 
 	for i := 0; i < runtime.NumCPU(); i++ {
