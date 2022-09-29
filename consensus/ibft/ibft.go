@@ -1430,8 +1430,10 @@ func (i *Ibft) IsLastOfEpoch(number uint64) bool {
 func (i *Ibft) Close() error {
 	if i.isClosed {
 		i.logger.Error("IBFT consensus is Closed")
+
 		return nil
 	}
+
 	i.isClosed = true
 
 	close(i.closeCh)
