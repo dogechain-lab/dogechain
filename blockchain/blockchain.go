@@ -955,7 +955,11 @@ func (b *Blockchain) WriteBlock(block *types.Block) error {
 			bigPrice := new(big.Float).SetInt(b.gpAverage.price)
 			price, _ := bigPrice.Float64()
 
-			b.metrics.GasPriceAvg.Observe(price)
+			bigCount := new(big.Float).SetInt(b.gpAverage.count)
+			count, _ := bigCount.Float64()
+
+			b.metrics.GasPriceAverage.Observe(price)
+			b.metrics.GasCountAverage.Observe(count)
 		}
 		b.metrics.GasUsed.Observe(float64(header.GasUsed))
 		b.metrics.BlockHeight.Set(float64(header.Number))

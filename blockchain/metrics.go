@@ -10,7 +10,9 @@ import (
 // Metrics represents the blockchain metrics
 type Metrics struct {
 	// Gas Price Average
-	GasPriceAvg metrics.Histogram
+	GasPriceAverage metrics.Histogram
+	// Gas Count Average
+	GasCountAverage metrics.Histogram
 	// Gas used
 	GasUsed metrics.Histogram
 	// Block height
@@ -30,11 +32,17 @@ func GetPrometheusMetrics(namespace string, labelsWithValues ...string) *Metrics
 	}
 
 	return &Metrics{
-		GasPriceAvg: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+		GasPriceAverage: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: namespace,
 			Subsystem: "blockchain",
-			Name:      "gas_price_avg",
+			Name:      "gas_avg_price",
 			Help:      "Gas Price Average",
+		}, labels).With(labelsWithValues...),
+		GasCountAverage: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+			Namespace: namespace,
+			Subsystem: "blockchain",
+			Name:      "gas_avg_count",
+			Help:      "Gas Count Average",
 		}, labels).With(labelsWithValues...),
 		GasUsed: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: namespace,
@@ -72,7 +80,8 @@ func GetPrometheusMetrics(namespace string, labelsWithValues ...string) *Metrics
 // NilMetrics will return the non operational blockchain metrics
 func NilMetrics() *Metrics {
 	return &Metrics{
-		GasPriceAvg:        discard.NewHistogram(),
+		GasPriceAverage:    discard.NewHistogram(),
+		GasCountAverage:    discard.NewHistogram(),
 		GasUsed:            discard.NewHistogram(),
 		BlockHeight:        discard.NewGauge(),
 		BlockWriteDuration: discard.NewHistogram(),
