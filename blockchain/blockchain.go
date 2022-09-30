@@ -204,7 +204,13 @@ func NewBlockchain(
 			price: big.NewInt(0),
 			count: big.NewInt(0),
 		},
-		metrics: metrics,
+		metrics: func() *Metrics {
+			if metrics == nil {
+				return NilMetrics()
+			}
+
+			return metrics
+		}(),
 	}
 
 	var (
@@ -941,7 +947,7 @@ func (b *Blockchain) WriteBlock(block *types.Block) error {
 
 	b.logger.Info("new block", logArgs...)
 
-	if b.metrics != nil && header != nil {
+	if header != nil {
 		{
 			b.gpAverage.RLock()
 			defer b.gpAverage.RUnlock()

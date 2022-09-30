@@ -72,9 +72,10 @@ func GetPrometheusMetrics(namespace string, labelsWithValues ...string) *Metrics
 // NilMetrics will return the non operational blockchain metrics
 func NilMetrics() *Metrics {
 	return &Metrics{
-		GasPriceAvg:    discard.NewGauge(),
-		GasUsed:        discard.NewGauge(),
-		BlockHeight:    discard.NewGauge(),
-		TransactionNum: discard.NewGauge(),
+		GasPriceAvg:        discard.NewGauge(),
+		GasUsed:            discard.NewGauge(),
+		BlockHeight:        discard.NewGauge(),
+		BlockWriteDuration: discard.NewHistogram(),
+		TransactionNum:     discard.NewGauge(),
 	}
 }
