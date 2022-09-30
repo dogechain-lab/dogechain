@@ -955,11 +955,11 @@ func (b *Blockchain) WriteBlock(block *types.Block) error {
 			bigPrice := new(big.Float).SetInt(b.gpAverage.price)
 			price, _ := bigPrice.Float64()
 
-			b.metrics.GasPriceAvg.Set(price)
+			b.metrics.GasPriceAvg.Observe(price)
 		}
-		b.metrics.GasUsed.Set(float64(header.GasUsed))
+		b.metrics.GasUsed.Observe(float64(header.GasUsed))
 		b.metrics.BlockHeight.Set(float64(header.Number))
-		b.metrics.TransactionNum.Set(float64(len(block.Transactions)))
+		b.metrics.TransactionNum.Observe(float64(len(block.Transactions)))
 	}
 
 	return nil

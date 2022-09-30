@@ -10,15 +10,15 @@ import (
 // Metrics represents the blockchain metrics
 type Metrics struct {
 	// Gas Price Average
-	GasPriceAvg metrics.Gauge
+	GasPriceAvg metrics.Histogram
 	// Gas used
-	GasUsed metrics.Gauge
+	GasUsed metrics.Histogram
 	// Block height
 	BlockHeight metrics.Gauge
 	// Block write duration time
 	BlockWriteDuration metrics.Histogram
 	// Transaction number
-	TransactionNum metrics.Gauge
+	TransactionNum metrics.Histogram
 }
 
 // GetPrometheusMetrics return the blockchain metrics instance
@@ -30,13 +30,13 @@ func GetPrometheusMetrics(namespace string, labelsWithValues ...string) *Metrics
 	}
 
 	return &Metrics{
-		GasPriceAvg: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+		GasPriceAvg: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: namespace,
 			Subsystem: "blockchain",
 			Name:      "gas_price_avg",
 			Help:      "Gas Price Average",
 		}, labels).With(labelsWithValues...),
-		GasUsed: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+		GasUsed: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: namespace,
 			Subsystem: "blockchain",
 			Name:      "gas_used",
@@ -60,7 +60,7 @@ func GetPrometheusMetrics(namespace string, labelsWithValues ...string) *Metrics
 				1.0,
 			},
 		}, labels).With(labelsWithValues...),
-		TransactionNum: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+		TransactionNum: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: namespace,
 			Subsystem: "blockchain",
 			Name:      "transaction_number",
@@ -72,10 +72,10 @@ func GetPrometheusMetrics(namespace string, labelsWithValues ...string) *Metrics
 // NilMetrics will return the non operational blockchain metrics
 func NilMetrics() *Metrics {
 	return &Metrics{
-		GasPriceAvg:        discard.NewGauge(),
-		GasUsed:            discard.NewGauge(),
+		GasPriceAvg:        discard.NewHistogram(),
+		GasUsed:            discard.NewHistogram(),
 		BlockHeight:        discard.NewGauge(),
 		BlockWriteDuration: discard.NewHistogram(),
-		TransactionNum:     discard.NewGauge(),
+		TransactionNum:     discard.NewHistogram(),
 	}
 }
