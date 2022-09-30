@@ -245,6 +245,7 @@ func NewServer(config *Config) (*Server, error) {
 		kvstorage.NewLevelDBStorageBuilder(logger, leveldbBuilder),
 		nil,
 		m.executor,
+		m.serverMetrics.blockchain,
 	)
 	if err != nil {
 		return nil, err
@@ -676,6 +677,7 @@ func (s *Server) setupJSONRPC() error {
 		BlockRangeLimit:          s.config.JSONRPC.BlockRangeLimit,
 		EnableWS:                 s.config.JSONRPC.EnableWS,
 		PriceLimit:               s.config.PriceLimit,
+		Metrics:                  s.serverMetrics.jsonrpc,
 	}
 
 	srv, err := jsonrpc.NewJSONRPC(s.logger, conf)

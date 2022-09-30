@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/dogechain-lab/dogechain/blockchain/storage"
 	"github.com/dogechain-lab/dogechain/chain"
@@ -72,6 +73,8 @@ type Blockchain struct {
 	stream *eventStream // Event subscriptions
 
 	gpAverage *gasPriceAverage // A reference to the average gas price
+
+	metrics *Metrics
 }
 
 // gasPriceAverage keeps track of the average gas price (rolling average)
@@ -185,6 +188,7 @@ func NewBlockchain(
 	storageBuilder storage.StorageBuilder,
 	consensus Verifier,
 	executor Executor,
+	metrics *Metrics,
 ) (*Blockchain, error) {
 	if storageBuilder == nil {
 		return nil, ErrNilStorageBuilder
@@ -200,6 +204,7 @@ func NewBlockchain(
 			price: big.NewInt(0),
 			count: big.NewInt(0),
 		},
+		metrics: metrics,
 	}
 
 	var (
@@ -936,6 +941,21 @@ func (b *Blockchain) WriteBlock(block *types.Block) error {
 
 	b.logger.Info("new block", logArgs...)
 
+	if b.metrics != nil && header != nil {
+		{
+			b.gpAverage.RLock()
+			defer b.gpAverage.RUnlock()
+
+			bigPrice := new(big.Float).SetInt(b.gpAverage.price)
+			price, _ := bigPrice.Float64()
+
+			b.metrics.GasPriceAvg.Set(price)
+		}
+		b.metrics.GasUsed.Set(float64(header.GasUsed))
+		b.metrics.BlockHeight.Set(float64(header.Number))
+		b.metrics.TransactionNum.Set(float64(len(block.Transactions)))
+	}
+
 	return nil
 }
 
@@ -982,6 +1002,12 @@ func (b *Blockchain) updateGasPriceAvgWithBlock(block *types.Block) {
 // writeBody writes the block body to the DB.
 // Additionally, it also updates the txn lookup, for txnHash -> block lookups
 func (b *Blockchain) writeBody(block *types.Block) error {
+	startT := time.Now()
+	defer func() {
+		endT := time.Now()
+		b.metrics.BlockWriteDuration.Observe(endT.Sub(startT).Seconds())
+	}()
+
 	body := block.Body()
 
 	// Write the full body (txns + receipts)

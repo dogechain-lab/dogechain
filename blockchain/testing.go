@@ -209,6 +209,7 @@ func NewMockBlockchain(
 			price: big.NewInt(0),
 			count: big.NewInt(0),
 		},
+		metrics: NilMetrics(),
 	}
 
 	if err := blockchain.initCaches(10); err != nil {
@@ -338,6 +339,7 @@ func newBlockChain(config *chain.Chain, executor Executor) (*Blockchain, error) 
 		kvstorage.NewMemoryStorageBuilder(hclog.NewNullLogger()),
 		&MockVerifier{},
 		executor,
+		NilMetrics(),
 	)
 	if err != nil {
 		return nil, err

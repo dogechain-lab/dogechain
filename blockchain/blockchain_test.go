@@ -546,7 +546,8 @@ func TestBlockchainWriteBody(t *testing.T) {
 	assert.NoError(t, err)
 
 	b := &Blockchain{
-		db: storage,
+		db:      storage,
+		metrics: NilMetrics(),
 	}
 
 	block := &types.Block{
