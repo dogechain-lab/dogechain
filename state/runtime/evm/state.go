@@ -59,7 +59,7 @@ type state struct {
 	config *chain.ForksInTime
 
 	// memory
-	memory      []byte
+	memory      []byte // increase capacity by words (1 word = 32 bytes). cap = len. but offset not equal to length
 	lastGasCost uint64
 
 	// stack
@@ -292,7 +292,8 @@ func (c *state) checkMemory(offset, size *big.Int) bool {
 		return false
 	}
 
-	if newSize, m := o+s, uint64(len(c.memory)); m < newSize {
+	// correct usage: use memory capacity instead of length
+	if newSize, mCap := o+s, uint64(cap(c.memory)); mCap < newSize {
 		w := (newSize + 31) / 32
 		newCost := 3*w + w*w/512
 		cost := newCost - c.lastGasCost
