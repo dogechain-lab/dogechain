@@ -1,8 +1,10 @@
 package evm
 
 import (
+	"math/big"
 	"testing"
 
+	"github.com/dogechain-lab/dogechain/chain"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -107,4 +109,99 @@ func TestOpcodeNotFound(t *testing.T) {
 
 	_, err := s.Run()
 	assert.Equal(t, errOpCodeNotFound, err)
+}
+
+func TestCheckMemory(t *testing.T) {
+	testCases := []struct {
+		name                   string
+		memoryOffset           int64
+		dataOffset             int64
+		dataLength             int64
+		expectedLengthBefore   int
+		expectedCapacityBefore int
+		expectedLengthAfter    int
+		expectedCapacityAfter  int
+	}{
+		{
+			name:                   "no need to extend memory",
+			memoryOffset:           10,
+			dataOffset:             0,
+			dataLength:             16,
+			expectedLengthBefore:   32,
+			expectedCapacityBefore: 32,
+			expectedLengthAfter:    32,
+			expectedCapacityAfter:  32,
+		},
+		{
+			name:                   "need to extend memory",
+			memoryOffset:           32,
+			dataOffset:             0,
+			dataLength:             1,
+			expectedLengthBefore:   32,
+			expectedCapacityBefore: 32,
+			expectedLengthAfter:    64,
+			expectedCapacityAfter:  64,
+		},
+		{
+			name:                   "data partial copy",
+			memoryOffset:           32,
+			dataOffset:             10,
+			dataLength:             36,
+			expectedLengthBefore:   32,
+			expectedCapacityBefore: 32,
+			expectedLengthAfter:    96,
+			expectedCapacityAfter:  96,
+		},
+	}
+
+	for _, test := range testCases {
+		t.Setenv("name", test.name)
+
+		s, closeFn := getState()
+		defer closeFn()
+
+		// set config
+		cfg := chain.AllForksEnabled.At(0)
+		s.config = &cfg
+
+		// offset
+		memoryOffset := test.memoryOffset
+		dataOffset := test.dataOffset
+		dataLength := test.dataLength
+
+		// gas and code
+		s.gas = 1000
+		s.code = []byte{RETURNDATACOPY}
+
+		s.returnData = make([]byte, (dataOffset + dataLength))
+		for i := int64(dataOffset); i < dataLength; i++ {
+			s.returnData[i] = byte(i)
+		}
+
+		// initial state, which might set memory in other opcode
+		v := s.checkMemory(big.NewInt(0), big.NewInt(memoryOffset))
+		assert.True(t, v)
+		assert.Equal(t, test.expectedLengthBefore, len(s.memory))
+		assert.Equal(t, test.expectedCapacityBefore, cap(s.memory))
+
+		// LIFO
+		s.push(big.NewInt(dataLength))   // data length
+		s.push(big.NewInt(dataOffset))   // data offset
+		s.push(big.NewInt(memoryOffset)) // memory offset
+
+		// run opcode
+		_, err := s.Run()
+		assert.NoError(t, err)
+		assert.Len(t, s.returnData, int(test.dataOffset+test.dataLength))
+
+		// final state
+		assert.Equal(t, test.expectedLengthAfter, len(s.memory))
+		assert.Equal(t, test.expectedCapacityAfter, cap(s.memory))
+		assert.Equal(
+			t,
+			s.memory[memoryOffset:memoryOffset+dataLength],
+			s.returnData[test.dataOffset:test.dataOffset+test.dataLength],
+		)
+	}
+
 }
