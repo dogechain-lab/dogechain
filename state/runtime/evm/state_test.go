@@ -174,7 +174,7 @@ func TestCheckMemory(t *testing.T) {
 		s.code = []byte{RETURNDATACOPY}
 
 		s.returnData = make([]byte, (dataOffset + dataLength))
-		for i := int64(dataOffset); i < dataLength; i++ {
+		for i := dataOffset; i < dataLength; i++ {
 			s.returnData[i] = byte(i)
 		}
 
@@ -203,5 +203,4 @@ func TestCheckMemory(t *testing.T) {
 			s.returnData[test.dataOffset:test.dataOffset+test.dataLength],
 		)
 	}
-
 }

@@ -826,7 +826,7 @@ func opReturnDataCopy(c *state) {
 	// check data offset negative
 	if dataOffset.Sign() < 0 {
 		c.exit(errGasUintOverflow)
-	
+
 		return
 	}
 
