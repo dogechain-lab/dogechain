@@ -292,8 +292,7 @@ func (c *state) checkMemory(offset, size *big.Int) bool {
 		return false
 	}
 
-	// correct usage: use memory capacity instead of length
-	if newSize, mCap := o+s, uint64(cap(c.memory)); mCap < newSize {
+	if newSize, mCap := o+s, uint64(len(c.memory)); mCap < newSize {
 		w := (newSize + 31) / 32
 		newCost := 3*w + w*w/512
 		cost := newCost - c.lastGasCost
