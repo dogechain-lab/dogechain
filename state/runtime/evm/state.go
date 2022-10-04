@@ -2,6 +2,7 @@ package evm
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 	"strings"
 
@@ -208,9 +209,39 @@ func (c *state) resetReturnData() {
 	c.returnData = c.returnData[:0]
 }
 
+func (c *state) formatPanicDesc() error {
+	// format stack info
+	var stackDesc strings.Builder
+	for _, v := range c.stack {
+		stackDesc.WriteString("0x" + v.Text(16) + ",")
+	}
+
+	return fmt.Errorf(
+		"evm panic on contract: %+v, "+
+			"sp: %d, "+
+			"ip: %d, "+
+			"stack: [%s], "+
+			"memory: %s, "+
+			"ret: %s, "+
+			"returnData: %s",
+		c.msg,
+		c.sp,
+		c.ip,
+		stackDesc.String(),
+		hex.EncodeToHex(c.memory),
+		hex.EncodeToHex(c.ret),
+		hex.EncodeToHex(c.returnData),
+	)
+}
+
 // Run executes the virtual machine
-func (c *state) Run() ([]byte, error) {
-	var vmerr error
+func (c *state) Run() (ret []byte, vmerr error) {
+	defer func(vmerr *error) {
+		// recover from any runtime panic
+		if e := recover(); e != nil {
+			*vmerr = c.formatPanicDesc()
+		}
+	}(&vmerr)
 
 	codeSize := len(c.code)
 	for !c.stop {
