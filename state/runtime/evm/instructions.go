@@ -818,36 +818,36 @@ func opReturnDataCopy(c *state) {
 		return
 	}
 
+	// check data offset overflow
+	if !dataOffset.IsUint64() {
+		c.exit(errGasUintOverflow)
+
+		return
+	}
+
 	// check gas
 	if !c.consumeGas(((length.Uint64() + 31) / 32) * copyGas) {
 		return
 	}
 
-	// check data offset negative
-	if dataOffset.Sign() < 0 {
-		c.exit(errGasUintOverflow)
-
-		return
-	}
-
-	// check end exceeds uint64
-	end := big.NewInt(0).Add(dataOffset, length)
-	if !end.IsUint64() {
-		c.exit(errGasUintOverflow)
+	// check dataEnd exceeds uint64
+	dataEnd := length.Add(dataOffset, length)
+	if !dataEnd.IsUint64() {
+		c.exit(errReturnDataOutOfBounds)
 
 		return
 	}
 
 	// check return data out of range
-	size := end.Uint64()
-	if uint64(len(c.returnData)) < size {
+	dataEndIndex := dataEnd.Uint64()
+	if uint64(len(c.returnData)) < dataEndIndex {
 		c.exit(errReturnDataOutOfBounds)
 
 		return
 	}
 
 	// copy data
-	data := c.returnData[dataOffset.Uint64():size]
+	data := c.returnData[dataOffset.Uint64():dataEndIndex]
 	copy(c.memory[memOffset.Uint64():], data)
 }
 
