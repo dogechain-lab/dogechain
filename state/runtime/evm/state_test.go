@@ -111,7 +111,7 @@ func TestOpcodeNotFound(t *testing.T) {
 	assert.Equal(t, errOpCodeNotFound, err)
 }
 
-func TestCheckMemory(t *testing.T) {
+func Test_extendMemory(t *testing.T) {
 	testCases := []struct {
 		name                   string
 		memoryOffset           int64
@@ -179,7 +179,7 @@ func TestCheckMemory(t *testing.T) {
 		}
 
 		// initial state, which might set memory in other opcode
-		v := s.checkMemory(big.NewInt(0), big.NewInt(memoryOffset))
+		v := s.extendMemory(big.NewInt(0), big.NewInt(memoryOffset))
 		assert.True(t, v)
 		assert.Equal(t, test.expectedLengthBefore, len(s.memory))
 		assert.Equal(t, test.expectedCapacityBefore, cap(s.memory))

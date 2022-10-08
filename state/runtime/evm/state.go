@@ -303,7 +303,7 @@ func (c *state) Len() int {
 	return len(c.memory)
 }
 
-func (c *state) checkMemory(offset, size *big.Int) bool {
+func (c *state) extendMemory(offset, size *big.Int) bool {
 	if !offset.IsUint64() || !size.IsUint64() {
 		c.exit(errGasUintOverflow)
 
@@ -356,7 +356,7 @@ func (c *state) get2(dst []byte, offset, length *big.Int) ([]byte, bool) {
 		return nil, true
 	}
 
-	if !c.checkMemory(offset, length) {
+	if !c.extendMemory(offset, length) {
 		return nil, false
 	}
 
