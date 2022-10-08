@@ -948,7 +948,6 @@ func (b *Blockchain) WriteBlock(block *types.Block) error {
 	b.logger.Info("new block", logArgs...)
 
 	if header != nil {
-
 		b.gpAverage.RLock()
 		defer b.gpAverage.RUnlock()
 
