@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"go.uber.org/atomic"
+	"github.com/dogechain-lab/dogechain/helper/common"
 
 	"github.com/hashicorp/go-hclog"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -20,6 +20,9 @@ const (
 	// because when queue is full, if the consumer does not read fast enough, new messages are dropped
 	subscribeOutputBufferSize = 1024
 )
+
+// max worker number (min 1 and max 32)
+var workerNum = int(common.Min(common.Max(uint64(runtime.NumCPU()), 1), 32))
 
 type Topic struct {
 	logger hclog.Logger
@@ -69,37 +72,11 @@ func (t *Topic) Close() error {
 
 func (t *Topic) readLoop(sub *pubsub.Subscription, handler func(obj interface{})) {
 	ctx, cancelFn := context.WithCancel(context.Background())
-	unsubscribe := atomic.NewBool(false)
-	workqueue := make(chan proto.Message, runtime.NumCPU())
+	workqueue := make(chan proto.Message, workerNum)
 
 	t.wg.Add(1)
 
-	go func() {
-		defer t.wg.Done()
-
-		<-t.unsubscribeCh
-		unsubscribe.Store(true)
-
-		// send cancel timeout
-		timeout := time.NewTimer(30 * time.Second)
-		defer timeout.Stop()
-
-		cancelCh := make(chan struct{})
-
-		go func() {
-			sub.Cancel()
-			cancelCh <- struct{}{}
-		}()
-
-		select {
-		case <-timeout.C:
-			cancelFn()
-		case <-cancelCh:
-			return
-		}
-	}()
-
-	for i := 0; i < runtime.NumCPU(); i++ {
+	for i := 0; i < workerNum; i++ {
 		go func() {
 			for {
 				obj, ok := <-workqueue
@@ -112,27 +89,54 @@ func (t *Topic) readLoop(sub *pubsub.Subscription, handler func(obj interface{})
 		}()
 	}
 
-	for !unsubscribe.Load() {
-		msg, err := sub.Next(ctx)
-		if err != nil {
-			t.logger.Error("failed to get topic", "err", err)
+	go func() {
+		defer t.wg.Done()
+		defer cancelFn()
 
-			continue
+		for {
+			select {
+			case <-t.unsubscribeCh:
+				// send cancel timeout
+				timeout := time.NewTimer(30 * time.Second)
+				defer timeout.Stop()
+
+				cancelCh := make(chan struct{})
+
+				go func() {
+					sub.Cancel()
+					cancelCh <- struct{}{}
+				}()
+
+				select {
+				case <-timeout.C:
+					cancelFn()
+				case <-cancelCh:
+					// send cancel to all workers
+					close(workqueue)
+				}
+
+				return
+
+			default:
+				msg, err := sub.Next(ctx)
+				if err != nil {
+					t.logger.Error("failed to get topic", "err", err)
+
+					continue
+				}
+
+				obj := t.createObj()
+				if err := proto.Unmarshal(msg.Data, obj); err != nil {
+					t.logger.Error("failed to unmarshal topic", "err", err)
+					t.logger.Error("unmarshal message from", "peer", msg.GetFrom())
+
+					continue
+				}
+
+				workqueue <- obj
+			}
 		}
-
-		obj := t.createObj()
-		if err := proto.Unmarshal(msg.Data, obj); err != nil {
-			t.logger.Error("failed to unmarshal topic", "err", err)
-			t.logger.Error("unmarshal message from", "peer", msg.GetFrom())
-
-			continue
-		}
-
-		workqueue <- obj
-	}
-
-	// send cancel to all workers
-	close(workqueue)
+	}()
 }
 
 func (s *Server) NewTopic(protoID string, obj proto.Message) (*Topic, error) {
