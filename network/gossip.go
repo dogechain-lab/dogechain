@@ -80,13 +80,11 @@ func (t *Topic) readLoop(sub *pubsub.Subscription, handler func(obj interface{})
 		<-t.unsubscribeCh
 		unsubscribe.Store(true)
 
-		close(workqueue)
-
 		// send cancel timeout
 		timeout := time.NewTimer(30 * time.Second)
 		defer timeout.Stop()
 
-		cancelCh := make(chan struct{}, 1)
+		cancelCh := make(chan struct{})
 
 		go func() {
 			sub.Cancel()
@@ -132,6 +130,9 @@ func (t *Topic) readLoop(sub *pubsub.Subscription, handler func(obj interface{})
 
 		workqueue <- obj
 	}
+
+	// send cancel to all workers
+	close(workqueue)
 }
 
 func (s *Server) NewTopic(protoID string, obj proto.Message) (*Topic, error) {
