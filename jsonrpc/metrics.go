@@ -16,7 +16,7 @@ type Metrics struct {
 	Errors metrics.Counter
 
 	// Requests duration (seconds)
-	RequestDurationSeconds metrics.Histogram
+	ResponseTime metrics.Histogram
 }
 
 // GetPrometheusMetrics return the blockchain metrics instance
@@ -40,16 +40,18 @@ func GetPrometheusMetrics(namespace string, labelsWithValues ...string) *Metrics
 			Name:      "request_errors",
 			Help:      "Request errors number",
 		}, labels).With(labelsWithValues...),
-		RequestDurationSeconds: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+		ResponseTime: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: namespace,
 			Subsystem: "jsonrpc",
-			Name:      "request_duration_seconds",
-			Help:      "Request duration (seconds)",
+			Name:      "response_seconds",
+			Help:      "Response time (seconds)",
 			Buckets: []float64{
+				0.001,
 				0.01,
+				0.1,
 				0.5,
-				0.99,
 				1.0,
+				2.0,
 			},
 		}, labels).With(labelsWithValues...),
 	}
@@ -58,8 +60,8 @@ func GetPrometheusMetrics(namespace string, labelsWithValues ...string) *Metrics
 // NilMetrics will return the non operational blockchain metrics
 func NilMetrics() *Metrics {
 	return &Metrics{
-		Requests:               discard.NewCounter(),
-		Errors:                 discard.NewCounter(),
-		RequestDurationSeconds: discard.NewHistogram(),
+		Requests:     discard.NewCounter(),
+		Errors:       discard.NewCounter(),
+		ResponseTime: discard.NewHistogram(),
 	}
 }

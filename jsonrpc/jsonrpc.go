@@ -318,7 +318,7 @@ func (j *JSONRPC) handle(w http.ResponseWriter, req *http.Request) {
 	resp, err := j.dispatcher.Handle(data)
 
 	endT := time.Now()
-	j.metrics.RequestDurationSeconds.Observe(endT.Sub(startT).Seconds())
+	j.metrics.ResponseTime.Observe(endT.Sub(startT).Seconds())
 
 	if err != nil {
 		//nolint

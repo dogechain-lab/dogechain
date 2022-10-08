@@ -18,7 +18,7 @@ type Metrics struct {
 	// Block height
 	BlockHeight metrics.Gauge
 	// Block write duration time
-	BlockWriteDuration metrics.Histogram
+	BlockWrittenSeconds metrics.Histogram
 	// Transaction number
 	TransactionNum metrics.Histogram
 }
@@ -56,11 +56,11 @@ func GetPrometheusMetrics(namespace string, labelsWithValues ...string) *Metrics
 			Name:      "block_height",
 			Help:      "Block height",
 		}, labels).With(labelsWithValues...),
-		BlockWriteDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+		BlockWrittenSeconds: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: namespace,
 			Subsystem: "blockchain",
-			Name:      "block_write_duration_seconds",
-			Help:      "block write duration (seconds)",
+			Name:      "block_write_seconds",
+			Help:      "block write time (seconds)",
 			Buckets: []float64{
 				0.01,
 				0.5,
@@ -80,11 +80,11 @@ func GetPrometheusMetrics(namespace string, labelsWithValues ...string) *Metrics
 // NilMetrics will return the non operational blockchain metrics
 func NilMetrics() *Metrics {
 	return &Metrics{
-		GasPriceAverage:    discard.NewHistogram(),
-		GasCountAverage:    discard.NewHistogram(),
-		GasUsed:            discard.NewHistogram(),
-		BlockHeight:        discard.NewGauge(),
-		BlockWriteDuration: discard.NewHistogram(),
-		TransactionNum:     discard.NewHistogram(),
+		GasPriceAverage:     discard.NewHistogram(),
+		GasCountAverage:     discard.NewHistogram(),
+		GasUsed:             discard.NewHistogram(),
+		BlockHeight:         discard.NewGauge(),
+		BlockWrittenSeconds: discard.NewHistogram(),
+		TransactionNum:      discard.NewHistogram(),
 	}
 }
