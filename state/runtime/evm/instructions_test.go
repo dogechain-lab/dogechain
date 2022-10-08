@@ -476,6 +476,33 @@ func Test_opReturnDataCopy(t *testing.T) {
 			},
 		},
 		{
+			name:   "should return error if gas not enough",
+			config: &allEnabledForks,
+			initState: &state{
+				stack: []*big.Int{
+					big.NewInt(10), // length
+					big.NewInt(0),  // dataOffset
+					big.NewInt(0),  // memOffset
+				},
+				sp:  3,
+				gas: 3,
+			},
+			resultState: &state{
+				config: &allEnabledForks,
+				stack: []*big.Int{
+					big.NewInt(10),
+					big.NewInt(0),
+					big.NewInt(0),
+				},
+				memory:      make([]byte, int(wordSize.Int64())),
+				sp:          0,
+				lastGasCost: 3,
+				gas:         0,
+				stop:        true,
+				err:         errOutOfGas,
+			},
+		},
+		{
 			name:   "should copy data from returnData to memory",
 			config: &allEnabledForks,
 			initState: &state{
