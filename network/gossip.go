@@ -107,13 +107,14 @@ func (t *Topic) readLoop(sub *pubsub.Subscription, handler func(obj interface{})
 					cancelCh <- struct{}{}
 				}()
 
+				// wait any one of them done
 				select {
 				case <-timeout.C:
-					cancelFn()
+					t.logger.Error("Subscription cancel timeout", "err")
 				case <-cancelCh:
-					// send cancel to all workers
-					close(workqueue)
 				}
+
+				close(workqueue)
 
 				return
 
