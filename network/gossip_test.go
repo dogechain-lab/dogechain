@@ -44,6 +44,7 @@ func TestSimpleGossip(t *testing.T) {
 	numServers := 10
 	sentMessage := fmt.Sprintf("%d", time.Now().Unix())
 	servers, createErr := createServers(numServers, nil)
+	topicName := fmt.Sprintf(testGossipTopicName+"-%d", time.Now().UnixNano())
 
 	if createErr != nil {
 		t.Fatalf("Unable to create servers, %v", createErr)
@@ -64,7 +65,7 @@ func TestSimpleGossip(t *testing.T) {
 	serverTopics := make([]*Topic, numServers)
 
 	for i := 0; i < numServers; i++ {
-		topic, topicErr := servers[i].NewTopic(testGossipTopicName, &testproto.GenericMessage{})
+		topic, topicErr := servers[i].NewTopic(topicName, &testproto.GenericMessage{})
 		if topicErr != nil {
 			t.Fatalf("Unable to create topic, %v", topicErr)
 		}
@@ -90,7 +91,7 @@ func TestSimpleGossip(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	if waitErr := WaitForSubscribers(ctx, publisher, testGossipTopicName, len(servers)-1); waitErr != nil {
+	if waitErr := WaitForSubscribers(ctx, publisher, topicName, len(servers)-1); waitErr != nil {
 		t.Fatalf("Unable to wait for subscribers, %v", waitErr)
 	}
 
@@ -123,6 +124,7 @@ func TestSimpleGossip(t *testing.T) {
 func TestTopicBackpressure(t *testing.T) {
 	numServers := 3
 	sentMessage := fmt.Sprintf("%d", time.Now().Unix())
+	topicName := fmt.Sprintf(testGossipTopicName+"-%d", time.Now().UnixNano())
 	servers, createErr := createServers(numServers, nil)
 	subscribeCloseCh := make(chan struct{})
 
@@ -145,7 +147,7 @@ func TestTopicBackpressure(t *testing.T) {
 	serverTopics := make([]*Topic, numServers)
 
 	for i := 0; i < numServers; i++ {
-		topic, topicErr := servers[i].NewTopic(testGossipTopicName, &testproto.GenericMessage{})
+		topic, topicErr := servers[i].NewTopic(topicName, &testproto.GenericMessage{})
 		if topicErr != nil {
 			t.Fatalf("Unable to create topic, %v", topicErr)
 		}
@@ -182,6 +184,7 @@ func TestTopicBackpressure(t *testing.T) {
 func TestTopicClose(t *testing.T) {
 	numServers := 5
 	sentMessage := fmt.Sprintf("%d", time.Now().Unix())
+	topicName := fmt.Sprintf(testGossipTopicName+"-%d", time.Now().UnixNano())
 	servers, createErr := createServers(numServers, nil)
 	subscribeCloseCh := make(chan struct{})
 
@@ -209,7 +212,7 @@ func TestTopicClose(t *testing.T) {
 	for i := 0; i < numServers; i++ {
 		var count = subscribeCount[i]
 
-		topic, topicErr := servers[i].NewTopic(testGossipTopicName, &testproto.GenericMessage{})
+		topic, topicErr := servers[i].NewTopic(topicName, &testproto.GenericMessage{})
 		if topicErr != nil {
 			t.Fatalf("Unable to create topic, %v", topicErr)
 		}
