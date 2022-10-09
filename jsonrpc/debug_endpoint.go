@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/dogechain-lab/dogechain/helper/hex"
 	"github.com/dogechain-lab/dogechain/state"
 	"github.com/dogechain-lab/dogechain/state/runtime"
 	"github.com/dogechain-lab/dogechain/state/tracer/structlogger"
@@ -139,7 +140,7 @@ func FormatLogs(logs []*structlogger.StructLog) []StructLogRes {
 		if trace.Stack != nil {
 			stack := make([]string, len(trace.Stack))
 			for i, stackValue := range trace.Stack {
-				stack[i] = *types.EncodeBigInt(stackValue)
+				stack[i] = hex.EncodeBig(stackValue)
 			}
 
 			formatted[index].Stack = &stack
@@ -148,7 +149,7 @@ func FormatLogs(logs []*structlogger.StructLog) []StructLogRes {
 		if len(trace.Memory) > 0 {
 			memory := make([]string, 0, (len(trace.Memory)+31)/32)
 			for i := 0; i+32 <= len(trace.Memory); i += 32 {
-				memory = append(memory, fmt.Sprintf("%x", trace.Memory[i:i+32]))
+				memory = append(memory, hex.EncodeToString(trace.Memory[i:i+32]))
 			}
 
 			formatted[index].Memory = &memory
@@ -156,8 +157,8 @@ func FormatLogs(logs []*structlogger.StructLog) []StructLogRes {
 
 		if len(trace.Storage) > 0 {
 			storage := make(map[string]string)
-			for i, storageValue := range trace.Storage {
-				storage[fmt.Sprintf("%x", i)] = fmt.Sprintf("%x", storageValue)
+			for addr, val := range trace.Storage {
+				storage[hex.EncodeToString(addr.Bytes())] = hex.EncodeToString(val.Bytes())
 			}
 
 			formatted[index].Storage = &storage
