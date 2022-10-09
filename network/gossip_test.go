@@ -164,7 +164,7 @@ func TestTopicBackpressure(t *testing.T) {
 
 	publisherTopic := serverTopics[0]
 	//#nosec G404
-	randomSendMessageNum := rand.Intn(100) + 100
+	randomSendMessageNum := rand.Intn(100) + runtime.NumCPU()*numServers
 
 	for i := 0; i < randomSendMessageNum; i++ {
 		if publishErr := publisherTopic.Publish(
