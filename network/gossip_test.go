@@ -180,7 +180,7 @@ func TestTopicBackpressure(t *testing.T) {
 }
 
 func TestTopicClose(t *testing.T) {
-	numServers := 9
+	numServers := 5
 	sentMessage := fmt.Sprintf("%d", time.Now().Unix())
 	servers, createErr := createServers(numServers, nil)
 	subscribeCloseCh := make(chan struct{})
