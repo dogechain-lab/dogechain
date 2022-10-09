@@ -72,9 +72,13 @@ func (t *Topic) Close() error {
 
 func (t *Topic) readLoop(sub *pubsub.Subscription, handler func(obj interface{})) {
 	ctx, cancelFn := context.WithCancel(context.Background())
+	defer cancelFn()
+
 	workqueue := make(chan proto.Message, workerNum)
+	defer close(workqueue)
 
 	t.wg.Add(1)
+	defer t.wg.Done()
 
 	for i := 0; i < workerNum; i++ {
 		go func() {
@@ -89,55 +93,48 @@ func (t *Topic) readLoop(sub *pubsub.Subscription, handler func(obj interface{})
 		}()
 	}
 
-	go func() {
-		defer t.wg.Done()
-		defer cancelFn()
+	for {
+		select {
+		case <-t.unsubscribeCh:
+			// send cancel timeout
+			timeout := time.NewTimer(30 * time.Second)
+			defer timeout.Stop()
 
-		for {
+			cancelCh := make(chan struct{})
+
+			go func() {
+				sub.Cancel()
+				cancelCh <- struct{}{}
+			}()
+
+			// wait any one of them done
 			select {
-			case <-t.unsubscribeCh:
-				// send cancel timeout
-				timeout := time.NewTimer(30 * time.Second)
-				defer timeout.Stop()
-
-				cancelCh := make(chan struct{})
-
-				go func() {
-					sub.Cancel()
-					cancelCh <- struct{}{}
-				}()
-
-				// wait any one of them done
-				select {
-				case <-timeout.C:
-					t.logger.Error("Subscription cancel timeout", "err")
-				case <-cancelCh:
-				}
-
-				close(workqueue)
-
-				return
-
-			default:
-				msg, err := sub.Next(ctx)
-				if err != nil {
-					t.logger.Error("failed to get topic", "err", err)
-
-					continue
-				}
-
-				obj := t.createObj()
-				if err := proto.Unmarshal(msg.Data, obj); err != nil {
-					t.logger.Error("failed to unmarshal topic", "err", err)
-					t.logger.Error("unmarshal message from", "peer", msg.GetFrom())
-
-					continue
-				}
-
-				workqueue <- obj
+			case <-timeout.C:
+				t.logger.Error("Subscription cancel timeout", "err")
+			case <-cancelCh:
 			}
+
+			return
+
+		default:
+			msg, err := sub.Next(ctx)
+			if err != nil {
+				t.logger.Error("failed to get topic", "err", err)
+
+				continue
+			}
+
+			obj := t.createObj()
+			if err := proto.Unmarshal(msg.Data, obj); err != nil {
+				t.logger.Error("failed to unmarshal topic", "err", err)
+				t.logger.Error("unmarshal message from", "peer", msg.GetFrom())
+
+				continue
+			}
+
+			workqueue <- obj
 		}
-	}()
+	}
 }
 
 func (s *Server) NewTopic(protoID string, obj proto.Message) (*Topic, error) {

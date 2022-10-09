@@ -4,10 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
+	"runtime"
 	"testing"
 	"time"
 
+	"go.uber.org/atomic"
+
 	testproto "github.com/dogechain-lab/dogechain/network/proto"
+	"github.com/stretchr/testify/assert"
 )
 
 func NumSubscribers(srv *Server, topic string) int {
@@ -110,4 +115,138 @@ func TestSimpleGossip(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestTopicBackpressure(t *testing.T) {
+	numServers := 3
+	sentMessage := fmt.Sprintf("%d", time.Now().Unix())
+	servers, createErr := createServers(numServers, nil)
+	subscribeCloseCh := make(chan struct{})
+
+	subscribeGoroutineCount := &atomic.Int32{}
+
+	if createErr != nil {
+		t.Fatalf("Unable to create servers, %v", createErr)
+	}
+
+	t.Cleanup(func() {
+		close(subscribeCloseCh)
+		closeTestServers(t, servers)
+	})
+
+	joinErrors := MeshJoin(servers...)
+	if len(joinErrors) != 0 {
+		t.Fatalf("Unable to join servers [%d], %v", len(joinErrors), joinErrors)
+	}
+
+	topicName := "msg-pub-sub"
+	serverTopics := make([]*Topic, numServers)
+
+	for i := 0; i < numServers; i++ {
+		topic, topicErr := servers[i].NewTopic(topicName, &testproto.GenericMessage{})
+		if topicErr != nil {
+			t.Fatalf("Unable to create topic, %v", topicErr)
+		}
+
+		serverTopics[i] = topic
+
+		if subscribeErr := topic.Subscribe(func(obj interface{}) {
+			subscribeGoroutineCount.Add(1)
+
+			// wait for the channel to close
+			<-subscribeCloseCh
+		}); subscribeErr != nil {
+			t.Fatalf("Unable to subscribe to topic, %v", subscribeErr)
+		}
+
+	}
+
+	publisherTopic := serverTopics[0]
+	randomSendMessageNum := rand.Intn(100) + 1000
+
+	for i := 0; i < randomSendMessageNum; i++ {
+		if publishErr := publisherTopic.Publish(
+			&testproto.GenericMessage{
+				Message: sentMessage,
+			}); publishErr != nil {
+			t.Fatalf("Unable to publish message, %v", publishErr)
+		}
+	}
+
+	// subscribe handler backpressure
+	assert.LessOrEqual(t, subscribeGoroutineCount.Load(), int32(runtime.NumCPU()*numServers))
+}
+
+func TestTopicClose(t *testing.T) {
+	numServers := 9
+	sentMessage := fmt.Sprintf("%d", time.Now().Unix())
+	servers, createErr := createServers(numServers, nil)
+	subscribeCloseCh := make(chan struct{})
+
+	subscribeCount := make([]*atomic.Int32, numServers)
+	for i := 0; i < numServers; i++ {
+		subscribeCount[i] = &atomic.Int32{}
+	}
+
+	if createErr != nil {
+		t.Fatalf("Unable to create servers, %v", createErr)
+	}
+
+	t.Cleanup(func() {
+		close(subscribeCloseCh)
+		closeTestServers(t, servers)
+	})
+
+	joinErrors := MeshJoin(servers...)
+	if len(joinErrors) != 0 {
+		t.Fatalf("Unable to join servers [%d], %v", len(joinErrors), joinErrors)
+	}
+
+	topicName := "msg-pub-sub"
+	serverTopics := make([]*Topic, numServers)
+
+	for i := 0; i < numServers; i++ {
+		var count *atomic.Int32 = subscribeCount[i]
+
+		topic, topicErr := servers[i].NewTopic(topicName, &testproto.GenericMessage{})
+		if topicErr != nil {
+			t.Fatalf("Unable to create topic, %v", topicErr)
+		}
+
+		serverTopics[i] = topic
+
+		if subscribeErr := topic.Subscribe(func(obj interface{}) {
+			count.Add(1)
+
+			// wait for the channel to close
+			<-subscribeCloseCh
+		}); subscribeErr != nil {
+			t.Fatalf("Unable to subscribe to topic, %v", subscribeErr)
+		}
+
+	}
+
+	randomSeed := rand.Int()
+
+	publisherIndex := randomSeed % numServers
+	publisherTopic := serverTopics[publisherIndex]
+
+	closeTopicServerIndex := (randomSeed + 1) % numServers
+	closerTopic := serverTopics[closeTopicServerIndex]
+
+	closerTopic.Close()
+
+	randomSendMessageNum := rand.Intn(100) + 100
+
+	for i := 0; i < randomSendMessageNum; i++ {
+		if publishErr := publisherTopic.Publish(
+			&testproto.GenericMessage{
+				Message: sentMessage,
+			}); publishErr != nil {
+			t.Fatalf("Unable to publish message, %v", publishErr)
+		}
+	}
+
+	// close topic server should not receive any messages
+	assert.Equal(t, subscribeCount[closeTopicServerIndex].Load(), int32(0))
 }
