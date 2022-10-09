@@ -15,6 +15,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const (
+	testGossipTopicName = "msg-pub-sub"
+)
+
 func NumSubscribers(srv *Server, topic string) int {
 	return len(srv.ps.ListPeers(topic))
 }
@@ -57,11 +61,10 @@ func TestSimpleGossip(t *testing.T) {
 		t.Fatalf("Unable to join servers [%d], %v", len(joinErrors), joinErrors)
 	}
 
-	topicName := "msg-pub-sub"
 	serverTopics := make([]*Topic, numServers)
 
 	for i := 0; i < numServers; i++ {
-		topic, topicErr := servers[i].NewTopic(topicName, &testproto.GenericMessage{})
+		topic, topicErr := servers[i].NewTopic(testGossipTopicName, &testproto.GenericMessage{})
 		if topicErr != nil {
 			t.Fatalf("Unable to create topic, %v", topicErr)
 		}
@@ -87,7 +90,7 @@ func TestSimpleGossip(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	if waitErr := WaitForSubscribers(ctx, publisher, topicName, len(servers)-1); waitErr != nil {
+	if waitErr := WaitForSubscribers(ctx, publisher, testGossipTopicName, len(servers)-1); waitErr != nil {
 		t.Fatalf("Unable to wait for subscribers, %v", waitErr)
 	}
 
@@ -139,11 +142,10 @@ func TestTopicBackpressure(t *testing.T) {
 		t.Fatalf("Unable to join servers [%d], %v", len(joinErrors), joinErrors)
 	}
 
-	topicName := "msg-pub-sub"
 	serverTopics := make([]*Topic, numServers)
 
 	for i := 0; i < numServers; i++ {
-		topic, topicErr := servers[i].NewTopic(topicName, &testproto.GenericMessage{})
+		topic, topicErr := servers[i].NewTopic(testGossipTopicName, &testproto.GenericMessage{})
 		if topicErr != nil {
 			t.Fatalf("Unable to create topic, %v", topicErr)
 		}
@@ -158,10 +160,10 @@ func TestTopicBackpressure(t *testing.T) {
 		}); subscribeErr != nil {
 			t.Fatalf("Unable to subscribe to topic, %v", subscribeErr)
 		}
-
 	}
 
 	publisherTopic := serverTopics[0]
+	//#nosec G404
 	randomSendMessageNum := rand.Intn(100) + 1000
 
 	for i := 0; i < randomSendMessageNum; i++ {
@@ -202,13 +204,12 @@ func TestTopicClose(t *testing.T) {
 		t.Fatalf("Unable to join servers [%d], %v", len(joinErrors), joinErrors)
 	}
 
-	topicName := "msg-pub-sub"
 	serverTopics := make([]*Topic, numServers)
 
 	for i := 0; i < numServers; i++ {
-		var count *atomic.Int32 = subscribeCount[i]
+		var count = subscribeCount[i]
 
-		topic, topicErr := servers[i].NewTopic(topicName, &testproto.GenericMessage{})
+		topic, topicErr := servers[i].NewTopic(testGossipTopicName, &testproto.GenericMessage{})
 		if topicErr != nil {
 			t.Fatalf("Unable to create topic, %v", topicErr)
 		}
@@ -223,9 +224,9 @@ func TestTopicClose(t *testing.T) {
 		}); subscribeErr != nil {
 			t.Fatalf("Unable to subscribe to topic, %v", subscribeErr)
 		}
-
 	}
 
+	//#nosec G404
 	randomSeed := rand.Int()
 
 	publisherIndex := randomSeed % numServers
@@ -236,6 +237,7 @@ func TestTopicClose(t *testing.T) {
 
 	closerTopic.Close()
 
+	//#nosec G404
 	randomSendMessageNum := rand.Intn(100) + 100
 
 	for i := 0; i < randomSendMessageNum; i++ {
