@@ -11,8 +11,6 @@ import (
 type Metrics struct {
 	// Gas Price Average
 	GasPriceAverage metrics.Histogram
-	// Gas Count Average
-	GasCountAverage metrics.Histogram
 	// Gas used
 	GasUsed metrics.Histogram
 	// Block height
@@ -37,12 +35,6 @@ func GetPrometheusMetrics(namespace string, labelsWithValues ...string) *Metrics
 			Subsystem: "blockchain",
 			Name:      "gas_avg_price",
 			Help:      "Gas Price Average",
-		}, labels).With(labelsWithValues...),
-		GasCountAverage: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: namespace,
-			Subsystem: "blockchain",
-			Name:      "gas_avg_count",
-			Help:      "Gas Count Average",
 		}, labels).With(labelsWithValues...),
 		GasUsed: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: namespace,
@@ -81,7 +73,6 @@ func GetPrometheusMetrics(namespace string, labelsWithValues ...string) *Metrics
 func NilMetrics() *Metrics {
 	return &Metrics{
 		GasPriceAverage:     discard.NewHistogram(),
-		GasCountAverage:     discard.NewHistogram(),
 		GasUsed:             discard.NewHistogram(),
 		BlockHeight:         discard.NewGauge(),
 		BlockWrittenSeconds: discard.NewHistogram(),
