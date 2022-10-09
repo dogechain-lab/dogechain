@@ -79,3 +79,13 @@ func NilMetrics() *Metrics {
 		TransactionNum:      discard.NewHistogram(),
 	}
 }
+
+// NewDummyMetrics will return the no nil blockchain metrics
+// TODO: use generic replace this in golang 1.18
+func NewDummyMetrics(metrics *Metrics) *Metrics {
+	if metrics != nil {
+		return metrics
+	}
+
+	return NilMetrics()
+}

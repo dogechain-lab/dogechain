@@ -204,13 +204,7 @@ func NewBlockchain(
 			price: big.NewInt(0),
 			count: big.NewInt(0),
 		},
-		metrics: func() *Metrics {
-			if metrics == nil {
-				return NilMetrics()
-			}
-
-			return metrics
-		}(),
+		metrics: NewDummyMetrics(metrics),
 	}
 
 	var (

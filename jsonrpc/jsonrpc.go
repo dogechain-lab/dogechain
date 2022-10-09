@@ -81,13 +81,7 @@ func NewJSONRPC(logger hclog.Logger, config *Config) (*JSONRPC, error) {
 			config.BlockRangeLimit,
 			config.PriceLimit,
 		),
-		metrics: func() *Metrics {
-			if config.Metrics == nil {
-				return NilMetrics()
-			}
-
-			return config.Metrics
-		}(),
+		metrics: NewDummyMetrics(config.Metrics),
 	}
 
 	// start http server

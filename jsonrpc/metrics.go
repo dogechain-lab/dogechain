@@ -57,11 +57,21 @@ func GetPrometheusMetrics(namespace string, labelsWithValues ...string) *Metrics
 	}
 }
 
-// NilMetrics will return the non operational blockchain metrics
+// NilMetrics will return the non operational jsonrpc metrics
 func NilMetrics() *Metrics {
 	return &Metrics{
 		Requests:     discard.NewCounter(),
 		Errors:       discard.NewCounter(),
 		ResponseTime: discard.NewHistogram(),
 	}
+}
+
+// NewDummyMetrics will return the no nil jsonrpc metrics
+// TODO: use generic replace this in golang 1.18
+func NewDummyMetrics(metrics *Metrics) *Metrics {
+	if metrics != nil {
+		return metrics
+	}
+
+	return NilMetrics()
 }
