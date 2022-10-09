@@ -89,7 +89,7 @@ func (d *Debug) traceTx(txn *state.Transition, tx *types.Transaction) (interface
 			Gas:         result.GasUsed,
 			Failed:      result.Failed(),
 			ReturnValue: returnVal,
-			StructLogs:  FormatLogs(tracer.StructLogs()),
+			StructLogs:  formatLogs(tracer.StructLogs()),
 		}, nil
 	default:
 		panic(fmt.Sprintf("bad tracer type %T", tracer))
@@ -120,8 +120,8 @@ type StructLogRes struct {
 	Storage *map[string]string `json:"storage,omitempty"`
 }
 
-// FormatLogs formats EVM returned structured logs for json output
-func FormatLogs(logs []*structlogger.StructLog) []StructLogRes {
+// formatLogs formats EVM returned structured logs for json output
+func formatLogs(logs []*structlogger.StructLog) []StructLogRes {
 	formatted := make([]StructLogRes, len(logs))
 
 	for index, trace := range logs {
