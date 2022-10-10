@@ -53,12 +53,6 @@ func GetPrometheusMetrics(namespace string, labelsWithValues ...string) *Metrics
 			Subsystem: "blockchain",
 			Name:      "block_write_seconds",
 			Help:      "block write time (seconds)",
-			Buckets: []float64{
-				0.01,
-				0.5,
-				0.99,
-				1.0,
-			},
 		}, labels).With(labelsWithValues...),
 		TransactionNum: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: namespace,
