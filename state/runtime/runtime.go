@@ -87,22 +87,22 @@ func (r *ExecutionResult) Reverted() bool  { return errors.Is(r.Err, ErrExecutio
 
 // Return is a helper function to help caller distinguish between revert reason
 // and function return. Return returns the data after execution if no error occurs.
-func (result *ExecutionResult) Return() []byte {
-	if result.Err != nil {
+func (r *ExecutionResult) Return() []byte {
+	if r.Err != nil {
 		return nil
 	}
 
-	return result.ReturnValue
+	return r.ReturnValue
 }
 
 // Revert returns the concrete revert reason if the execution is aborted by `REVERT`
 // opcode. Note the reason can be nil if no data supplied with revert opcode.
-func (result *ExecutionResult) Revert() []byte {
-	if result.Err != ErrExecutionReverted {
+func (r *ExecutionResult) Revert() []byte {
+	if !r.Reverted() {
 		return nil
 	}
 
-	return result.ReturnValue
+	return r.ReturnValue
 }
 
 func (r *ExecutionResult) UpdateGasUsed(gasLimit uint64, refund uint64) {
