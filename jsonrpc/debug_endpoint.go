@@ -79,10 +79,10 @@ func (d *Debug) traceTx(txn *state.Transition, tx *types.Transaction) (interface
 
 	switch tracer := tracer.(type) {
 	case *structlogger.StructLogger:
-		returnVal := fmt.Sprintf("%x", result.ReturnValue)
+		returnVal := fmt.Sprintf("%x", result.Return())
 		// If the result contains a revert reason, return it.
 		if result.Reverted() {
-			returnVal = fmt.Sprintf("%x", result.Err)
+			returnVal = fmt.Sprintf("%x", result.Revert())
 		}
 
 		return &ExecutionResult{
