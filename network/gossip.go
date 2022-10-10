@@ -104,7 +104,7 @@ func (t *Topic) readLoop(sub *pubsub.Subscription, handler func(obj interface{})
 
 			go func() {
 				sub.Cancel()
-				cancelCh <- struct{}{}
+				close(cancelCh)
 			}()
 
 			// wait any one of them done
