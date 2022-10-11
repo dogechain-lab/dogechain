@@ -97,8 +97,8 @@ func (t *Topic) readLoop(sub *pubsub.Subscription, handler func(obj interface{})
 		select {
 		case <-t.unsubscribeCh:
 			// send cancel timeout
-			timeout := time.NewTimer(30 * time.Second)
-			defer timeout.Stop()
+			timeoutCtx, cancelTimeoutFn := context.WithTimeout(ctx, 30*time.Second)
+			defer cancelTimeoutFn()
 
 			cancelCh := make(chan struct{})
 
@@ -109,7 +109,7 @@ func (t *Topic) readLoop(sub *pubsub.Subscription, handler func(obj interface{})
 
 			// wait any one of them done
 			select {
-			case <-timeout.C:
+			case <-timeoutCtx.Done():
 				t.logger.Error("Subscription cancel timeout", "err")
 			case <-cancelCh:
 			}
