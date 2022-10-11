@@ -19,7 +19,7 @@ const (
 
 const (
 	// Gas limit used when querying the validator set
-	_queryGasLimit uint64 = 1000000
+	_queryGasLimit uint64 = 2000000
 )
 
 func DecodeValidators(method *abi.Method, returnValue []byte) ([]types.Address, error) {
