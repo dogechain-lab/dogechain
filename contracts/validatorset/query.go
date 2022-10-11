@@ -12,9 +12,14 @@ import (
 	"github.com/umbracle/go-web3/abi"
 )
 
-var (
+const (
+	// methods
+	_validatorsMethodName = "validators"
+)
+
+const (
 	// Gas limit used when querying the validator set
-	queryGasLimit uint64 = 1000000
+	_queryGasLimit uint64 = 1000000
 )
 
 func DecodeValidators(method *abi.Method, returnValue []byte) ([]types.Address, error) {
@@ -48,7 +53,7 @@ type TxQueryHandler interface {
 }
 
 func QueryValidators(t TxQueryHandler, from types.Address) ([]types.Address, error) {
-	method, ok := abis.ValidatorSetABI.Methods["validators"]
+	method, ok := abis.ValidatorSetABI.Methods[_validatorsMethodName]
 	if !ok {
 		return nil, errors.New("validators method doesn't exist in Staking contract ABI")
 	}
@@ -60,7 +65,7 @@ func QueryValidators(t TxQueryHandler, from types.Address) ([]types.Address, err
 		Value:    big.NewInt(0),
 		Input:    selector,
 		GasPrice: big.NewInt(0),
-		Gas:      queryGasLimit,
+		Gas:      _queryGasLimit,
 		Nonce:    t.GetNonce(from),
 	})
 

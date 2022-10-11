@@ -109,7 +109,7 @@ func Test_decodeValidators(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			method := abis.ValidatorSetABI.Methods["validators"]
+			method := abis.ValidatorSetABI.Methods[_validatorsMethodName]
 			assert.NotNil(t, method)
 			res, err := DecodeValidators(method, tt.value)
 			if tt.succeed {
@@ -123,7 +123,7 @@ func Test_decodeValidators(t *testing.T) {
 }
 
 func TestQueryValidators(t *testing.T) {
-	method := abis.ValidatorSetABI.Methods["validators"]
+	method := abis.ValidatorSetABI.Methods[_validatorsMethodName]
 	if method == nil {
 		t.Fail()
 	}
@@ -185,7 +185,7 @@ func TestQueryValidators(t *testing.T) {
 					Value:    big.NewInt(0),
 					Input:    method.ID(),
 					GasPrice: big.NewInt(0),
-					Gas:      queryGasLimit,
+					Gas:      _queryGasLimit,
 					Nonce:    10,
 				},
 			},
@@ -207,7 +207,7 @@ func TestQueryValidators(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			method := abis.ValidatorSetABI.Methods["validators"]
+			method := abis.ValidatorSetABI.Methods[_validatorsMethodName]
 			assert.NotNil(t, method)
 
 			mock := &TxMock{
