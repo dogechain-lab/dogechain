@@ -163,6 +163,7 @@ func Test_extendMemory(t *testing.T) {
 		// set config
 		cfg := chain.AllForksEnabled.At(0)
 		s.config = &cfg
+		s.host = &mockHost{}
 
 		// offset
 		memoryOffset := test.memoryOffset

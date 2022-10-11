@@ -55,7 +55,7 @@ type state struct {
 	code []byte
 	tmp  []byte
 
-	host   runtime.Host
+	host   runtime.Host      // must have field
 	msg    *runtime.Contract // change with msg
 	config *chain.ForksInTime
 
@@ -251,8 +251,10 @@ func (c *state) Run() (ret []byte, vmerr error) {
 
 	// only real tracer need
 	switch logger.(type) {
+	case nil:
+		needDebug = false
 	case *runtime.DummyLogger:
-		// do nothing
+		needDebug = false
 	default:
 		needDebug = true
 	}

@@ -220,15 +220,15 @@ type Transition struct {
 
 // SetEVMLogger sets a non nil tracer to it
 func (t *Transition) SetEVMLogger(logger runtime.EVMLogger) {
-	if logger != nil {
-		t.evmLogger = logger
+	t.evmLogger = logger
 
-		switch logger.(type) {
-		case *runtime.DummyLogger:
-			// do nothing
-		default:
-			t.needDebug = true
-		}
+	switch logger.(type) {
+	case nil:
+		t.needDebug = false
+	case *runtime.DummyLogger:
+		t.needDebug = false
+	default:
+		t.needDebug = true
 	}
 }
 
