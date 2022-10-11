@@ -100,19 +100,16 @@ func (t *Topic) readLoop(sub *pubsub.Subscription, handler func(obj interface{})
 			timeoutCtx, cancelTimeoutFn := context.WithTimeout(ctx, 30*time.Second)
 			defer cancelTimeoutFn()
 
-			cancelCh := make(chan struct{})
-
 			go func() {
 				sub.Cancel()
-				close(cancelCh)
+
+				// cancelTimeoutFn() is idempotent, so it's safe to call it multiple times
+				// https://stackoverflow.com/questions/59858033/is-cancel-so-mandatory-for-context
+				cancelTimeoutFn()
 			}()
 
-			// wait any one of them done
-			select {
-			case <-timeoutCtx.Done():
-				t.logger.Error("Subscription cancel timeout", "err")
-			case <-cancelCh:
-			}
+			// wait for completion or timeout
+			<-timeoutCtx.Done()
 
 			return
 
