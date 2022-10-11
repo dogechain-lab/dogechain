@@ -14,11 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dogechain-lab/dogechain/contracts/abis"
 	"github.com/dogechain-lab/dogechain/contracts/systemcontracts"
-	"github.com/dogechain-lab/dogechain/contracts/validatorset"
 	"github.com/dogechain-lab/dogechain/crypto"
-	"github.com/dogechain-lab/dogechain/helper/hex"
 	"github.com/dogechain-lab/dogechain/helper/tests"
 	"github.com/dogechain-lab/dogechain/server/proto"
 	txpoolProto "github.com/dogechain-lab/dogechain/txpool/proto"
@@ -56,38 +53,6 @@ func GetAccountBalance(t *testing.T, address types.Address, rpcClient *jsonrpc.C
 	assert.NoError(t, err)
 
 	return accountBalance
-}
-
-// GetValidatorSet returns the validator set from the SC
-func GetValidatorSet(from types.Address, rpcClient *jsonrpc.Client) ([]types.Address, error) {
-	validatorsMethod, ok := abis.ValidatorSetABI.Methods["validators"]
-	if !ok {
-		return nil, errors.New("validators method doesn't exist in ValidatorSet contract ABI")
-	}
-
-	toAddress := web3.Address(systemcontracts.AddrValidatorSetContract)
-	selector := validatorsMethod.ID()
-	response, err := rpcClient.Eth().Call(
-		&web3.CallMsg{
-			From:     web3.Address(from),
-			To:       &toAddress,
-			Data:     selector,
-			GasPrice: 100000000,
-			Value:    big.NewInt(0),
-		},
-		web3.Latest,
-	)
-
-	if err != nil {
-		return nil, fmt.Errorf("unable to call ValidatorSet contract method validators, %w", err)
-	}
-
-	byteResponse, decodeError := hex.DecodeHex(response)
-	if decodeError != nil {
-		return nil, fmt.Errorf("unable to decode hex response, %w", decodeError)
-	}
-
-	return validatorset.DecodeValidators(validatorsMethod, byteResponse)
 }
 
 // StakeAmount is a helper function for staking an amount on the ValidatorSet SC
@@ -145,38 +110,6 @@ func UnstakeAmount(
 	}
 
 	return receipt, nil
-}
-
-// GetStakedAmount is a helper function for getting the staked amount on the ValidatorSet SC
-func GetStakedAmount(from types.Address, rpcClient *jsonrpc.Client) (*big.Int, error) {
-	stakedAmountMethod, ok := abis.ValidatorSetABI.Methods["stakedAmount"]
-	if !ok {
-		return nil, errors.New("stakedAmount method doesn't exist in ValidatorSet contract ABI")
-	}
-
-	toAddress := web3.Address(systemcontracts.AddrValidatorSetContract)
-	selector := stakedAmountMethod.ID()
-	response, err := rpcClient.Eth().Call(
-		&web3.CallMsg{
-			From:     web3.Address(from),
-			To:       &toAddress,
-			Data:     selector,
-			GasPrice: 100000000,
-			Value:    big.NewInt(0),
-		},
-		web3.Latest,
-	)
-
-	if err != nil {
-		return nil, fmt.Errorf("unable to call ValidatorSet contract method stakedAmount, %w", err)
-	}
-
-	bigResponse, decodeErr := types.ParseUint256orHex(&response)
-	if decodeErr != nil {
-		return nil, fmt.Errorf("unable to decode hex response")
-	}
-
-	return bigResponse, nil
 }
 
 func EcrecoverFromBlockhash(hash types.Hash, signature []byte) (types.Address, error) {
