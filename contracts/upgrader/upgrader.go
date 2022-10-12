@@ -66,7 +66,7 @@ func init() {
 					types.StringToHash("0x000000000000000000000000000000000000000a"): types.StringToHash("0xde0b6b3a7640000"),     // rewardPerBlock
 					types.StringToHash("0x000000000000000000000000000000000000000b"): types.StringToHash("0x19"),                  // activeValidatorsLength
 					types.StringToHash("0x000000000000000000000000000000000000000c"): types.StringToHash("0x1c20"),                // epochBlockInterval
-					types.StringToHash("0x000000000000000000000000000000000000000d"): types.StringToHash("0X12c"),                 // misdemeanorThreshold
+					types.StringToHash("0x000000000000000000000000000000000000000d"): types.StringToHash("0x12c"),                 // misdemeanorThreshold
 					types.StringToHash("0x000000000000000000000000000000000000000e"): types.StringToHash("0x384"),                 // felonyThreshold
 					types.StringToHash("0x000000000000000000000000000000000000000f"): types.StringToHash("0xc"),                   // validatorJailEpochLength
 					types.StringToHash("0x0000000000000000000000000000000000000010"): types.StringToHash("0x6"),                   // minStakePeriod
