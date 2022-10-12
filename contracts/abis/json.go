@@ -591,6 +591,15 @@ const ValidatorSetJSONABI = `[
     },
     {
         "inputs":
+        [],
+        "name": "detroitMigration",
+        "outputs":
+        [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs":
         [
             {
                 "internalType": "address",
