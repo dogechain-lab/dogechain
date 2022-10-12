@@ -13,6 +13,7 @@ import (
 	"github.com/dogechain-lab/dogechain/consensus"
 	"github.com/dogechain-lab/dogechain/consensus/ibft/proto"
 	"github.com/dogechain-lab/dogechain/contracts/upgrader"
+	"github.com/dogechain-lab/dogechain/contracts/validatorset"
 	"github.com/dogechain-lab/dogechain/crypto"
 	"github.com/dogechain-lab/dogechain/helper/common"
 	"github.com/dogechain-lab/dogechain/helper/hex"
@@ -565,6 +566,11 @@ func (i *Ibft) runSyncState() {
 	}
 }
 
+// shouldWriteSystemTransactions checks whether system contract transaction should write at given height
+func (i *Ibft) shouldWriteSystemTransactions(height uint64) bool {
+	return i.config.Params.Forks.At(height).Detroit
+}
+
 // shouldWriteTransactions checks if each consensus mechanism accepts a block with transactions at given height
 // returns true if all mechanisms accept
 // otherwise return false
@@ -628,8 +634,35 @@ func (i *Ibft) buildBlock(snap *Snapshot, parent *types.Header) (*types.Block, e
 	// If the mechanism is PoS -> build a regular block if it's not an end-of-epoch block
 	// If the mechanism is PoA -> always build a regular block, regardless of epoch
 	txns := []*types.Transaction{}
+	// insert system transactions
+	if i.shouldWriteSystemTransactions(header.Number) {
+		// make deposit tx
+		tx, err := i.makeTransitionDepositTx(transition, header.Number)
+		if err != nil {
+			return nil, err
+		}
+
+		txns = append(txns, tx)
+
+		// make slash tx if needed
+		if i.currentRound() > 0 {
+			//nolint:errcheck
+			lastBlockProposer, _ := ecrecoverFromHeader(parent)
+
+			needPunished := i.state.CalcNeedPunished(i.currentRound(), lastBlockProposer)
+			if len(needPunished) > 0 {
+				tx, err := i.makeTransitionSlashTx(transition, header.Number, needPunished)
+				if err != nil {
+					return nil, err
+				}
+
+				txns = append(txns, tx)
+			}
+		}
+	}
+	// insert normal transactions
 	if i.shouldWriteTransactions(header.Number) {
-		txns = i.writeTransactions(gasLimit, transition)
+		txns = append(txns, i.writeTransactions(gasLimit, transition)...)
 	}
 
 	if err := i.PreStateCommit(header, transition); err != nil {
@@ -671,6 +704,62 @@ func (i *Ibft) buildBlock(snap *Snapshot, parent *types.Header) (*types.Block, e
 	i.logger.Info("build block", "number", header.Number, "txns", len(txns))
 
 	return block, nil
+}
+
+func (i *Ibft) currentRound() uint64 {
+	return i.state.view.GetRound()
+}
+
+func (i *Ibft) makeTransitionDepositTx(
+	transition validatorset.TxQueryHandler,
+	height uint64,
+) (*types.Transaction, error) {
+	// singer
+	signer := i.getSigner(height)
+
+	// make deposit tx
+	tx, err := validatorset.MakeDepositTx(transition, i.validatorKeyAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	// sign tx
+	tx, err = signer.SignTx(tx, i.validatorKey)
+	if err != nil {
+		return nil, err
+	}
+
+	return tx, err
+}
+
+func (i *Ibft) makeTransitionSlashTx(
+	transition validatorset.TxQueryHandler,
+	height uint64,
+	needPunished []types.Address,
+) (*types.Transaction, error) {
+	// singer
+	signer := i.getSigner(height)
+
+	// make deposit tx
+	tx, err := validatorset.MakeSlashTx(transition, i.validatorKeyAddr, needPunished)
+	if err != nil {
+		return nil, err
+	}
+
+	// sign tx
+	tx, err = signer.SignTx(tx, i.validatorKey)
+	if err != nil {
+		return nil, err
+	}
+
+	return tx, err
+}
+
+func (i *Ibft) getSigner(height uint64) crypto.TxSigner {
+	return crypto.NewSigner(
+		i.config.Params.Forks.At(height),
+		uint64(i.config.Params.ChainID),
+	)
 }
 
 type transitionInterface interface {

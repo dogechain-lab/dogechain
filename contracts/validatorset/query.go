@@ -2,6 +2,7 @@ package validatorset
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/dogechain-lab/dogechain/contracts/abis"
@@ -15,6 +16,8 @@ import (
 const (
 	// methods
 	_validatorsMethodName = "validators"
+	_depositMethodName    = "deposit"
+	_slashMethodName      = "slash"
 )
 
 const (
@@ -55,7 +58,7 @@ type TxQueryHandler interface {
 func QueryValidators(t TxQueryHandler, from types.Address) ([]types.Address, error) {
 	method, ok := abis.ValidatorSetABI.Methods[_validatorsMethodName]
 	if !ok {
-		return nil, errors.New("validators method doesn't exist in Staking contract ABI")
+		return nil, fmt.Errorf("validatorset contract ABI no %s method", _validatorsMethodName)
 	}
 
 	selector := method.ID()
@@ -78,4 +81,47 @@ func QueryValidators(t TxQueryHandler, from types.Address) ([]types.Address, err
 	}
 
 	return DecodeValidators(method, res.ReturnValue)
+}
+
+func MakeDepositTx(t TxQueryHandler, from types.Address) (*types.Transaction, error) {
+	method, ok := abis.ValidatorSetABI.Methods[_depositMethodName]
+	if !ok {
+		return nil, fmt.Errorf("validatorset contract ABI no %s method", _depositMethodName)
+	}
+
+	tx := &types.Transaction{
+		Nonce:    t.GetNonce(from),
+		GasPrice: big.NewInt(0),
+		Gas:      _queryGasLimit,
+		To:       &systemcontracts.AddrValidatorSetContract,
+		Value:    nil,
+		Input:    method.ID(),
+		From:     from,
+	}
+
+	return tx, nil
+}
+
+func MakeSlashTx(t TxQueryHandler, from types.Address, needPunished []types.Address) (*types.Transaction, error) {
+	method, ok := abis.ValidatorSetABI.Methods[_slashMethodName]
+	if !ok {
+		return nil, fmt.Errorf("validatorset contract ABI no %s method", _slashMethodName)
+	}
+
+	encodedInput, err := method.Inputs.Encode(needPunished)
+	if err != nil {
+		return nil, err
+	}
+
+	tx := &types.Transaction{
+		Nonce:    t.GetNonce(from),
+		GasPrice: big.NewInt(0),
+		Gas:      _queryGasLimit,
+		To:       &systemcontracts.AddrValidatorSetContract,
+		Value:    nil,
+		Input:    append(method.ID(), encodedInput...),
+		From:     from,
+	}
+
+	return tx, nil
 }

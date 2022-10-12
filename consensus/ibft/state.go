@@ -142,6 +142,31 @@ func (c *currentState) CalcProposer(lastProposer types.Address) {
 	c.proposer = c.validators.CalcProposer(c.view.Round, lastProposer)
 }
 
+func (c *currentState) CalcNeedPunished(
+	currentRound uint64,
+	lastBlockProposer types.Address,
+) (addrs []types.Address) {
+	if currentRound == 0 {
+		// no one need to be punished
+		return nil
+	} else if currentRound >= uint64(len(c.validators)) {
+		// all need to be punished.
+		// NOTE: should change it if we adopt span in our validator selection
+		return c.validators
+	}
+
+	lastProposer := lastBlockProposer
+
+	// calculate all proposers
+	for i := uint64(0); i < currentRound; i++ {
+		p := c.validators.CalcProposer(i, lastProposer)
+		addrs = append(addrs, p)
+		lastProposer = p
+	}
+
+	return c.validators
+}
+
 func (c *currentState) lock() {
 	c.locked = true
 }
