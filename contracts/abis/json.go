@@ -99,18 +99,18 @@ const ValidatorSetJSONABI = `[
         [
             {
                 "indexed": true,
-                "internalType": "address",
+                "internalType": "uint256",
                 "name": "prevValue",
-                "type": "address"
+                "type": "uint256"
             },
             {
                 "indexed": true,
-                "internalType": "address",
+                "internalType": "uint256",
                 "name": "newValue",
-                "type": "address"
+                "type": "uint256"
             }
         ],
-        "name": "GovernanceChanged",
+        "name": "MinDelegatorStakeAmountChanged",
         "type": "event"
     },
     {
@@ -131,26 +131,6 @@ const ValidatorSetJSONABI = `[
             }
         ],
         "name": "MinStakePeriodChanged",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs":
-        [
-            {
-                "indexed": true,
-                "internalType": "uint256",
-                "name": "prevValue",
-                "type": "uint256"
-            },
-            {
-                "indexed": true,
-                "internalType": "uint256",
-                "name": "newValue",
-                "type": "uint256"
-            }
-        ],
-        "name": "MinUserStakeAmountChanged",
         "type": "event"
     },
     {
@@ -542,6 +522,63 @@ const ValidatorSetJSONABI = `[
         [
             {
                 "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "name": "delegatorStakeAmount",
+        "outputs":
+        [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs":
+        [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            },
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "name": "delegators",
+        "outputs":
+        [
+            {
+                "internalType": "uint256",
+                "name": "amount",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "rewardDebt",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "changedAt",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs":
+        [
+            {
+                "internalType": "address",
                 "name": "validatorAddress",
                 "type": "address"
             }
@@ -565,6 +602,27 @@ const ValidatorSetJSONABI = `[
         "outputs":
         [],
         "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs":
+        [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "name": "epochBlocks",
+        "outputs":
+        [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
         "type": "function"
     },
     {
@@ -630,7 +688,7 @@ const ValidatorSetJSONABI = `[
     {
         "inputs":
         [],
-        "name": "getMinStakePeriod",
+        "name": "getMinDelegatorStakeAmount",
         "outputs":
         [
             {
@@ -645,7 +703,7 @@ const ValidatorSetJSONABI = `[
     {
         "inputs":
         [],
-        "name": "getMinUserStakeAmount",
+        "name": "getMinStakePeriod",
         "outputs":
         [
             {
@@ -676,6 +734,21 @@ const ValidatorSetJSONABI = `[
         "inputs":
         [],
         "name": "getMisdemeanorThreshold",
+        "outputs":
+        [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs":
+        [],
+        "name": "getRewardPerBlock",
         "outputs":
         [
             {
@@ -731,7 +804,7 @@ const ValidatorSetJSONABI = `[
     {
         "inputs":
         [],
-        "name": "getValidatorJailEpochLength",
+        "name": "getTotalDelegatorsLength",
         "outputs":
         [
             {
@@ -752,7 +825,7 @@ const ValidatorSetJSONABI = `[
                 "type": "address"
             }
         ],
-        "name": "getValidatorStakerLength",
+        "name": "getValidatorDelegatorLength",
         "outputs":
         [
             {
@@ -783,7 +856,7 @@ const ValidatorSetJSONABI = `[
                 "type": "uint256"
             }
         ],
-        "name": "getValidatorStakers",
+        "name": "getValidatorDelegators",
         "outputs":
         [
             {
@@ -798,13 +871,13 @@ const ValidatorSetJSONABI = `[
     {
         "inputs":
         [],
-        "name": "governance",
+        "name": "getValidatorJailEpochLength",
         "outputs":
         [
             {
-                "internalType": "address",
+                "internalType": "uint256",
                 "name": "",
-                "type": "address"
+                "type": "uint256"
             }
         ],
         "stateMutability": "view",
@@ -820,27 +893,6 @@ const ValidatorSetJSONABI = `[
             }
         ],
         "name": "isValidator",
-        "outputs":
-        [
-            {
-                "internalType": "bool",
-                "name": "",
-                "type": "bool"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs":
-        [
-            {
-                "internalType": "address",
-                "name": "account",
-                "type": "address"
-            }
-        ],
-        "name": "isValidatorActive",
         "outputs":
         [
             {
@@ -934,21 +986,6 @@ const ValidatorSetJSONABI = `[
     },
     {
         "inputs":
-        [],
-        "name": "rewardPerBlock",
-        "outputs":
-        [
-            {
-                "internalType": "uint256",
-                "name": "",
-                "type": "uint256"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs":
         [
             {
                 "internalType": "uint256",
@@ -996,12 +1033,12 @@ const ValidatorSetJSONABI = `[
         "inputs":
         [
             {
-                "internalType": "address",
+                "internalType": "uint256",
                 "name": "newValue",
-                "type": "address"
+                "type": "uint256"
             }
         ],
-        "name": "setGovernance",
+        "name": "setMinDelegatorStakeAmount",
         "outputs":
         [],
         "stateMutability": "nonpayable",
@@ -1017,21 +1054,6 @@ const ValidatorSetJSONABI = `[
             }
         ],
         "name": "setMinStakePeriod",
-        "outputs":
-        [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs":
-        [
-            {
-                "internalType": "uint256",
-                "name": "newValue",
-                "type": "uint256"
-            }
-        ],
-        "name": "setMinUserStakeAmount",
         "outputs":
         [],
         "stateMutability": "nonpayable",
@@ -1164,21 +1186,6 @@ const ValidatorSetJSONABI = `[
     },
     {
         "inputs":
-        [],
-        "name": "totalReward",
-        "outputs":
-        [
-            {
-                "internalType": "uint256",
-                "name": "",
-                "type": "uint256"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs":
         [
             {
                 "internalType": "address",
@@ -1210,42 +1217,6 @@ const ValidatorSetJSONABI = `[
         "outputs":
         [],
         "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs":
-        [
-            {
-                "internalType": "address",
-                "name": "",
-                "type": "address"
-            },
-            {
-                "internalType": "address",
-                "name": "",
-                "type": "address"
-            }
-        ],
-        "name": "users",
-        "outputs":
-        [
-            {
-                "internalType": "uint256",
-                "name": "amount",
-                "type": "uint256"
-            },
-            {
-                "internalType": "uint256",
-                "name": "rewardDebt",
-                "type": "uint256"
-            },
-            {
-                "internalType": "uint256",
-                "name": "changedAt",
-                "type": "uint256"
-            }
-        ],
-        "stateMutability": "view",
         "type": "function"
     },
     {
@@ -1528,21 +1499,6 @@ const BridgeJSONABI = `[
         "inputs":
         [
             {
-                "internalType": "uint256",
-                "name": "amount",
-                "type": "uint256"
-            }
-        ],
-        "name": "addBalance",
-        "outputs":
-        [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs":
-        [
-            {
                 "internalType": "address",
                 "name": "account",
                 "type": "address"
@@ -1552,6 +1508,21 @@ const BridgeJSONABI = `[
         "outputs":
         [],
         "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs":
+        [],
+        "name": "allowance",
+        "outputs":
+        [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
         "type": "function"
     },
     {
@@ -1569,6 +1540,21 @@ const BridgeJSONABI = `[
             }
         ],
         "name": "burn",
+        "outputs":
+        [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs":
+        [
+            {
+                "internalType": "uint256",
+                "name": "amount",
+                "type": "uint256"
+            }
+        ],
+        "name": "decreaseAllowance",
         "outputs":
         [],
         "stateMutability": "nonpayable",
@@ -1653,6 +1639,21 @@ const BridgeJSONABI = `[
         "inputs":
         [
             {
+                "internalType": "uint256",
+                "name": "amount",
+                "type": "uint256"
+            }
+        ],
+        "name": "increaseAllowance",
+        "outputs":
+        [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs":
+        [
+            {
                 "internalType": "address",
                 "name": "account",
                 "type": "address"
@@ -1680,6 +1681,21 @@ const BridgeJSONABI = `[
                 "internalType": "address",
                 "name": "",
                 "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs":
+        [],
+        "name": "paused",
+        "outputs":
+        [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
             }
         ],
         "stateMutability": "view",
@@ -1719,6 +1735,15 @@ const BridgeJSONABI = `[
             }
         ],
         "name": "setMinimumThreshold",
+        "outputs":
+        [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs":
+        [],
+        "name": "setPause",
         "outputs":
         [],
         "stateMutability": "nonpayable",
@@ -1773,21 +1798,6 @@ const BridgeJSONABI = `[
             }
         ],
         "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs":
-        [
-            {
-                "internalType": "uint256",
-                "name": "amount",
-                "type": "uint256"
-            }
-        ],
-        "name": "subBalance",
-        "outputs":
-        [],
-        "stateMutability": "nonpayable",
         "type": "function"
     },
     {
