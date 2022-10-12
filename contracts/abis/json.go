@@ -657,6 +657,68 @@ const ValidatorSetJSONABI = `[
     },
     {
         "inputs":
+        [
+            {
+                "internalType": "address",
+                "name": "validator",
+                "type": "address"
+            },
+            {
+                "internalType": "address",
+                "name": "account",
+                "type": "address"
+            }
+        ],
+        "name": "getDelegatorStakedAmount",
+        "outputs":
+        [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs":
+        [
+            {
+                "internalType": "address",
+                "name": "account",
+                "type": "address"
+            }
+        ],
+        "name": "getDelegatorStakedAmount",
+        "outputs":
+        [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs":
+        [],
+        "name": "getDelegatorsLength",
+        "outputs":
+        [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs":
         [],
         "name": "getEpochBlockInterval",
         "outputs":
@@ -782,47 +844,6 @@ const ValidatorSetJSONABI = `[
                 "internalType": "address",
                 "name": "validator",
                 "type": "address"
-            },
-            {
-                "internalType": "address",
-                "name": "account",
-                "type": "address"
-            }
-        ],
-        "name": "getStakedAmount",
-        "outputs":
-        [
-            {
-                "internalType": "uint256",
-                "name": "",
-                "type": "uint256"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs":
-        [],
-        "name": "getTotalDelegatorsLength",
-        "outputs":
-        [
-            {
-                "internalType": "uint256",
-                "name": "",
-                "type": "uint256"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs":
-        [
-            {
-                "internalType": "address",
-                "name": "validator",
-                "type": "address"
             }
         ],
         "name": "getValidatorDelegatorLength",
@@ -885,10 +906,67 @@ const ValidatorSetJSONABI = `[
     },
     {
         "inputs":
+        [],
+        "name": "getValidatorLength",
+        "outputs":
+        [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs":
         [
             {
                 "internalType": "address",
-                "name": "account",
+                "name": "validator",
+                "type": "address"
+            }
+        ],
+        "name": "getValidatorStakedAmount",
+        "outputs":
+        [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs":
+        [
+            {
+                "internalType": "address",
+                "name": "validator",
+                "type": "address"
+            }
+        ],
+        "name": "getValidatorStakedReward",
+        "outputs":
+        [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs":
+        [
+            {
+                "internalType": "address",
+                "name": "validator",
                 "type": "address"
             }
         ],
@@ -929,6 +1007,21 @@ const ValidatorSetJSONABI = `[
                 "internalType": "address",
                 "name": "",
                 "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs":
+        [],
+        "name": "paused",
+        "outputs":
+        [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
             }
         ],
         "stateMutability": "view",
@@ -1091,6 +1184,15 @@ const ValidatorSetJSONABI = `[
     },
     {
         "inputs":
+        [],
+        "name": "setPause",
+        "outputs":
+        [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs":
         [
             {
                 "internalType": "uint256",
@@ -1243,12 +1345,12 @@ const ValidatorSetJSONABI = `[
             },
             {
                 "internalType": "uint256",
-                "name": "totalStakedAmount",
+                "name": "stakedAmount",
                 "type": "uint256"
             },
             {
                 "internalType": "uint256",
-                "name": "totalStakedReward",
+                "name": "stakedReward",
                 "type": "uint256"
             },
             {
