@@ -150,5 +150,5 @@ var AllForksEnabled = &Forks{
 	Petersburg:     NewFork(0),
 	Istanbul:       NewFork(0),
 	Portland:       NewFork(10222),
-	Detroit:        NewFork(20444),
+	Detroit:        NewFork(40562),
 }

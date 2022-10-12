@@ -85,12 +85,12 @@ func init() {
 
 func UpgradeSystem(
 	chainID int,
-	config *chain.Forks,
+	forks *chain.Forks,
 	blockNumber uint64,
 	txn *state.Txn,
 	logger hclog.Logger,
 ) {
-	if config == nil || blockNumber == 0 || txn == nil {
+	if forks == nil || blockNumber == 0 || txn == nil {
 		return
 	}
 
@@ -104,21 +104,21 @@ func UpgradeSystem(
 	}
 
 	// only upgrade portland once
-	if config.IsOnPortland(blockNumber) {
+	if forks.IsOnPortland(blockNumber) {
 		up := _portlandUpgrade[network]
-		applySystemContractUpgrade(up, blockNumber, txn,
+		applySystemContractUpgrade(up, blockNumber, txn, forks,
 			logger.With("upgrade", up.UpgradeName, "network", network))
 	}
 
 	// only upgrade detroit once
-	if config.IsOnDetroit(blockNumber) {
+	if forks.IsOnDetroit(blockNumber) {
 		up := _detroitUpgrade[network]
-		applySystemContractUpgrade(up, blockNumber, txn,
+		applySystemContractUpgrade(up, blockNumber, txn, forks,
 			logger.With("upgrade", up.UpgradeName, "network", network))
 	}
 }
 
-func applySystemContractUpgrade(upgrade *Upgrade, blockNumber uint64, txn *state.Txn, logger hclog.Logger) {
+func applySystemContractUpgrade(upgrade *Upgrade, blockNumber uint64, txn *state.Txn, forks *chain.Forks, logger hclog.Logger) {
 	if upgrade == nil {
 		logger.Info("Empty upgrade config", "height", blockNumber)
 
@@ -126,6 +126,8 @@ func applySystemContractUpgrade(upgrade *Upgrade, blockNumber uint64, txn *state
 	}
 
 	logger.Info(fmt.Sprintf("Apply upgrade %s at height %d", upgrade.UpgradeName, blockNumber))
+
+	forksInTime := forks.At(blockNumber)
 
 	for _, cfg := range upgrade.Configs {
 		logger.Info(fmt.Sprintf("Upgrade contract %s to commit %s", cfg.ContractAddr.String(), cfg.CommitURL))
@@ -136,5 +138,9 @@ func applySystemContractUpgrade(upgrade *Upgrade, blockNumber uint64, txn *state
 		}
 
 		txn.SetCode(cfg.ContractAddr, newContractCode)
+
+		for k, v := range cfg.DefaultInitStorage {
+			txn.SetStorage(cfg.ContractAddr, k, v, &forksInTime)
+		}
 	}
 }
