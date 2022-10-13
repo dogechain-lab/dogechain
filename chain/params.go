@@ -32,8 +32,8 @@ type Forks struct {
 	EIP150         *Fork `json:"EIP150,omitempty"`
 	EIP158         *Fork `json:"EIP158,omitempty"`
 	EIP155         *Fork `json:"EIP155,omitempty"`
-	Portland       *Fork `json:"portland,omitempty"`
-	Detroit        *Fork `json:"detroit,omitempty"`
+	Portland       *Fork `json:"portland,omitempty"` // bridge hardfork
+	Detroit        *Fork `json:"detroit,omitempty"`  // pos hardfork
 }
 
 func (f *Forks) on(ff *Fork, block uint64) bool {
