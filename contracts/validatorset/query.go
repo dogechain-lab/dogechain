@@ -2,7 +2,6 @@ package validatorset
 
 import (
 	"errors"
-	"fmt"
 	"math/big"
 
 	"github.com/dogechain-lab/dogechain/contracts/abis"
@@ -32,18 +31,13 @@ const (
 )
 
 func DecodeValidators(method *abi.Method, returnValue []byte) ([]types.Address, error) {
-	decodedResults, err := method.Outputs.Decode(returnValue)
+	results, err := abis.DecodeTxMethod(method, returnValue)
 	if err != nil {
 		return nil, err
 	}
 
-	results, ok := decodedResults.(map[string]interface{})
-	if !ok {
-		return nil, errors.New("failed type assertion from decodedResults to map")
-	}
-
+	// type assertion
 	web3Addresses, ok := results["0"].([]web3.Address)
-
 	if !ok {
 		return nil, errors.New("failed type assertion from results[0] to []web3.Address")
 	}
@@ -62,17 +56,18 @@ type TxQueryHandler interface {
 }
 
 func QueryValidators(t TxQueryHandler, from types.Address) ([]types.Address, error) {
-	method, ok := abis.ValidatorSetABI.Methods[_validatorsMethodName]
-	if !ok {
-		return nil, fmt.Errorf("validatorset contract ABI no %s method", _validatorsMethodName)
+	method := abis.ValidatorSetABI.Methods[_validatorsMethodName]
+
+	input, err := abis.EncodeTxMethod(method, nil)
+	if err != nil {
+		return nil, err
 	}
 
-	selector := method.ID()
 	res, err := t.Apply(&types.Transaction{
 		From:     from,
 		To:       &systemcontracts.AddrValidatorSetContract,
 		Value:    big.NewInt(0),
-		Input:    selector,
+		Input:    input,
 		GasPrice: big.NewInt(0),
 		Gas:      _queryGasLimit,
 		Nonce:    t.GetNonce(from),
@@ -90,12 +85,10 @@ func QueryValidators(t TxQueryHandler, from types.Address) ([]types.Address, err
 }
 
 func MakeDepositTx(t TxQueryHandler, from types.Address) (*types.Transaction, error) {
-	method, ok := abis.ValidatorSetABI.Methods[_depositMethodName]
-	if !ok {
-		return nil, fmt.Errorf("validatorset contract ABI no %s method", _depositMethodName)
-	}
+	method := abis.ValidatorSetABI.Methods[_depositMethodName]
 
-	inputs, err := method.Inputs.Encode(
+	input, err := abis.EncodeTxMethod(
+		method,
 		map[string]interface{}{
 			_depositParameterName: from,
 		},
@@ -110,7 +103,7 @@ func MakeDepositTx(t TxQueryHandler, from types.Address) (*types.Transaction, er
 		Gas:      _queryGasLimit,
 		To:       &systemcontracts.AddrValidatorSetContract,
 		Value:    nil,
-		Input:    append(method.ID(), inputs...),
+		Input:    input,
 		From:     from,
 	}
 
@@ -118,12 +111,10 @@ func MakeDepositTx(t TxQueryHandler, from types.Address) (*types.Transaction, er
 }
 
 func MakeSlashTx(t TxQueryHandler, from types.Address, needPunished []types.Address) (*types.Transaction, error) {
-	method, ok := abis.ValidatorSetABI.Methods[_slashMethodName]
-	if !ok {
-		return nil, fmt.Errorf("validatorset contract ABI no %s method", _slashMethodName)
-	}
+	method := abis.ValidatorSetABI.Methods[_slashMethodName]
 
-	encodedInput, err := method.Inputs.Encode(
+	input, err := abis.EncodeTxMethod(
+		method,
 		map[string]interface{}{
 			_slashParameterName: needPunished,
 		},
@@ -138,7 +129,7 @@ func MakeSlashTx(t TxQueryHandler, from types.Address, needPunished []types.Addr
 		Gas:      _queryGasLimit,
 		To:       &systemcontracts.AddrValidatorSetContract,
 		Value:    nil,
-		Input:    append(method.ID(), encodedInput...),
+		Input:    input,
 		From:     from,
 	}
 
