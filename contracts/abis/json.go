@@ -617,27 +617,6 @@ const ValidatorSetJSONABI = `[
         "inputs":
         [
             {
-                "internalType": "uint256",
-                "name": "",
-                "type": "uint256"
-            }
-        ],
-        "name": "epochBlocks",
-        "outputs":
-        [
-            {
-                "internalType": "uint256",
-                "name": "",
-                "type": "uint256"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs":
-        [
-            {
                 "internalType": "address",
                 "name": "validatorAddress",
                 "type": "address"
@@ -1249,9 +1228,9 @@ const ValidatorSetJSONABI = `[
         "inputs":
         [
             {
-                "internalType": "address",
-                "name": "validatorAddress",
-                "type": "address"
+                "internalType": "address[]",
+                "name": "array",
+                "type": "address[]"
             }
         ],
         "name": "slash",
