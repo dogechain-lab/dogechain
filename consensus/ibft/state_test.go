@@ -9,6 +9,8 @@ import (
 )
 
 func TestState_FaultyNodes(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		Network, Faulty uint64
 	}{
@@ -30,6 +32,8 @@ func TestState_FaultyNodes(t *testing.T) {
 }
 
 func TestState_AddMessages(t *testing.T) {
+	t.Parallel()
+
 	pool := newTesterAccountPool()
 	pool.add("A", "B", "C", "D")
 
@@ -69,6 +73,8 @@ func TestState_AddMessages(t *testing.T) {
 }
 
 func TestState_PorposerAndNeedPunished(t *testing.T) {
+	t.Parallel()
+
 	var (
 		v1 = types.StringToAddress("0x1")
 		v2 = types.StringToAddress("0x2")
@@ -80,6 +86,7 @@ func TestState_PorposerAndNeedPunished(t *testing.T) {
 
 	state := newState()
 	state.validators = ValidatorSet{v1, v2, v3, v4}
+
 	tests := []struct {
 		name             string
 		round            uint64
@@ -107,7 +114,11 @@ func TestState_PorposerAndNeedPunished(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
+
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			proposer := state.validators.CalcProposer(tt.round, lastBlockProposer)
 			assert.Equal(t, tt.supporseProposer, proposer)
 
