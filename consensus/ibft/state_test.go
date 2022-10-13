@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/dogechain-lab/dogechain/consensus/ibft/proto"
+	"github.com/dogechain-lab/dogechain/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -65,4 +66,53 @@ func TestState_AddMessages(t *testing.T) {
 	c.addMessage(msg("D", proto.MessageReq_Prepare))
 
 	assert.Equal(t, c.numPrepared(), 2)
+}
+
+func TestState_PorposerAndNeedPunished(t *testing.T) {
+	var (
+		v1 = types.StringToAddress("0x1")
+		v2 = types.StringToAddress("0x2")
+		v3 = types.StringToAddress("0x3")
+		v4 = types.StringToAddress("0x4")
+
+		lastBlockProposer = v1
+	)
+
+	state := newState()
+	state.validators = ValidatorSet{v1, v2, v3, v4}
+	tests := []struct {
+		name             string
+		round            uint64
+		supporseProposer types.Address
+		needPunished     []types.Address
+	}{
+		{
+			name:             "round 0 should not punish anyone",
+			round:            0,
+			supporseProposer: v2,
+			needPunished:     nil,
+		},
+		{
+			name:             "round 2 should punish 2 validators",
+			round:            2,
+			supporseProposer: v4,
+			needPunished:     []types.Address{v2, v3},
+		},
+		{
+			name:             "large round should punish all validators",
+			round:            9,
+			supporseProposer: v3,
+			needPunished:     []types.Address{v1, v2, v3, v4},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			proposer := state.validators.CalcProposer(tt.round, lastBlockProposer)
+			assert.Equal(t, tt.supporseProposer, proposer)
+
+			punished := state.CalcNeedPunished(tt.round, lastBlockProposer)
+			assert.Equal(t, tt.needPunished, punished)
+		})
+	}
 }
