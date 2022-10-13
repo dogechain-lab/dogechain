@@ -14,10 +14,16 @@ import (
 )
 
 const (
-	// methods
+	// method
 	_validatorsMethodName = "validators"
 	_depositMethodName    = "deposit"
 	_slashMethodName      = "slash"
+)
+
+const (
+	// parameter name
+	_depositParameterName = "validatorAddress"
+	_slashParameterName   = "array"
 )
 
 const (
@@ -89,13 +95,22 @@ func MakeDepositTx(t TxQueryHandler, from types.Address) (*types.Transaction, er
 		return nil, fmt.Errorf("validatorset contract ABI no %s method", _depositMethodName)
 	}
 
+	inputs, err := method.Inputs.Encode(
+		map[string]interface{}{
+			_depositParameterName: from,
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	tx := &types.Transaction{
 		Nonce:    t.GetNonce(from),
 		GasPrice: big.NewInt(0),
 		Gas:      _queryGasLimit,
 		To:       &systemcontracts.AddrValidatorSetContract,
 		Value:    nil,
-		Input:    method.ID(),
+		Input:    append(method.ID(), inputs...),
 		From:     from,
 	}
 
@@ -108,7 +123,11 @@ func MakeSlashTx(t TxQueryHandler, from types.Address, needPunished []types.Addr
 		return nil, fmt.Errorf("validatorset contract ABI no %s method", _slashMethodName)
 	}
 
-	encodedInput, err := method.Inputs.Encode(needPunished)
+	encodedInput, err := method.Inputs.Encode(
+		map[string]interface{}{
+			_slashParameterName: needPunished,
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
