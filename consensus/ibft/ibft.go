@@ -646,7 +646,6 @@ func (i *Ibft) buildBlock(snap *Snapshot, parent *types.Header) (*types.Block, e
 
 		// make slash tx if needed
 		if i.currentRound() > 0 {
-			//nolint:errcheck
 			lastBlockProposer, _ := ecrecoverFromHeader(parent)
 
 			needPunished := i.state.CalcNeedPunished(i.currentRound(), lastBlockProposer)

@@ -118,7 +118,13 @@ func UpgradeSystem(
 	}
 }
 
-func applySystemContractUpgrade(upgrade *Upgrade, blockNumber uint64, txn *state.Txn, forks *chain.Forks, logger hclog.Logger) {
+func applySystemContractUpgrade(
+	upgrade *Upgrade,
+	blockNumber uint64,
+	txn *state.Txn,
+	forks *chain.Forks,
+	logger hclog.Logger,
+) {
 	if upgrade == nil {
 		logger.Info("Empty upgrade config", "height", blockNumber)
 
