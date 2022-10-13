@@ -155,16 +155,13 @@ func (c *currentState) CalcNeedPunished(
 		return c.validators
 	}
 
-	lastProposer := lastBlockProposer
-
 	// calculate all proposers
 	for i := uint64(0); i < currentRound; i++ {
-		p := c.validators.CalcProposer(i, lastProposer)
+		p := c.validators.CalcProposer(i, lastBlockProposer)
 		addrs = append(addrs, p)
-		lastProposer = p
 	}
 
-	return c.validators
+	return addrs
 }
 
 func (c *currentState) lock() {
