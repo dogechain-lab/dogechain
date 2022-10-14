@@ -12,6 +12,7 @@ import (
 
 	"github.com/dogechain-lab/dogechain/consensus"
 	"github.com/dogechain-lab/dogechain/consensus/ibft/proto"
+	"github.com/dogechain-lab/dogechain/contracts/systemcontracts"
 	"github.com/dogechain-lab/dogechain/contracts/upgrader"
 	"github.com/dogechain-lab/dogechain/contracts/validatorset"
 	"github.com/dogechain-lab/dogechain/crypto"
@@ -36,6 +37,10 @@ var (
 	ErrInvalidHookParam     = errors.New("invalid IBFT hook param passed in")
 	ErrInvalidMechanismType = errors.New("invalid consensus mechanism type in params")
 	ErrMissingMechanismType = errors.New("missing consensus mechanism type in params")
+
+	errMissingDepositTx         = errors.New("missing deposit transaction")
+	errMissingSlashTx           = errors.New("missing slash transaction")
+	errInvalidConsensusTxSigner = errors.New("invalid consensus transaction signer")
 )
 
 type blockchainInterface interface {
@@ -1009,6 +1014,16 @@ func (i *Ibft) runAcceptState() { // start new round
 				continue
 			}
 
+			// Check consensus hardfork
+			if i.shouldWriteSystemTransactions(block.Number()) {
+				if err := i.checkSystemTransactions(block); err != nil {
+					i.logger.Error("block consensus transaction verification failed", "err", err)
+					i.handleStateErr(errBlockVerificationFailed)
+
+					continue
+				}
+			}
+
 			// Verify other block params
 			if err := i.blockchain.VerifyPotentialBlock(block); err != nil {
 				i.logger.Error("block verification failed", "err", err)
@@ -1034,6 +1049,43 @@ func (i *Ibft) runAcceptState() { // start new round
 			i.setState(ValidateState)
 		}
 	}
+}
+
+func (i *Ibft) checkSystemTransactions(block *types.Block) error {
+	return nil
+}
+
+func (i *Ibft) checkDepositTx(block *types.Block) error {
+	if len(block.Transactions) == 0 {
+		return errMissingDepositTx
+	}
+
+	var (
+		signer = i.getSigner(block.Number())
+		tx     = block.Transactions[0]
+	)
+
+	if tx.To == nil || *tx.To != systemcontracts.AddrValidatorSetContract {
+		return errMissingDepositTx
+	}
+
+	from, err := signer.Sender(tx)
+	if err != nil {
+		return err
+	}
+
+	validator, err := ecrecoverFromHeader(block.Header)
+	if err != nil {
+		return err
+	}
+
+	if from != validator {
+		return errInvalidConsensusTxSigner
+	}
+
+	validatorset.MakeDepositTx()
+
+	return nil
 }
 
 // runValidateState implements the Validate state loop.

@@ -31,7 +31,7 @@ const (
 )
 
 func DecodeValidators(method *abi.Method, returnValue []byte) ([]types.Address, error) {
-	results, err := abis.DecodeTxMethod(method, returnValue)
+	results, err := abis.DecodeTxMethodOutput(method, returnValue)
 	if err != nil {
 		return nil, err
 	}
@@ -110,6 +110,27 @@ func MakeDepositTx(t TxQueryHandler, from types.Address) (*types.Transaction, er
 	return tx, nil
 }
 
+func ParseDepositTransctionInput(tx *types.Transaction) (depositAddr types.Address, err error) {
+	method := abis.ValidatorSetABI.Methods[_depositMethodName]
+
+	val, err := abis.DecodeTxMethodInput(method, tx.Input)
+	if err != nil {
+		return
+	}
+
+	addr, ok := val[_depositParameterName]
+	if !ok {
+		return depositAddr, abis.ErrInvalidSignature
+	}
+
+	w3Addr, ok := addr.(web3.Address)
+	if !ok {
+		return depositAddr, abis.ErrResultTypeCasting
+	}
+
+	return types.Address(w3Addr), nil
+}
+
 func MakeSlashTx(t TxQueryHandler, from types.Address, needPunished []types.Address) (*types.Transaction, error) {
 	method := abis.ValidatorSetABI.Methods[_slashMethodName]
 
@@ -134,4 +155,29 @@ func MakeSlashTx(t TxQueryHandler, from types.Address, needPunished []types.Addr
 	}
 
 	return tx, nil
+}
+
+func ParseSlashTransctionInput(tx *types.Transaction) (needPunished []types.Address, err error) {
+	method := abis.ValidatorSetABI.Methods[_slashMethodName]
+
+	val, err := abis.DecodeTxMethodInput(method, tx.Input)
+	if err != nil {
+		return
+	}
+
+	addrs, ok := val[_slashParameterName]
+	if !ok {
+		return nil, abis.ErrInvalidSignature
+	}
+
+	w3Addrs, ok := addrs.([]web3.Address)
+	if !ok {
+		return nil, abis.ErrResultTypeCasting
+	}
+
+	for _, w3Addr := range w3Addrs {
+		needPunished = append(needPunished, types.Address(w3Addr))
+	}
+
+	return needPunished, nil
 }

@@ -1,6 +1,7 @@
 package abis
 
 import (
+	"bytes"
 	"errors"
 
 	"github.com/umbracle/go-web3/abi"
@@ -8,6 +9,7 @@ import (
 
 var (
 	ErrNoMethod          = errors.New("no method in abi")
+	ErrInvalidSignature  = errors.New("invalid signature")
 	ErrResultTypeCasting = errors.New("failed to casting type to map")
 )
 
@@ -32,12 +34,8 @@ func EncodeTxMethod(method *abi.Method, abiArgs map[string]interface{}) (input [
 	return append(input, args...), nil
 }
 
-func DecodeTxMethod(method *abi.Method, val []byte) (map[string]interface{}, error) {
-	if method == nil {
-		return nil, ErrNoMethod
-	}
-
-	result, err := method.Outputs.Decode(val)
+func decodeABITypeVal(typ *abi.Type, val []byte) (map[string]interface{}, error) {
+	result, err := typ.Decode(val)
 	if err != nil {
 		return nil, err
 	}
@@ -48,4 +46,28 @@ func DecodeTxMethod(method *abi.Method, val []byte) (map[string]interface{}, err
 	}
 
 	return output, nil
+}
+
+func DecodeTxMethodInput(method *abi.Method, val []byte) (map[string]interface{}, error) {
+	if method == nil {
+		return nil, ErrNoMethod
+	}
+
+	if len(val) < 4 {
+		return nil, ErrInvalidSignature
+	}
+
+	if !bytes.EqualFold(method.ID(), val[:4]) {
+		return nil, ErrInvalidSignature
+	}
+
+	return decodeABITypeVal(method.Inputs, val[4:])
+}
+
+func DecodeTxMethodOutput(method *abi.Method, val []byte) (map[string]interface{}, error) {
+	if method == nil {
+		return nil, ErrNoMethod
+	}
+
+	return decodeABITypeVal(method.Outputs, val)
 }
