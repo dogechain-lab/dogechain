@@ -1,6 +1,7 @@
 package validatorset
 
 import (
+	"bytes"
 	"errors"
 	"math/big"
 
@@ -28,6 +29,11 @@ const (
 const (
 	// Gas limit used when querying the validator set
 	_queryGasLimit uint64 = 2000000
+)
+
+var (
+	// some important reuse variable. must exists
+	_depositMethodID = abis.ValidatorSetABI.Methods[_depositMethodName].ID()
 )
 
 func DecodeValidators(method *abi.Method, returnValue []byte) ([]types.Address, error) {
@@ -129,6 +135,14 @@ func ParseDepositTransctionInput(in []byte) (depositAddr types.Address, err erro
 	}
 
 	return types.Address(w3Addr), nil
+}
+
+func IsDepositTransactionSignture(in []byte) bool {
+	if len(in) < 4 {
+		return false
+	}
+
+	return bytes.EqualFold(in[:4], _depositMethodID)
 }
 
 func MakeSlashTx(t TxQueryHandler, from types.Address, needPunished []types.Address) (*types.Transaction, error) {

@@ -1052,9 +1052,20 @@ func (i *Ibft) runAcceptState() { // start new round
 }
 
 func (i *Ibft) checkSystemTransactions(block *types.Block) error {
+	if err := i.checkDepositTx(block); err != nil {
+		return err
+	}
+
 	return nil
 }
 
+// checkDepositTx returns no failure only when the first transaction is deposit transaction.
+//
+// Should be only one deposit transaction, and only the first one could be exected. So we
+// don't have to go through the whole transaction list.
+//
+// Make sure all validators must take the reward, since they will delegate some funds and
+// earn reward to pay for delegators.
 func (i *Ibft) checkDepositTx(block *types.Block) error {
 	if len(block.Transactions) == 0 {
 		return errMissingDepositTx
@@ -1062,16 +1073,15 @@ func (i *Ibft) checkDepositTx(block *types.Block) error {
 
 	var (
 		signer = i.getSigner(block.Number())
-		tx     = block.Transactions[0]
+		tx     = block.Transactions[0] // the first one must be deposit transaction
 	)
 
 	if tx.To == nil || *tx.To != systemcontracts.AddrValidatorSetContract {
 		return errMissingDepositTx
 	}
 
-	from, err := signer.Sender(tx)
-	if err != nil {
-		return err
+	if !validatorset.IsDepositTransactionSignture(tx.Input) {
+		return errMissingDepositTx
 	}
 
 	validator, err := ecrecoverFromHeader(block.Header)
@@ -1079,11 +1089,15 @@ func (i *Ibft) checkDepositTx(block *types.Block) error {
 		return err
 	}
 
+	from, err := signer.Sender(tx)
+	if err != nil {
+		return err
+	}
+
+	// the deposit transaction signer must be validator
 	if from != validator {
 		return errInvalidConsensusTxSigner
 	}
-
-	validatorset.MakeDepositTx()
 
 	return nil
 }
@@ -1272,10 +1286,12 @@ func (i *Ibft) insertBlock(block *types.Block) error {
 }
 
 var (
-	errIncorrectBlockLocked    = errors.New("block locked is incorrect")
-	errIncorrectBlockHeight    = errors.New("proposed block number is incorrect")
-	errBlockVerificationFailed = errors.New("block verification failed")
-	errFailedToInsertBlock     = errors.New("failed to insert block")
+	errIncorrectBlockLocked      = errors.New("block locked is incorrect")
+	errIncorrectBlockHeight      = errors.New("proposed block number is incorrect")
+	errBlockVerificationFailed   = errors.New("block verification failed")
+	errFailedToInsertBlock       = errors.New("failed to insert block")
+	errSlashTransactionInvalid   = errors.New("slash transaction invalid")
+	errSlashTransactionNotExists = errors.New("slash transaction not exits")
 )
 
 func (i *Ibft) handleStateErr(err error) {
