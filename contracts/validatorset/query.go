@@ -56,9 +56,13 @@ func DecodeValidators(method *abi.Method, returnValue []byte) ([]types.Address, 
 	return addresses, nil
 }
 
-type TxQueryHandler interface {
-	Apply(*types.Transaction) (*runtime.ExecutionResult, error)
+type NonceHub interface {
 	GetNonce(types.Address) uint64
+}
+
+type TxQueryHandler interface {
+	NonceHub
+	Apply(*types.Transaction) (*runtime.ExecutionResult, error)
 }
 
 func QueryValidators(t TxQueryHandler, from types.Address) ([]types.Address, error) {
@@ -90,7 +94,7 @@ func QueryValidators(t TxQueryHandler, from types.Address) ([]types.Address, err
 	return DecodeValidators(method, res.ReturnValue)
 }
 
-func MakeDepositTx(t TxQueryHandler, from types.Address) (*types.Transaction, error) {
+func MakeDepositTx(t NonceHub, from types.Address) (*types.Transaction, error) {
 	method := abis.ValidatorSetABI.Methods[_depositMethodName]
 
 	input, err := abis.EncodeTxMethod(
@@ -145,7 +149,7 @@ func IsDepositTransactionSignture(in []byte) bool {
 	return bytes.EqualFold(in[:4], _depositMethodID)
 }
 
-func MakeSlashTx(t TxQueryHandler, from types.Address, needPunished []types.Address) (*types.Transaction, error) {
+func MakeSlashTx(t NonceHub, from types.Address, needPunished []types.Address) (*types.Transaction, error) {
 	method := abis.ValidatorSetABI.Methods[_slashMethodName]
 
 	input, err := abis.EncodeTxMethod(

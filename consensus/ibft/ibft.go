@@ -39,7 +39,6 @@ var (
 	ErrMissingMechanismType = errors.New("missing consensus mechanism type in params")
 
 	errMissingDepositTx         = errors.New("missing deposit transaction")
-	errMissingSlashTx           = errors.New("missing slash transaction")
 	errInvalidConsensusTxSigner = errors.New("invalid consensus transaction signer")
 )
 
@@ -716,7 +715,7 @@ func (i *Ibft) currentRound() uint64 {
 }
 
 func (i *Ibft) makeTransitionDepositTx(
-	transition validatorset.TxQueryHandler,
+	transition validatorset.NonceHub,
 	height uint64,
 ) (*types.Transaction, error) {
 	// singer
@@ -738,7 +737,7 @@ func (i *Ibft) makeTransitionDepositTx(
 }
 
 func (i *Ibft) makeTransitionSlashTx(
-	transition validatorset.TxQueryHandler,
+	transition validatorset.NonceHub,
 	height uint64,
 	needPunished []types.Address,
 ) (*types.Transaction, error) {
