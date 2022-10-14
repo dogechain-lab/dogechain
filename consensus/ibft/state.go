@@ -149,17 +149,11 @@ func (c *currentState) CalcNeedPunished(
 	if currentRound == 0 {
 		// no one need to be punished
 		return nil
-	} else if currentRound >= uint64(len(c.validators)) {
-		// all need to be punished.
-		// NOTE: should change it if we adopt span in our validator selection
-		return c.validators
 	}
 
-	// calculate all proposers
-	for i := uint64(0); i < currentRound; i++ {
-		p := c.validators.CalcProposer(i, lastBlockProposer)
-		addrs = append(addrs, p)
-	}
+	// only punish the first validator,
+	p := c.validators.CalcProposer(0, lastBlockProposer)
+	addrs = append(addrs, p)
 
 	return addrs
 }
