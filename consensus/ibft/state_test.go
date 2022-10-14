@@ -80,36 +80,38 @@ func TestState_PorposerAndNeedPunished(t *testing.T) {
 		v2 = types.StringToAddress("0x2")
 		v3 = types.StringToAddress("0x3")
 		v4 = types.StringToAddress("0x4")
-
-		lastBlockProposer = v1
 	)
 
 	state := newState()
 	state.validators = ValidatorSet{v1, v2, v3, v4}
 
 	tests := []struct {
-		name             string
-		round            uint64
-		supporseProposer types.Address
-		needPunished     []types.Address
+		name              string
+		round             uint64
+		lastBlockProposer types.Address
+		supporseProposer  types.Address
+		needPunished      []types.Address
 	}{
 		{
-			name:             "round 0 should not punish anyone",
-			round:            0,
-			supporseProposer: v2,
-			needPunished:     nil,
+			name:              "round 0 should not punish anyone",
+			round:             0,
+			lastBlockProposer: v1,
+			supporseProposer:  v2,
+			needPunished:      nil,
 		},
 		{
-			name:             "round 2 should punish 2 validators",
-			round:            2,
-			supporseProposer: v4,
-			needPunished:     []types.Address{v2, v3},
+			name:              "round 2 should punish first validator",
+			round:             2,
+			lastBlockProposer: v3,
+			supporseProposer:  v2,
+			needPunished:      []types.Address{v4},
 		},
 		{
-			name:             "large round should punish all validators",
-			round:            9,
-			supporseProposer: v3,
-			needPunished:     []types.Address{v1, v2, v3, v4},
+			name:              "large round should punish first validator",
+			round:             9,
+			lastBlockProposer: v2,
+			supporseProposer:  v4,
+			needPunished:      []types.Address{v3},
 		},
 	}
 
@@ -119,10 +121,10 @@ func TestState_PorposerAndNeedPunished(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			proposer := state.validators.CalcProposer(tt.round, lastBlockProposer)
+			proposer := state.validators.CalcProposer(tt.round, tt.lastBlockProposer)
 			assert.Equal(t, tt.supporseProposer, proposer)
 
-			punished := state.CalcNeedPunished(tt.round, lastBlockProposer)
+			punished := state.CalcNeedPunished(tt.round, tt.lastBlockProposer)
 			assert.Equal(t, tt.needPunished, punished)
 		})
 	}
