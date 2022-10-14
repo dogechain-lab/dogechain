@@ -572,6 +572,10 @@ func (i *Ibft) runSyncState() {
 
 // shouldWriteSystemTransactions checks whether system contract transaction should write at given height
 func (i *Ibft) shouldWriteSystemTransactions(height uint64) bool {
+	if i.config == nil || i.config.Params == nil || i.config.Params.Forks == nil { // old logic test
+		return false
+	}
+
 	return i.config.Params.Forks.At(height).Detroit
 }
 
