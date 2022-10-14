@@ -651,6 +651,7 @@ func (i *Ibft) buildBlock(snap *Snapshot, parent *types.Header) (*types.Block, e
 
 		// make slash tx if needed
 		if i.currentRound() > 0 {
+			// only punish the first validator
 			lastBlockProposer, _ := ecrecoverFromHeader(parent)
 
 			needPunished := i.state.CalcNeedPunished(i.currentRound(), lastBlockProposer)
@@ -1016,7 +1017,7 @@ func (i *Ibft) runAcceptState() { // start new round
 
 			// Check consensus hardfork
 			if i.shouldWriteSystemTransactions(block.Number()) {
-				if err := i.checkSystemTransactions(block); err != nil {
+				if err := i.verifySystemTransactions(block); err != nil {
 					i.logger.Error("block consensus transaction verification failed", "err", err)
 					i.handleStateErr(errBlockVerificationFailed)
 
@@ -1051,22 +1052,28 @@ func (i *Ibft) runAcceptState() { // start new round
 	}
 }
 
-func (i *Ibft) checkSystemTransactions(block *types.Block) error {
-	if err := i.checkDepositTx(block); err != nil {
+// verifySystemTransactions verifies deposit transaction.
+//
+// Don't verify slash transaction, which is status agnostic, and hard to say which is
+// correct.
+// System contract would do the protection, and it is harmless to execute it. So we'll
+// skip it for a quick check.
+func (i *Ibft) verifySystemTransactions(block *types.Block) error {
+	if err := i.verifyDepositTx(block); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-// checkDepositTx returns no failure only when the first transaction is deposit transaction.
+// verifyDepositTx returns no failure only when the first transaction is deposit transaction.
 //
 // Should be only one deposit transaction, and only the first one could be exected. So we
 // don't have to go through the whole transaction list.
 //
 // Make sure all validators must take the reward, since they will delegate some funds and
 // earn reward to pay for delegators.
-func (i *Ibft) checkDepositTx(block *types.Block) error {
+func (i *Ibft) verifyDepositTx(block *types.Block) error {
 	if len(block.Transactions) == 0 {
 		return errMissingDepositTx
 	}
@@ -1286,12 +1293,10 @@ func (i *Ibft) insertBlock(block *types.Block) error {
 }
 
 var (
-	errIncorrectBlockLocked      = errors.New("block locked is incorrect")
-	errIncorrectBlockHeight      = errors.New("proposed block number is incorrect")
-	errBlockVerificationFailed   = errors.New("block verification failed")
-	errFailedToInsertBlock       = errors.New("failed to insert block")
-	errSlashTransactionInvalid   = errors.New("slash transaction invalid")
-	errSlashTransactionNotExists = errors.New("slash transaction not exits")
+	errIncorrectBlockLocked    = errors.New("block locked is incorrect")
+	errIncorrectBlockHeight    = errors.New("proposed block number is incorrect")
+	errBlockVerificationFailed = errors.New("block verification failed")
+	errFailedToInsertBlock     = errors.New("failed to insert block")
 )
 
 func (i *Ibft) handleStateErr(err error) {
