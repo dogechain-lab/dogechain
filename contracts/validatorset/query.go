@@ -110,10 +110,10 @@ func MakeDepositTx(t TxQueryHandler, from types.Address) (*types.Transaction, er
 	return tx, nil
 }
 
-func ParseDepositTransctionInput(tx *types.Transaction) (depositAddr types.Address, err error) {
+func ParseDepositTransctionInput(in []byte) (depositAddr types.Address, err error) {
 	method := abis.ValidatorSetABI.Methods[_depositMethodName]
 
-	val, err := abis.DecodeTxMethodInput(method, tx.Input)
+	val, err := abis.DecodeTxMethodInput(method, in)
 	if err != nil {
 		return
 	}
@@ -157,10 +157,10 @@ func MakeSlashTx(t TxQueryHandler, from types.Address, needPunished []types.Addr
 	return tx, nil
 }
 
-func ParseSlashTransctionInput(tx *types.Transaction) (needPunished []types.Address, err error) {
+func ParseSlashTransctionInput(in []byte) (needPunished []types.Address, err error) {
 	method := abis.ValidatorSetABI.Methods[_slashMethodName]
 
-	val, err := abis.DecodeTxMethodInput(method, tx.Input)
+	val, err := abis.DecodeTxMethodInput(method, in)
 	if err != nil {
 		return
 	}

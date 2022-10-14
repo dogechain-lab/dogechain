@@ -255,7 +255,7 @@ func Test_MakeDepositTx_MarshalingUnmarshaling(t *testing.T) {
 	assert.Equal(t, append(method.ID(), addrHash.Bytes()...), tx.Input)
 
 	// Unmarshaling
-	addr, err := ParseDepositTransctionInput(tx)
+	addr, err := ParseDepositTransctionInput(tx.Input)
 	assert.NoError(t, err)
 
 	assert.Equal(t, from, addr)
@@ -294,7 +294,7 @@ func Test_MakeSlashTx_Marshaling(t *testing.T) {
 	assert.Equal(t, expectedHash, tx.Input)
 
 	// Unmarshaling
-	needPunished, err := ParseSlashTransctionInput(tx)
+	needPunished, err := ParseSlashTransctionInput(tx.Input)
 	assert.NoError(t, err)
 
 	assert.Equal(t, punished, needPunished)
