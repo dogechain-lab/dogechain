@@ -230,7 +230,7 @@ func TestQueryValidators(t *testing.T) {
 	}
 }
 
-func Test_MakeDepositTx_Marshaling(t *testing.T) {
+func Test_MakeDepositTx_MarshalingUnmarshaling(t *testing.T) {
 	method := abis.ValidatorSetABI.Methods[_depositMethodName]
 	if method == nil {
 		t.Errorf("validatorset not supportting method: %s", _depositMethodName)
@@ -246,12 +246,19 @@ func Test_MakeDepositTx_Marshaling(t *testing.T) {
 		}
 	)
 
+	// Marshaling
 	tx, err := MakeDepositTx(mock, from)
 	assert.NoError(t, err)
 
 	addrHash := types.StringToHash(from.String())
 
 	assert.Equal(t, append(method.ID(), addrHash.Bytes()...), tx.Input)
+
+	// Unmarshaling
+	addr, err := ParseDepositTransctionInput(tx)
+	assert.NoError(t, err)
+
+	assert.Equal(t, from, addr)
 }
 
 func Test_MakeSlashTx_Marshaling(t *testing.T) {
@@ -273,6 +280,7 @@ func Test_MakeSlashTx_Marshaling(t *testing.T) {
 		}
 	)
 
+	// Marshaling
 	tx, err := MakeSlashTx(mock, from, punished)
 	assert.NoError(t, err)
 
@@ -284,4 +292,10 @@ func Test_MakeSlashTx_Marshaling(t *testing.T) {
 	expectedHash = append(expectedHash, types.StringToHash(addr1.String()).Bytes()...) // addr1 hash
 
 	assert.Equal(t, expectedHash, tx.Input)
+
+	// Unmarshaling
+	needPunished, err := ParseSlashTransctionInput(tx)
+	assert.NoError(t, err)
+
+	assert.Equal(t, punished, needPunished)
 }
