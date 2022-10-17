@@ -1723,9 +1723,7 @@ func Test_VerifySystemTransactions(t *testing.T) {
 	slashTx, err := i.makeTransitionSlashTx(
 		txn,
 		mockBlockHeight,
-		[]types.Address{
-			types.StringToAddress("0x1"),
-		},
+		types.StringToAddress("0x1"),
 	)
 	assert.NoError(t, err)
 
@@ -1741,7 +1739,7 @@ func Test_VerifySystemTransactions(t *testing.T) {
 				Header: &types.Header{
 					Number: mockBlockHeight,
 				},
-				Transactions: []*types.Transaction{},
+				Transactions: nil,
 			},
 			expectedErr: errMissingDepositTx,
 		},

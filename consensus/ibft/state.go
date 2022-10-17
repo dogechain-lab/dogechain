@@ -145,7 +145,7 @@ func (c *currentState) CalcProposer(lastProposer types.Address) {
 func (c *currentState) CalcNeedPunished(
 	currentRound uint64,
 	lastBlockProposer types.Address,
-) (addrs []types.Address) {
+) (addr []types.Address) {
 	if currentRound == 0 {
 		// no one need to be punished
 		return nil
@@ -153,9 +153,9 @@ func (c *currentState) CalcNeedPunished(
 
 	// only punish the first validator,
 	p := c.validators.CalcProposer(0, lastBlockProposer)
-	addrs = append(addrs, p)
+	addr = append(addr, p)
 
-	return addrs
+	return addr
 }
 
 func (c *currentState) lock() {

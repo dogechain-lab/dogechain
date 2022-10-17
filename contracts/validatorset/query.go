@@ -23,7 +23,7 @@ const (
 const (
 	// parameter name
 	_depositParameterName = "validatorAddress"
-	_slashParameterName   = "array"
+	_slashParameterName   = "validatorAddress"
 )
 
 const (
@@ -149,13 +149,13 @@ func IsDepositTransactionSignture(in []byte) bool {
 	return bytes.EqualFold(in[:4], _depositMethodID)
 }
 
-func MakeSlashTx(t NonceHub, from types.Address, needPunished []types.Address) (*types.Transaction, error) {
+func MakeSlashTx(t NonceHub, from types.Address, needPunished types.Address) (*types.Transaction, error) {
 	method := abis.ValidatorSetABI.Methods[_slashMethodName]
 
 	input, err := abis.EncodeTxMethod(
 		method,
 		map[string]interface{}{
-			_slashParameterName: needPunished,
+			_slashParameterName: web3.Address(needPunished),
 		},
 	)
 	if err != nil {

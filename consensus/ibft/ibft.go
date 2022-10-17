@@ -642,16 +642,14 @@ func (i *Ibft) buildBlock(snap *Snapshot, parent *types.Header) (*types.Block, e
 	// If the mechanism is PoS -> build a regular block if it's not an end-of-epoch block
 	// If the mechanism is PoA -> always build a regular block, regardless of epoch
 	txns := []*types.Transaction{}
-	// insert system transactions
+
+	// insert normal transactions
+	if i.shouldWriteTransactions(header.Number) {
+		txns = append(txns, i.writeTransactions(gasLimit, transition)...)
+	}
+
+	// insert system transactions at last to ensure it works
 	if i.shouldWriteSystemTransactions(header.Number) {
-		// make deposit tx
-		tx, err := i.makeTransitionDepositTx(transition, header.Number)
-		if err != nil {
-			return nil, err
-		}
-
-		txns = append(txns, tx)
-
 		// make slash tx if needed
 		if i.currentRound() > 0 {
 			// only punish the first validator
@@ -659,7 +657,7 @@ func (i *Ibft) buildBlock(snap *Snapshot, parent *types.Header) (*types.Block, e
 
 			needPunished := i.state.CalcNeedPunished(i.currentRound(), lastBlockProposer)
 			if len(needPunished) > 0 {
-				tx, err := i.makeTransitionSlashTx(transition, header.Number, needPunished)
+				tx, err := i.makeTransitionSlashTx(transition, header.Number, needPunished[0])
 				if err != nil {
 					return nil, err
 				}
@@ -667,10 +665,14 @@ func (i *Ibft) buildBlock(snap *Snapshot, parent *types.Header) (*types.Block, e
 				txns = append(txns, tx)
 			}
 		}
-	}
-	// insert normal transactions
-	if i.shouldWriteTransactions(header.Number) {
-		txns = append(txns, i.writeTransactions(gasLimit, transition)...)
+
+		// make deposit tx
+		tx, err := i.makeTransitionDepositTx(transition, header.Number)
+		if err != nil {
+			return nil, err
+		}
+
+		txns = append(txns, tx)
 	}
 
 	if err := i.PreStateCommit(header, transition); err != nil {
@@ -743,7 +745,7 @@ func (i *Ibft) makeTransitionDepositTx(
 func (i *Ibft) makeTransitionSlashTx(
 	transition validatorset.NonceHub,
 	height uint64,
-	needPunished []types.Address,
+	needPunished types.Address,
 ) (*types.Transaction, error) {
 	// singer
 	signer := i.getSigner(height)
@@ -1071,8 +1073,8 @@ func (i *Ibft) verifySystemTransactions(block *types.Block) error {
 
 // verifyDepositTx returns no failure only when the first transaction is deposit transaction.
 //
-// Should be only one deposit transaction, and only the first one could be exected. So we
-// don't have to go through the whole transaction list.
+// Should be only one deposit transaction, and only the first one could be exected. The last
+// one must be deposit transaction
 //
 // Make sure all validators must take the reward, since they will delegate some funds and
 // earn reward to pay for delegators.
@@ -1083,7 +1085,7 @@ func (i *Ibft) verifyDepositTx(block *types.Block) error {
 
 	var (
 		signer = i.getSigner(block.Number())
-		tx     = block.Transactions[0] // the first one must be deposit transaction
+		tx     = block.Transactions[len(block.Transactions)-1] // the last one must be deposit transaction
 	)
 
 	if tx.To == nil || *tx.To != systemcontracts.AddrValidatorSetContract {
