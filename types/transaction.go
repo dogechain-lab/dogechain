@@ -17,29 +17,42 @@ type Transaction struct {
 	V        *big.Int
 	R        *big.Int
 	S        *big.Int
-	Hash     Hash
 	From     Address
 
 	// Cache
 	size atomic.Value
+	hash atomic.Value
 }
 
 func (t *Transaction) IsContractCreation() bool {
 	return t.To == nil
 }
 
-// ComputeHash computes the hash of the transaction
-func (t *Transaction) ComputeHash() *Transaction {
+func (t *Transaction) Hash() Hash {
+	if hash := t.hash.Load(); hash != nil {
+		return hash.(Hash)
+	}
+
+	hash := t.rlpHash()
+	t.hash.Store(hash)
+
+	return hash
+}
+
+// rlpHash encodes transaction hash.
+func (t *Transaction) rlpHash() (h Hash) {
 	ar := marshalArenaPool.Get()
 	hash := keccak.DefaultKeccakPool.Get()
+	// return it back
+	defer func() {
+		keccak.DefaultKeccakPool.Put(hash)
+		marshalArenaPool.Put(ar)
+	}()
 
 	v := t.MarshalRLPWith(ar)
-	hash.WriteRlp(t.Hash[:0], v)
+	hash.WriteRlp(h[:0], v)
 
-	marshalArenaPool.Put(ar)
-	keccak.DefaultKeccakPool.Put(hash)
-
-	return t
+	return h
 }
 
 // Copy returns a deep copy
@@ -47,8 +60,8 @@ func (t *Transaction) Copy() *Transaction {
 	tt := &Transaction{
 		Nonce: t.Nonce,
 		Gas:   t.Gas,
-		Hash:  t.Hash,
-		From:  t.From,
+		// Hash:  t.Hash,
+		From: t.From,
 	}
 
 	tt.GasPrice = new(big.Int)

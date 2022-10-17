@@ -127,7 +127,7 @@ func (d *Dev) writeTransactions(gasLimit uint64, transition transitionInterface)
 		}
 
 		if err := transition.Write(tx); err != nil {
-			d.logger.Debug("write transaction failed", "hash", tx.Hash, "from", tx.From,
+			d.logger.Debug("write transaction failed", "hash", tx.Hash(), "from", tx.From,
 				"nonce", tx.Nonce, "err", err)
 
 			//nolint:errorlint
@@ -139,12 +139,12 @@ func (d *Dev) writeTransactions(gasLimit uint64, transition transitionInterface)
 			} else if nonceErr, ok := err.(*state.NonceTooLowError); ok {
 				// lower nonce tx, demote all promotable transactions
 				d.txpool.DemoteAllPromoted(tx, nonceErr.CorrectNonce)
-				d.logger.Error("write transaction nonce too low", "hash", tx.Hash, "from", tx.From,
+				d.logger.Error("write transaction nonce too low", "hash", tx.Hash(), "from", tx.From,
 					"nonce", tx.Nonce, "err", err)
 			} else if nonceErr, ok := err.(*state.NonceTooHighError); ok {
 				// higher nonce tx, demote all promotable transactions
 				d.txpool.DemoteAllPromoted(tx, nonceErr.CorrectNonce)
-				d.logger.Error("write miss some transactions with higher nonce", tx.Hash, "from", tx.From,
+				d.logger.Error("write miss some transactions with higher nonce", tx.Hash(), "from", tx.From,
 					"nonce", tx.Nonce, "err", err)
 			} else {
 				// no matter what kind of failure, drop is reasonable for not executed it yet

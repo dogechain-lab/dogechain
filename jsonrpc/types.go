@@ -62,7 +62,7 @@ func toTransaction(
 		V:        argBig(*t.V),
 		R:        argBig(*t.R),
 		S:        argBig(*t.S),
-		Hash:     t.Hash,
+		Hash:     t.Hash(),
 		From:     t.From,
 	}
 
@@ -143,7 +143,7 @@ func toBlock(b *types.Block, fullTx bool) *block {
 		} else {
 			res.Transactions = append(
 				res.Transactions,
-				transactionHash(txn.Hash),
+				transactionHash(txn.Hash()),
 			)
 		}
 	}

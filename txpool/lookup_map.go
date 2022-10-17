@@ -18,11 +18,13 @@ func (m *lookupMap) add(tx *types.Transaction) bool {
 	m.Lock()
 	defer m.Unlock()
 
-	if _, exists := m.all[tx.Hash]; exists {
+	txHash := tx.Hash()
+
+	if _, exists := m.all[txHash]; exists {
 		return false
 	}
 
-	m.all[tx.Hash] = tx
+	m.all[txHash] = tx
 
 	return true
 }
@@ -33,7 +35,7 @@ func (m *lookupMap) remove(txs ...*types.Transaction) {
 	defer m.Unlock()
 
 	for _, tx := range txs {
-		delete(m.all, tx.Hash)
+		delete(m.all, tx.Hash())
 	}
 }
 

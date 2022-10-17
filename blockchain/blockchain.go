@@ -858,8 +858,6 @@ func (b *Blockchain) executeBlockTransactions(block *types.Block) (*BlockResult,
 	// the include sequence should be same as execution, otherwise it failed on state root comparison
 	for _, tx := range block.Transactions {
 		if b.consensus.IsSystemTransaction(height, blockCreator, tx) {
-			// set transaction hash!
-			tx.ComputeHash()
 			systemTxs = append(systemTxs, tx)
 
 			continue
@@ -1057,13 +1055,8 @@ func (b *Blockchain) writeBody(block *types.Block) error {
 
 	// Write txn lookups (txHash -> block)
 	for _, tx := range block.Transactions {
-		// NOTE: better use cache method instead of properties
-		if tx.Hash == types.ZeroHash {
-			// transaction don't get hash, compute it
-			tx.ComputeHash()
-		}
 		// write hash lookup
-		if err := b.db.WriteTxLookup(tx.Hash, block.Hash()); err != nil {
+		if err := b.db.WriteTxLookup(tx.Hash(), block.Hash()); err != nil {
 			return err
 		}
 	}

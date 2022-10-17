@@ -219,13 +219,11 @@ func (e *Eth) SendRawTransaction(input string) (interface{}, error) {
 		return nil, err
 	}
 
-	tx.ComputeHash()
-
 	if err := e.store.AddTx(tx); err != nil {
 		return nil, err
 	}
 
-	return tx.Hash.String(), nil
+	return tx.Hash().String(), nil
 }
 
 // Reject eth_sendTransaction json-rpc call as we don't support wallet management
@@ -257,7 +255,7 @@ func (e *Eth) GetTransactionByHash(hash types.Hash) (interface{}, error) {
 
 		// Find the transaction within the block
 		for idx, txn := range block.Transactions {
-			if txn.Hash == hash {
+			if txn.Hash() == hash {
 				return toTransaction(
 					txn,
 					argUintPtr(block.Number()),
@@ -340,7 +338,7 @@ func (e *Eth) GetTransactionReceipt(hash types.Hash) (interface{}, error) {
 	indx := -1
 
 	for i, txn := range block.Transactions {
-		if txn.Hash == hash {
+		if txn.Hash() == hash {
 			indx = i
 
 			break
@@ -363,7 +361,7 @@ func (e *Eth) GetTransactionReceipt(hash types.Hash) (interface{}, error) {
 			Data:        argBytes(elem.Data),
 			BlockHash:   block.Hash(),
 			BlockNumber: argUint64(block.Number()),
-			TxHash:      txn.Hash,
+			TxHash:      txn.Hash(),
 			TxIndex:     argUint64(indx),
 			LogIndex:    argUint64(indx),
 			Removed:     false,
@@ -375,7 +373,7 @@ func (e *Eth) GetTransactionReceipt(hash types.Hash) (interface{}, error) {
 		CumulativeGasUsed: argUint64(raw.CumulativeGasUsed),
 		LogsBloom:         raw.LogsBloom,
 		Status:            argUint64(*raw.Status),
-		TxHash:            txn.Hash,
+		TxHash:            txn.Hash(),
 		TxIndex:           argUint64(indx),
 		BlockHash:         block.Hash(),
 		BlockNumber:       argUint64(block.Number()),
@@ -947,7 +945,7 @@ func (e *Eth) decodeTxn(arg *txnArgs) (*types.Transaction, error) {
 		txn.To = arg.To
 	}
 
-	txn.ComputeHash()
+	txn.Hash()
 
 	return txn, nil
 }

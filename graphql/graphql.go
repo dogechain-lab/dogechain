@@ -312,7 +312,7 @@ func (t *Transaction) findSealedTx(hash types.Hash) bool {
 
 	// Find the transaction within the block
 	for idx, txn := range block.Transactions {
-		if txn.Hash == hash {
+		if txn.Hash() == hash {
 			t.tx = txn
 			t.index = uint64(idx)
 
@@ -937,7 +937,7 @@ func (b *Block) Transactions(ctx context.Context) (*[]*Transaction, error) {
 		ret = append(ret, &Transaction{
 			backend:  b.backend,
 			resolver: b.resolver,
-			hash:     tx.Hash,
+			hash:     tx.Hash(),
 			tx:       tx,
 			block:    b,
 			index:    uint64(i),
@@ -962,7 +962,7 @@ func (b *Block) TransactionAt(ctx context.Context, args struct{ Index int32 }) (
 	return &Transaction{
 		backend:  b.backend,
 		resolver: b.resolver,
-		hash:     tx.Hash,
+		hash:     tx.Hash(),
 		tx:       tx,
 		block:    b,
 		index:    uint64(args.Index),

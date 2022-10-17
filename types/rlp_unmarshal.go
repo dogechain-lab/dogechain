@@ -308,8 +308,6 @@ func (t *Transaction) UnmarshalRLPFrom(p *fastrlp.Parser, v *fastrlp.Value) erro
 			len(elems))
 	}
 
-	p.Hash(t.Hash[:0], v)
-
 	// nonce
 	if t.Nonce, err = elems[0].GetUint64(); err != nil {
 		return err
@@ -358,6 +356,9 @@ func (t *Transaction) UnmarshalRLPFrom(p *fastrlp.Parser, v *fastrlp.Value) erro
 	if err = elems[8].GetBigInt(t.S); err != nil {
 		return err
 	}
+
+	// cache hash
+	t.Hash()
 
 	return nil
 }

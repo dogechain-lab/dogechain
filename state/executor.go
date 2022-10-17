@@ -292,7 +292,7 @@ func (t *Transition) WriteFailedReceipt(txn *types.Transaction) error {
 
 	receipt := &types.Receipt{
 		CumulativeGasUsed: t.totalGas,
-		TxHash:            txn.Hash,
+		TxHash:            txn.Hash(),
 		Logs:              t.state.Logs(),
 	}
 
@@ -338,7 +338,7 @@ func (t *Transition) Write(txn *types.Transaction) error {
 
 	receipt := &types.Receipt{
 		CumulativeGasUsed: t.totalGas,
-		TxHash:            txn.Hash,
+		TxHash:            txn.Hash(),
 		GasUsed:           result.GasUsed,
 	}
 
@@ -595,7 +595,7 @@ func (t *Transition) apply(msg *types.Transaction) (*runtime.ExecutionResult, er
 	txn := t.state
 
 	t.logger.Debug("try to apply transaction",
-		"hash", msg.Hash, "from", msg.From, "nonce", msg.Nonce, "price", msg.GasPrice.String(),
+		"hash", msg.Hash(), "from", msg.From, "nonce", msg.Nonce, "price", msg.GasPrice.String(),
 		"remainingGas", t.gasPool, "wantGas", msg.Gas)
 
 	// 0. the basic amount of gas is required
@@ -625,7 +625,7 @@ func (t *Transition) apply(msg *types.Transaction) (*runtime.ExecutionResult, er
 		return nil, NewTransitionApplicationError(err, false)
 	}
 
-	t.logger.Debug("apply transaction would uses gas", "hash", msg.Hash, "gas", intrinsicGasCost)
+	t.logger.Debug("apply transaction would uses gas", "hash", msg.Hash(), "gas", intrinsicGasCost)
 
 	// 5. the purchased gas is enough to cover intrinsic usage
 	gasLeft := msg.Gas - intrinsicGasCost

@@ -18,15 +18,15 @@ func TestEth_TxnPool_SendRawTransaction(t *testing.T) {
 		From: addr0,
 		V:    big.NewInt(1),
 	}
-	txn.ComputeHash()
+	// txn.ComputeHash()
 
 	data := txn.MarshalRLP()
 	_, err := eth.SendRawTransaction(hex.EncodeToHex(data))
 	assert.NoError(t, err)
-	assert.NotEqual(t, store.txn.Hash, types.ZeroHash)
+	assert.NotEqual(t, store.txn.Hash(), types.ZeroHash)
 
 	// the hash in the txn pool should match the one we send
-	if txn.Hash != store.txn.Hash {
+	if txn.Hash() != store.txn.Hash() {
 		t.Fatal("bad")
 	}
 }

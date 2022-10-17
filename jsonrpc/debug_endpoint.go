@@ -46,7 +46,7 @@ func (d *Debug) TraceTransaction(hash types.Hash) (interface{}, error) {
 
 	// Find the transaction within the block
 	for idx, txn := range block.Transactions {
-		if txn.Hash == hash {
+		if txn.Hash() == hash {
 			tx = txn
 			txIdx = idx
 

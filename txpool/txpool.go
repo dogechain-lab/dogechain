@@ -399,7 +399,7 @@ func (p *TxPool) RemoveExecuted(tx *types.Transaction) {
 	// pop the top most promoted tx
 	account.promoted.pop()
 
-	p.logger.Debug("excutables pop out the max price transaction", "hash", tx.Hash, "from", tx.From)
+	p.logger.Debug("excutables pop out the max price transaction", "hash", tx.Hash(), "from", tx.From)
 
 	// update state
 	p.gauge.decrease(slotsRequired(tx))
@@ -409,7 +409,7 @@ func (p *TxPool) RemoveExecuted(tx *types.Transaction) {
 
 	// update executables
 	if tx := account.promoted.peek(); tx != nil {
-		p.logger.Debug("excutables push in another transaction", "hash", tx.Hash, "from", tx.From)
+		p.logger.Debug("excutables push in another transaction", "hash", tx.Hash(), "from", tx.From)
 		p.executables.push(tx)
 	}
 }
@@ -496,7 +496,7 @@ func (p *TxPool) Drop(tx *types.Transaction) {
 	// update metrics
 	p.metrics.EnqueueTxs.Add(float64(-1 * len(dropped)))
 
-	p.eventManager.signalEvent(proto.EventType_DROPPED, tx.Hash)
+	p.eventManager.signalEvent(proto.EventType_DROPPED, tx.Hash())
 	p.logger.Debug("dropped account txs",
 		"num", droppedCount,
 		"next_nonce", nextNonce,
@@ -530,7 +530,7 @@ func (p *TxPool) processEvent(event *blockchain.Event) {
 		}
 
 		for _, tx := range block.Transactions {
-			oldTxs[tx.Hash] = tx
+			oldTxs[tx.Hash()] = tx
 		}
 	}
 
@@ -567,7 +567,7 @@ func (p *TxPool) processEvent(event *blockchain.Event) {
 
 			// Legacy reorg logic //
 			// Update the addTxns in case of reorgs
-			delete(oldTxs, tx.Hash)
+			delete(oldTxs, tx.Hash())
 		}
 	}
 
@@ -671,9 +671,10 @@ func (p *TxPool) validateTx(tx *types.Transaction) error {
 // successful, an account is created for this address
 // (only once) and an enqueueRequest is signaled.
 func (p *TxPool) addTx(origin txOrigin, tx *types.Transaction) error {
+	// get the hash already from the very beginning
 	p.logger.Debug("add tx",
 		"origin", origin.String(),
-		"hash", tx.Hash.String(),
+		"hash", tx.Hash().String(),
 	)
 
 	// validate incoming tx
@@ -685,8 +686,6 @@ func (p *TxPool) addTx(origin txOrigin, tx *types.Transaction) error {
 	if p.gauge.read()+slotsRequired(tx) > p.gauge.max {
 		return ErrTxPoolOverflow
 	}
-
-	tx.ComputeHash()
 
 	// add to index
 	if ok := p.index.add(tx); !ok {
@@ -700,7 +699,7 @@ func (p *TxPool) addTx(origin txOrigin, tx *types.Transaction) error {
 
 	// send request [BLOCKING]
 	p.enqueueReqCh <- enqueueRequest{tx: tx}
-	p.eventManager.signalEvent(proto.EventType_ADDED, tx.Hash)
+	p.eventManager.signalEvent(proto.EventType_ADDED, tx.Hash())
 
 	return nil
 }
@@ -732,9 +731,9 @@ func (p *TxPool) handleEnqueueRequest(req enqueueRequest) {
 		p.logger.Debug(
 			"replace enquque transaction",
 			"old",
-			replacedTx.Hash.String(),
+			replacedTx.Hash().String(),
 			"new",
-			tx.Hash.String(),
+			tx.Hash().String(),
 		)
 
 		// remove tx index
@@ -742,10 +741,10 @@ func (p *TxPool) handleEnqueueRequest(req enqueueRequest) {
 		// gauge, metrics, event
 		p.gauge.decrease(slotsRequired(replacedTx))
 		p.metrics.EnqueueTxs.Add(-1)
-		p.eventManager.signalEvent(proto.EventType_REPLACED, replacedTx.Hash)
+		p.eventManager.signalEvent(proto.EventType_REPLACED, replacedTx.Hash())
 	}
 
-	p.logger.Debug("enqueue request", "hash", tx.Hash.String())
+	p.logger.Debug("enqueue request", "hash", tx.Hash())
 
 	// state
 	p.gauge.increase(slotsRequired(tx))
@@ -865,12 +864,12 @@ func (p *TxPool) addGossipTx(obj interface{}) {
 	// add tx
 	if err := p.addTx(gossip, tx); err != nil {
 		if errors.Is(err, ErrAlreadyKnown) {
-			p.logger.Debug("rejecting known tx (gossip)", "hash", tx.Hash.String())
+			p.logger.Debug("rejecting known tx (gossip)", "hash", tx.Hash())
 
 			return
 		}
 
-		p.logger.Error("failed to add broadcast tx", "err", err, "hash", tx.Hash.String())
+		p.logger.Error("failed to add broadcast tx", "err", err, "hash", tx.Hash())
 	}
 }
 
@@ -935,7 +934,7 @@ func (p *TxPool) Length() uint64 {
 // toHash returns the hash(es) of given transaction(s)
 func toHash(txs ...*types.Transaction) (hashes []types.Hash) {
 	for _, tx := range txs {
-		hashes = append(hashes, tx.Hash)
+		hashes = append(hashes, tx.Hash())
 	}
 
 	return
