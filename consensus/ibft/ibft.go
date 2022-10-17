@@ -657,7 +657,7 @@ func (i *Ibft) buildBlock(snap *Snapshot, parent *types.Header) (*types.Block, e
 
 			needPunished := i.state.CalcNeedPunished(i.currentRound(), lastBlockProposer)
 			if len(needPunished) > 0 {
-				tx, err := i.makeTransitionSlashTx(transition, header.Number, needPunished[0])
+				tx, err := i.makeTransitionSlashTx(transition.Txn(), header.Number, needPunished[0])
 				if err != nil {
 					return nil, err
 				}
@@ -667,7 +667,7 @@ func (i *Ibft) buildBlock(snap *Snapshot, parent *types.Header) (*types.Block, e
 		}
 
 		// make deposit tx
-		tx, err := i.makeTransitionDepositTx(transition, header.Number)
+		tx, err := i.makeTransitionDepositTx(transition.Txn(), header.Number)
 		if err != nil {
 			return nil, err
 		}
@@ -721,14 +721,14 @@ func (i *Ibft) currentRound() uint64 {
 }
 
 func (i *Ibft) makeTransitionDepositTx(
-	transition validatorset.NonceHub,
+	txn *state.Txn,
 	height uint64,
 ) (*types.Transaction, error) {
 	// singer
 	signer := i.getSigner(height)
 
 	// make deposit tx
-	tx, err := validatorset.MakeDepositTx(transition, i.validatorKeyAddr)
+	tx, err := validatorset.MakeDepositTx(txn, i.validatorKeyAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -739,11 +739,14 @@ func (i *Ibft) makeTransitionDepositTx(
 		return nil, err
 	}
 
+	// update nonce
+	txn.SetNonce(i.validatorKeyAddr, txn.GetNonce(i.validatorKeyAddr)+1)
+
 	return tx, err
 }
 
 func (i *Ibft) makeTransitionSlashTx(
-	transition validatorset.NonceHub,
+	txn *state.Txn,
 	height uint64,
 	needPunished types.Address,
 ) (*types.Transaction, error) {
@@ -751,7 +754,7 @@ func (i *Ibft) makeTransitionSlashTx(
 	signer := i.getSigner(height)
 
 	// make deposit tx
-	tx, err := validatorset.MakeSlashTx(transition, i.validatorKeyAddr, needPunished)
+	tx, err := validatorset.MakeSlashTx(txn, i.validatorKeyAddr, needPunished)
 	if err != nil {
 		return nil, err
 	}
@@ -761,6 +764,9 @@ func (i *Ibft) makeTransitionSlashTx(
 	if err != nil {
 		return nil, err
 	}
+
+	// update nonce
+	txn.SetNonce(i.validatorKeyAddr, txn.GetNonce(i.validatorKeyAddr)+1)
 
 	return tx, err
 }
@@ -1074,7 +1080,8 @@ func (i *Ibft) verifySystemTransactions(block *types.Block) error {
 // verifyDepositTx returns no failure only when the first transaction is deposit transaction.
 //
 // Should be only one deposit transaction, and only the first one could be exected. The last
-// one must be deposit transaction
+// one must be deposit transaction, then it would not block any transaction sent
+// mannually by the validator.
 //
 // Make sure all validators must take the reward, since they will delegate some funds and
 // earn reward to pay for delegators.
