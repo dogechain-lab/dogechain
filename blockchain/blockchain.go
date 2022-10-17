@@ -93,7 +93,8 @@ type Verifier interface {
 }
 
 type Executor interface {
-	ProcessBlock(parentRoot types.Hash, block *types.Block, blockCreator types.Address) (*state.Transition, error)
+	//nolint:lll
+	ProcessTransactions(parentRoot types.Hash, header *types.Header, coinbase types.Address, transactions []*types.Transaction) (*state.Transition, error)
 	Stop()
 }
 
@@ -846,7 +847,7 @@ func (b *Blockchain) executeBlockTransactions(block *types.Block) (*BlockResult,
 		return nil, err
 	}
 
-	txn, err := b.executor.ProcessBlock(parent.StateRoot, block, blockCreator)
+	txn, err := b.executor.ProcessTransactions(parent.StateRoot, block.Header, blockCreator, block.Transactions)
 	if err != nil {
 		return nil, err
 	}

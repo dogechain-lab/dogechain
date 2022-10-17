@@ -93,6 +93,40 @@ type BlockResult struct {
 }
 
 // ProcessBlock already does all the handling of the whole process
+func (e *Executor) ProcessTransactions(
+	parentRoot types.Hash,
+	header *types.Header,
+	coinbase types.Address,
+	transactions []*types.Transaction,
+) (*Transition, error) {
+	txn, err := e.BeginTxn(parentRoot, header, coinbase)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, tx := range transactions {
+		if e.IsStopped() {
+			// halt more elegantly
+			return nil, ErrExecutionStop
+		}
+
+		if tx.ExceedsBlockGasLimit(header.GasLimit) {
+			if err := txn.WriteFailedReceipt(tx); err != nil {
+				return nil, err
+			}
+
+			continue
+		}
+
+		if err := txn.Write(tx); err != nil {
+			return nil, err
+		}
+	}
+
+	return txn, nil
+}
+
+// ProcessBlock already does all the handling of the whole process
 func (e *Executor) ProcessBlock(
 	parentRoot types.Hash,
 	block *types.Block,
@@ -103,21 +137,21 @@ func (e *Executor) ProcessBlock(
 		return nil, err
 	}
 
-	for _, t := range block.Transactions {
+	for _, tx := range block.Transactions {
 		if e.IsStopped() {
 			// halt more elegantly
 			return nil, ErrExecutionStop
 		}
 
-		if t.ExceedsBlockGasLimit(block.Header.GasLimit) {
-			if err := txn.WriteFailedReceipt(t); err != nil {
+		if tx.ExceedsBlockGasLimit(block.Header.GasLimit) {
+			if err := txn.WriteFailedReceipt(tx); err != nil {
 				return nil, err
 			}
 
 			continue
 		}
 
-		if err := txn.Write(t); err != nil {
+		if err := txn.Write(tx); err != nil {
 			return nil, err
 		}
 	}
@@ -148,6 +182,8 @@ func (e *Executor) GetForksInTime(blockNumber uint64) chain.ForksInTime {
 	return e.config.Forks.At(blockNumber)
 }
 
+// TODO: It knows too much knowledge of the blockchain. Should limit its knowledge range,
+// beginning from parameters.
 func (e *Executor) BeginTxn(
 	parentRoot types.Hash,
 	header *types.Header,

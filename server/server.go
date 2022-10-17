@@ -251,6 +251,7 @@ func NewServer(config *Config) (*Server, error) {
 		return nil, err
 	}
 
+	// TODO: refactor the design. Executor and blockchain should not rely on each other.
 	m.executor.GetHash = m.blockchain.GetHashHelper
 
 	{

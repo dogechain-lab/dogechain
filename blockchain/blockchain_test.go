@@ -971,10 +971,11 @@ func TestBlockchain_VerifyBlockBody(t *testing.T) {
 
 		executorCallback := func(executor *mockExecutor) {
 			// This is executor processing
-			executor.HookProcessBlock(func(
+			executor.HookProcessTransction(func(
 				hash types.Hash,
-				block *types.Block,
+				header *types.Header,
 				address types.Address,
+				txs []*types.Transaction,
 			) (*state.Transition, error) {
 				return nil, errUnableToExecute
 			})
