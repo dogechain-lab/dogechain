@@ -571,6 +571,8 @@ func (i *Ibft) runSyncState() {
 }
 
 // shouldWriteSystemTransactions checks whether system contract transaction should write at given height
+//
+// only active after detroit hardfork
 func (i *Ibft) shouldWriteSystemTransactions(height uint64) bool {
 	if i.config == nil || i.config.Params == nil || i.config.Params.Forks == nil { // old logic test
 		return false
@@ -1026,16 +1028,6 @@ func (i *Ibft) runAcceptState() { // start new round
 				continue
 			}
 
-			// Check consensus hardfork
-			if i.shouldWriteSystemTransactions(block.Number()) {
-				if err := i.verifySystemTransactions(block); err != nil {
-					i.logger.Error("block consensus transaction verification failed", "err", err)
-					i.handleStateErr(errBlockVerificationFailed)
-
-					continue
-				}
-			}
-
 			// Verify other block params
 			if err := i.blockchain.VerifyPotentialBlock(block); err != nil {
 				i.logger.Error("block verification failed", "err", err)
@@ -1063,62 +1055,48 @@ func (i *Ibft) runAcceptState() { // start new round
 	}
 }
 
-// verifySystemTransactions verifies deposit transaction.
-//
-// Don't verify slash transaction, which is status agnostic, and hard to say which is
-// correct.
-// System contract would do the protection, and it is harmless to execute it. So we'll
-// skip it for a quick check.
-func (i *Ibft) verifySystemTransactions(block *types.Block) error {
-	if err := i.verifyDepositTx(block); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// verifyDepositTx returns no failure only when the first transaction is deposit transaction.
-//
-// Should be only one deposit transaction, and only the first one could be exected. The last
-// one must be deposit transaction, then it would not block any transaction sent
-// mannually by the validator.
-//
-// Make sure all validators must take the reward, since they will delegate some funds and
-// earn reward to pay for delegators.
-func (i *Ibft) verifyDepositTx(block *types.Block) error {
-	if len(block.Transactions) == 0 {
-		return errMissingDepositTx
-	}
-
-	var (
-		signer = i.getSigner(block.Number())
-		tx     = block.Transactions[len(block.Transactions)-1] // the last one must be deposit transaction
-	)
-
+func (i *Ibft) isDepositTx(height uint64, coinbase types.Address, tx *types.Transaction) bool {
 	if tx.To == nil || *tx.To != systemcontracts.AddrValidatorSetContract {
-		return errMissingDepositTx
+		return false
 	}
 
+	// check input
 	if !validatorset.IsDepositTransactionSignture(tx.Input) {
-		return errMissingDepositTx
+		return false
 	}
 
-	validator, err := ecrecoverFromHeader(block.Header)
-	if err != nil {
-		return err
-	}
+	// signer by height
+	signer := i.getSigner(height)
 
+	// tx sender
 	from, err := signer.Sender(tx)
 	if err != nil {
-		return err
+		return false
 	}
 
-	// the deposit transaction signer must be validator
-	if from != validator {
-		return errInvalidConsensusTxSigner
+	return from == coinbase
+}
+
+func (i *Ibft) isSlashTx(height uint64, coinbase types.Address, tx *types.Transaction) bool {
+	if tx.To == nil || *tx.To != systemcontracts.AddrValidatorSetContract {
+		return false
 	}
 
-	return nil
+	// check input
+	if !validatorset.IsSlashTransactionSignture(tx.Input) {
+		return false
+	}
+
+	// signer by height
+	signer := i.getSigner(height)
+
+	// tx sender
+	from, err := signer.Sender(tx)
+	if err != nil {
+		return false
+	}
+
+	return from == coinbase
 }
 
 // runValidateState implements the Validate state loop.
@@ -1586,6 +1564,19 @@ func (i *Ibft) PreStateCommit(header *types.Header, txn *state.Transition) error
 	}
 
 	return nil
+}
+
+func (i *Ibft) IsSystemTransaction(height uint64, coinbase types.Address, tx *types.Transaction) bool {
+	// only active after detroit hardfork
+	if !i.shouldWriteSystemTransactions(height) {
+		return false
+	}
+
+	if i.isDepositTx(height, coinbase, tx) {
+		return true
+	}
+
+	return i.isSlashTx(height, coinbase, tx)
 }
 
 // GetEpoch returns the current epoch

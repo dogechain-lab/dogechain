@@ -8,10 +8,8 @@ import (
 	"time"
 
 	"github.com/dogechain-lab/dogechain/blockchain"
-	"github.com/dogechain-lab/dogechain/chain"
 	"github.com/dogechain-lab/dogechain/consensus"
 	"github.com/dogechain-lab/dogechain/consensus/ibft/proto"
-	"github.com/dogechain-lab/dogechain/crypto"
 	"github.com/dogechain-lab/dogechain/helper/common"
 	"github.com/dogechain-lab/dogechain/helper/hex"
 	"github.com/dogechain-lab/dogechain/helper/progress"
@@ -1684,129 +1682,129 @@ func TestGetIBFTForks(t *testing.T) {
 	}
 }
 
-func Test_VerifySystemTransactions(t *testing.T) {
-	// random key
-	key, err := crypto.GenerateKey()
-	assert.NoError(t, err)
-	// addr
-	addr := crypto.PubKeyToAddress(&key.PublicKey)
+// func Test_VerifySystemTransactions(t *testing.T) {
+// 	// random key
+// 	key, err := crypto.GenerateKey()
+// 	assert.NoError(t, err)
+// 	// addr
+// 	addr := crypto.PubKeyToAddress(&key.PublicKey)
 
-	// mock ibft
-	i := newMockIbft(t, []string{addr.String()}, addr.String())
-	// mock config
-	i.config = &consensus.Config{
-		Params: &chain.Params{
-			Forks:   chain.AllForksEnabled,
-			ChainID: 100,
-			Engine: map[string]interface{}{
-				"ibft": map[string]interface{}{
-					"epochSize": 50,
-					"type":      PoS,
-				},
-			},
-		},
-	}
+// 	// mock ibft
+// 	i := newMockIbft(t, []string{addr.String()}, addr.String())
+// 	// mock config
+// 	i.config = &consensus.Config{
+// 		Params: &chain.Params{
+// 			Forks:   chain.AllForksEnabled,
+// 			ChainID: 100,
+// 			Engine: map[string]interface{}{
+// 				"ibft": map[string]interface{}{
+// 					"epochSize": 50,
+// 					"type":      PoS,
+// 				},
+// 			},
+// 		},
+// 	}
 
-	// get the actual mock key and addr
-	testAddr := i.pool.get(addr.String())
+// 	// get the actual mock key and addr
+// 	testAddr := i.pool.get(addr.String())
 
-	// mock height
-	mockBlockHeight := uint64(*chain.AllForksEnabled.Detroit) + 1
+// 	// mock height
+// 	mockBlockHeight := uint64(*chain.AllForksEnabled.Detroit) + 1
 
-	// mock transition
-	txn := &mockTransition{}
+// 	// mock transition
+// 	txn := &mockTransition{}
 
-	// sign deposit transaction
-	depositTx, err := i.makeTransitionDepositTx(txn, mockBlockHeight)
-	assert.NoError(t, err)
-	// sign slash transaction
-	slashTx, err := i.makeTransitionSlashTx(
-		txn,
-		mockBlockHeight,
-		types.StringToAddress("0x1"),
-	)
-	assert.NoError(t, err)
+// 	// sign deposit transaction
+// 	depositTx, err := i.makeTransitionDepositTx(txn, mockBlockHeight)
+// 	assert.NoError(t, err)
+// 	// sign slash transaction
+// 	slashTx, err := i.makeTransitionSlashTx(
+// 		txn,
+// 		mockBlockHeight,
+// 		types.StringToAddress("0x1"),
+// 	)
+// 	assert.NoError(t, err)
 
-	// test cases
-	tests := []struct {
-		name        string
-		block       *types.Block
-		expectedErr error
-	}{
-		{
-			name: "should failed without deposit transaction",
-			block: &types.Block{
-				Header: &types.Header{
-					Number: mockBlockHeight,
-				},
-				Transactions: nil,
-			},
-			expectedErr: errMissingDepositTx,
-		},
-		{
-			name: "should failed with only slash transaction",
-			block: &types.Block{
-				Header: &types.Header{
-					Number: mockBlockHeight,
-				},
-				Transactions: []*types.Transaction{
-					slashTx,
-				},
-			},
-			expectedErr: errMissingDepositTx,
-		},
-		{
-			name: "should succeed with deposit transaction",
-			block: &types.Block{
-				Header: &types.Header{
-					Number: mockBlockHeight,
-				},
-				Transactions: []*types.Transaction{
-					depositTx,
-				},
-			},
-			expectedErr: nil,
-		},
-		{
-			name: "should succeed with deposit and slash transactions",
-			block: &types.Block{
-				Header: &types.Header{
-					Number: mockBlockHeight,
-				},
-				Transactions: []*types.Transaction{
-					slashTx,
-					depositTx,
-				},
-			},
-			expectedErr: nil,
-		},
-	}
+// 	// test cases
+// 	tests := []struct {
+// 		name        string
+// 		block       *types.Block
+// 		expectedErr error
+// 	}{
+// 		{
+// 			name: "should failed without deposit transaction",
+// 			block: &types.Block{
+// 				Header: &types.Header{
+// 					Number: mockBlockHeight,
+// 				},
+// 				Transactions: nil,
+// 			},
+// 			expectedErr: errMissingDepositTx,
+// 		},
+// 		{
+// 			name: "should failed with only slash transaction",
+// 			block: &types.Block{
+// 				Header: &types.Header{
+// 					Number: mockBlockHeight,
+// 				},
+// 				Transactions: []*types.Transaction{
+// 					slashTx,
+// 				},
+// 			},
+// 			expectedErr: errMissingDepositTx,
+// 		},
+// 		{
+// 			name: "should succeed with deposit transaction",
+// 			block: &types.Block{
+// 				Header: &types.Header{
+// 					Number: mockBlockHeight,
+// 				},
+// 				Transactions: []*types.Transaction{
+// 					depositTx,
+// 				},
+// 			},
+// 			expectedErr: nil,
+// 		},
+// 		{
+// 			name: "should succeed with deposit and slash transactions",
+// 			block: &types.Block{
+// 				Header: &types.Header{
+// 					Number: mockBlockHeight,
+// 				},
+// 				Transactions: []*types.Transaction{
+// 					slashTx,
+// 					depositTx,
+// 				},
+// 			},
+// 			expectedErr: nil,
+// 		},
+// 	}
 
-	for _, test := range tests {
-		test := test
+// 	for _, test := range tests {
+// 		test := test
 
-		t.Run(test.name, func(t *testing.T) {
-			var err error
-			// put extract data
-			putIbftExtraValidators(test.block.Header, []types.Address{addr})
+// 		t.Run(test.name, func(t *testing.T) {
+// 			var err error
+// 			// put extract data
+// 			putIbftExtraValidators(test.block.Header, []types.Address{addr})
 
-			// seal extract data
-			test.block.Header, err = writeSeal(testAddr.priv, test.block.Header)
-			assert.NoError(t, err)
+// 			// seal extract data
+// 			test.block.Header, err = writeSeal(testAddr.priv, test.block.Header)
+// 			assert.NoError(t, err)
 
-			// marshal committed seal extrat data
-			committedSeals := make([][]byte, 0)
-			seal, err := writeCommittedSeal(testAddr.priv, test.block.Header)
-			assert.NoError(t, err)
-			committedSeals = append(committedSeals, seal)
+// 			// marshal committed seal extrat data
+// 			committedSeals := make([][]byte, 0)
+// 			seal, err := writeCommittedSeal(testAddr.priv, test.block.Header)
+// 			assert.NoError(t, err)
+// 			committedSeals = append(committedSeals, seal)
 
-			// commit seal extract data
-			test.block.Header, err = writeCommittedSeals(test.block.Header, committedSeals)
-			assert.NoError(t, err)
+// 			// commit seal extract data
+// 			test.block.Header, err = writeCommittedSeals(test.block.Header, committedSeals)
+// 			assert.NoError(t, err)
 
-			// verify consensus transaction only
-			err = i.verifySystemTransactions(test.block)
-			assert.Equal(t, test.expectedErr, err)
-		})
-	}
-}
+// 			// verify consensus transaction only
+// 			err = i.verifySystemTransactions(test.block)
+// 			assert.Equal(t, test.expectedErr, err)
+// 		})
+// 	}
+// }

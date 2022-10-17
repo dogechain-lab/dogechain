@@ -258,6 +258,10 @@ func (d *Dev) PreStateCommit(_header *types.Header, _txn *state.Transition) erro
 	return nil
 }
 
+func (d *Dev) IsSystemTransaction(height uint64, coinbase types.Address, tx *types.Transaction) bool {
+	return false
+}
+
 func (d *Dev) GetSyncProgression() *progress.Progression {
 	return nil
 }

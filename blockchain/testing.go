@@ -277,6 +277,10 @@ func (m *MockVerifier) PreStateCommit(header *types.Header, txn *state.Transitio
 	return nil
 }
 
+func (m *MockVerifier) IsSystemTransaction(height uint64, coinbase types.Address, tx *types.Transaction) bool {
+	return false
+}
+
 func (m *MockVerifier) HookPreStateCommit(fn preStateCommitDelegate) {
 	m.preStateCommitFn = fn
 }

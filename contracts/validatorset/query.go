@@ -34,6 +34,7 @@ const (
 var (
 	// some important reuse variable. must exists
 	_depositMethodID = abis.ValidatorSetABI.Methods[_depositMethodName].ID()
+	_slashMethodID   = abis.ValidatorSetABI.Methods[_slashMethodName].ID()
 )
 
 func DecodeValidators(method *abi.Method, returnValue []byte) ([]types.Address, error) {
@@ -147,6 +148,14 @@ func IsDepositTransactionSignture(in []byte) bool {
 	}
 
 	return bytes.EqualFold(in[:4], _depositMethodID)
+}
+
+func IsSlashTransactionSignture(in []byte) bool {
+	if len(in) != 36 { // methodid + address
+		return false
+	}
+
+	return bytes.EqualFold(in[:4], _slashMethodID)
 }
 
 func MakeSlashTx(t NonceHub, from types.Address, needPunished types.Address) (*types.Transaction, error) {

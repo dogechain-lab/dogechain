@@ -42,6 +42,9 @@ type Consensus interface {
 
 	// Close closes the connection
 	Close() error
+
+	// Is a transaction systemctem transaction on a specific block height and coinbase
+	IsSystemTransaction(height uint64, coinbase types.Address, tx *types.Transaction) bool
 }
 
 // Config is the configuration for the consensus

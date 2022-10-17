@@ -90,6 +90,7 @@ type Verifier interface {
 	ProcessHeaders(headers []*types.Header) error
 	GetBlockCreator(header *types.Header) (types.Address, error)
 	PreStateCommit(header *types.Header, txn *state.Transition) error
+	IsSystemTransaction(height uint64, coinbase types.Address, tx *types.Transaction) bool
 }
 
 type Executor interface {
@@ -842,14 +843,53 @@ func (b *Blockchain) executeBlockTransactions(block *types.Block) (*BlockResult,
 		return nil, ErrParentNotFound
 	}
 
+	height := header.Number
+
 	blockCreator, err := b.consensus.GetBlockCreator(header)
 	if err != nil {
 		return nil, err
 	}
 
-	txn, err := b.executor.ProcessTransactions(parent.StateRoot, block.Header, blockCreator, block.Transactions)
+	// there might be 2 system transactions, slash or deposit
+	systemTxs := make([]*types.Transaction, 0, 2)
+	// normal transactions which is not consensus associated
+	normalTxs := make([]*types.Transaction, 0, len(block.Transactions))
+
+	// the include sequence should be same as execution, otherwise it failed on state root comparison
+	for _, tx := range block.Transactions {
+		if b.consensus.IsSystemTransaction(height, blockCreator, tx) {
+			// set transaction hash!
+			tx.ComputeHash()
+			systemTxs = append(systemTxs, tx)
+
+			continue
+		}
+
+		normalTxs = append(normalTxs, tx)
+	}
+
+	// execute normal transaction first
+	txn, err := b.executor.ProcessTransactions(parent.StateRoot, block.Header, blockCreator, normalTxs)
 	if err != nil {
 		return nil, err
+	}
+
+	for _, tx := range systemTxs {
+		if b.isStopped() {
+			return nil, ErrClosed
+		}
+
+		if tx.ExceedsBlockGasLimit(header.GasLimit) {
+			if err := txn.WriteFailedReceipt(tx); err != nil {
+				return nil, err
+			}
+
+			continue
+		}
+
+		if err := txn.Write(tx); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := b.consensus.PreStateCommit(header, txn); err != nil {
@@ -1016,8 +1056,14 @@ func (b *Blockchain) writeBody(block *types.Block) error {
 	}
 
 	// Write txn lookups (txHash -> block)
-	for _, txn := range block.Transactions {
-		if err := b.db.WriteTxLookup(txn.Hash, block.Hash()); err != nil {
+	for _, tx := range block.Transactions {
+		// NOTE: better use cache method instead of properties
+		if tx.Hash == types.ZeroHash {
+			// transaction don't get hash, compute it
+			tx.ComputeHash()
+		}
+		// write hash lookup
+		if err := b.db.WriteTxLookup(tx.Hash, block.Hash()); err != nil {
 			return err
 		}
 	}

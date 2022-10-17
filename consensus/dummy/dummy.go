@@ -65,6 +65,10 @@ func (d *Dummy) PreStateCommit(_header *types.Header, _txn *state.Transition) er
 	return nil
 }
 
+func (d *Dummy) IsSystemTransaction(height uint64, coinbase types.Address, tx *types.Transaction) bool {
+	return false
+}
+
 func (d *Dummy) GetSyncProgression() *progress.Progression {
 	return nil
 }
