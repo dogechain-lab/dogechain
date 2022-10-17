@@ -103,8 +103,6 @@ func (e *Executor) ProcessBlock(
 		return nil, err
 	}
 
-	txn.block = block
-
 	for _, t := range block.Transactions {
 		if e.IsStopped() {
 			// halt more elegantly
@@ -197,9 +195,6 @@ type Transition struct {
 
 	// dummy
 	auxState State
-
-	// the current block being processed
-	block *types.Block
 
 	r       *Executor
 	config  chain.ForksInTime
@@ -424,10 +419,6 @@ func (t *Transition) SetTxn(txn *Txn) {
 
 func (t *Transition) Txn() *Txn {
 	return t.state
-}
-
-func (t *Transition) GetTxnHash() types.Hash {
-	return t.block.Hash()
 }
 
 // Apply applies a new transaction
