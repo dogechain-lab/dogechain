@@ -1774,8 +1774,8 @@ func Test_VerifySystemTransactions(t *testing.T) {
 					Number: mockBlockHeight,
 				},
 				Transactions: []*types.Transaction{
-					depositTx,
 					slashTx,
+					depositTx,
 				},
 			},
 			expectedErr: nil,
