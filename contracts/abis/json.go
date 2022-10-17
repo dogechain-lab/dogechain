@@ -576,13 +576,7 @@ const ValidatorSetJSONABI = `[
     },
     {
         "inputs":
-        [
-            {
-                "internalType": "address",
-                "name": "validatorAddress",
-                "type": "address"
-            }
-        ],
+        [],
         "name": "deposit",
         "outputs":
         [],
@@ -611,6 +605,27 @@ const ValidatorSetJSONABI = `[
         "outputs":
         [],
         "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs":
+        [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "name": "exists",
+        "outputs":
+        [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
         "type": "function"
     },
     {
@@ -972,6 +987,21 @@ const ValidatorSetJSONABI = `[
     },
     {
         "inputs":
+        [
+            {
+                "internalType": "address",
+                "name": "validatorAddress",
+                "type": "address"
+            }
+        ],
+        "name": "jailValidator",
+        "outputs":
+        [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs":
         [],
         "name": "nextEpoch",
         "outputs":
@@ -1019,6 +1049,11 @@ const ValidatorSetJSONABI = `[
         "inputs":
         [
             {
+                "internalType": "string",
+                "name": "name",
+                "type": "string"
+            },
+            {
                 "internalType": "address",
                 "name": "validatorAddress",
                 "type": "address"
@@ -1063,6 +1098,21 @@ const ValidatorSetJSONABI = `[
         "outputs":
         [],
         "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs":
+        [],
+        "name": "rewardToken",
+        "outputs":
+        [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
         "type": "function"
     },
     {
@@ -1228,9 +1278,9 @@ const ValidatorSetJSONABI = `[
         "inputs":
         [
             {
-                "internalType": "address[]",
-                "name": "array",
-                "type": "address[]"
+                "internalType": "address",
+                "name": "validatorAddress",
+                "type": "address"
             }
         ],
         "name": "slash",
@@ -1322,6 +1372,11 @@ const ValidatorSetJSONABI = `[
         "outputs":
         [
             {
+                "internalType": "string",
+                "name": "name",
+                "type": "string"
+            },
+            {
                 "internalType": "address",
                 "name": "owner",
                 "type": "address"
@@ -1360,6 +1415,27 @@ const ValidatorSetJSONABI = `[
                 "internalType": "bool",
                 "name": "jailed",
                 "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs":
+        [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "name": "validatorSlashes",
+        "outputs":
+        [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
             }
         ],
         "stateMutability": "view",
