@@ -21,8 +21,8 @@ const (
 	subscribeOutputBufferSize = 1024
 )
 
-// max worker number (min 1 and max 32)
-var workerNum = int(common.Min(common.Max(uint64(runtime.NumCPU()), 1), 32))
+// max worker number (min 2 and max 64)
+var workerNum = int(common.Min(common.Max(uint64(runtime.NumCPU()), 2), 64))
 
 type Topic struct {
 	logger hclog.Logger
@@ -74,7 +74,7 @@ func (t *Topic) readLoop(sub *pubsub.Subscription, handler func(obj interface{})
 	ctx, cancelFn := context.WithCancel(context.Background())
 	defer cancelFn()
 
-	workqueue := make(chan proto.Message, workerNum)
+	workqueue := make(chan proto.Message, workerNum*4)
 	defer close(workqueue)
 
 	t.wg.Add(1)

@@ -38,7 +38,7 @@ const (
 	// validateBufferSize is the size of validate buffers in go-libp2p-pubsub
 	// we should have enough capacity of the queue
 	// because when queue is full, validation is throttled and new messages are dropped.
-	validateBufferSize = 1024
+	validateBufferSize = subscribeOutputBufferSize * 2
 )
 
 const (
