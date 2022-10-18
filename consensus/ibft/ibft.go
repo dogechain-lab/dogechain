@@ -1320,7 +1320,7 @@ func (i *Ibft) runRoundChangeState() {
 		i.sendRoundChange()
 	}
 	sendNextRoundChange := func() {
-		sendRoundChange(i.state.view.Round + 1)
+		sendRoundChange(i.state.nextRound())
 	}
 
 	checkTimeout := func() {

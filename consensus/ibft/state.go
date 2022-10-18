@@ -114,6 +114,15 @@ func (c *currentState) getErr() error {
 	return err
 }
 
+func (c *currentState) nextRound() uint64 {
+	aWholeRound := uint64(len(c.validators))
+	if c.view.Round+1 > aWholeRound {
+		return aWholeRound
+	}
+
+	return c.view.Round + 1
+}
+
 func (c *currentState) maxRound() (maxRound uint64, found bool) {
 	num := c.validators.MaxFaultyNodes() + 1
 
@@ -132,8 +141,8 @@ func (c *currentState) maxRound() (maxRound uint64, found bool) {
 }
 
 const (
-	baseTimeout = 4 * time.Second
-	maxTimeout  = 20 * time.Second
+	baseTimeout = 10 * time.Second
+	maxTimeout  = 26 * time.Second
 )
 
 // messageTimeout returns duration for waiting message

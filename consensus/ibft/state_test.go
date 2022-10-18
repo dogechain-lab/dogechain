@@ -141,47 +141,47 @@ func TestState_MessageTimeout(t *testing.T) {
 		expected    time.Duration
 	}{
 		{
-			description: "for 0 validator returns 4s",
+			description: "for 0 validator returns 10s",
 			c: &currentState{
 				validators: ValidatorSet{},
 			},
-			expected: 4 * time.Second,
+			expected: baseTimeout,
 		},
 		{
-			description: "for 1 validator returns 4s",
+			description: "for 1 validator returns 10s",
 			c: &currentState{
 				validators: ValidatorSet{
 					addr1,
 				}},
-			expected: 4 * time.Second,
+			expected: baseTimeout,
 		},
 		{
-			description: "for 2 validators returns 4s",
+			description: "for 2 validators returns 10s",
 			c: &currentState{
 				validators: ValidatorSet{
 					addr1, addr1,
 				}},
-			expected: 4 * time.Second,
+			expected: baseTimeout,
 		},
 		{
-			description: "for 3 validators returns 6s",
+			description: "for 3 validators returns 12s",
 			c: &currentState{
 				validators: ValidatorSet{
 					addr1, addr1, addr1,
 				}},
-			expected: 6 * time.Second,
+			expected: baseTimeout + 2*time.Second,
 		},
 		{
-			description: "for 13 validators returns 12s",
+			description: "for 13 validators returns 18s",
 			c: &currentState{
 				validators: ValidatorSet{
 					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
 					addr1, addr1, addr1, addr1, addr1, addr1,
 				}},
-			expected: 12 * time.Second,
+			expected: baseTimeout + 8*time.Second,
 		},
 		{
-			description: "for 23 validators returns 18s",
+			description: "for 23 validators returns 24s",
 			c: &currentState{
 				validators: ValidatorSet{
 					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
@@ -189,10 +189,10 @@ func TestState_MessageTimeout(t *testing.T) {
 					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
 					addr1, addr1,
 				}},
-			expected: 18 * time.Second,
+			expected: baseTimeout + 14*time.Second,
 		},
 		{
-			description: "for 24 validators returns 20s",
+			description: "for 24 validators returns 26s",
 			c: &currentState{
 				validators: ValidatorSet{
 					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
@@ -200,10 +200,10 @@ func TestState_MessageTimeout(t *testing.T) {
 					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
 					addr1, addr1, addr1,
 				}},
-			expected: 20 * time.Second,
+			expected: baseTimeout + 16*time.Second,
 		},
 		{
-			description: "for 28 validators returns 20s",
+			description: "for 28 validators returns 26s",
 			c: &currentState{
 				validators: ValidatorSet{
 					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
@@ -211,7 +211,7 @@ func TestState_MessageTimeout(t *testing.T) {
 					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
 					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
 				}},
-			expected: 20 * time.Second,
+			expected: baseTimeout + 16*time.Second,
 		},
 	}
 
