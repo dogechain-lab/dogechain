@@ -683,9 +683,6 @@ func (i *Ibft) buildBlock(snap *Snapshot, parent *types.Header) (*types.Block, e
 					return nil, err
 				}
 
-				// update nonce
-				txn.SetNonce(i.validatorKeyAddr, txn.GetNonce(i.validatorKeyAddr)+1)
-
 				txs = append(txs, tx)
 			}
 		}
@@ -700,9 +697,6 @@ func (i *Ibft) buildBlock(snap *Snapshot, parent *types.Header) (*types.Block, e
 		if err := transition.Write(tx); err != nil {
 			return nil, err
 		}
-
-		// update nonce
-		txn.SetNonce(i.validatorKeyAddr, txn.GetNonce(i.validatorKeyAddr)+1)
 
 		txs = append(txs, tx)
 	}
