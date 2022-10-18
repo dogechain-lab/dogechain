@@ -34,9 +34,14 @@ const (
 )
 
 var (
-	ErrInvalidHookParam     = errors.New("invalid IBFT hook param passed in")
-	ErrInvalidMechanismType = errors.New("invalid consensus mechanism type in params")
-	ErrMissingMechanismType = errors.New("missing consensus mechanism type in params")
+	ErrInvalidHookParam      = errors.New("invalid IBFT hook param passed in")
+	ErrInvalidMechanismType  = errors.New("invalid consensus mechanism type in params")
+	ErrMissingMechanismType  = errors.New("missing consensus mechanism type in params")
+	ErrEmptyValidatorExtract = errors.New("empty extract validatorset")
+	ErrInvalidMixHash        = errors.New("invalid mixhash")
+	ErrInvalidUncleHash      = errors.New("invalid uncle hash")
+	ErrWrongDifficulty       = errors.New("wrong difficulty")
+	ErrInvalidBlockTimestamp = errors.New("invalid block timestamp")
 )
 
 type blockchainInterface interface {
@@ -1497,7 +1502,7 @@ func (i *Ibft) verifyHeaderImpl(snap *Snapshot, parent, header *types.Header) er
 	}
 	// ensure validatorset exists in extra data
 	if len(extract.Validators) == 0 {
-		return fmt.Errorf("empty extract validatorset")
+		return ErrEmptyValidatorExtract
 	}
 
 	if hookErr := i.runHook(VerifyHeadersHook, header.Number, header.Nonce); hookErr != nil {
@@ -1505,16 +1510,27 @@ func (i *Ibft) verifyHeaderImpl(snap *Snapshot, parent, header *types.Header) er
 	}
 
 	if header.MixHash != IstanbulDigest {
-		return fmt.Errorf("invalid mixhash")
+		return ErrInvalidMixHash
 	}
 
 	if header.Sha3Uncles != types.EmptyUncleHash {
-		return fmt.Errorf("invalid sha3 uncles")
+		return ErrInvalidUncleHash
 	}
 
 	// difficulty has to match number
 	if header.Difficulty != header.Number {
-		return fmt.Errorf("wrong difficulty")
+		return ErrWrongDifficulty
+	}
+
+	// check timestamp
+	if i.shouldVerifyTimestamp(header.Number) {
+		// The diff between block timestamp and 'now' should not exceeds timeout.
+		// Timestamp ascending array [parentBlockTs, blockTs, now+msgTimeout]
+		d := exponentialTimeout(i.state.view.Round)
+		before, after := parent.Timestamp, uint64(time.Now().Add(d).Unix())
+		if header.Timestamp <= before || header.Timestamp >= after {
+			return ErrInvalidBlockTimestamp
+		}
 	}
 
 	// verify the sealer
@@ -1523,6 +1539,18 @@ func (i *Ibft) verifyHeaderImpl(snap *Snapshot, parent, header *types.Header) er
 	}
 
 	return nil
+}
+
+// shouldVerifyTimeStamp checks whether block timestamp should be verified or not
+//
+// only active after detroit hardfork
+func (i *Ibft) shouldVerifyTimestamp(height uint64) bool {
+	// backward compatible
+	if i.config == nil || i.config.Params == nil || i.config.Params.Forks == nil {
+		return false
+	}
+
+	return true
 }
 
 // VerifyHeader wrapper for verifying headers
