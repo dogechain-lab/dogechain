@@ -16,7 +16,7 @@ const (
 	codeCacheSize = 32 * 1024 * 1024 // 32MB
 
 	trieStateLruCacheSize    = 128
-	accountStateLruCacheSize = 2048
+	accountStateLruCacheSize = 1024
 )
 
 type State struct {
