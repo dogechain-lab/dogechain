@@ -13,27 +13,35 @@ import (
 )
 
 const (
-	cacheSize = 32 * 1024 * 1024 // 32MB
+	codeCacheSize = 32 * 1024 * 1024 // 32MB
+
+	trieStateLruCacheSize    = 128
+	accountStateLruCacheSize = 2048
 )
 
 type State struct {
 	storage Storage
 
-	cache     *lru.Cache
+	trieStateCache    *lru.Cache
+	accountStateCache *lru.Cache
+
 	codeCache *fastcache.Cache
 
 	metrics *Metrics
 }
 
 func NewState(storage Storage, metrics *Metrics) *State {
-	codeCache := fastcache.New(cacheSize)
-	cache, _ := lru.New(128)
+	codeCache := fastcache.New(codeCacheSize * 1024 * 1024)
+
+	trieStateCache, _ := lru.New(trieStateLruCacheSize)
+	accountStateCache, _ := lru.New(accountStateLruCacheSize)
 
 	s := &State{
-		storage:   storage,
-		cache:     cache,
-		codeCache: codeCache,
-		metrics:   NewDummyMetrics(metrics),
+		storage:           storage,
+		trieStateCache:    trieStateCache,
+		accountStateCache: accountStateCache,
+		codeCache:         codeCache,
+		metrics:           NewDummyMetrics(metrics),
 	}
 
 	return s
@@ -85,22 +93,33 @@ func (s *State) NewSnapshotAt(root types.Hash) (state.Snapshot, error) {
 		return s.NewSnapshot(), nil
 	}
 
-	tt, ok := s.cache.Get(root)
+	tt, ok := s.trieStateCache.Get(root)
 	if ok {
-		t, ok := tt.(*Trie)
-		if !ok {
-			return nil, errors.New("invalid type assertion")
-		}
-
-		t.state = s
-
 		trie, ok := tt.(*Trie)
 		if !ok {
 			return nil, errors.New("invalid type assertion")
 		}
 
+		s.metrics.TrieStateLruCacheHit.Add(1)
+
 		return trie, nil
 	}
+
+	s.metrics.TrieStateLruCacheMiss.Add(1)
+
+	tt, ok = s.accountStateCache.Get(root)
+	if ok {
+		trie, ok := tt.(*Trie)
+		if !ok {
+			return nil, errors.New("invalid type assertion")
+		}
+
+		s.metrics.AccountStateLruCacheHit.Add(1)
+
+		return trie, nil
+	}
+
+	s.metrics.AccountStateLruCacheMiss.Add(1)
 
 	n, ok, err := GetNode(root.Bytes(), s.storage)
 
@@ -121,6 +140,10 @@ func (s *State) NewSnapshotAt(root types.Hash) (state.Snapshot, error) {
 	return t, nil
 }
 
-func (s *State) AddState(root types.Hash, t *Trie) {
-	s.cache.Add(root, t)
+func (s *State) AddAccountState(root types.Hash, t *Trie) {
+	s.accountStateCache.Add(root, t)
+}
+
+func (s *State) AddTrieState(root types.Hash, t *Trie) {
+	s.trieStateCache.Add(root, t)
 }
