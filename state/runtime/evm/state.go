@@ -237,7 +237,6 @@ func (c *state) formatPanicDesc() error {
 // Run executes the virtual machine
 func (c *state) Run() (ret []byte, vmerr error) {
 	var (
-		logger    = c.host.GetEVMLogger()
 		needDebug bool
 		//nolint:stylecheck
 		executedIp uint64
@@ -249,14 +248,18 @@ func (c *state) Run() (ret []byte, vmerr error) {
 		// res        []byte // result of the opcode execution function
 	)
 
-	// only real tracer need
-	switch logger.(type) {
-	case nil:
-		needDebug = false
-	case *runtime.DummyLogger:
-		needDebug = false
-	default:
-		needDebug = true
+	if c.host != nil {
+		logger := c.host.GetEVMLogger()
+
+		// only real tracer need
+		switch logger.(type) {
+		case nil:
+			needDebug = false
+		case *runtime.DummyLogger:
+			needDebug = false
+		default:
+			needDebug = true
+		}
 	}
 
 	defer func(needDebug bool, vmerr *error) {
