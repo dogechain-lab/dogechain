@@ -94,8 +94,8 @@ type Verifier interface {
 }
 
 type Executor interface {
-	//nolint:lll
-	ProcessTransactions(parentRoot types.Hash, header *types.Header, coinbase types.Address, transactions []*types.Transaction) (*state.Transition, error)
+	BeginTxn(parentRoot types.Hash, header *types.Header, coinbase types.Address) (*state.Transition, error)
+	ProcessTransactions(transition *state.Transition, gasLimit uint64, transactions []*types.Transaction) (*state.Transition, error)
 	Stop()
 }
 
@@ -850,6 +850,21 @@ func (b *Blockchain) executeBlockTransactions(block *types.Block) (*BlockResult,
 		return nil, err
 	}
 
+	// prepare execution
+	txn, err := b.executor.BeginTxn(parent.StateRoot, block.Header, blockCreator)
+	if err != nil {
+		return nil, err
+	}
+
+	// upgrade system contract first if needed
+	upgrader.UpgradeSystem(
+		b.Config().ChainID,
+		b.Config().Forks,
+		block.Number(),
+		txn.Txn(),
+		b.logger,
+	)
+
 	// there might be 2 system transactions, slash or deposit
 	systemTxs := make([]*types.Transaction, 0, 2)
 	// normal transactions which is not consensus associated
@@ -867,41 +882,13 @@ func (b *Blockchain) executeBlockTransactions(block *types.Block) (*BlockResult,
 	}
 
 	// execute normal transaction first
-	txn, err := b.executor.ProcessTransactions(parent.StateRoot, block.Header, blockCreator, normalTxs)
-	if err != nil {
+	if _, err := b.executor.ProcessTransactions(txn, header.GasLimit, normalTxs); err != nil {
 		return nil, err
 	}
 
-	for _, tx := range systemTxs {
-		if b.isStopped() {
-			return nil, ErrClosed
-		}
-
-		if tx.ExceedsBlockGasLimit(header.GasLimit) {
-			if err := txn.WriteFailedReceipt(tx); err != nil {
-				return nil, err
-			}
-
-			continue
-		}
-
-		if err := txn.Write(tx); err != nil {
-			return nil, err
-		}
-	}
-
-	if err := b.consensus.PreStateCommit(header, txn); err != nil {
+	if _, err := b.executor.ProcessTransactions(txn, header.GasLimit, systemTxs); err != nil {
 		return nil, err
 	}
-
-	// upgrade system if needed
-	upgrader.UpgradeSystem(
-		b.Config().ChainID,
-		b.Config().Forks,
-		block.Number(),
-		txn.Txn(),
-		b.logger,
-	)
 
 	if b.isStopped() {
 		// execute stop, should not commit

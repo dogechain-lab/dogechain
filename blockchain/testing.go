@@ -286,21 +286,27 @@ func (m *MockVerifier) HookPreStateCommit(fn preStateCommitDelegate) {
 }
 
 // Executor delegators
-//nolint:lll
-type processTransactionDelegate func(types.Hash, *types.Header, types.Address, []*types.Transaction) (*state.Transition, error)
+type processTransactionDelegate func(*state.Transition, []*types.Transaction) (*state.Transition, error)
 
 type mockExecutor struct {
 	processTransactionFn processTransactionDelegate
 }
 
-func (m *mockExecutor) ProcessTransactions(
+func (m *mockExecutor) BeginTxn(
 	parentRoot types.Hash,
 	header *types.Header,
-	blockCreator types.Address,
+	coinbaseReceiver types.Address,
+) (*state.Transition, error) {
+	return nil, nil
+}
+
+func (m *mockExecutor) ProcessTransactions(
+	transition *state.Transition,
+	gasLimit uint64,
 	transactions []*types.Transaction,
 ) (*state.Transition, error) {
 	if m.processTransactionFn != nil {
-		return m.processTransactionFn(parentRoot, header, blockCreator, transactions)
+		return m.processTransactionFn(transition, transactions)
 	}
 
 	return nil, nil

@@ -94,23 +94,17 @@ type BlockResult struct {
 
 // ProcessBlock already does all the handling of the whole process
 func (e *Executor) ProcessTransactions(
-	parentRoot types.Hash,
-	header *types.Header,
-	coinbase types.Address,
+	txn *Transition,
+	gasLimit uint64,
 	transactions []*types.Transaction,
 ) (*Transition, error) {
-	txn, err := e.BeginTxn(parentRoot, header, coinbase)
-	if err != nil {
-		return nil, err
-	}
-
 	for _, tx := range transactions {
 		if e.IsStopped() {
 			// halt more elegantly
 			return nil, ErrExecutionStop
 		}
 
-		if tx.ExceedsBlockGasLimit(header.GasLimit) {
+		if tx.ExceedsBlockGasLimit(gasLimit) {
 			if err := txn.WriteFailedReceipt(tx); err != nil {
 				return nil, err
 			}

@@ -196,8 +196,6 @@ func (d *Dev) writeNewBlock(parent *types.Header) error {
 		return err
 	}
 
-	txns := d.writeTransactions(gasLimit, transition)
-
 	// upgrade system if needed
 	upgrader.UpgradeSystem(
 		d.blockchain.Config().ChainID,
@@ -206,6 +204,8 @@ func (d *Dev) writeNewBlock(parent *types.Header) error {
 		transition.Txn(),
 		d.logger,
 	)
+
+	txns := d.writeTransactions(gasLimit, transition)
 
 	// Commit the changes
 	_, root := transition.Commit()

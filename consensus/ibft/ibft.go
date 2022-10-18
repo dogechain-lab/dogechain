@@ -643,6 +643,16 @@ func (i *Ibft) buildBlock(snap *Snapshot, parent *types.Header) (*types.Block, e
 	if err != nil {
 		return nil, err
 	}
+
+	// upgrade system if needed
+	upgrader.UpgradeSystem(
+		i.config.Params.ChainID,
+		i.config.Params.Forks,
+		header.Number,
+		transition.Txn(),
+		i.logger,
+	)
+
 	// If the mechanism is PoS -> build a regular block if it's not an end-of-epoch block
 	// If the mechanism is PoA -> always build a regular block, regardless of epoch
 	txs := []*types.Transaction{}
@@ -700,15 +710,6 @@ func (i *Ibft) buildBlock(snap *Snapshot, parent *types.Header) (*types.Block, e
 	if err := i.PreStateCommit(header, transition); err != nil {
 		return nil, err
 	}
-
-	// upgrade system if needed
-	upgrader.UpgradeSystem(
-		i.config.Params.ChainID,
-		i.config.Params.Forks,
-		header.Number,
-		transition.Txn(),
-		i.logger,
-	)
 
 	_, root := transition.Commit()
 	header.StateRoot = root
