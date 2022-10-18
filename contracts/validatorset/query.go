@@ -98,12 +98,7 @@ func QueryValidators(t TxQueryHandler, from types.Address) ([]types.Address, err
 func MakeDepositTx(t NonceHub, from types.Address) (*types.Transaction, error) {
 	method := abis.ValidatorSetABI.Methods[_depositMethodName]
 
-	input, err := abis.EncodeTxMethod(
-		method,
-		map[string]interface{}{
-			_depositParameterName: from,
-		},
-	)
+	input, err := abis.EncodeTxMethod(method, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -119,43 +114,6 @@ func MakeDepositTx(t NonceHub, from types.Address) (*types.Transaction, error) {
 	}
 
 	return tx, nil
-}
-
-func ParseDepositTransctionInput(in []byte) (depositAddr types.Address, err error) {
-	method := abis.ValidatorSetABI.Methods[_depositMethodName]
-
-	val, err := abis.DecodeTxMethodInput(method, in)
-	if err != nil {
-		return
-	}
-
-	addr, ok := val[_depositParameterName]
-	if !ok {
-		return depositAddr, abis.ErrInvalidSignature
-	}
-
-	w3Addr, ok := addr.(web3.Address)
-	if !ok {
-		return depositAddr, abis.ErrResultTypeCasting
-	}
-
-	return types.Address(w3Addr), nil
-}
-
-func IsDepositTransactionSignture(in []byte) bool {
-	if len(in) < 4 {
-		return false
-	}
-
-	return bytes.EqualFold(in[:4], _depositMethodID)
-}
-
-func IsSlashTransactionSignture(in []byte) bool {
-	if len(in) != 36 { // methodid + address
-		return false
-	}
-
-	return bytes.EqualFold(in[:4], _slashMethodID)
 }
 
 func MakeSlashTx(t NonceHub, from types.Address, needPunished types.Address) (*types.Transaction, error) {
@@ -184,27 +142,18 @@ func MakeSlashTx(t NonceHub, from types.Address, needPunished types.Address) (*t
 	return tx, nil
 }
 
-func ParseSlashTransctionInput(in []byte) (needPunished []types.Address, err error) {
-	method := abis.ValidatorSetABI.Methods[_slashMethodName]
-
-	val, err := abis.DecodeTxMethodInput(method, in)
-	if err != nil {
-		return
+func IsDepositTransactionSignture(in []byte) bool {
+	if len(in) < 4 {
+		return false
 	}
 
-	addrs, ok := val[_slashParameterName]
-	if !ok {
-		return nil, abis.ErrInvalidSignature
+	return bytes.EqualFold(in[:4], _depositMethodID)
+}
+
+func IsSlashTransactionSignture(in []byte) bool {
+	if len(in) != 36 { // methodid + address
+		return false
 	}
 
-	w3Addrs, ok := addrs.([]web3.Address)
-	if !ok {
-		return nil, abis.ErrResultTypeCasting
-	}
-
-	for _, w3Addr := range w3Addrs {
-		needPunished = append(needPunished, types.Address(w3Addr))
-	}
-
-	return needPunished, nil
+	return bytes.EqualFold(in[:4], _slashMethodID)
 }

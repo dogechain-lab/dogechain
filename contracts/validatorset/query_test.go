@@ -228,7 +228,7 @@ func TestQueryValidators(t *testing.T) {
 	}
 }
 
-func Test_MakeDepositTx_MarshalingUnmarshaling(t *testing.T) {
+func Test_MakeDepositTx_Marshaling(t *testing.T) {
 	method := abis.ValidatorSetABI.Methods[_depositMethodName]
 	if method == nil {
 		t.Errorf("validatorset not supportting method: %s", _depositMethodName)
@@ -239,7 +239,7 @@ func Test_MakeDepositTx_MarshalingUnmarshaling(t *testing.T) {
 		from = addr1
 		mock = &TxMock{
 			nonce: map[types.Address]uint64{
-				from: 1,
+				from: 0,
 			},
 		}
 	)
@@ -248,15 +248,7 @@ func Test_MakeDepositTx_MarshalingUnmarshaling(t *testing.T) {
 	tx, err := MakeDepositTx(mock, from)
 	assert.NoError(t, err)
 
-	addrHash := types.StringToHash(from.String())
-
-	assert.Equal(t, append(method.ID(), addrHash.Bytes()...), tx.Input)
-
-	// Unmarshaling
-	addr, err := ParseDepositTransctionInput(tx.Input)
-	assert.NoError(t, err)
-
-	assert.Equal(t, from, addr)
+	assert.Equal(t, method.ID(), tx.Input)
 }
 
 func Test_MakeSlashTx_Marshaling(t *testing.T) {
@@ -282,16 +274,7 @@ func Test_MakeSlashTx_Marshaling(t *testing.T) {
 
 	// format expected hash
 	expectedHash := method.ID()
-	expectedHash = append(expectedHash, types.StringToHash("0x20").Bytes()...)         // (), tuple
-	expectedHash = append(expectedHash, types.StringToHash("0x2").Bytes()...)          // tuple name
-	expectedHash = append(expectedHash, types.StringToHash(addr2.String()).Bytes()...) // addr2 hash
-	expectedHash = append(expectedHash, types.StringToHash(addr1.String()).Bytes()...) // addr1 hash
+	expectedHash = append(expectedHash, leftPad(addr2.Bytes(), 32)...) // addr2 hash
 
 	assert.Equal(t, expectedHash, tx.Input)
-
-	// Unmarshaling
-	needPunished, err := ParseSlashTransctionInput(tx.Input)
-	assert.NoError(t, err)
-
-	assert.Equal(t, punished, needPunished)
 }
