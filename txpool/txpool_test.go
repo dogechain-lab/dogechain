@@ -396,7 +396,7 @@ func TestDropKnownGossipTx(t *testing.T) {
 	}()
 	<-pool.enqueueReqCh
 
-	_, exists := pool.index.get(tx.Hash)
+	_, exists := pool.index.get(tx.Hash())
 	assert.True(t, exists)
 
 	// send tx as gossip (will be discarded)

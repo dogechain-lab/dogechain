@@ -115,7 +115,7 @@ func TestEth_GetTransactionByHash(t *testing.T) {
 		testTxnIndex := 5
 		testTxn := block.Transactions[testTxnIndex]
 
-		res, err := eth.GetTransactionByHash(testTxn.Hash)
+		res, err := eth.GetTransactionByHash(testTxn.Hash())
 		assert.NoError(t, err)
 		assert.NotNil(t, res)
 
@@ -138,7 +138,7 @@ func TestEth_GetTransactionByHash(t *testing.T) {
 
 		testTxn := store.pendingTxns[5]
 
-		res, err := eth.GetTransactionByHash(testTxn.Hash)
+		res, err := eth.GetTransactionByHash(testTxn.Hash())
 		assert.NoError(t, err)
 		assert.NotNil(t, res)
 
@@ -190,14 +190,14 @@ func TestEth_GetTransactionReceipt(t *testing.T) {
 		rec.SetStatus(types.ReceiptSuccess)
 		store.receipts[hash4] = []*types.Receipt{rec}
 
-		res, err := eth.GetTransactionReceipt(txn.Hash)
+		res, err := eth.GetTransactionReceipt(txn.Hash())
 
 		assert.NoError(t, err)
 		assert.NotNil(t, res)
 
 		//nolint:forcetypeassert
 		response := res.(*receipt)
-		assert.Equal(t, txn.Hash, response.TxHash)
+		assert.Equal(t, txn.Hash(), response.TxHash)
 		assert.Equal(t, block.Hash(), response.BlockHash)
 		assert.NotNil(t, response.Logs)
 	})
@@ -444,7 +444,7 @@ func (m *mockBlockStore) Header() *types.Header {
 func (m *mockBlockStore) ReadTxLookup(txnHash types.Hash) (types.Hash, bool) {
 	for _, block := range m.blocks {
 		for _, txn := range block.Transactions {
-			if txn.Hash == txnHash {
+			if txn.Hash() == txnHash {
 				return block.Hash(), true
 			}
 		}
@@ -455,7 +455,7 @@ func (m *mockBlockStore) ReadTxLookup(txnHash types.Hash) (types.Hash, bool) {
 
 func (m *mockBlockStore) GetPendingTx(txHash types.Hash) (*types.Transaction, bool) {
 	for _, txn := range m.pendingTxns {
-		if txn.Hash == txHash {
+		if txn.Hash() == txHash {
 			return txn, true
 		}
 	}

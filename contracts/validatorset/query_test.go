@@ -49,9 +49,7 @@ func (m *TxMock) Apply(tx *types.Transaction) (*runtime.ExecutionResult, error) 
 		return nil, nil
 	}
 
-	tx.ComputeHash()
-
-	res, ok := m.hashToRes[tx.Hash]
+	res, ok := m.hashToRes[tx.Hash()]
 	if ok {
 		return res, nil
 	}
@@ -212,7 +210,7 @@ func TestQueryValidators(t *testing.T) {
 
 			mock := &TxMock{
 				hashToRes: map[types.Hash]*runtime.ExecutionResult{
-					tt.mockArgs.tx.ComputeHash().Hash: tt.mockReturns.res,
+					tt.mockArgs.tx.Hash(): tt.mockReturns.res,
 				},
 				nonce: map[types.Address]uint64{
 					tt.mockArgs.addr: tt.mockReturns.nonce,
@@ -275,9 +273,7 @@ func Test_MakeSlashTx_Marshaling(t *testing.T) {
 				from: 1,
 			},
 		}
-		punished = []types.Address{
-			addr2, addr1,
-		}
+		punished = addr2
 	)
 
 	// Marshaling
