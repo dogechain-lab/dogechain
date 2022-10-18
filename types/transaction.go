@@ -60,8 +60,7 @@ func (t *Transaction) Copy() *Transaction {
 	tt := &Transaction{
 		Nonce: t.Nonce,
 		Gas:   t.Gas,
-		// Hash:  t.Hash,
-		From: t.From,
+		From:  t.From,
 	}
 
 	tt.GasPrice = new(big.Int)

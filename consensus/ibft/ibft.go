@@ -643,15 +643,17 @@ func (i *Ibft) buildBlock(snap *Snapshot, parent *types.Header) (*types.Block, e
 	}
 	// If the mechanism is PoS -> build a regular block if it's not an end-of-epoch block
 	// If the mechanism is PoA -> always build a regular block, regardless of epoch
-	txns := []*types.Transaction{}
+	txs := []*types.Transaction{}
 
 	// insert normal transactions
 	if i.shouldWriteTransactions(header.Number) {
-		txns = append(txns, i.writeTransactions(gasLimit, transition)...)
+		txs = append(txs, i.writeTransactions(gasLimit, transition)...)
 	}
 
 	// insert system transactions at last to ensure it works
 	if i.shouldWriteSystemTransactions(header.Number) {
+		txn := transition.Txn()
+
 		// make slash tx if needed
 		if i.currentRound() > 0 {
 			// only punish the first validator
@@ -659,12 +661,20 @@ func (i *Ibft) buildBlock(snap *Snapshot, parent *types.Header) (*types.Block, e
 
 			needPunished := i.state.CalcNeedPunished(i.currentRound(), lastBlockProposer)
 			if len(needPunished) > 0 {
-				tx, err := i.makeTransitionSlashTx(transition.Txn(), header.Number, needPunished[0])
+				tx, err := i.makeTransitionSlashTx(txn, header.Number, needPunished[0])
 				if err != nil {
 					return nil, err
 				}
 
-				txns = append(txns, tx)
+				// execute slash tx
+				if err := transition.Write(tx); err != nil {
+					return nil, err
+				}
+
+				// update nonce
+				txn.SetNonce(i.validatorKeyAddr, txn.GetNonce(i.validatorKeyAddr)+1)
+
+				txs = append(txs, tx)
 			}
 		}
 
@@ -674,7 +684,15 @@ func (i *Ibft) buildBlock(snap *Snapshot, parent *types.Header) (*types.Block, e
 			return nil, err
 		}
 
-		txns = append(txns, tx)
+		// execute deposit tx
+		if err := transition.Write(tx); err != nil {
+			return nil, err
+		}
+
+		// update nonce
+		txn.SetNonce(i.validatorKeyAddr, txn.GetNonce(i.validatorKeyAddr)+1)
+
+		txs = append(txs, tx)
 	}
 
 	if err := i.PreStateCommit(header, transition); err != nil {
@@ -697,7 +715,7 @@ func (i *Ibft) buildBlock(snap *Snapshot, parent *types.Header) (*types.Block, e
 	// build the block
 	block := consensus.BuildBlock(consensus.BuildBlockParams{
 		Header:   header,
-		Txns:     txns,
+		Txns:     txs,
 		Receipts: transition.Receipts(),
 	})
 
@@ -713,7 +731,7 @@ func (i *Ibft) buildBlock(snap *Snapshot, parent *types.Header) (*types.Block, e
 	// is sealed after all the committed seals
 	block.Header.ComputeHash()
 
-	i.logger.Info("build block", "number", header.Number, "txns", len(txns))
+	i.logger.Info("build block", "number", header.Number, "txns", len(txs))
 
 	return block, nil
 }
@@ -741,9 +759,6 @@ func (i *Ibft) makeTransitionDepositTx(
 		return nil, err
 	}
 
-	// update nonce
-	txn.SetNonce(i.validatorKeyAddr, txn.GetNonce(i.validatorKeyAddr)+1)
-
 	return tx, err
 }
 
@@ -766,9 +781,6 @@ func (i *Ibft) makeTransitionSlashTx(
 	if err != nil {
 		return nil, err
 	}
-
-	// update nonce
-	txn.SetNonce(i.validatorKeyAddr, txn.GetNonce(i.validatorKeyAddr)+1)
 
 	return tx, err
 }
