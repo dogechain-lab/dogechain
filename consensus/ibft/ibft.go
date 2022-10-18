@@ -1524,6 +1524,7 @@ func (i *Ibft) verifyHeaderImpl(snap *Snapshot, parent, header *types.Header) er
 		// Timestamp ascending array [parentBlockTs, blockTs, now+msgTimeout]
 		d := i.state.messageTimeout()
 		before, after := parent.Timestamp, uint64(time.Now().Add(d).Unix())
+
 		if header.Timestamp <= before || header.Timestamp >= after {
 			return ErrInvalidBlockTimestamp
 		}

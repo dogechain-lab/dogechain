@@ -151,7 +151,7 @@ func (c *currentState) messageTimeout() time.Duration {
 	}
 
 	// 2 second steps
-	return baseTimeout + time.Duration(int(validatorNumbers/3)*2)*time.Second
+	return baseTimeout + time.Duration(validatorNumbers/3*2)*time.Second
 }
 
 // resetRoundMsgs resets the prepared, committed and round messages in the current state

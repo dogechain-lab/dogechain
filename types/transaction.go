@@ -30,6 +30,7 @@ func (t *Transaction) IsContractCreation() bool {
 
 func (t *Transaction) Hash() Hash {
 	if hash := t.hash.Load(); hash != nil {
+		//nolint:forcetypeassert
 		return hash.(Hash)
 	}
 

@@ -135,7 +135,6 @@ func TestState_MessageTimeout(t *testing.T) {
 	// fake addr
 	var addr1 = types.StringToAddress("1")
 
-	//nolint:lll
 	testCases := []struct {
 		description string
 		c           *currentState
