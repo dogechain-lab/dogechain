@@ -1,28 +1,28 @@
 package ibft
 
 import (
-	"math"
 	"time"
 )
 
 const (
-	baseTimeout = 10 * time.Second
-	maxTimeout  = 300 * time.Second
+	baseTimeout = 4 * time.Second
+	maxTimeout  = 20 * time.Second
 )
 
-// exponentialTimeout calculates the timeout duration in seconds as exponential function
-// where maximum value returned can't exceed 300 seconds
-// t = 10 + 2^exponent	where exponent > 0
-// t = 10				where exponent = 0
-func exponentialTimeout(exponent uint64) time.Duration {
-	if exponent > 8 {
+// messageTimeout returns duration for waiting message
+//
+// Consider the network travel time between most validators, using validator
+// numbers instead of rounds.
+func (i *Ibft) messageTimeout() time.Duration {
+	if i.state == nil || len(i.state.validators) == 0 {
+		return baseTimeout
+	}
+
+	validatorNumbers := len(i.state.validators)
+	if validatorNumbers >= 24 {
 		return maxTimeout
 	}
 
-	timeout := baseTimeout
-	if exponent > 0 {
-		timeout += time.Duration(math.Pow(2, float64(exponent))) * time.Second
-	}
-
-	return timeout
+	// 2 second steps
+	return baseTimeout + time.Duration(int(validatorNumbers/3)*2)*time.Second
 }
