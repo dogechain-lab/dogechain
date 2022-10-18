@@ -47,8 +47,8 @@ const (
 
 	DefaultLibp2pPort int = 1478
 
-	MinimumPeerConnections int64 = 1
 	MinimumBootNodes       int   = 1
+	MinimumPeerConnections int64 = 1
 )
 
 var (
@@ -267,7 +267,7 @@ func (s *Server) Start() error {
 	}
 
 	go s.runDial()
-	go s.checkPeerConnections()
+	go s.keepAliveMinimumPeerConnections()
 
 	// watch for disconnected peers
 	s.host.Network().Notify(&network.NotifyBundle{
@@ -323,8 +323,9 @@ func (s *Server) setupBootnodes() error {
 	return nil
 }
 
-// checkPeerCount will attempt to make new connections if the active peer count is lesser than the specified limit.
-func (s *Server) checkPeerConnections() {
+// keepAliveMinimumPeerConnections will attempt to make new connections
+// if the active peer count is lesser than the specified limit.
+func (s *Server) keepAliveMinimumPeerConnections() {
 	delay := time.NewTimer(10 * time.Second)
 
 	for {
@@ -338,7 +339,11 @@ func (s *Server) checkPeerConnections() {
 
 		if s.numPeers() < MinimumPeerConnections {
 			if s.config.NoDiscover || !s.bootnodes.hasBootnodes() {
-				//TODO: dial peers from the peerstore
+				// dial unconnected peer
+				randPeer := s.GetRandomPeer()
+				if randPeer != nil && !s.IsConnected(*randPeer) {
+					s.addToDialQueue(s.GetPeerInfo(*randPeer), common.PriorityRandomDial)
+				}
 			} else {
 				randomNode := s.GetRandomBootnode()
 				s.addToDialQueue(randomNode, common.PriorityRandomDial)
@@ -402,11 +407,11 @@ func (s *Server) runDial() {
 
 			s.logger.Debug(fmt.Sprintf("Dialing peer [%s] as local [%s]", peerInfo.String(), s.host.ID()))
 
-			if !s.isConnected(peerInfo.ID) {
+			if !s.IsConnected(peerInfo.ID) {
 				// the connection process is async because it involves connection (here) +
 				// the handshake done in the identity service.
 				if err := s.host.Connect(context.Background(), *peerInfo); err != nil {
-					s.logger.Debug("failed to dial", "addr", peerInfo.String(), "err", err)
+					s.logger.Debug("failed to dial", "addr", peerInfo.String(), "err", err.Error())
 
 					s.emitEvent(peerInfo.ID, peerEvent.PeerFailedToConnect)
 				}
@@ -456,7 +461,7 @@ func (s *Server) hasPeer(peerID peer.ID) bool {
 }
 
 // isConnected checks if the networking server is connected to a peer
-func (s *Server) isConnected(peerID peer.ID) bool {
+func (s *Server) IsConnected(peerID peer.ID) bool {
 	return s.host.Network().Connectedness(peerID) == network.Connected
 }
 
