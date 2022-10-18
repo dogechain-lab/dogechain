@@ -48,10 +48,14 @@ func (s *State) NewSnapshot() state.Snapshot {
 }
 
 func (s *State) SetCode(hash types.Hash, code []byte) error {
-	s.codeCache.Set(hash.Bytes(), code)
-	s.metrics.MemCacheWrite.Add(1)
+	err := s.storage.SetCode(hash, code)
 
-	return s.storage.SetCode(hash, code)
+	if err == nil {
+		s.codeCache.Set(hash.Bytes(), code)
+		s.metrics.MemCacheWrite.Add(1)
+	}
+
+	return err
 }
 
 func (s *State) GetCode(hash types.Hash) ([]byte, bool) {
