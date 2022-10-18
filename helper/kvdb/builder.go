@@ -148,6 +148,7 @@ func NewLevelDBBuilder(logger hclog.Logger, path string) LevelDBBuilder {
 			WriteBuffer:            minLevelDBCache / 4 * opt.MiB,
 			Filter:                 filter.NewBloomFilter(DefaultLevelDBBloomKeyBits),
 			NoSync:                 false,
+			DisableSeeksCompaction: true,
 		},
 	}
 }
