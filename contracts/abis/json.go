@@ -46,11 +46,37 @@ const ValidatorSetJSONABI = `[
             {
                 "indexed": false,
                 "internalType": "uint256",
+                "name": "reward",
+                "type": "uint256"
+            }
+        ],
+        "name": "Claimed",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs":
+        [
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "sender",
+                "type": "address"
+            },
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "validator",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint256",
                 "name": "amount",
                 "type": "uint256"
             }
         ],
-        "name": "Claim",
+        "name": "Delegated",
         "type": "event"
     },
     {
@@ -220,23 +246,17 @@ const ValidatorSetJSONABI = `[
             {
                 "indexed": true,
                 "internalType": "address",
-                "name": "sender",
+                "name": "prevValue",
                 "type": "address"
             },
             {
                 "indexed": true,
                 "internalType": "address",
-                "name": "validator",
+                "name": "newValue",
                 "type": "address"
-            },
-            {
-                "indexed": false,
-                "internalType": "uint256",
-                "name": "amount",
-                "type": "uint256"
             }
         ],
-        "name": "Stake",
+        "name": "RewardTokenChanged",
         "type": "event"
     },
     {
@@ -288,7 +308,7 @@ const ValidatorSetJSONABI = `[
                 "type": "uint256"
             }
         ],
-        "name": "Unstake",
+        "name": "Undelegated",
         "type": "event"
     },
     {
@@ -522,6 +542,26 @@ const ValidatorSetJSONABI = `[
         [
             {
                 "internalType": "address",
+                "name": "validatorAddress",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "amount",
+                "type": "uint256"
+            }
+        ],
+        "name": "delegate",
+        "outputs":
+        [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs":
+        [
+            {
+                "internalType": "address",
                 "name": "",
                 "type": "address"
             }
@@ -689,11 +729,37 @@ const ValidatorSetJSONABI = `[
         [
             {
                 "internalType": "address",
+                "name": "validatorAddress",
+                "type": "address"
+            },
+            {
+                "internalType": "address",
                 "name": "account",
                 "type": "address"
             }
         ],
-        "name": "getDelegatorStakedAmount",
+        "name": "getDelegatorStakedReward",
+        "outputs":
+        [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs":
+        [
+            {
+                "internalType": "address",
+                "name": "account",
+                "type": "address"
+            }
+        ],
+        "name": "getDelegatorTotalStakedAmount",
         "outputs":
         [
             {
@@ -1087,6 +1153,21 @@ const ValidatorSetJSONABI = `[
     },
     {
         "inputs":
+        [],
+        "name": "releasedReward",
+        "outputs":
+        [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs":
         [
             {
                 "internalType": "address",
@@ -1253,6 +1334,21 @@ const ValidatorSetJSONABI = `[
                 "type": "address"
             }
         ],
+        "name": "setRewardToken",
+        "outputs":
+        [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs":
+        [
+            {
+                "internalType": "address",
+                "name": "newValue",
+                "type": "address"
+            }
+        ],
         "name": "setStakeToken",
         "outputs":
         [],
@@ -1284,26 +1380,6 @@ const ValidatorSetJSONABI = `[
             }
         ],
         "name": "slash",
-        "outputs":
-        [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs":
-        [
-            {
-                "internalType": "address",
-                "name": "validatorAddress",
-                "type": "address"
-            },
-            {
-                "internalType": "uint256",
-                "name": "amount",
-                "type": "uint256"
-            }
-        ],
-        "name": "stake",
         "outputs":
         [],
         "stateMutability": "nonpayable",
@@ -1353,7 +1429,7 @@ const ValidatorSetJSONABI = `[
                 "type": "uint256"
             }
         ],
-        "name": "unstake",
+        "name": "undelegate",
         "outputs":
         [],
         "stateMutability": "nonpayable",
