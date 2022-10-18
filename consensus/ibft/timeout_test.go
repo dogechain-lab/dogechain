@@ -1,28 +1,102 @@
 package ibft
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+
+	"github.com/dogechain-lab/dogechain/types"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestExponentialTimeout(t *testing.T) {
+	// fake addr
+	var addr1 = types.StringToAddress("1")
+
+	//nolint:lll
 	testCases := []struct {
 		description string
-		exponent    uint64
+		i           *Ibft
 		expected    time.Duration
 	}{
-		{"for exponent 0 returns 10s", 0, 10 * time.Second},
-		{"for exponent 1 returns 12s", 1, (10 + 2) * time.Second},
-		{"for exponent 2 returns 14s", 2, (10 + 4) * time.Second},
-		{"for exponent 8 returns 256s", 8, (10 + 256) * time.Second},
-		{"for exponent 9 returns 300s", 9, 300 * time.Second},
-		{"for exponent 10 returns 300s", 10, 5 * time.Minute},
+		{
+			description: "for 0 validator returns 4s",
+			i: &Ibft{state: &currentState{
+				validators: ValidatorSet{},
+			}},
+			expected: 4 * time.Second,
+		},
+		{
+			description: "for 1 validator returns 4s",
+			i: &Ibft{state: &currentState{
+				validators: ValidatorSet{
+					addr1,
+				}}},
+			expected: 4 * time.Second,
+		},
+		{
+			description: "for 2 validators returns 4s",
+			i: &Ibft{state: &currentState{
+				validators: ValidatorSet{
+					addr1, addr1,
+				}}},
+			expected: 4 * time.Second,
+		},
+		{
+			description: "for 3 validators returns 6s",
+			i: &Ibft{state: &currentState{
+				validators: ValidatorSet{
+					addr1, addr1, addr1,
+				}}},
+			expected: 6 * time.Second,
+		},
+		{
+			description: "for 13 validators returns 12s",
+			i: &Ibft{state: &currentState{
+				validators: ValidatorSet{
+					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
+					addr1, addr1, addr1, addr1, addr1, addr1,
+				}}},
+			expected: 12 * time.Second,
+		},
+		{
+			description: "for 23 validators returns 18s",
+			i: &Ibft{state: &currentState{
+				validators: ValidatorSet{
+					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
+					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
+					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
+					addr1, addr1,
+				}}},
+			expected: 18 * time.Second,
+		},
+		{
+			description: "for 24 validators returns 20s",
+			i: &Ibft{state: &currentState{
+				validators: ValidatorSet{
+					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
+					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
+					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
+					addr1, addr1, addr1,
+				}}},
+			expected: 20 * time.Second,
+		},
+		{
+			description: "for 28 validators returns 20s",
+			i: &Ibft{state: &currentState{
+				validators: ValidatorSet{
+					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
+					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
+					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
+					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
+				}}},
+			expected: 20 * time.Second,
+		},
 	}
 
 	for _, test := range testCases {
+		test := test
 		t.Run(test.description, func(t *testing.T) {
-			timeout := exponentialTimeout(test.exponent)
+			timeout := test.i.messageTimeout()
 
 			assert.Equal(t, test.expected, timeout)
 		})
