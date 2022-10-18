@@ -96,8 +96,8 @@ var dirPaths = []string{
 func newFileLogger(config *Config) (hclog.Logger, error) {
 	logFileWriter, err := os.OpenFile(
 		config.LogFilePath,
-		os.O_CREATE|os.O_WRONLY|os.O_APPEND,
-		os.ModeAppend,
+		os.O_CREATE+os.O_RDWR+os.O_APPEND,
+		0640,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("could not create log file, %w", err)
