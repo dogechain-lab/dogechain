@@ -1373,8 +1373,6 @@ func (i *Ibft) runRoundChangeState() {
 		if msg == nil {
 			i.logger.Debug("round change timeout")
 			checkTimeout()
-			// update the timeout duration
-			timeout = i.state.messageTimeout()
 
 			continue
 		}
@@ -1396,8 +1394,6 @@ func (i *Ibft) runRoundChangeState() {
 		} else if num == i.state.validators.MaxFaultyNodes()+1 {
 			// weak certificate, try to catch up if our round number is smaller
 			if i.state.view.Round < msg.View.Round {
-				// update timer
-				timeout = i.state.messageTimeout()
 				sendRoundChange(msg.View.Round)
 			}
 		}
