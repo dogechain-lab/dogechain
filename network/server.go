@@ -345,8 +345,10 @@ func (s *Server) keepAliveMinimumPeerConnections() {
 					s.addToDialQueue(s.GetPeerInfo(*randPeer), common.PriorityRandomDial)
 				}
 			} else {
-				randomNode := s.GetRandomBootnode()
-				s.addToDialQueue(randomNode, common.PriorityRandomDial)
+				// dial random unconnected bootnode
+				if randomNode := s.GetRandomBootnode(); randomNode != nil {
+					s.addToDialQueue(randomNode, common.PriorityRandomDial)
+				}
 			}
 		}
 	}
