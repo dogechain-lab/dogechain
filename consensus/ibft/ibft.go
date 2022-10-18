@@ -981,7 +981,7 @@ func (i *Ibft) runAcceptState() { // start new round
 	// we are NOT a proposer for the block. Then, we have to wait
 	// for a pre-prepare message from the proposer
 
-	timeout := i.messageTimeout()
+	timeout := i.state.messageTimeout()
 	for i.getState() == AcceptState {
 		msg, ok := i.getNextMessage(timeout)
 		if !ok {
@@ -1132,7 +1132,7 @@ func (i *Ibft) runValidateState() {
 		}
 	}
 
-	timeout := i.messageTimeout()
+	timeout := i.state.messageTimeout()
 	for i.getState() == ValidateState {
 		msg, ok := i.getNextMessage(timeout)
 		if !ok {
@@ -1362,7 +1362,7 @@ func (i *Ibft) runRoundChangeState() {
 	}
 
 	// create a timer for the round change
-	timeout := i.messageTimeout()
+	timeout := i.state.messageTimeout()
 	for i.getState() == RoundChangeState {
 		msg, ok := i.getNextMessage(timeout)
 		if !ok {
@@ -1374,7 +1374,7 @@ func (i *Ibft) runRoundChangeState() {
 			i.logger.Debug("round change timeout")
 			checkTimeout()
 			// update the timeout duration
-			timeout = i.messageTimeout()
+			timeout = i.state.messageTimeout()
 
 			continue
 		}
@@ -1397,7 +1397,7 @@ func (i *Ibft) runRoundChangeState() {
 			// weak certificate, try to catch up if our round number is smaller
 			if i.state.view.Round < msg.View.Round {
 				// update timer
-				timeout = i.messageTimeout()
+				timeout = i.state.messageTimeout()
 				sendRoundChange(msg.View.Round)
 			}
 		}
@@ -1526,7 +1526,7 @@ func (i *Ibft) verifyHeaderImpl(snap *Snapshot, parent, header *types.Header) er
 	if i.shouldVerifyTimestamp(header.Number) {
 		// The diff between block timestamp and 'now' should not exceeds timeout.
 		// Timestamp ascending array [parentBlockTs, blockTs, now+msgTimeout]
-		d := i.messageTimeout()
+		d := i.state.messageTimeout()
 		before, after := parent.Timestamp, uint64(time.Now().Add(d).Unix())
 		if header.Timestamp <= before || header.Timestamp >= after {
 			return ErrInvalidBlockTimestamp

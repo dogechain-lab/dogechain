@@ -3,6 +3,7 @@ package ibft
 import (
 	"fmt"
 	"sync/atomic"
+	"time"
 
 	"github.com/dogechain-lab/dogechain/consensus/ibft/proto"
 	"github.com/dogechain-lab/dogechain/types"
@@ -128,6 +129,29 @@ func (c *currentState) maxRound() (maxRound uint64, found bool) {
 	}
 
 	return
+}
+
+const (
+	baseTimeout = 4 * time.Second
+	maxTimeout  = 20 * time.Second
+)
+
+// messageTimeout returns duration for waiting message
+//
+// Consider the network travel time between most validators, using validator
+// numbers instead of rounds.
+func (c *currentState) messageTimeout() time.Duration {
+	if len(c.validators) == 0 {
+		return baseTimeout
+	}
+
+	validatorNumbers := len(c.validators)
+	if validatorNumbers >= 24 {
+		return maxTimeout
+	}
+
+	// 2 second steps
+	return baseTimeout + time.Duration(int(validatorNumbers/3)*2)*time.Second
 }
 
 // resetRoundMsgs resets the prepared, committed and round messages in the current state
