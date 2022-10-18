@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	codeCacheSize = 32 * 1024 * 1024 // 32MB
+	codeCacheSize = 32 // 32MB
 
 	trieStateLruCacheSize    = 128
 	accountStateLruCacheSize = 1024
