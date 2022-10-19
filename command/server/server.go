@@ -114,11 +114,12 @@ func setFlags(cmd *cobra.Command) {
 			"the flag indicating that node enable graphql service",
 		)
 
-		cmd.Flags().StringArrayVar(
+		cmd.Flags().StringVar(
 			&params.rawConfig.JSONNamespace,
 			jsonrpcNamespaceFlag,
 			defaultConfig.JSONNamespace,
-			"the jsonrpc endpoint namespaces should be enabled (eth, net, web3, txpool, debug, or * for all)",
+			"the jsonrpc endpoint namespaces should be enabled "+
+				"(eth, net, web3, txpool, debug. concatenate with commas or * for all)",
 		)
 	}
 

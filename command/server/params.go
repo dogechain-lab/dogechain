@@ -3,6 +3,7 @@ package server
 import (
 	"errors"
 	"net"
+	"strings"
 
 	"github.com/hashicorp/go-hclog"
 
@@ -173,6 +174,8 @@ func (p *serverParams) generateConfig() *server.Config {
 		chainCfg.Params.BlockGasTarget = p.blockGasTarget
 	}
 
+	ns := strings.Split(p.rawConfig.JSONNamespace, ",")
+
 	return &server.Config{
 		Chain: chainCfg,
 		JSONRPC: &server.JSONRPC{
@@ -180,7 +183,7 @@ func (p *serverParams) generateConfig() *server.Config {
 			AccessControlAllowOrigin: p.corsAllowedOrigins,
 			BatchLengthLimit:         p.rawConfig.JSONRPCBatchRequestLimit,
 			BlockRangeLimit:          p.rawConfig.JSONRPCBlockRangeLimit,
-			JSONNamespace:            p.rawConfig.JSONNamespace,
+			JSONNamespace:            ns,
 			EnableWS:                 p.rawConfig.EnableWS,
 		},
 		EnableGraphQL: p.rawConfig.EnableGraphQL,
