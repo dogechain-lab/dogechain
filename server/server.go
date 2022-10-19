@@ -668,6 +668,12 @@ func (s *Server) setupJSONRPC() error {
 		Server:             s.network,
 	}
 
+	// format the jsonrpc endpoint namespaces
+	namespaces := make([]jsonrpc.Namespace, len(s.config.JSONRPC.JSONNamespace))
+	for i, s := range s.config.JSONRPC.JSONNamespace {
+		namespaces[i] = jsonrpc.Namespace(s)
+	}
+
 	conf := &jsonrpc.Config{
 		Store:                    hub,
 		Addr:                     s.config.JSONRPC.JSONRPCAddr,
@@ -675,6 +681,7 @@ func (s *Server) setupJSONRPC() error {
 		AccessControlAllowOrigin: s.config.JSONRPC.AccessControlAllowOrigin,
 		BatchLengthLimit:         s.config.JSONRPC.BatchLengthLimit,
 		BlockRangeLimit:          s.config.JSONRPC.BlockRangeLimit,
+		JSONNamespaces:           namespaces,
 		EnableWS:                 s.config.JSONRPC.EnableWS,
 		PriceLimit:               s.config.PriceLimit,
 		Metrics:                  s.serverMetrics.jsonrpc,

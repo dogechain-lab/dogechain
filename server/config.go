@@ -70,6 +70,7 @@ type JSONRPC struct {
 	AccessControlAllowOrigin []string
 	BatchLengthLimit         uint64
 	BlockRangeLimit          uint64
+	JSONNamespace            []string
 	EnableWS                 bool
 }
 

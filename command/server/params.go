@@ -47,6 +47,7 @@ const (
 	enableGraphQLFlag            = "enable-graphql"
 	jsonRPCBatchRequestLimitFlag = "json-rpc-batch-request-limit"
 	jsonRPCBlockRangeLimitFlag   = "json-rpc-block-range-limit"
+	jsonrpcNamespaceFlag         = "json-rpc-namespace"
 	enableWSFlag                 = "enable-ws"
 )
 
@@ -179,6 +180,7 @@ func (p *serverParams) generateConfig() *server.Config {
 			AccessControlAllowOrigin: p.corsAllowedOrigins,
 			BatchLengthLimit:         p.rawConfig.JSONRPCBatchRequestLimit,
 			BlockRangeLimit:          p.rawConfig.JSONRPCBlockRangeLimit,
+			JSONNamespace:            p.rawConfig.JSONNamespace,
 			EnableWS:                 p.rawConfig.EnableWS,
 		},
 		EnableGraphQL: p.rawConfig.EnableGraphQL,

@@ -33,6 +33,7 @@ type Config struct {
 	GraphQLAddr              string     `json:"graphql_addr"`
 	JSONRPCBatchRequestLimit uint64     `json:"json_rpc_batch_request_limit" yaml:"json_rpc_batch_request_limit"`
 	JSONRPCBlockRangeLimit   uint64     `json:"json_rpc_block_range_limit" yaml:"json_rpc_block_range_limit"`
+	JSONNamespace            []string   `json:"json_namespace" yaml:"json_namespace"`
 	EnableWS                 bool       `json:"enable_ws"`
 }
 
@@ -100,6 +101,7 @@ func DefaultConfig() *Config {
 		EnableGraphQL:            false,
 		JSONRPCBatchRequestLimit: jsonrpc.DefaultJSONRPCBatchRequestLimit,
 		JSONRPCBlockRangeLimit:   jsonrpc.DefaultJSONRPCBlockRangeLimit,
+		JSONNamespace:            []string{string(jsonrpc.NamespaceAll)},
 		EnableWS:                 false,
 	}
 }
