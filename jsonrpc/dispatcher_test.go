@@ -167,6 +167,70 @@ func TestDispatcher_WebsocketConnection_RequestFormats(t *testing.T) {
 	}
 }
 
+func TestDispatcher_NamespaceRegistration(t *testing.T) {
+	store := newMockStore()
+
+	cases := []struct {
+		name        string
+		ns          []Namespace
+		msg         []byte
+		expectError bool
+	}{
+		{
+			name: "no namespace registered should failed",
+			ns:   []Namespace{},
+			msg: []byte(`{
+				"method": "eth_blockNumber",
+				"params": [],
+				"id": "abc"
+			}`),
+			expectError: true,
+		},
+		{
+			name: "namespace registered should succeed",
+			ns:   []Namespace{NamespaceEth},
+			msg: []byte(`{
+				"method": "eth_blockNumber",
+				"params": [],
+				"id": "abc"
+			}`),
+			expectError: false,
+		},
+		{
+			name: "all namespace registered should succeed",
+			ns:   []Namespace{NamespaceAll},
+			msg: []byte(`{
+				"method": "eth_blockNumber",
+				"params": [],
+				"id": "abc"
+			}`),
+			expectError: false,
+		},
+	}
+	for _, c := range cases {
+		// different dispatcher
+		dispatcher := newDispatcher(hclog.NewNullLogger(), store, 0, 0, 0, 0, c.ns)
+
+		data, err := dispatcher.Handle(c.msg)
+		assert.NoError(t, err)
+
+		resp := new(SuccessResponse)
+
+		merr := json.Unmarshal(data, resp)
+		if merr != nil {
+			t.Fatalf("Invalid response")
+		}
+
+		if !c.expectError && (resp.Error != nil || err != nil) {
+			t.Fatal("Error unexpected but found")
+		}
+
+		if c.expectError && (resp.Error == nil && err == nil) {
+			t.Fatal("Error expected but not found")
+		}
+	}
+}
+
 type mockService struct {
 	msgCh chan interface{}
 }
