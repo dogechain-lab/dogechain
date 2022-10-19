@@ -57,7 +57,7 @@ func (s *State) SetCode(hash types.Hash, code []byte) error {
 	err := s.storage.SetCode(hash, code)
 
 	if err == nil {
-		s.codeLruCache.Add(hash.String(), code)
+		s.codeLruCache.Add(hash, code)
 		s.metrics.CodeCacheWrite.Add(1)
 	}
 
@@ -67,7 +67,7 @@ func (s *State) SetCode(hash types.Hash, code []byte) error {
 func (s *State) GetCode(hash types.Hash) ([]byte, bool) {
 	defer s.metrics.CodeCacheRead.Add(1)
 
-	if cacheCode, ok := s.codeLruCache.Get(hash.String()); ok {
+	if cacheCode, ok := s.codeLruCache.Get(hash); ok {
 		if code, ok := cacheCode.([]byte); ok {
 			s.metrics.CodeCacheHit.Add(1)
 
@@ -79,7 +79,7 @@ func (s *State) GetCode(hash types.Hash) ([]byte, bool) {
 
 	code, ok := s.storage.GetCode(hash)
 	if ok {
-		s.codeLruCache.Add(hash.String(), code)
+		s.codeLruCache.Add(hash, code)
 
 		s.metrics.CodeCacheWrite.Add(1)
 	}
