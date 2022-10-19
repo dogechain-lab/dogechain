@@ -63,6 +63,7 @@ type Config struct {
 	AccessControlAllowOrigin []string
 	BatchLengthLimit         uint64
 	BlockRangeLimit          uint64
+	JSONNamespaces           []Namespace
 	EnableWS                 bool
 	PriceLimit               uint64
 	Metrics                  *Metrics
@@ -80,6 +81,7 @@ func NewJSONRPC(logger hclog.Logger, config *Config) (*JSONRPC, error) {
 			config.BatchLengthLimit,
 			config.BlockRangeLimit,
 			config.PriceLimit,
+			config.JSONNamespaces,
 		),
 		metrics: NewDummyMetrics(config.Metrics),
 	}

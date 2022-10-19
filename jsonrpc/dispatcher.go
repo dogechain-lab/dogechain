@@ -13,14 +13,15 @@ import (
 	"github.com/hashicorp/go-hclog"
 )
 
-type EndpointNamespace string
+type Namespace string
 
 const (
-	NamespaceEth    EndpointNamespace = "eth"
-	NamespaceNet    EndpointNamespace = "net"
-	NamespaceWeb3   EndpointNamespace = "web3"
-	NamespaceTxpool EndpointNamespace = "txpool"
-	NamespaceDebug  EndpointNamespace = "debug"
+	NamespaceEth    Namespace = "eth"
+	NamespaceNet    Namespace = "net"
+	NamespaceWeb3   Namespace = "web3"
+	NamespaceTxpool Namespace = "txpool"
+	NamespaceDebug  Namespace = "debug"
+	NamespaceAll    Namespace = "*"
 )
 
 type serviceData struct {
@@ -57,6 +58,7 @@ type Dispatcher struct {
 	chainID                 uint64
 	jsonRPCBatchLengthLimit uint64
 	priceLimit              uint64
+	namespaces              map[Namespace]struct{}
 }
 
 func newDispatcher(
@@ -66,25 +68,34 @@ func newDispatcher(
 	jsonRPCBatchLengthLimit uint64,
 	blockRangeLimit uint64,
 	priceLimit uint64,
+	enableNamespaces []Namespace,
 ) *Dispatcher {
 	d := &Dispatcher{
 		logger:                  logger.Named("dispatcher"),
 		chainID:                 chainID,
 		jsonRPCBatchLengthLimit: jsonRPCBatchLengthLimit,
 		priceLimit:              priceLimit,
+		namespaces:              make(map[Namespace]struct{}),
 	}
 
+	// map namespaces
+	for _, ns := range enableNamespaces {
+		d.namespaces[ns] = struct{}{}
+	}
+
+	// enable filter
 	if store != nil {
 		d.filterManager = NewFilterManager(logger, store, blockRangeLimit)
 		go d.filterManager.Run()
 	}
 
-	d.registerEndpoints(store)
+	d.initEndpoints(store)
+	d.registerEndpoints()
 
 	return d
 }
 
-func (d *Dispatcher) registerEndpoints(store JSONRPCStore) {
+func (d *Dispatcher) initEndpoints(store JSONRPCStore) {
 	d.endpoints.Eth = &Eth{
 		logger:        d.logger,
 		store:         store,
@@ -96,12 +107,34 @@ func (d *Dispatcher) registerEndpoints(store JSONRPCStore) {
 	d.endpoints.Web3 = &Web3{}
 	d.endpoints.TxPool = &TxPool{store}
 	d.endpoints.Debug = &Debug{store}
+}
 
-	d.registerService(string(NamespaceEth), d.endpoints.Eth)
-	d.registerService(string(NamespaceNet), d.endpoints.Net)
-	d.registerService(string(NamespaceWeb3), d.endpoints.Web3)
-	d.registerService(string(NamespaceTxpool), d.endpoints.TxPool)
-	d.registerService(string(NamespaceDebug), d.endpoints.Debug)
+func (d *Dispatcher) registerEndpoints() {
+	// enable all endpoints
+	if _, ok := d.namespaces[NamespaceAll]; ok {
+		d.registerService(string(NamespaceEth), d.endpoints.Eth)
+		d.registerService(string(NamespaceNet), d.endpoints.Net)
+		d.registerService(string(NamespaceWeb3), d.endpoints.Web3)
+		d.registerService(string(NamespaceTxpool), d.endpoints.TxPool)
+		d.registerService(string(NamespaceDebug), d.endpoints.Debug)
+
+		return
+	}
+
+	for ns := range d.namespaces {
+		switch ns {
+		case NamespaceEth:
+			d.registerService(string(ns), d.endpoints.Eth)
+		case NamespaceNet:
+			d.registerService(string(ns), d.endpoints.Net)
+		case NamespaceWeb3:
+			d.registerService(string(ns), d.endpoints.Web3)
+		case NamespaceTxpool:
+			d.registerService(string(ns), d.endpoints.TxPool)
+		case NamespaceDebug:
+			d.registerService(string(ns), d.endpoints.Debug)
+		}
+	}
 }
 
 func (d *Dispatcher) getFnHandler(req Request) (*serviceData, *funcData, Error) {
