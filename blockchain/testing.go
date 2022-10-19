@@ -297,7 +297,7 @@ func (m *mockExecutor) BeginTxn(
 	header *types.Header,
 	coinbaseReceiver types.Address,
 ) (*state.Transition, error) {
-	return nil, nil
+	return &state.Transition{}, nil
 }
 
 func (m *mockExecutor) ProcessTransactions(
