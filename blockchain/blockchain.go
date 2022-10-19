@@ -95,6 +95,7 @@ type Verifier interface {
 
 type Executor interface {
 	BeginTxn(parentRoot types.Hash, header *types.Header, coinbase types.Address) (*state.Transition, error)
+	//nolint:lll
 	ProcessTransactions(transition *state.Transition, gasLimit uint64, transactions []*types.Transaction) (*state.Transition, error)
 	Stop()
 }
