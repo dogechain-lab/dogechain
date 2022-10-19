@@ -13,6 +13,16 @@ import (
 	"github.com/hashicorp/go-hclog"
 )
 
+type EndpointNamespace string
+
+const (
+	NamespaceEth    EndpointNamespace = "eth"
+	NamespaceNet    EndpointNamespace = "net"
+	NamespaceWeb3   EndpointNamespace = "web3"
+	NamespaceTxpool EndpointNamespace = "txpool"
+	NamespaceDebug  EndpointNamespace = "debug"
+)
+
 type serviceData struct {
 	sv      reflect.Value
 	funcMap map[string]*funcData
@@ -87,11 +97,11 @@ func (d *Dispatcher) registerEndpoints(store JSONRPCStore) {
 	d.endpoints.TxPool = &TxPool{store}
 	d.endpoints.Debug = &Debug{store}
 
-	d.registerService("eth", d.endpoints.Eth)
-	d.registerService("net", d.endpoints.Net)
-	d.registerService("web3", d.endpoints.Web3)
-	d.registerService("txpool", d.endpoints.TxPool)
-	d.registerService("debug", d.endpoints.Debug)
+	d.registerService(string(NamespaceEth), d.endpoints.Eth)
+	d.registerService(string(NamespaceNet), d.endpoints.Net)
+	d.registerService(string(NamespaceWeb3), d.endpoints.Web3)
+	d.registerService(string(NamespaceTxpool), d.endpoints.TxPool)
+	d.registerService(string(NamespaceDebug), d.endpoints.Debug)
 }
 
 func (d *Dispatcher) getFnHandler(req Request) (*serviceData, *funcData, Error) {
