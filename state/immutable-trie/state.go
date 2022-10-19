@@ -4,8 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/VictoriaMetrics/fastcache"
-
 	lru "github.com/hashicorp/golang-lru"
 
 	"github.com/dogechain-lab/dogechain/state"
@@ -13,25 +11,25 @@ import (
 )
 
 const (
-	codeCacheSize = 32 // 32MB
+	codeCacheSize = 4096
 
-	trieStateLruCacheSize    = 256
-	accountStateLruCacheSize = 1024
+	trieStateLruCacheSize    = 2048
+	accountStateLruCacheSize = 4096
 )
 
 type State struct {
 	storage Storage
 
+	codeLruCache *lru.Cache
+
 	trieStateCache    *lru.Cache
 	accountStateCache *lru.Cache
-
-	codeCache *fastcache.Cache
 
 	metrics *Metrics
 }
 
 func NewState(storage Storage, metrics *Metrics) *State {
-	codeCache := fastcache.New(codeCacheSize * 1024 * 1024)
+	codeLruCache, _ := lru.New(codeCacheSize)
 
 	trieStateCache, _ := lru.New(trieStateLruCacheSize)
 	accountStateCache, _ := lru.New(accountStateLruCacheSize)
@@ -40,7 +38,7 @@ func NewState(storage Storage, metrics *Metrics) *State {
 		storage:           storage,
 		trieStateCache:    trieStateCache,
 		accountStateCache: accountStateCache,
-		codeCache:         codeCache,
+		codeLruCache:      codeLruCache,
 		metrics:           NewDummyMetrics(metrics),
 	}
 
@@ -59,29 +57,31 @@ func (s *State) SetCode(hash types.Hash, code []byte) error {
 	err := s.storage.SetCode(hash, code)
 
 	if err == nil {
-		s.codeCache.Set(hash.Bytes(), code)
-		s.metrics.MemCacheWrite.Add(1)
+		s.codeLruCache.Add(hash.String(), code)
+		s.metrics.CodeCacheWrite.Add(1)
 	}
 
 	return err
 }
 
 func (s *State) GetCode(hash types.Hash) ([]byte, bool) {
-	defer s.metrics.MemCacheRead.Add(1)
+	defer s.metrics.CodeCacheRead.Add(1)
 
-	if enc := s.codeCache.Get(nil, hash.Bytes()); enc != nil {
-		s.metrics.MemCacheHit.Add(1)
+	if cacheCode, ok := s.codeLruCache.Get(hash.String()); ok {
+		if code, ok := cacheCode.([]byte); ok {
+			s.metrics.CodeCacheHit.Add(1)
 
-		return enc, true
+			return code, true
+		}
 	}
 
-	s.metrics.MemCacheMiss.Add(1)
+	s.metrics.CodeCacheMiss.Add(1)
 
 	code, ok := s.storage.GetCode(hash)
 	if ok {
-		s.codeCache.Set(hash.Bytes(), code)
+		s.codeLruCache.Add(hash.String(), code)
 
-		s.metrics.MemCacheWrite.Add(1)
+		s.metrics.CodeCacheWrite.Add(1)
 	}
 
 	return code, ok

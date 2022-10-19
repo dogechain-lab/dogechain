@@ -10,10 +10,10 @@ import (
 
 // Metrics represents the itrie metrics
 type Metrics struct {
-	MemCacheHit   metrics.Counter
-	MemCacheMiss  metrics.Counter
-	MemCacheRead  metrics.Counter
-	MemCacheWrite metrics.Counter
+	CodeCacheHit   metrics.Counter
+	CodeCacheMiss  metrics.Counter
+	CodeCacheRead  metrics.Counter
+	CodeCacheWrite metrics.Counter
 
 	AccountStateLruCacheHit metrics.Counter
 	TrieStateLruCacheHit    metrics.Counter
@@ -30,25 +30,25 @@ func GetPrometheusMetrics(namespace string, labelsWithValues ...string) *Metrics
 	}
 
 	return &Metrics{
-		MemCacheHit: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+		CodeCacheHit: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: "itrie",
 			Name:      "state_code_memcache_hit",
 			Help:      "state code cache hit count",
 		}, labels).With(labelsWithValues...),
-		MemCacheMiss: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+		CodeCacheMiss: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: "itrie",
 			Name:      "state_code_memcache_miss",
 			Help:      "state code cache miss count",
 		}, labels).With(labelsWithValues...),
-		MemCacheRead: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+		CodeCacheRead: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: "itrie",
 			Name:      "state_code_memcache_read",
 			Help:      "state code cache read count",
 		}, labels).With(labelsWithValues...),
-		MemCacheWrite: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+		CodeCacheWrite: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: "itrie",
 			Name:      "state_code_memcache_write",
@@ -78,10 +78,10 @@ func GetPrometheusMetrics(namespace string, labelsWithValues ...string) *Metrics
 // NilMetrics will return the non operational blockchain metrics
 func NilMetrics() *Metrics {
 	return &Metrics{
-		MemCacheHit:   discard.NewCounter(),
-		MemCacheMiss:  discard.NewCounter(),
-		MemCacheRead:  discard.NewCounter(),
-		MemCacheWrite: discard.NewCounter(),
+		CodeCacheHit:   discard.NewCounter(),
+		CodeCacheMiss:  discard.NewCounter(),
+		CodeCacheRead:  discard.NewCounter(),
+		CodeCacheWrite: discard.NewCounter(),
 
 		AccountStateLruCacheHit: discard.NewCounter(),
 		TrieStateLruCacheHit:    discard.NewCounter(),
