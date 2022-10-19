@@ -15,11 +15,10 @@ type Metrics struct {
 	MemCacheRead  metrics.Counter
 	MemCacheWrite metrics.Counter
 
-	AccountStateLruCacheHit  metrics.Counter
-	AccountStateLruCacheMiss metrics.Counter
+	AccountStateLruCacheHit metrics.Counter
+	TrieStateLruCacheHit    metrics.Counter
 
-	TrieStateLruCacheHit  metrics.Counter
-	TrieStateLruCacheMiss metrics.Counter
+	StateLruCacheMiss metrics.Counter
 }
 
 // GetPrometheusMetrics return the blockchain metrics instance
@@ -61,22 +60,16 @@ func GetPrometheusMetrics(namespace string, labelsWithValues ...string) *Metrics
 			Name:      "account_state_snapshot_lrucache_hit",
 			Help:      "account state snapshot cache hit count",
 		}, labels).With(labelsWithValues...),
-		AccountStateLruCacheMiss: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "itrie",
-			Name:      "account_state_snapshot_lrucache_miss",
-			Help:      "account state snapshot cache miss count",
-		}, labels).With(labelsWithValues...),
 		TrieStateLruCacheHit: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: "itrie",
 			Name:      "trie_state_snapshot_lrucache_hit",
 			Help:      "trie state snapshot cache hit count",
 		}, labels).With(labelsWithValues...),
-		TrieStateLruCacheMiss: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+		StateLruCacheMiss: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: "itrie",
-			Name:      "trie_state_snapshot_lrucache_miss",
+			Name:      "state_snapshot_lrucache_miss",
 			Help:      "trie state snapshot cache miss count",
 		}, labels).With(labelsWithValues...),
 	}
@@ -90,11 +83,10 @@ func NilMetrics() *Metrics {
 		MemCacheRead:  discard.NewCounter(),
 		MemCacheWrite: discard.NewCounter(),
 
-		AccountStateLruCacheHit:  discard.NewCounter(),
-		AccountStateLruCacheMiss: discard.NewCounter(),
+		AccountStateLruCacheHit: discard.NewCounter(),
+		TrieStateLruCacheHit:    discard.NewCounter(),
 
-		TrieStateLruCacheHit:  discard.NewCounter(),
-		TrieStateLruCacheMiss: discard.NewCounter(),
+		StateLruCacheMiss: discard.NewCounter(),
 	}
 }
 

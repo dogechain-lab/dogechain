@@ -15,7 +15,7 @@ import (
 const (
 	codeCacheSize = 32 // 32MB
 
-	trieStateLruCacheSize    = 128
+	trieStateLruCacheSize    = 256
 	accountStateLruCacheSize = 1024
 )
 
@@ -105,8 +105,6 @@ func (s *State) NewSnapshotAt(root types.Hash) (state.Snapshot, error) {
 		return trie, nil
 	}
 
-	s.metrics.TrieStateLruCacheMiss.Add(1)
-
 	tt, ok = s.accountStateCache.Get(root)
 	if ok {
 		trie, ok := tt.(*Trie)
@@ -119,8 +117,6 @@ func (s *State) NewSnapshotAt(root types.Hash) (state.Snapshot, error) {
 		return trie, nil
 	}
 
-	s.metrics.AccountStateLruCacheMiss.Add(1)
-
 	n, ok, err := GetNode(root.Bytes(), s.storage)
 
 	if err != nil {
@@ -130,6 +126,8 @@ func (s *State) NewSnapshotAt(root types.Hash) (state.Snapshot, error) {
 	if !ok {
 		return nil, fmt.Errorf("state not found at hash %s", root)
 	}
+
+	s.metrics.StateLruCacheMiss.Add(1)
 
 	t := &Trie{
 		root:    n,
