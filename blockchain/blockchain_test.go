@@ -972,9 +972,8 @@ func TestBlockchain_VerifyBlockBody(t *testing.T) {
 		executorCallback := func(executor *mockExecutor) {
 			// This is executor processing
 			executor.HookProcessTransction(func(
-				hash types.Hash,
-				header *types.Header,
-				address types.Address,
+				transition *state.Transition,
+				gasLimit uint64,
 				txs []*types.Transaction,
 			) (*state.Transition, error) {
 				return nil, errUnableToExecute

@@ -286,7 +286,7 @@ func (m *MockVerifier) HookPreStateCommit(fn preStateCommitDelegate) {
 }
 
 // Executor delegators
-type processTransactionDelegate func(*state.Transition, []*types.Transaction) (*state.Transition, error)
+type processTransactionDelegate func(*state.Transition, uint64, []*types.Transaction) (*state.Transition, error)
 
 type mockExecutor struct {
 	processTransactionFn processTransactionDelegate
@@ -306,7 +306,7 @@ func (m *mockExecutor) ProcessTransactions(
 	transactions []*types.Transaction,
 ) (*state.Transition, error) {
 	if m.processTransactionFn != nil {
-		return m.processTransactionFn(transition, transactions)
+		return m.processTransactionFn(transition, gasLimit, transactions)
 	}
 
 	return nil, nil
