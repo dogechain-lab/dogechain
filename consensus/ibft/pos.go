@@ -127,7 +127,15 @@ func (pos *PoSMechanism) verifyBlockHook(blockParam interface{}) error {
 	}
 
 	if pos.ibft.IsLastOfEpoch(block.Number()) && len(block.Transactions) > 0 {
-		return errBlockVerificationFailed
+		number := block.Number()
+		coinbase := block.Header.Miner // it must be a the real miner
+
+		// it could only include system transactions
+		for _, tx := range block.Transactions {
+			if !pos.ibft.IsSystemTransaction(number, coinbase, tx) {
+				return errBlockVerificationFailed
+			}
+		}
 	}
 
 	return nil
