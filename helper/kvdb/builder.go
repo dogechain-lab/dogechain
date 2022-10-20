@@ -20,8 +20,8 @@ const (
 	DefaultLevelDBCache               = 1024 // 1 GiB
 	DefaultLevelDBHandles             = 512  // files handles to leveldb open files
 	DefaultLevelDBBloomKeyBits        = 2048 // bloom filter bits (256 bytes)
-	DefaultLevelDBCompactionTableSize = 8    // 8  MiB
-	DefaultLevelDBCompactionTotalSize = 32   // 32 MiB
+	DefaultLevelDBCompactionTableSize = 4    // 8  MiB
+	DefaultLevelDBCompactionTotalSize = 40   // 32 MiB
 	DefaultLevelDBNoSync              = false
 )
 
@@ -141,13 +141,15 @@ func NewLevelDBBuilder(logger hclog.Logger, path string) LevelDBBuilder {
 		logger: logger,
 		path:   path,
 		options: &opt.Options{
-			OpenFilesCacheCapacity: minLevelDBHandles,
-			CompactionTableSize:    DefaultLevelDBCompactionTableSize * opt.MiB,
-			CompactionTotalSize:    DefaultLevelDBCompactionTotalSize * opt.MiB,
-			BlockCacheCapacity:     minLevelDBCache / 2 * opt.MiB,
-			WriteBuffer:            minLevelDBCache / 4 * opt.MiB,
-			Filter:                 filter.NewBloomFilter(DefaultLevelDBBloomKeyBits),
-			NoSync:                 false,
+			OpenFilesCacheCapacity:        minLevelDBHandles,
+			CompactionTableSize:           DefaultLevelDBCompactionTableSize * opt.MiB,
+			CompactionTotalSize:           DefaultLevelDBCompactionTotalSize * opt.MiB,
+			BlockCacheCapacity:            minLevelDBCache / 2 * opt.MiB,
+			WriteBuffer:                   minLevelDBCache / 4 * opt.MiB,
+			CompactionTableSizeMultiplier: 1.1, // scale size up 1.1 multiple in next level
+			Filter:                        filter.NewBloomFilter(DefaultLevelDBBloomKeyBits),
+			NoSync:                        false,
+			BlockSize:                     64 * opt.KiB, // default 4kb, but one key-value pair need 0.5kb
 		},
 	}
 }
