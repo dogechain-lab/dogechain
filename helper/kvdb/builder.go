@@ -20,8 +20,8 @@ const (
 	DefaultLevelDBCache               = 1024 // 1 GiB
 	DefaultLevelDBHandles             = 512  // files handles to leveldb open files
 	DefaultLevelDBBloomKeyBits        = 2048 // bloom filter bits (256 bytes)
-	DefaultLevelDBCompactionTableSize = 4    // 8  MiB
-	DefaultLevelDBCompactionTotalSize = 40   // 32 MiB
+	DefaultLevelDBCompactionTableSize = 4    // 4  MiB
+	DefaultLevelDBCompactionTotalSize = 40   // 40 MiB
 	DefaultLevelDBNoSync              = false
 )
 
