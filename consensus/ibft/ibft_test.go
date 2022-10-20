@@ -698,8 +698,10 @@ func TestTransition_RoundChangeState_MaxRound(t *testing.T) {
 	m := newMockIbft(t, []string{"A", "B", "C"}, "A")
 	m.Close()
 
+	bAccount := m.pool.get("B") // get real validator
+
 	m.state.AddMessage(&proto.MessageReq{
-		From: "B",
+		From: bAccount.Address().String(),
 		Type: proto.MessageReq_RoundChange,
 		View: &proto.View{
 			Round:    10,
