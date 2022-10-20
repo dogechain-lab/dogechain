@@ -150,7 +150,7 @@ func NewLevelDBBuilder(logger hclog.Logger, path string) LevelDBBuilder {
 			Filter:                        filter.NewBloomFilter(DefaultLevelDBBloomKeyBits),
 			NoSync:                        false,
 			BlockSize:                     256 * opt.KiB, // default 4kb, but one key-value pair need 0.5kb
-			FilterBaseLg:                  18,            // as well as 2mb
+			FilterBaseLg:                  19,            // 512kb
 		},
 	}
 }
