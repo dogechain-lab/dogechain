@@ -206,7 +206,7 @@ func (m *accountsMap) pruneStaleEnqueuedTxs(outdateDuration time.Duration) []*ty
 func (m *accountsMap) poolPendings() map[types.Address][]*types.Transaction {
 	allPromoted := make(map[types.Address][]*types.Transaction)
 
-	m.Range(func(key, value interface{}) bool {
+	m.cmap.Range(func(key, value interface{}) bool {
 		addr, _ := key.(types.Address)
 		account := m.get(addr)
 
