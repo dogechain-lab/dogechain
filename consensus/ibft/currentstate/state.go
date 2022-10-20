@@ -160,11 +160,6 @@ func (c *CurrentState) Round() uint64 {
 }
 
 func (c *CurrentState) NextRound() uint64 {
-	aWholeRound := uint64(len(c.validators))
-	if c.view.Round+1 > aWholeRound {
-		return aWholeRound
-	}
-
 	return c.view.Round + 1
 }
 
