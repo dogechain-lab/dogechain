@@ -149,7 +149,8 @@ func NewLevelDBBuilder(logger hclog.Logger, path string) LevelDBBuilder {
 			CompactionTableSizeMultiplier: 1.1, // scale size up 1.1 multiple in next level
 			Filter:                        filter.NewBloomFilter(DefaultLevelDBBloomKeyBits),
 			NoSync:                        false,
-			BlockSize:                     64 * opt.KiB, // default 4kb, but one key-value pair need 0.5kb
+			BlockSize:                     256 * opt.KiB, // default 4kb, but one key-value pair need 0.5kb
+			FilterBaseLg:                  18,            // as well as 2mb
 		},
 	}
 }
