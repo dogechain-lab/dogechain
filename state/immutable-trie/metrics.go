@@ -10,10 +10,10 @@ import (
 
 // Metrics represents the itrie metrics
 type Metrics struct {
-	CodeCacheHit   metrics.Counter
-	CodeCacheMiss  metrics.Counter
-	CodeCacheRead  metrics.Counter
-	CodeCacheWrite metrics.Counter
+	CodeLruCacheHit   metrics.Counter
+	CodeLruCacheMiss  metrics.Counter
+	CodeLruCacheRead  metrics.Counter
+	CodeLruCacheWrite metrics.Counter
 
 	AccountStateLruCacheHit metrics.Counter
 	TrieStateLruCacheHit    metrics.Counter
@@ -30,28 +30,28 @@ func GetPrometheusMetrics(namespace string, labelsWithValues ...string) *Metrics
 	}
 
 	return &Metrics{
-		CodeCacheHit: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+		CodeLruCacheHit: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: "itrie",
-			Name:      "state_code_memcache_hit",
+			Name:      "state_code_lrucache_hit",
 			Help:      "state code cache hit count",
 		}, labels).With(labelsWithValues...),
-		CodeCacheMiss: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+		CodeLruCacheMiss: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: "itrie",
-			Name:      "state_code_memcache_miss",
+			Name:      "state_code_lrucache_miss",
 			Help:      "state code cache miss count",
 		}, labels).With(labelsWithValues...),
-		CodeCacheRead: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+		CodeLruCacheRead: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: "itrie",
-			Name:      "state_code_memcache_read",
+			Name:      "state_code_lrucache_read",
 			Help:      "state code cache read count",
 		}, labels).With(labelsWithValues...),
-		CodeCacheWrite: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+		CodeLruCacheWrite: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: "itrie",
-			Name:      "state_code_memcache_write",
+			Name:      "state_code_lrucache_write",
 			Help:      "state code cache write count",
 		}, labels).With(labelsWithValues...),
 		AccountStateLruCacheHit: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
@@ -78,10 +78,10 @@ func GetPrometheusMetrics(namespace string, labelsWithValues ...string) *Metrics
 // NilMetrics will return the non operational blockchain metrics
 func NilMetrics() *Metrics {
 	return &Metrics{
-		CodeCacheHit:   discard.NewCounter(),
-		CodeCacheMiss:  discard.NewCounter(),
-		CodeCacheRead:  discard.NewCounter(),
-		CodeCacheWrite: discard.NewCounter(),
+		CodeLruCacheHit:   discard.NewCounter(),
+		CodeLruCacheMiss:  discard.NewCounter(),
+		CodeLruCacheRead:  discard.NewCounter(),
+		CodeLruCacheWrite: discard.NewCounter(),
 
 		AccountStateLruCacheHit: discard.NewCounter(),
 		TrieStateLruCacheHit:    discard.NewCounter(),

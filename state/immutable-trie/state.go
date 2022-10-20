@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	codeCacheSize = 4096
+	CodeLruCacheSize = 4096
 
 	trieStateLruCacheSize    = 2048
 	accountStateLruCacheSize = 4096
@@ -29,7 +29,7 @@ type State struct {
 }
 
 func NewState(storage Storage, metrics *Metrics) *State {
-	codeLruCache, _ := lru.New(codeCacheSize)
+	codeLruCache, _ := lru.New(CodeLruCacheSize)
 
 	trieStateCache, _ := lru.New(trieStateLruCacheSize)
 	accountStateCache, _ := lru.New(accountStateLruCacheSize)
@@ -58,30 +58,30 @@ func (s *State) SetCode(hash types.Hash, code []byte) error {
 
 	if err == nil {
 		s.codeLruCache.Add(hash, code)
-		s.metrics.CodeCacheWrite.Add(1)
+		s.metrics.CodeLruCacheWrite.Add(1)
 	}
 
 	return err
 }
 
 func (s *State) GetCode(hash types.Hash) ([]byte, bool) {
-	defer s.metrics.CodeCacheRead.Add(1)
+	defer s.metrics.CodeLruCacheRead.Add(1)
 
 	if cacheCode, ok := s.codeLruCache.Get(hash); ok {
 		if code, ok := cacheCode.([]byte); ok {
-			s.metrics.CodeCacheHit.Add(1)
+			s.metrics.CodeLruCacheHit.Add(1)
 
 			return code, true
 		}
 	}
 
-	s.metrics.CodeCacheMiss.Add(1)
+	s.metrics.CodeLruCacheMiss.Add(1)
 
 	code, ok := s.storage.GetCode(hash)
 	if ok {
 		s.codeLruCache.Add(hash, code)
 
-		s.metrics.CodeCacheWrite.Add(1)
+		s.metrics.CodeLruCacheWrite.Add(1)
 	}
 
 	return code, ok
