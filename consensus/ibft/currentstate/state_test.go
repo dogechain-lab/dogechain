@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dogechain-lab/dogechain/consensus/ibft/proto"
 	"github.com/dogechain-lab/dogechain/consensus/ibft/validator"
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/stretchr/testify/assert"
@@ -68,86 +69,40 @@ func TestState_PorposerAndNeedPunished(t *testing.T) {
 }
 
 func TestState_MessageTimeout(t *testing.T) {
-	// fake addr
-	var addr1 = types.StringToAddress("1")
-
 	testCases := []struct {
 		description string
 		c           *CurrentState
 		expected    time.Duration
 	}{
 		{
-			description: "for 0 validator returns 10s",
-			c: &CurrentState{
-				validators: validator.Validators{},
-			},
-			expected: baseTimeout,
+			description: "round 0 return 10s",
+			c:           &CurrentState{view: proto.ViewMsg(1, 0)},
+			expected:    baseTimeout,
 		},
 		{
-			description: "for 1 validator returns 10s",
-			c: &CurrentState{
-				validators: validator.Validators{
-					addr1,
-				}},
-			expected: baseTimeout,
+			description: "round 1 returns 12s",
+			c:           &CurrentState{view: proto.ViewMsg(1, 1)},
+			expected:    baseTimeout + 2*time.Second,
 		},
 		{
-			description: "for 2 validators returns 10s",
-			c: &CurrentState{
-				validators: validator.Validators{
-					addr1, addr1,
-				}},
-			expected: baseTimeout,
+			description: "round 3 returns 18s",
+			c:           &CurrentState{view: proto.ViewMsg(1, 3)},
+			expected:    baseTimeout + 8*time.Second,
 		},
 		{
-			description: "for 3 validators returns 12s",
-			c: &CurrentState{
-				validators: validator.Validators{
-					addr1, addr1, addr1,
-				}},
-			expected: baseTimeout + 2*time.Second,
+			description: "round 7 returns 138s",
+			c:           &CurrentState{view: proto.ViewMsg(1, 7)},
+			expected:    baseTimeout + 128*time.Second,
 		},
 		{
-			description: "for 13 validators returns 18s",
-			c: &CurrentState{
-				validators: validator.Validators{
-					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
-					addr1, addr1, addr1, addr1, addr1, addr1,
-				}},
-			expected: baseTimeout + 8*time.Second,
+			description: "round 8 returns 300s",
+			c:           &CurrentState{view: proto.ViewMsg(1, 8)},
+			expected:    maxTimeout,
 		},
 		{
-			description: "for 23 validators returns 24s",
-			c: &CurrentState{
-				validators: validator.Validators{
-					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
-					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
-					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
-					addr1, addr1,
-				}},
-			expected: baseTimeout + 14*time.Second,
-		},
-		{
-			description: "for 24 validators returns 26s",
-			c: &CurrentState{
-				validators: validator.Validators{
-					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
-					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
-					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
-					addr1, addr1, addr1,
-				}},
-			expected: baseTimeout + 16*time.Second,
-		},
-		{
-			description: "for 28 validators returns 26s",
-			c: &CurrentState{
-				validators: validator.Validators{
-					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
-					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
-					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
-					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
-				}},
-			expected: baseTimeout + 16*time.Second,
+			description: "round 9 returns 300s",
+			c:           &CurrentState{view: proto.ViewMsg(1, 9)},
+			expected:    maxTimeout,
 		},
 	}
 
