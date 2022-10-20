@@ -15,6 +15,7 @@ const (
 	codeReadLruCacheSize = 8192
 
 	// cache recently write data
+	// this is txn hot cache, so it should be small
 	codeWriteLruCacheSize = 1024
 
 	trieStateLruCacheSize    = 2048
@@ -87,8 +88,9 @@ func (s *State) GetCode(hash types.Hash) ([]byte, bool) {
 		if code, ok := cacheCode.([]byte); ok {
 			s.metrics.CodeLruCacheHit.Add(1)
 
-			// add to read cache
+			// move to read cache
 			s.codeReadLruCache.Add(hash, code)
+			s.codeWriteLruCache.Remove(hash)
 
 			return code, true
 		}
