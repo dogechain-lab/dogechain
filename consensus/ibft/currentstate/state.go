@@ -2,6 +2,7 @@ package currentstate
 
 import (
 	"fmt"
+	"math"
 	"sync/atomic"
 	"time"
 
@@ -182,7 +183,7 @@ func (c *CurrentState) MaxRound() (maxRound uint64, found bool) {
 
 const (
 	baseTimeout = 10 * time.Second
-	maxTimeout  = 26 * time.Second
+	maxTimeout  = 300 * time.Second
 )
 
 // MessageTimeout returns duration for waiting message
@@ -190,17 +191,16 @@ const (
 // Consider the network travel time between most validators, using validator
 // numbers instead of rounds.
 func (c *CurrentState) MessageTimeout() time.Duration {
-	if len(c.validators) == 0 {
-		return baseTimeout
-	}
-
-	validatorNumbers := len(c.validators)
-	if validatorNumbers >= 24 {
+	if c.Round() >= 8 {
 		return maxTimeout
 	}
 
-	// 2 second steps
-	return baseTimeout + time.Duration(validatorNumbers/3*2)*time.Second
+	timeout := baseTimeout
+	if c.Round() > 0 {
+		timeout += time.Duration(int64(math.Pow(2, float64(c.Round())))) * time.Second
+	}
+
+	return timeout
 }
 
 // ResetRoundMsgs resets the prepared, committed and round messages in the current state
