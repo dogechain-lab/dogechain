@@ -11,7 +11,11 @@ import (
 )
 
 const (
-	CodeLruCacheSize = 4096
+	// cache recently read code
+	codeReadLruCacheSize = 8192
+
+	// cache recently write data
+	codeWriteLruCacheSize = 1024
 
 	trieStateLruCacheSize    = 2048
 	accountStateLruCacheSize = 4096
@@ -20,7 +24,8 @@ const (
 type State struct {
 	storage Storage
 
-	codeLruCache *lru.Cache
+	codeWriteLruCache *lru.Cache
+	codeReadLruCache  *lru.Cache
 
 	trieStateCache    *lru.Cache
 	accountStateCache *lru.Cache
@@ -29,7 +34,8 @@ type State struct {
 }
 
 func NewState(storage Storage, metrics *Metrics) *State {
-	codeLruCache, _ := lru.New(CodeLruCacheSize)
+	codeReadLruCache, _ := lru.New(codeReadLruCacheSize)
+	codeWriteLruCache, _ := lru.New(codeWriteLruCacheSize)
 
 	trieStateCache, _ := lru.New(trieStateLruCacheSize)
 	accountStateCache, _ := lru.New(accountStateLruCacheSize)
@@ -38,7 +44,8 @@ func NewState(storage Storage, metrics *Metrics) *State {
 		storage:           storage,
 		trieStateCache:    trieStateCache,
 		accountStateCache: accountStateCache,
-		codeLruCache:      codeLruCache,
+		codeReadLruCache:  codeReadLruCache,
+		codeWriteLruCache: codeWriteLruCache,
 		metrics:           NewDummyMetrics(metrics),
 	}
 
@@ -56,10 +63,18 @@ func (s *State) NewSnapshot() state.Snapshot {
 func (s *State) SetCode(hash types.Hash, code []byte) error {
 	err := s.storage.SetCode(hash, code)
 
-	if err == nil {
-		s.codeLruCache.Add(hash, code)
-		s.metrics.CodeLruCacheWrite.Add(1)
+	if err != nil {
+		return err
 	}
+
+	s.codeWriteLruCache.Add(hash, code)
+
+	// if code is read once, it will be cached
+	if s.codeReadLruCache.Contains(hash) {
+		s.codeReadLruCache.Add(hash, code)
+	}
+
+	s.metrics.CodeLruCacheWrite.Add(1)
 
 	return err
 }
@@ -67,7 +82,20 @@ func (s *State) SetCode(hash types.Hash, code []byte) error {
 func (s *State) GetCode(hash types.Hash) ([]byte, bool) {
 	defer s.metrics.CodeLruCacheRead.Add(1)
 
-	if cacheCode, ok := s.codeLruCache.Get(hash); ok {
+	// find cache in write cache
+	if cacheCode, ok := s.codeWriteLruCache.Get(hash); ok {
+		if code, ok := cacheCode.([]byte); ok {
+			s.metrics.CodeLruCacheHit.Add(1)
+
+			// add to read cache
+			s.codeReadLruCache.Add(hash, code)
+
+			return code, true
+		}
+	}
+
+	// find cache in read cache
+	if cacheCode, ok := s.codeReadLruCache.Get(hash); ok {
 		if code, ok := cacheCode.([]byte); ok {
 			s.metrics.CodeLruCacheHit.Add(1)
 
@@ -79,7 +107,7 @@ func (s *State) GetCode(hash types.Hash) ([]byte, bool) {
 
 	code, ok := s.storage.GetCode(hash)
 	if ok {
-		s.codeLruCache.Add(hash, code)
+		s.codeReadLruCache.Add(hash, code)
 
 		s.metrics.CodeLruCacheWrite.Add(1)
 	}
