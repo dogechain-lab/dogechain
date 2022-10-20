@@ -1,77 +1,13 @@
-package ibft
+package currentstate
 
 import (
 	"testing"
 	"time"
 
-	"github.com/dogechain-lab/dogechain/consensus/ibft/proto"
+	"github.com/dogechain-lab/dogechain/consensus/ibft/validator"
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/stretchr/testify/assert"
 )
-
-func TestState_FaultyNodes(t *testing.T) {
-	t.Parallel()
-
-	cases := []struct {
-		Network, Faulty uint64
-	}{
-		{1, 0},
-		{2, 0},
-		{3, 0},
-		{4, 1},
-		{5, 1},
-		{6, 1},
-		{7, 2},
-		{8, 2},
-		{9, 2},
-	}
-	for _, c := range cases {
-		pool := newTesterAccountPool(int(c.Network))
-		vals := pool.ValidatorSet()
-		assert.Equal(t, vals.MaxFaultyNodes(), int(c.Faulty))
-	}
-}
-
-func TestState_AddMessages(t *testing.T) {
-	t.Parallel()
-
-	pool := newTesterAccountPool()
-	pool.add("A", "B", "C", "D")
-
-	c := newState()
-	c.validators = pool.ValidatorSet()
-
-	msg := func(acct string, typ proto.MessageReq_Type, round ...uint64) *proto.MessageReq {
-		msg := &proto.MessageReq{
-			From: pool.get(acct).Address().String(),
-			Type: typ,
-			View: &proto.View{Round: 0},
-		}
-		r := uint64(0)
-
-		if len(round) > 0 {
-			r = round[0]
-		}
-
-		msg.View.Round = r
-
-		return msg
-	}
-
-	// -- test committed messages --
-	c.addMessage(msg("A", proto.MessageReq_Commit))
-	c.addMessage(msg("B", proto.MessageReq_Commit))
-	c.addMessage(msg("B", proto.MessageReq_Commit))
-
-	assert.Equal(t, c.numCommitted(), 2)
-
-	// -- test prepare messages --
-	c.addMessage(msg("C", proto.MessageReq_Prepare))
-	c.addMessage(msg("C", proto.MessageReq_Prepare))
-	c.addMessage(msg("D", proto.MessageReq_Prepare))
-
-	assert.Equal(t, c.numPrepared(), 2)
-}
 
 func TestState_PorposerAndNeedPunished(t *testing.T) {
 	t.Parallel()
@@ -83,8 +19,8 @@ func TestState_PorposerAndNeedPunished(t *testing.T) {
 		v4 = types.StringToAddress("0x4")
 	)
 
-	state := newState()
-	state.validators = ValidatorSet{v1, v2, v3, v4}
+	state := NewState()
+	state.validators = validator.Validators{v1, v2, v3, v4}
 
 	tests := []struct {
 		name              string
@@ -137,44 +73,44 @@ func TestState_MessageTimeout(t *testing.T) {
 
 	testCases := []struct {
 		description string
-		c           *currentState
+		c           *CurrentState
 		expected    time.Duration
 	}{
 		{
 			description: "for 0 validator returns 10s",
-			c: &currentState{
-				validators: ValidatorSet{},
+			c: &CurrentState{
+				validators: validator.Validators{},
 			},
 			expected: baseTimeout,
 		},
 		{
 			description: "for 1 validator returns 10s",
-			c: &currentState{
-				validators: ValidatorSet{
+			c: &CurrentState{
+				validators: validator.Validators{
 					addr1,
 				}},
 			expected: baseTimeout,
 		},
 		{
 			description: "for 2 validators returns 10s",
-			c: &currentState{
-				validators: ValidatorSet{
+			c: &CurrentState{
+				validators: validator.Validators{
 					addr1, addr1,
 				}},
 			expected: baseTimeout,
 		},
 		{
 			description: "for 3 validators returns 12s",
-			c: &currentState{
-				validators: ValidatorSet{
+			c: &CurrentState{
+				validators: validator.Validators{
 					addr1, addr1, addr1,
 				}},
 			expected: baseTimeout + 2*time.Second,
 		},
 		{
 			description: "for 13 validators returns 18s",
-			c: &currentState{
-				validators: ValidatorSet{
+			c: &CurrentState{
+				validators: validator.Validators{
 					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
 					addr1, addr1, addr1, addr1, addr1, addr1,
 				}},
@@ -182,8 +118,8 @@ func TestState_MessageTimeout(t *testing.T) {
 		},
 		{
 			description: "for 23 validators returns 24s",
-			c: &currentState{
-				validators: ValidatorSet{
+			c: &CurrentState{
+				validators: validator.Validators{
 					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
 					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
 					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
@@ -193,8 +129,8 @@ func TestState_MessageTimeout(t *testing.T) {
 		},
 		{
 			description: "for 24 validators returns 26s",
-			c: &currentState{
-				validators: ValidatorSet{
+			c: &CurrentState{
+				validators: validator.Validators{
 					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
 					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
 					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
@@ -204,8 +140,8 @@ func TestState_MessageTimeout(t *testing.T) {
 		},
 		{
 			description: "for 28 validators returns 26s",
-			c: &currentState{
-				validators: ValidatorSet{
+			c: &CurrentState{
+				validators: validator.Validators{
 					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
 					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
 					addr1, addr1, addr1, addr1, addr1, addr1, addr1,
@@ -218,7 +154,7 @@ func TestState_MessageTimeout(t *testing.T) {
 	for _, test := range testCases {
 		test := test
 		t.Run(test.description, func(t *testing.T) {
-			timeout := test.c.messageTimeout()
+			timeout := test.c.MessageTimeout()
 
 			assert.Equal(t, test.expected, timeout)
 		})

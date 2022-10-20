@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 
 	"github.com/dogechain-lab/dogechain/consensus/ibft/proto"
+	"github.com/dogechain-lab/dogechain/consensus/ibft/validator"
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/hashicorp/go-hclog"
 )
@@ -254,7 +255,7 @@ type Snapshot struct {
 	Votes []*Vote
 
 	// current set of validators
-	Set ValidatorSet
+	Set validator.Validators
 }
 
 // snapshotMetadata defines the metadata for the snapshot
@@ -307,7 +308,7 @@ func (s *Snapshot) Copy() *Snapshot {
 	// Do not need to copy Number and Hash
 	ss := &Snapshot{
 		Votes: make([]*Vote, len(s.Votes)),
-		Set:   ValidatorSet{},
+		Set:   validator.Validators{},
 	}
 
 	for indx, vote := range s.Votes {

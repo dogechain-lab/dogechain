@@ -3,6 +3,7 @@ package ibft
 import (
 	"testing"
 
+	"github.com/dogechain-lab/dogechain/consensus/ibft/currentstate"
 	"github.com/dogechain-lab/dogechain/consensus/ibft/proto"
 	"github.com/stretchr/testify/assert"
 )
@@ -27,7 +28,7 @@ func TestMsgQueue_RoundChangeState(t *testing.T) {
 		m.pushMessage(mockQueueMsg("B", msgCommit, proto.ViewMsg(1, 0)))
 
 		// we only read round state messages
-		assert.Nil(t, m.readMessage(RoundChangeState, proto.ViewMsg(1, 0)))
+		assert.Nil(t, m.readMessage(currentstate.RoundChangeState, proto.ViewMsg(1, 0)))
 	}
 
 	// insert old round change messages
@@ -35,7 +36,7 @@ func TestMsgQueue_RoundChangeState(t *testing.T) {
 		m.pushMessage(mockQueueMsg("C", msgRoundChange, proto.ViewMsg(1, 1)))
 
 		// the round change message is old
-		assert.Nil(t, m.readMessage(RoundChangeState, proto.ViewMsg(2, 0)))
+		assert.Nil(t, m.readMessage(currentstate.RoundChangeState, proto.ViewMsg(2, 0)))
 		assert.Zero(t, m.roundChangeStateQueue.Len())
 	}
 
@@ -45,11 +46,11 @@ func TestMsgQueue_RoundChangeState(t *testing.T) {
 		m.pushMessage(mockQueueMsg("E", msgRoundChange, proto.ViewMsg(1, 1)))
 		m.pushMessage(mockQueueMsg("F", msgRoundChange, proto.ViewMsg(2, 1)))
 
-		msg1 := m.readMessage(RoundChangeState, proto.ViewMsg(2, 0))
+		msg1 := m.readMessage(currentstate.RoundChangeState, proto.ViewMsg(2, 0))
 		assert.NotNil(t, msg1)
 		assert.Equal(t, msg1.obj.From, "F")
 
-		msg2 := m.readMessage(RoundChangeState, proto.ViewMsg(2, 0))
+		msg2 := m.readMessage(currentstate.RoundChangeState, proto.ViewMsg(2, 0))
 		assert.NotNil(t, msg2)
 		assert.Equal(t, msg2.obj.From, "D")
 	}

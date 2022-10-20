@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/dogechain-lab/dogechain/consensus/ibft/validator"
 	"github.com/dogechain-lab/dogechain/contracts/systemcontracts"
 	"github.com/dogechain-lab/dogechain/contracts/validatorset"
 	validatorsetHelper "github.com/dogechain-lab/dogechain/helper/validatorset"
@@ -200,7 +201,7 @@ func (pos *PoSMechanism) ShouldWriteTransactions(blockNumber uint64) bool {
 
 // getNextValidators is a helper function for fetching the validator set
 // from the ValidatorSet SC
-func (pos *PoSMechanism) getNextValidators(header *types.Header) (ValidatorSet, error) {
+func (pos *PoSMechanism) getNextValidators(header *types.Header) (validator.Validators, error) {
 	transition, err := pos.ibft.executor.BeginTxn(header.StateRoot, header, types.ZeroAddress)
 	if err != nil {
 		return nil, err

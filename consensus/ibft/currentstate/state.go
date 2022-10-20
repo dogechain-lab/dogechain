@@ -1,4 +1,4 @@
-package ibft
+package currentstate
 
 import (
 	"fmt"
@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/dogechain-lab/dogechain/consensus/ibft/proto"
+	"github.com/dogechain-lab/dogechain/consensus/ibft/validator"
 	"github.com/dogechain-lab/dogechain/types"
 )
 
@@ -42,10 +43,10 @@ func (i IbftState) String() string {
 	panic(fmt.Sprintf("BUG: Ibft state not found %d", i))
 }
 
-// currentState defines the current state object in IBFT
-type currentState struct {
+// CurrentState defines the current state object in IBFT
+type CurrentState struct {
 	// validators represent the current validator set
-	validators ValidatorSet
+	validators validator.Validators
 
 	// state is the current state
 	state uint64
@@ -75,46 +76,90 @@ type currentState struct {
 	err error
 }
 
-// newState creates a new state with reset round messages
-func newState() *currentState {
-	c := &currentState{}
-	c.resetRoundMsgs()
+// NewState creates a new state with reset round messages
+func NewState() *CurrentState {
+	c := &CurrentState{}
+	c.ResetRoundMsgs()
 
 	return c
 }
 
-// getState returns the current state
-func (c *currentState) getState() IbftState {
+// GetState returns the current state
+func (c *CurrentState) GetState() IbftState {
 	stateAddr := &c.state
 
 	return IbftState(atomic.LoadUint64(stateAddr))
 }
 
-// setState sets the current state
-func (c *currentState) setState(s IbftState) {
+// SetState sets the current state
+func (c *CurrentState) SetState(s IbftState) {
 	stateAddr := &c.state
 
 	atomic.StoreUint64(stateAddr, uint64(s))
 }
 
+func (c *CurrentState) SetBlock(b *types.Block) {
+	c.block = b
+}
+
+func (c *CurrentState) Block() *types.Block {
+	return c.block
+}
+
+func (c *CurrentState) SetValidators(validators []types.Address) {
+	c.validators = validators
+}
+
+func (c *CurrentState) Validators() []types.Address {
+	return c.validators
+}
+
 // NumValid returns the number of required messages
-func (c *currentState) NumValid() int {
+func (c *CurrentState) NumValid() int {
 	// According to the IBFT spec, the number of valid messages
 	// needs to be 2F + 1
 	// The 1 missing from this equation is accounted for elsewhere
 	// (the current node tallying the messages will include its own message)
-	return 2 * c.validators.MaxFaultyNodes()
+	return 2 * c.MaxFaultyNodes()
 }
 
-// getErr returns the current error, if any, and consumes it
-func (c *currentState) getErr() error {
+func (c *CurrentState) MaxFaultyNodes() int {
+	return c.validators.MaxFaultyNodes()
+}
+
+func (c *CurrentState) HandleErr(err error) {
+	c.err = err
+}
+
+// ConsumeErr returns the current error, if any, and consumes it
+func (c *CurrentState) ConsumeErr() error {
 	err := c.err
 	c.err = nil
 
 	return err
 }
 
-func (c *currentState) nextRound() uint64 {
+func (c *CurrentState) PeekError() error {
+	return c.err
+}
+
+func (c *CurrentState) Sequence() uint64 {
+	if c.view != nil {
+		return c.view.Sequence
+	}
+
+	return 0
+}
+
+func (c *CurrentState) Round() uint64 {
+	if c.view != nil {
+		return c.view.Round
+	}
+
+	return 0
+}
+
+func (c *CurrentState) NextRound() uint64 {
 	aWholeRound := uint64(len(c.validators))
 	if c.view.Round+1 > aWholeRound {
 		return aWholeRound
@@ -123,7 +168,7 @@ func (c *currentState) nextRound() uint64 {
 	return c.view.Round + 1
 }
 
-func (c *currentState) maxRound() (maxRound uint64, found bool) {
+func (c *CurrentState) MaxRound() (maxRound uint64, found bool) {
 	num := c.validators.MaxFaultyNodes() + 1
 
 	for k, round := range c.roundMessages {
@@ -145,11 +190,11 @@ const (
 	maxTimeout  = 26 * time.Second
 )
 
-// messageTimeout returns duration for waiting message
+// MessageTimeout returns duration for waiting message
 //
 // Consider the network travel time between most validators, using validator
 // numbers instead of rounds.
-func (c *currentState) messageTimeout() time.Duration {
+func (c *CurrentState) MessageTimeout() time.Duration {
 	if len(c.validators) == 0 {
 		return baseTimeout
 	}
@@ -163,19 +208,23 @@ func (c *currentState) messageTimeout() time.Duration {
 	return baseTimeout + time.Duration(validatorNumbers/3*2)*time.Second
 }
 
-// resetRoundMsgs resets the prepared, committed and round messages in the current state
-func (c *currentState) resetRoundMsgs() {
+// ResetRoundMsgs resets the prepared, committed and round messages in the current state
+func (c *CurrentState) ResetRoundMsgs() {
 	c.prepared = map[types.Address]*proto.MessageReq{}
 	c.committed = map[types.Address]*proto.MessageReq{}
 	c.roundMessages = map[uint64]map[types.Address]*proto.MessageReq{}
 }
 
 // CalcProposer calculates the proposer and sets it to the state
-func (c *currentState) CalcProposer(lastProposer types.Address) {
+func (c *CurrentState) CalcProposer(lastProposer types.Address) {
 	c.proposer = c.validators.CalcProposer(c.view.Round, lastProposer)
 }
 
-func (c *currentState) CalcNeedPunished(
+func (c *CurrentState) Proposer() types.Address {
+	return c.proposer
+}
+
+func (c *CurrentState) CalcNeedPunished(
 	currentRound uint64,
 	lastBlockProposer types.Address,
 ) (addr []types.Address) {
@@ -191,51 +240,67 @@ func (c *currentState) CalcNeedPunished(
 	return addr
 }
 
-func (c *currentState) lock() {
+func (c *CurrentState) SetView(view *proto.View) {
+	c.view = view
+}
+
+func (c *CurrentState) View() *proto.View {
+	return c.view
+}
+
+func (c *CurrentState) IsLocked() bool {
+	return c.locked
+}
+
+func (c *CurrentState) Lock() {
 	c.locked = true
 }
 
-func (c *currentState) unlock() {
+func (c *CurrentState) Unlock() {
 	c.block = nil
 	c.locked = false
 }
 
-// cleanRound deletes the specific round messages
-func (c *currentState) cleanRound(round uint64) {
+// CleanRound deletes the specific round messages
+func (c *CurrentState) CleanRound(round uint64) {
 	delete(c.roundMessages, round)
 }
 
 // AddRoundMessage adds a message to the round, and returns the round message size
-func (c *currentState) AddRoundMessage(msg *proto.MessageReq) int {
+func (c *CurrentState) AddRoundMessage(msg *proto.MessageReq) int {
 	if msg.Type != proto.MessageReq_RoundChange {
 		return 0
 	}
 
-	c.addMessage(msg)
+	c.AddMessage(msg)
 
 	return len(c.roundMessages[msg.View.Round])
 }
 
-// addPrepared adds a prepared message
-func (c *currentState) addPrepared(msg *proto.MessageReq) {
+// AddPrepared adds a prepared message
+func (c *CurrentState) AddPrepared(msg *proto.MessageReq) {
 	if msg.Type != proto.MessageReq_Prepare {
 		return
 	}
 
-	c.addMessage(msg)
+	c.AddMessage(msg)
 }
 
-// addCommitted adds a committed message
-func (c *currentState) addCommitted(msg *proto.MessageReq) {
+// AddCommitted adds a committed message
+func (c *CurrentState) AddCommitted(msg *proto.MessageReq) {
 	if msg.Type != proto.MessageReq_Commit {
 		return
 	}
 
-	c.addMessage(msg)
+	c.AddMessage(msg)
 }
 
-// addMessage adds a new message to one of the following message lists: committed, prepared, roundMessages
-func (c *currentState) addMessage(msg *proto.MessageReq) {
+func (c *CurrentState) Committed() map[types.Address]*proto.MessageReq {
+	return c.committed
+}
+
+// AddMessage adds a new message to one of the following message lists: committed, prepared, roundMessages
+func (c *CurrentState) AddMessage(msg *proto.MessageReq) {
 	addr := msg.FromAddr()
 	if !c.validators.Includes(addr) {
 		// only include messages from validators
@@ -257,101 +322,12 @@ func (c *currentState) addMessage(msg *proto.MessageReq) {
 	}
 }
 
-// numPrepared returns the number of messages in the prepared message list
-func (c *currentState) numPrepared() int {
+// NumPrepared returns the number of messages in the prepared message list
+func (c *CurrentState) NumPrepared() int {
 	return len(c.prepared)
 }
 
 // numCommitted returns the number of messages in the committed message list
-func (c *currentState) numCommitted() int {
+func (c *CurrentState) NumCommitted() int {
 	return len(c.committed)
-}
-
-type ValidatorSet []types.Address
-
-// CalcProposer calculates the address of the next proposer, from the validator set
-func (v *ValidatorSet) CalcProposer(round uint64, lastProposer types.Address) types.Address {
-	var seed uint64
-
-	if lastProposer == types.ZeroAddress {
-		seed = round
-	} else {
-		offset := 0
-		if indx := v.Index(lastProposer); indx != -1 {
-			offset = indx
-		}
-
-		seed = uint64(offset) + round + 1
-	}
-
-	pick := seed % uint64(v.Len())
-
-	return (*v)[pick]
-}
-
-// Add adds a new address to the validator set
-func (v *ValidatorSet) Add(addr types.Address) {
-	*v = append(*v, addr)
-}
-
-// Del removes an address from the validator set
-func (v *ValidatorSet) Del(addr types.Address) {
-	for indx, i := range *v {
-		if i == addr {
-			*v = append((*v)[:indx], (*v)[indx+1:]...)
-		}
-	}
-}
-
-// Len returns the size of the validator set
-func (v *ValidatorSet) Len() int {
-	return len(*v)
-}
-
-// Equal checks if 2 validator sets are equal
-func (v *ValidatorSet) Equal(vv *ValidatorSet) bool {
-	if len(*v) != len(*vv) {
-		return false
-	}
-
-	for indx := range *v {
-		if (*v)[indx] != (*vv)[indx] {
-			return false
-		}
-	}
-
-	return true
-}
-
-// Index returns the index of the passed in address in the validator set.
-// Returns -1 if not found
-func (v *ValidatorSet) Index(addr types.Address) int {
-	for indx, i := range *v {
-		if i == addr {
-			return indx
-		}
-	}
-
-	return -1
-}
-
-// Includes checks if the address is in the validator set
-func (v *ValidatorSet) Includes(addr types.Address) bool {
-	return v.Index(addr) != -1
-}
-
-// MaxFaultyNodes returns the maximum number of allowed faulty nodes (F), based on the current validator set
-func (v *ValidatorSet) MaxFaultyNodes() int {
-	// N -> number of nodes in IBFT
-	// F -> number of faulty nodes
-	//
-	// N = 3F + 1
-	// => F = (N - 1) / 3
-	//
-	// IBFT tolerates 1 failure with 4 nodes
-	// 4 = 3 * 1 + 1
-	// To tolerate 2 failures, IBFT requires 7 nodes
-	// 7 = 3 * 2 + 1
-	// It should always take the floor of the result
-	return (len(*v) - 1) / 3
 }

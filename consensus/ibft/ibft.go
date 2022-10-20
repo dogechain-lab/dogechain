@@ -11,6 +11,7 @@ import (
 	"go.uber.org/atomic"
 
 	"github.com/dogechain-lab/dogechain/consensus"
+	"github.com/dogechain-lab/dogechain/consensus/ibft/currentstate"
 	"github.com/dogechain-lab/dogechain/consensus/ibft/proto"
 	"github.com/dogechain-lab/dogechain/contracts/systemcontracts"
 	"github.com/dogechain-lab/dogechain/contracts/upgrader"
@@ -75,10 +76,10 @@ type syncerInterface interface {
 type Ibft struct {
 	sealing bool // Flag indicating if the node is a sealer
 
-	logger hclog.Logger      // Output logger
-	config *consensus.Config // Consensus configuration
-	Grpc   *grpc.Server      // gRPC configuration
-	state  *currentState     // Reference to the current state
+	logger hclog.Logger               // Output logger
+	config *consensus.Config          // Consensus configuration
+	Grpc   *grpc.Server               // gRPC configuration
+	state  *currentstate.CurrentState // Reference to the current state
 
 	blockchain blockchainInterface // Interface exposed by the blockchain layer
 	executor   *state.Executor     // Reference to the state executor
@@ -173,7 +174,7 @@ func Factory(
 		closeCh:        make(chan struct{}),
 		isClosed:       atomic.NewBool(false),
 		txpool:         params.Txpool,
-		state:          &currentState{},
+		state:          currentstate.NewState(),
 		network:        params.Network,
 		epochSize:      epochSize,
 		sealing:        params.Seal,
@@ -416,7 +417,7 @@ const IbftKeyName = "validator.key"
 func (i *Ibft) start() {
 	// consensus always starts in SyncState mode in case it needs
 	// to sync with other nodes.
-	i.setState(SyncState)
+	i.setState(currentstate.SyncState)
 
 	// Grab the latest header
 	header := i.blockchain.Header()
@@ -437,22 +438,24 @@ func (i *Ibft) start() {
 // runCycle represents the IBFT state machine loop
 func (i *Ibft) runCycle() {
 	// Log to the console
-	if i.state.view != nil {
-		i.logger.Debug("cycle", "state", i.getState(), "sequence", i.state.view.Sequence, "round", i.state.view.Round+1)
-	}
+	i.logger.Debug("cycle",
+		"state", i.getState(),
+		"sequence", i.state.Sequence(),
+		"round", i.state.Round()+1,
+	)
 
 	// Based on the current state, execute the corresponding section
 	switch i.getState() {
-	case AcceptState:
+	case currentstate.AcceptState:
 		i.runAcceptState()
 
-	case ValidateState:
+	case currentstate.ValidateState:
 		i.runValidateState()
 
-	case RoundChangeState:
+	case currentstate.RoundChangeState:
 		i.runRoundChangeState()
 
-	case SyncState:
+	case currentstate.SyncState:
 		i.runSyncState()
 	}
 }
@@ -496,7 +499,7 @@ func (i *Ibft) runSyncState() {
 		beginningHeight = header.Number
 	}
 
-	for i.isState(SyncState) {
+	for i.isState(currentstate.SyncState) {
 		// try to sync with the best-suited peer
 		p := i.syncer.BestPeer()
 		if p == nil {
@@ -508,9 +511,9 @@ func (i *Ibft) runSyncState() {
 				i.startNewSequence()
 
 				//Set the round metric
-				i.metrics.Rounds.Set(float64(i.state.view.Round))
+				i.metrics.Rounds.Set(float64(i.state.Round()))
 
-				i.setState(AcceptState)
+				i.setState(currentstate.AcceptState)
 			} else {
 				time.Sleep(1 * time.Second)
 			}
@@ -531,7 +534,7 @@ func (i *Ibft) runSyncState() {
 		// we can just move ahead
 		if i.isValidSnapshot() {
 			i.startNewSequence()
-			i.setState(AcceptState)
+			i.setState(currentstate.AcceptState)
 
 			continue
 		}
@@ -556,7 +559,7 @@ func (i *Ibft) runSyncState() {
 			// and we are a validator of that chain so we need to change to AcceptState
 			// so that we can start to do some stuff there
 			i.startNewSequence()
-			i.setState(AcceptState)
+			i.setState(currentstate.AcceptState)
 		}
 	}
 
@@ -568,7 +571,7 @@ func (i *Ibft) runSyncState() {
 
 	// unlock current block if new blocks are added
 	if endingHeight > beginningHeight {
-		i.state.unlock()
+		i.state.Unlock()
 	}
 }
 
@@ -734,7 +737,7 @@ func (i *Ibft) buildBlock(snap *Snapshot, parent *types.Header) (*types.Block, e
 }
 
 func (i *Ibft) currentRound() uint64 {
-	return i.state.view.GetRound()
+	return i.state.Round()
 }
 
 func (i *Ibft) makeTransitionDepositTx(
@@ -881,17 +884,17 @@ func (i *Ibft) writeTransactions(gasLimit uint64, transition transitionInterface
 func (i *Ibft) runAcceptState() { // start new round
 	// set log output
 	logger := i.logger.Named("acceptState")
-	logger.Info("Accept state", "sequence", i.state.view.Sequence, "round", i.state.view.Round+1)
+	logger.Info("Accept state", "sequence", i.state.Sequence(), "round", i.state.Round()+1)
 	// set consensus_rounds metric output
-	i.metrics.Rounds.Set(float64(i.state.view.Round + 1))
+	i.metrics.Rounds.Set(float64(i.state.Round() + 1))
 
 	// This is the state in which we either propose a block or wait for the pre-prepare message
 	parent := i.blockchain.Header()
 	number := parent.Number + 1
 
-	if number != i.state.view.Sequence {
-		i.logger.Error("sequence not correct", "parent", parent.Number, "sequence", i.state.view.Sequence)
-		i.setState(SyncState)
+	if number != i.state.Sequence() {
+		i.logger.Error("sequence not correct", "parent", parent.Number, "sequence", i.state.Sequence())
+		i.setState(currentstate.SyncState)
 
 		return
 	}
@@ -900,7 +903,7 @@ func (i *Ibft) runAcceptState() { // start new round
 
 	if err != nil {
 		i.logger.Error("cannot find snapshot", "num", parent.Number)
-		i.setState(SyncState)
+		i.setState(currentstate.SyncState)
 
 		return
 	}
@@ -908,21 +911,21 @@ func (i *Ibft) runAcceptState() { // start new round
 	if !snap.Set.Includes(i.validatorKeyAddr) {
 		// we are not a validator anymore, move back to sync state
 		i.logger.Info("we are not a validator anymore")
-		i.setState(SyncState)
+		i.setState(currentstate.SyncState)
 
 		return
 	}
 
-	if hookErr := i.runHook(AcceptStateLogHook, i.state.view.Sequence, snap); hookErr != nil {
+	if hookErr := i.runHook(AcceptStateLogHook, i.state.Sequence(), snap); hookErr != nil {
 		i.logger.Error(fmt.Sprintf("Unable to run hook %s, %v", AcceptStateLogHook, hookErr))
 	}
 
-	i.state.validators = snap.Set
+	i.state.SetValidators(snap.Set)
 
 	//Update the No.of validator metric
 	i.metrics.Validators.Set(float64(len(snap.Set)))
 	// reset round messages
-	i.state.resetRoundMsgs()
+	i.state.ResetRoundMsgs()
 
 	// select the proposer of the block
 	var lastProposer types.Address
@@ -930,25 +933,27 @@ func (i *Ibft) runAcceptState() { // start new round
 		lastProposer, _ = ecrecoverFromHeader(parent)
 	}
 
-	if hookErr := i.runHook(CalculateProposerHook, i.state.view.Sequence, lastProposer); hookErr != nil {
+	if hookErr := i.runHook(CalculateProposerHook, i.state.Sequence(), lastProposer); hookErr != nil {
 		i.logger.Error(fmt.Sprintf("Unable to run hook %s, %v", CalculateProposerHook, hookErr))
 	}
 
-	if i.state.proposer == i.validatorKeyAddr {
+	if i.state.Proposer() == i.validatorKeyAddr {
 		logger.Info("we are the proposer", "block", number)
 
-		if !i.state.locked {
+		if !i.state.IsLocked() {
 			// since the state is not locked, we need to build a new block
-			i.state.block, err = i.buildBlock(snap, parent)
+			block, err := i.buildBlock(snap, parent)
 			if err != nil {
 				i.logger.Error("failed to build block", "err", err)
-				i.setState(RoundChangeState)
+				i.setState(currentstate.RoundChangeState)
 
 				return
 			}
 
+			i.state.SetBlock(block)
+
 			// calculate how much time do we have to wait to mine the block
-			delay := time.Until(time.Unix(int64(i.state.block.Header.Timestamp), 0))
+			delay := time.Until(time.Unix(int64(block.Header.Timestamp), 0))
 
 			delayTimer := time.NewTimer(delay)
 
@@ -966,30 +971,30 @@ func (i *Ibft) runAcceptState() { // start new round
 		i.sendPrepareMsg()
 
 		// move to validation state for new prepare messages
-		i.setState(ValidateState)
+		i.setState(currentstate.ValidateState)
 
 		return
 	}
 
-	i.logger.Info("proposer calculated", "proposer", i.state.proposer, "block", number)
+	i.logger.Info("proposer calculated", "proposer", i.state.Proposer(), "block", number)
 
 	// we are NOT a proposer for the block. Then, we have to wait
 	// for a pre-prepare message from the proposer
 
-	timeout := i.state.messageTimeout()
-	for i.getState() == AcceptState {
+	timeout := i.state.MessageTimeout()
+	for i.getState() == currentstate.AcceptState {
 		msg, ok := i.getNextMessage(timeout)
 		if !ok {
 			return
 		}
 
 		if msg == nil {
-			i.setState(RoundChangeState)
+			i.setState(currentstate.RoundChangeState)
 
 			continue
 		}
 
-		if msg.From != i.state.proposer.String() {
+		if msg.From != i.state.Proposer().String() {
 			i.logger.Error("msg received from wrong proposer")
 
 			continue
@@ -1006,25 +1011,25 @@ func (i *Ibft) runAcceptState() { // start new round
 		block := &types.Block{}
 		if err := block.UnmarshalRLP(msg.Proposal.Value); err != nil {
 			i.logger.Error("failed to unmarshal block", "err", err)
-			i.setState(RoundChangeState)
+			i.setState(currentstate.RoundChangeState)
 
 			return
 		}
 
 		// Make sure the proposing block height match the current sequence
-		if block.Number() != i.state.view.Sequence {
-			i.logger.Error("sequence not correct", "block", block.Number, "sequence", i.state.view.Sequence)
+		if block.Number() != i.state.Sequence() {
+			i.logger.Error("sequence not correct", "block", block.Number, "sequence", i.state.Sequence())
 			i.handleStateErr(errIncorrectBlockHeight)
 
 			return
 		}
 
-		if i.state.locked {
+		if i.state.IsLocked() {
 			// the state is locked, we need to receive the same block
-			if block.Hash() == i.state.block.Hash() {
+			if block.Hash() == i.state.Block().Hash() {
 				// fast-track and send a commit message and wait for validations
 				i.sendCommitMsg()
-				i.setState(ValidateState)
+				i.setState(currentstate.ValidateState)
 			} else {
 				i.handleStateErr(errIncorrectBlockLocked)
 			}
@@ -1056,10 +1061,10 @@ func (i *Ibft) runAcceptState() { // start new round
 				continue
 			}
 
-			i.state.block = block
+			i.state.SetBlock(block)
 			// send prepare message and wait for validations
 			i.sendPrepareMsg()
-			i.setState(ValidateState)
+			i.setState(currentstate.ValidateState)
 		}
 	}
 }
@@ -1117,7 +1122,7 @@ func (i *Ibft) runValidateState() {
 	sendCommit := func() {
 		// at this point either we have enough prepare messages
 		// or commit messages so we can lock the block
-		i.state.lock()
+		i.state.Lock()
 
 		if !hasCommitted {
 			// send the commit message
@@ -1127,8 +1132,8 @@ func (i *Ibft) runValidateState() {
 		}
 	}
 
-	timeout := i.state.messageTimeout()
-	for i.getState() == ValidateState {
+	timeout := i.state.MessageTimeout()
+	for i.getState() == currentstate.ValidateState {
 		msg, ok := i.getNextMessage(timeout)
 		if !ok {
 			// closing
@@ -1137,9 +1142,9 @@ func (i *Ibft) runValidateState() {
 
 		if msg == nil {
 			i.logger.Debug("ValidateState got message timeout, should change round",
-				"sequence", i.state.view.Sequence, "round", i.state.view.Round+1)
-			i.state.unlock()
-			i.setState(RoundChangeState)
+				"sequence", i.state.Sequence(), "round", i.state.Round()+1)
+			i.state.Unlock()
+			i.setState(currentstate.RoundChangeState)
 
 			continue
 		}
@@ -1152,10 +1157,10 @@ func (i *Ibft) runValidateState() {
 		}
 
 		// check msg number and round, might from some faulty nodes
-		if i.state.view.Sequence != msg.View.GetSequence() ||
-			i.state.view.Round != msg.View.GetRound() {
+		if i.state.Sequence() != msg.View.GetSequence() ||
+			i.state.Round() != msg.View.GetRound() {
 			i.logger.Debug("ValidateState got message not matching sequence and round",
-				"my-sequence", i.state.view.Sequence, "my-round", i.state.view.Round+1,
+				"my-sequence", i.state.Sequence(), "my-round", i.state.Round()+1,
 				"other-sequence", msg.View.GetSequence(), "other-round", msg.View.GetRound())
 
 			continue
@@ -1163,34 +1168,34 @@ func (i *Ibft) runValidateState() {
 
 		switch msg.Type {
 		case proto.MessageReq_Prepare:
-			i.state.addPrepared(msg)
+			i.state.AddPrepared(msg)
 
 		case proto.MessageReq_Commit:
-			i.state.addCommitted(msg)
+			i.state.AddCommitted(msg)
 
 		default:
 			i.logger.Error("BUG: %s, validate state don't not handle type.msg: %d",
 				reflect.TypeOf(msg.Type), msg.Type)
 		}
 
-		if i.state.numPrepared() > i.state.NumValid() {
+		if i.state.NumPrepared() > i.state.NumValid() {
 			// we have received enough pre-prepare messages
 			sendCommit()
 		}
 
-		if i.state.numCommitted() > i.state.NumValid() {
+		if i.state.NumCommitted() > i.state.NumValid() {
 			// we have received enough commit messages
 			sendCommit()
 
 			// try to commit the block (TODO: just to get out of the loop)
-			i.setState(CommitState)
+			i.setState(currentstate.CommitState)
 		}
 	}
 
-	if i.getState() == CommitState {
+	if i.getState() == currentstate.CommitState {
 		// at this point either if it works or not we need to unlock
-		block := i.state.block
-		i.state.unlock()
+		block := i.state.Block()
+		i.state.Unlock()
 
 		if err := i.insertBlock(block); err != nil {
 			// start a new round with the state unlocked since we need to
@@ -1205,7 +1210,7 @@ func (i *Ibft) runValidateState() {
 			i.startNewSequence()
 
 			// move ahead to the next block
-			i.setState(AcceptState)
+			i.setState(currentstate.AcceptState)
 		}
 	}
 }
@@ -1232,7 +1237,7 @@ func (i *Ibft) insertBlock(block *types.Block) error {
 	// Gather the committed seals for the block
 	committedSeals := make([][]byte, 0)
 
-	for _, commit := range i.state.committed {
+	for _, commit := range i.state.Committed() {
 		// no need to check the format of seal here because writeCommittedSeals will check
 		seal, err := hex.DecodeHex(commit.Seal)
 		if err != nil {
@@ -1274,11 +1279,11 @@ func (i *Ibft) insertBlock(block *types.Block) error {
 
 	i.logger.Info(
 		"block committed",
-		"sequence", i.state.view.Sequence,
+		"sequence", i.state.Sequence(),
 		"hash", block.Hash(),
-		"validators", len(i.state.validators),
-		"rounds", i.state.view.Round+1,
-		"committed", i.state.numCommitted(),
+		"validators", len(i.state.Validators()),
+		"rounds", i.state.Round()+1,
+		"committed", i.state.NumCommitted(),
 	)
 
 	// broadcast the new block
@@ -1299,8 +1304,8 @@ var (
 )
 
 func (i *Ibft) handleStateErr(err error) {
-	i.state.err = err
-	i.setState(RoundChangeState)
+	i.state.HandleErr(err)
+	i.setState(currentstate.RoundChangeState)
 }
 
 func (i *Ibft) runRoundChangeState() {
@@ -1310,12 +1315,12 @@ func (i *Ibft) runRoundChangeState() {
 		i.startNewRound(round)
 		i.metrics.Rounds.Set(float64(round))
 		// clean the round
-		i.state.cleanRound(round)
+		i.state.CleanRound(round)
 		// send the round change message
 		i.sendRoundChange()
 	}
 	sendNextRoundChange := func() {
-		sendRoundChange(i.state.nextRound())
+		sendRoundChange(i.state.NextRound())
 	}
 
 	checkTimeout := func() {
@@ -1327,7 +1332,7 @@ func (i *Ibft) runRoundChangeState() {
 				if bestPeer.Number() > lastProposal.Number {
 					i.logger.Debug("it has found a better peer to connect", "local", lastProposal.Number, "remote", bestPeer.Number())
 					// we need to catch up with the last sequence
-					i.setState(SyncState)
+					i.setState(currentstate.SyncState)
 
 					return
 				}
@@ -1341,13 +1346,13 @@ func (i *Ibft) runRoundChangeState() {
 
 	// if the round was triggered due to an error, we send our own
 	// next round change
-	if err := i.state.getErr(); err != nil {
+	if err := i.state.ConsumeErr(); err != nil {
 		i.logger.Debug("round change handle err", "err", err)
 		sendNextRoundChange()
 	} else {
 		// otherwise, it is due to a timeout in any stage
 		// First, we try to sync up with any max round already available
-		if maxRound, ok := i.state.maxRound(); ok {
+		if maxRound, ok := i.state.MaxRound(); ok {
 			i.logger.Debug("round change set max round", "round", maxRound)
 			sendRoundChange(maxRound)
 		} else {
@@ -1357,8 +1362,8 @@ func (i *Ibft) runRoundChangeState() {
 	}
 
 	// create a timer for the round change
-	timeout := i.state.messageTimeout()
-	for i.getState() == RoundChangeState {
+	timeout := i.state.MessageTimeout()
+	for i.getState() == currentstate.RoundChangeState {
 		msg, ok := i.getNextMessage(timeout)
 		if !ok {
 			// closing
@@ -1385,10 +1390,10 @@ func (i *Ibft) runRoundChangeState() {
 		if num == i.state.NumValid() {
 			// start a new round immediately
 			i.startNewRound(msg.View.Round)
-			i.setState(AcceptState)
-		} else if num == i.state.validators.MaxFaultyNodes()+1 {
+			i.setState(currentstate.AcceptState)
+		} else if num == i.state.MaxFaultyNodes()+1 {
 			// weak certificate, try to catch up if our round number is smaller
-			if i.state.view.Round < msg.View.Round {
+			if i.state.Round() < msg.View.Round {
 				sendRoundChange(msg.View.Round)
 			}
 		}
@@ -1419,18 +1424,18 @@ func (i *Ibft) gossip(typ proto.MessageReq_Type) {
 	}
 
 	// add View
-	msg.View = i.state.view.Copy()
+	msg.View = i.state.View().Copy()
 
 	// if we are sending a preprepare message we need to include the proposed block
 	if msg.Type == proto.MessageReq_Preprepare {
 		msg.Proposal = &anypb.Any{
-			Value: i.state.block.MarshalRLP(),
+			Value: i.state.Block().MarshalRLP(),
 		}
 	}
 
 	// if the message is commit, we need to add the committed seal
 	if msg.Type == proto.MessageReq_Commit {
-		seal, err := writeCommittedSeal(i.validatorKey, i.state.block.Header)
+		seal, err := writeCommittedSeal(i.validatorKey, i.state.Block().Header)
 		if err != nil {
 			i.logger.Error("failed to commit seal", "err", err)
 
@@ -1459,19 +1464,19 @@ func (i *Ibft) gossip(typ proto.MessageReq_Type) {
 }
 
 // getState returns the current IBFT state
-func (i *Ibft) getState() IbftState {
-	return i.state.getState()
+func (i *Ibft) getState() currentstate.IbftState {
+	return i.state.GetState()
 }
 
 // isState checks if the node is in the passed in state
-func (i *Ibft) isState(s IbftState) bool {
-	return i.state.getState() == s
+func (i *Ibft) isState(s currentstate.IbftState) bool {
+	return i.state.GetState() == s
 }
 
 // setState sets the IBFT state
-func (i *Ibft) setState(s IbftState) {
+func (i *Ibft) setState(s currentstate.IbftState) {
 	i.logger.Info("state change", "new", s)
-	i.state.setState(s)
+	i.state.SetState(s)
 }
 
 // forceTimeout sets the forceTimeoutCh flag to true
@@ -1517,7 +1522,7 @@ func (i *Ibft) verifyHeaderImpl(snap *Snapshot, parent, header *types.Header) er
 	if i.shouldVerifyTimestamp(header.Number) {
 		// The diff between block timestamp and 'now' should not exceeds timeout.
 		// Timestamp ascending array [parentBlockTs, blockTs, now+msgTimeout]
-		d := i.state.messageTimeout()
+		d := i.state.MessageTimeout()
 		before, after := parent.Timestamp, uint64(time.Now().Add(d).Unix())
 
 		if header.Timestamp <= before || header.Timestamp >= after {
@@ -1652,7 +1657,7 @@ func (i *Ibft) getNextMessage(timeout time.Duration) (*proto.MessageReq, bool) {
 	timeoutCh := time.NewTimer(timeout)
 
 	for {
-		msg := i.msgQueue.readMessage(i.getState(), i.state.view)
+		msg := i.msgQueue.readMessage(i.getState(), i.state.View())
 		if msg != nil {
 			return msg.obj, true
 		}
@@ -1696,16 +1701,16 @@ func (i *Ibft) pushMessage(msg *proto.MessageReq) {
 func (i *Ibft) startNewSequence() {
 	header := i.blockchain.Header()
 
-	i.state.view = &proto.View{
+	i.state.SetView(&proto.View{
 		Sequence: header.Number + 1,
 		Round:    0,
-	}
+	})
 }
 
 // startNewRound changes the round in the view of state
 func (i *Ibft) startNewRound(newRound uint64) {
-	i.state.view = &proto.View{
-		Sequence: i.state.view.Sequence,
+	i.state.SetView(&proto.View{
+		Sequence: i.state.Sequence(),
 		Round:    newRound,
-	}
+	})
 }

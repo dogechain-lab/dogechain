@@ -10,6 +10,7 @@ import (
 	"github.com/dogechain-lab/dogechain/blockchain"
 	"github.com/dogechain-lab/dogechain/chain"
 	"github.com/dogechain-lab/dogechain/consensus"
+	"github.com/dogechain-lab/dogechain/consensus/ibft/validator"
 	"github.com/dogechain-lab/dogechain/crypto"
 	"github.com/dogechain-lab/dogechain/helper/common"
 	"github.com/dogechain-lab/dogechain/types"
@@ -122,8 +123,8 @@ func (ap *testerAccountPool) get(name string) *testerAccount {
 	return nil
 }
 
-func (ap *testerAccountPool) ValidatorSet() ValidatorSet {
-	v := ValidatorSet{}
+func (ap *testerAccountPool) ValidatorSet() validator.Validators {
+	v := validator.Validators{}
 	for _, i := range ap.accounts {
 		v = append(v, i.Address())
 	}
@@ -250,7 +251,7 @@ func TestSnapshot_setupSnapshot(t *testing.T) {
 
 	pool.add(candidateValidators...)
 
-	newSnapshot := func(n uint64, set ValidatorSet, votes []*Vote) *Snapshot {
+	newSnapshot := func(n uint64, set validator.Validators, votes []*Vote) *Snapshot {
 		return &Snapshot{
 			Number: n,
 			Set:    set,
@@ -734,7 +735,7 @@ func TestSnapshot_ProcessHeaders(t *testing.T) {
 				if result != nil {
 					resSnap := &Snapshot{
 						Votes: []*Vote{},
-						Set:   ValidatorSet{},
+						Set:   validator.Validators{},
 					}
 					// check validators
 					for _, i := range result.validators {

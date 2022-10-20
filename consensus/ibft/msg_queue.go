@@ -4,6 +4,7 @@ import (
 	"container/heap"
 	"sync"
 
+	"github.com/dogechain-lab/dogechain/consensus/ibft/currentstate"
 	"github.com/dogechain-lab/dogechain/consensus/ibft/proto"
 )
 
@@ -32,7 +33,7 @@ func (m *msgQueue) pushMessage(task *msgTask) {
 }
 
 // readMessage reads the message from a message queue, based on the current state and view
-func (m *msgQueue) readMessage(state IbftState, current *proto.View) *msgTask {
+func (m *msgQueue) readMessage(state currentstate.IbftState, current *proto.View) *msgTask {
 	m.queueLock.Lock()
 	defer m.queueLock.Unlock()
 
@@ -46,7 +47,7 @@ func (m *msgQueue) readMessage(state IbftState, current *proto.View) *msgTask {
 		msg := queue.head()
 
 		// check if the message is from the future
-		if state == RoundChangeState {
+		if state == currentstate.RoundChangeState {
 			// if we are in RoundChangeState we only care about sequence
 			// since we are interested in knowing all the possible rounds
 			if msg.view.Sequence > current.Sequence {
@@ -76,11 +77,11 @@ func (m *msgQueue) readMessage(state IbftState, current *proto.View) *msgTask {
 }
 
 // getQueue checks the passed in state, and returns the corresponding message queue
-func (m *msgQueue) getQueue(state IbftState) *msgQueueImpl {
-	if state == RoundChangeState {
+func (m *msgQueue) getQueue(state currentstate.IbftState) *msgQueueImpl {
+	if state == currentstate.RoundChangeState {
 		// round change
 		return &m.roundChangeStateQueue
-	} else if state == AcceptState {
+	} else if state == currentstate.AcceptState {
 		// preprepare
 		return &m.acceptStateQueue
 	} else {
@@ -112,16 +113,16 @@ func protoTypeToMsg(msgType proto.MessageReq_Type) MsgType {
 }
 
 // msgToState converts the message type to an IbftState
-func msgToState(msg MsgType) IbftState {
+func msgToState(msg MsgType) currentstate.IbftState {
 	if msg == msgRoundChange {
 		// round change
-		return RoundChangeState
+		return currentstate.RoundChangeState
 	} else if msg == msgPreprepare {
 		// preprepare
-		return AcceptState
+		return currentstate.AcceptState
 	} else if msg == msgPrepare || msg == msgCommit {
 		// prepare and commit
-		return ValidateState
+		return currentstate.ValidateState
 	}
 
 	panic("BUG: not expected")
