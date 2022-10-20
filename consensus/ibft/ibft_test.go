@@ -717,10 +717,11 @@ func TestTransition_RoundChangeState_MaxRound(t *testing.T) {
 	})
 }
 
-func TestWriteTransactions(t *testing.T) {
+func TestIBFT_WriteTransactions(t *testing.T) {
 	type testParams struct {
 		txns                        []*types.Transaction
 		failedTxnsIndexes           []int
+		notExecutableTxnsIndexes    int
 		gasLimitReachedTxnIndex     int
 		expectedIncludedTxnsCount   int
 		expectedFailReceiptsWritten int
@@ -742,6 +743,13 @@ func TestWriteTransactions(t *testing.T) {
 			)
 		}
 
+		if test.params.notExecutableTxnsIndexes >= 0 {
+			mockTransition.shouldDroppedTransactions = append(
+				mockTransition.shouldDroppedTransactions[:0],
+				mockTxPool.transactions[test.params.notExecutableTxnsIndexes:]...,
+			)
+		}
+
 		if test.params.gasLimitReachedTxnIndex > 0 {
 			mockTransition.gasLimitReachedTransaction = mockTxPool.transactions[test.params.gasLimitReachedTxnIndex]
 		}
@@ -756,7 +764,7 @@ func TestWriteTransactions(t *testing.T) {
 				txns: []*types.Transaction{
 					{Nonce: 1},
 				},
-				failedTxnsIndexes:           nil,
+				notExecutableTxnsIndexes:    -1,
 				gasLimitReachedTxnIndex:     -1,
 				expectedIncludedTxnsCount:   1,
 				expectedFailReceiptsWritten: 0,
@@ -773,7 +781,7 @@ func TestWriteTransactions(t *testing.T) {
 					{Nonce: 3},
 					{Nonce: 4},
 				},
-				failedTxnsIndexes:           nil,
+				notExecutableTxnsIndexes:    -1,
 				gasLimitReachedTxnIndex:     1,
 				expectedIncludedTxnsCount:   1, // nonce 1
 				expectedFailReceiptsWritten: 1, // nonce 2
@@ -781,23 +789,41 @@ func TestWriteTransactions(t *testing.T) {
 				expectedDemoteTxnsCount:     0,
 			},
 		},
-		// {
-		// 	"transaction failed account should be dropped",
-		// 	testParams{
-		// 		txns: []*types.Transaction{
-		// 			{Nonce: 1},
-		// 			{Nonce: 2},
-		// 			{Nonce: 3}, // failed, should drop all
-		// 			{Nonce: 4},
-		// 		},
-		// 		failedTxnsIndexes:           []int{2},
-		// 		gasLimitReachedTxnIndex:     -1,
-		// 		expectedIncludedTxnsCount:   2, // nonce 1, 2
-		// 		expectedFailReceiptsWritten: 2,
-		// 		expectedDropTxnsCount:       1, // nonce 3
-		// 		expectedDemoteTxnsCount:     0,
-		// 	},
-		// },
+		{
+			"transactions execute failed should be included too",
+			testParams{
+				txns: []*types.Transaction{
+					{Nonce: 1},
+					{Nonce: 2},
+					{Nonce: 3}, // failed, should be included, too
+					{Nonce: 4},
+				},
+				failedTxnsIndexes:           []int{2},
+				notExecutableTxnsIndexes:    -1,
+				gasLimitReachedTxnIndex:     -1,
+				expectedIncludedTxnsCount:   4, // nonce 1, 2, 3, 4
+				expectedFailReceiptsWritten: 1, // nonce 3
+				expectedDropTxnsCount:       0,
+				expectedDemoteTxnsCount:     0,
+			},
+		},
+		{
+			"transaction not executable account should be dropped",
+			testParams{
+				txns: []*types.Transaction{
+					{Nonce: 1},
+					{Nonce: 2}, // not executable, should be dropped, too
+					{Nonce: 3},
+					{Nonce: 4},
+				},
+				notExecutableTxnsIndexes:    1, // nonce 2
+				gasLimitReachedTxnIndex:     -1,
+				expectedIncludedTxnsCount:   1, // nonce 1
+				expectedFailReceiptsWritten: 0,
+				expectedDropTxnsCount:       1, // nonce 1
+				expectedDemoteTxnsCount:     0,
+			},
+		},
 	}
 
 	for _, test := range testCases {
@@ -1037,9 +1063,8 @@ func (p *mockTxPool) Pending() map[types.Address][]*types.Transaction {
 
 type mockTransition struct {
 	failReceiptsWritten        []*types.Transaction
+	shouldDroppedTransactions  []*types.Transaction
 	successReceiptsWritten     []*types.Transaction
-	recoverableTransactions    []*types.Transaction
-	unrecoverableTransactions  []*types.Transaction
 	gasLimitReachedTransaction *types.Transaction
 }
 
@@ -1054,15 +1079,9 @@ func (t *mockTransition) Write(txn *types.Transaction) error {
 		return state.NewGasLimitReachedTransitionApplicationError(nil)
 	}
 
-	for _, recoverable := range t.recoverableTransactions {
-		if txn == recoverable {
-			return state.NewTransitionApplicationError(nil, true)
-		}
-	}
-
-	for _, unrecoverable := range t.unrecoverableTransactions {
-		if txn == unrecoverable {
-			return state.NewTransitionApplicationError(nil, false)
+	for _, droppedTx := range t.shouldDroppedTransactions {
+		if txn == droppedTx {
+			return errors.New("mock not executable tx")
 		}
 	}
 
