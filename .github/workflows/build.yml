@@ -1,0 +1,40 @@
+---
+name: Build
+on: # yamllint disable-line rule:truthy
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  go_build:
+    name: Dogechain
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Go environment
+        uses: actions/setup-go@v3.3.0
+        with:
+          go-version: 1.17.x
+
+      - name: Build Dogechain
+        # run: go build -tags netgo -ldflags="-s -w -linkmode external -extldflags "-static" -X \"github.com/dogechain-lab/dogechain/versioning.Version=${GITHUB_REF_NAME}\" -X \"github.com/dogechain-lab/dogechain/versioning.Commit=${GITHUB_SHA}\"" && tar -czvf dogechain.tar.gz dogechain
+        run: CGO_ENABLED=0 GOOS=linux go build -a -o dogechain . && tar -czvf dogechain.tar.gz dogechain
+        env:
+          CC: gcc
+          CXX: g++
+          GOARC: amd64
+          GOOS: linux
+
+      - name: Extract branch name
+        # if: github.event_name != 'pull_request'
+        shell: bash
+        run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+        id: extract_branch
+
+      - name: "Upload Artifact"
+        uses: actions/upload-artifact@v3
+        with:
+          name: dogechain_${{ github.sha }}_${{ steps.extract_branch.outputs.branch }}
+          path: dogechain.tar.gz
+          retention-days: 3
