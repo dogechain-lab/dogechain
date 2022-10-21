@@ -630,14 +630,7 @@ func (i *Ibft) buildBlock(snap *Snapshot, parent *types.Header) (*types.Block, e
 	}
 
 	// set the timestamp
-	parentTime := time.Unix(int64(parent.Timestamp), 0)
-	headerTime := parentTime.Add(i.blockTime)
-
-	if headerTime.Before(time.Now()) {
-		headerTime = time.Now()
-	}
-
-	header.Timestamp = uint64(headerTime.Unix())
+	header.Timestamp = uint64(time.Now().Unix())
 
 	// we need to include in the extra field the current set of validators
 	putIbftExtraValidators(header, snap.Set)
