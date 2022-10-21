@@ -25,7 +25,7 @@ build:
 
 .PHONY: lint
 lint:
-	golangci-lint run -c lint-rule.yaml --timeout=2m
+	golangci-lint run -c .golangci.yml --timeout=3m
 
 .PHONY: test
 test: build
