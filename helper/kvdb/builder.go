@@ -65,12 +65,10 @@ type leveldbBuilder struct {
 func (builder *leveldbBuilder) SetCacheSize(cacheSize int) LevelDBBuilder {
 	cacheSize = max(cacheSize, minLevelDBCache)
 
-	builder.options.BlockCacheCapacity = (cacheSize / 2) * opt.MiB
-	builder.options.WriteBuffer = (cacheSize / 4) * opt.MiB
+	builder.options.BlockCacheCapacity = cacheSize * opt.MiB
 
 	builder.logger.Info("leveldb",
-		"BlockCacheCapacity", fmt.Sprintf("%d Mib", cacheSize/2),
-		"WriteBuffer", fmt.Sprintf("%d Mib", cacheSize/4),
+		"BlockCacheCapacity", fmt.Sprintf("%d Mib", cacheSize),
 	)
 
 	return builder
@@ -98,9 +96,11 @@ func (builder *leveldbBuilder) SetBloomKeyBits(bloomKeyBits int) LevelDBBuilder 
 
 func (builder *leveldbBuilder) SetCompactionTableSize(compactionTableSize int) LevelDBBuilder {
 	builder.options.CompactionTableSize = compactionTableSize * opt.MiB
+	builder.options.WriteBuffer = builder.options.CompactionTableSize * 2
 
 	builder.logger.Info("leveldb",
 		"CompactionTableSize", fmt.Sprintf("%d Mib", compactionTableSize),
+		"WriteBuffer", fmt.Sprintf("%d Mib", builder.options.WriteBuffer/opt.MiB),
 	)
 
 	return builder
@@ -144,8 +144,8 @@ func NewLevelDBBuilder(logger hclog.Logger, path string) LevelDBBuilder {
 			OpenFilesCacheCapacity:        minLevelDBHandles,
 			CompactionTableSize:           DefaultLevelDBCompactionTableSize * opt.MiB,
 			CompactionTotalSize:           DefaultLevelDBCompactionTotalSize * opt.MiB,
-			BlockCacheCapacity:            minLevelDBCache / 2 * opt.MiB,
-			WriteBuffer:                   minLevelDBCache / 4 * opt.MiB,
+			BlockCacheCapacity:            minLevelDBCache * opt.MiB,
+			WriteBuffer:                   (DefaultLevelDBCompactionTableSize * 2) * opt.MiB,
 			CompactionTableSizeMultiplier: 1.1, // scale size up 1.1 multiple in next level
 			Filter:                        filter.NewBloomFilter(DefaultLevelDBBloomKeyBits),
 			NoSync:                        false,
