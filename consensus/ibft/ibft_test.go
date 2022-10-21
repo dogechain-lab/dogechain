@@ -698,10 +698,8 @@ func TestTransition_RoundChangeState_MaxRound(t *testing.T) {
 	m := newMockIbft(t, []string{"A", "B", "C"}, "A")
 	m.Close()
 
-	bAccount := m.pool.get("B") // get real validator
-
-	m.state.AddMessage(&proto.MessageReq{
-		From: bAccount.Address().String(),
+	m.addMessage(&proto.MessageReq{
+		From: "B",
 		Type: proto.MessageReq_RoundChange,
 		View: &proto.View{
 			Round:    10,
@@ -784,42 +782,6 @@ func TestWriteTransactions(t *testing.T) {
 				0,
 			},
 		},
-		// {
-		// 	"recoverable transaction is not returned to pool and not included in transition",
-		// 	testParams{
-		// 		[]*types.Transaction{{Nonce: 1}},
-		// 		[]int{0},
-		// 		nil,
-		// 		-1,
-		// 		0,
-		// 		0,
-		// 		0,
-		// 	},
-		// },
-		// {
-		// 	"unrecoverable transaction is not returned to pool and not included in transition",
-		// 	testParams{
-		// 		[]*types.Transaction{{Nonce: 1}},
-		// 		nil,
-		// 		[]int{0},
-		// 		-1,
-		// 		0,
-		// 		0,
-		// 		0,
-		// 	},
-		// },
-		// {
-		// 	"only valid transactions are ever included in transition",
-		// 	testParams{
-		// 		[]*types.Transaction{{Nonce: 1}, {Nonce: 2}, {Nonce: 3}, {Nonce: 4}, {Nonce: 5}},
-		// 		[]int{0},
-		// 		[]int{3, 4},
-		// 		-1,
-		// 		1,
-		// 		2,
-		// 		0,
-		// 	},
-		// },
 		// {
 		// 	"transaction whose gas exceeds block gas limit is included but with failedReceipt",
 		// 	testParams{
@@ -1748,130 +1710,3 @@ func TestState_AddMessages(t *testing.T) {
 
 	assert.Equal(t, c.NumPrepared(), 2)
 }
-
-// func Test_VerifySystemTransactions(t *testing.T) {
-// 	// random key
-// 	key, err := crypto.GenerateKey()
-// 	assert.NoError(t, err)
-// 	// addr
-// 	addr := crypto.PubKeyToAddress(&key.PublicKey)
-
-// 	// mock ibft
-// 	i := newMockIbft(t, []string{addr.String()}, addr.String())
-// 	// mock config
-// 	i.config = &consensus.Config{
-// 		Params: &chain.Params{
-// 			Forks:   chain.AllForksEnabled,
-// 			ChainID: 100,
-// 			Engine: map[string]interface{}{
-// 				"ibft": map[string]interface{}{
-// 					"epochSize": 50,
-// 					"type":      PoS,
-// 				},
-// 			},
-// 		},
-// 	}
-
-// 	// get the actual mock key and addr
-// 	testAddr := i.pool.get(addr.String())
-
-// 	// mock height
-// 	mockBlockHeight := uint64(*chain.AllForksEnabled.Detroit) + 1
-
-// 	// mock transition
-// 	txn := &mockTransition{}
-
-// 	// sign deposit transaction
-// 	depositTx, err := i.makeTransitionDepositTx(txn, mockBlockHeight)
-// 	assert.NoError(t, err)
-// 	// sign slash transaction
-// 	slashTx, err := i.makeTransitionSlashTx(
-// 		txn,
-// 		mockBlockHeight,
-// 		types.StringToAddress("0x1"),
-// 	)
-// 	assert.NoError(t, err)
-
-// 	// test cases
-// 	tests := []struct {
-// 		name        string
-// 		block       *types.Block
-// 		expectedErr error
-// 	}{
-// 		{
-// 			name: "should failed without deposit transaction",
-// 			block: &types.Block{
-// 				Header: &types.Header{
-// 					Number: mockBlockHeight,
-// 				},
-// 				Transactions: nil,
-// 			},
-// 			expectedErr: errMissingDepositTx,
-// 		},
-// 		{
-// 			name: "should failed with only slash transaction",
-// 			block: &types.Block{
-// 				Header: &types.Header{
-// 					Number: mockBlockHeight,
-// 				},
-// 				Transactions: []*types.Transaction{
-// 					slashTx,
-// 				},
-// 			},
-// 			expectedErr: errMissingDepositTx,
-// 		},
-// 		{
-// 			name: "should succeed with deposit transaction",
-// 			block: &types.Block{
-// 				Header: &types.Header{
-// 					Number: mockBlockHeight,
-// 				},
-// 				Transactions: []*types.Transaction{
-// 					depositTx,
-// 				},
-// 			},
-// 			expectedErr: nil,
-// 		},
-// 		{
-// 			name: "should succeed with deposit and slash transactions",
-// 			block: &types.Block{
-// 				Header: &types.Header{
-// 					Number: mockBlockHeight,
-// 				},
-// 				Transactions: []*types.Transaction{
-// 					slashTx,
-// 					depositTx,
-// 				},
-// 			},
-// 			expectedErr: nil,
-// 		},
-// 	}
-
-// 	for _, test := range tests {
-// 		test := test
-
-// 		t.Run(test.name, func(t *testing.T) {
-// 			var err error
-// 			// put extract data
-// 			putIbftExtraValidators(test.block.Header, []types.Address{addr})
-
-// 			// seal extract data
-// 			test.block.Header, err = writeSeal(testAddr.priv, test.block.Header)
-// 			assert.NoError(t, err)
-
-// 			// marshal committed seal extrat data
-// 			committedSeals := make([][]byte, 0)
-// 			seal, err := writeCommittedSeal(testAddr.priv, test.block.Header)
-// 			assert.NoError(t, err)
-// 			committedSeals = append(committedSeals, seal)
-
-// 			// commit seal extract data
-// 			test.block.Header, err = writeCommittedSeals(test.block.Header, committedSeals)
-// 			assert.NoError(t, err)
-
-// 			// verify consensus transaction only
-// 			err = i.verifySystemTransactions(test.block)
-// 			assert.Equal(t, test.expectedErr, err)
-// 		})
-// 	}
-// }
