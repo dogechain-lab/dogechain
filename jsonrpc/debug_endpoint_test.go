@@ -12,7 +12,6 @@ import (
 )
 
 func TestDebug_FormatLogs(t *testing.T) {
-	//nolint:lll
 	var (
 		stackPc121 = []string{
 			"0x1ab06ee5",

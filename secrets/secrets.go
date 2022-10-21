@@ -2,6 +2,7 @@ package secrets
 
 import (
 	"errors"
+
 	"github.com/hashicorp/go-hclog"
 )
 

@@ -280,7 +280,6 @@ func (j *JSONRPC) handle(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if req.Method == "GET" {
-		//nolint
 		w.Write([]byte("Dogechain-Lab Dogechain JSON-RPC"))
 		j.metrics.Errors.Add(1.0)
 
@@ -288,7 +287,6 @@ func (j *JSONRPC) handle(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if req.Method != "POST" {
-		//nolint
 		w.Write([]byte("method " + req.Method + " not allowed"))
 		j.metrics.Errors.Add(1.0)
 
@@ -298,7 +296,6 @@ func (j *JSONRPC) handle(w http.ResponseWriter, req *http.Request) {
 	data, err := io.ReadAll(req.Body)
 
 	if err != nil {
-		//nolint
 		w.Write([]byte(err.Error()))
 		j.metrics.Errors.Add(1.0)
 
@@ -317,11 +314,9 @@ func (j *JSONRPC) handle(w http.ResponseWriter, req *http.Request) {
 	j.metrics.ResponseTime.Observe(endT.Sub(startT).Seconds())
 
 	if err != nil {
-		//nolint
 		w.Write([]byte(err.Error()))
 		j.metrics.Errors.Add(1.0)
 	} else {
-		//nolint
 		w.Write(resp)
 	}
 
