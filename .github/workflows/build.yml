@@ -39,4 +39,4 @@ jobs:
         with:
           name: dogechain_${{ github.sha }}_${{ steps.extract_branch.outputs.branch }}
           path: dogechain.tar.gz
-          retention-days: 3
+          retention-days: 7
