@@ -20,8 +20,9 @@ jobs:
 
       - name: Build Dogechain
         # run: go build -tags netgo -ldflags="-s -w -linkmode external -extldflags "-static" -X \"github.com/dogechain-lab/dogechain/versioning.Version=${GITHUB_REF_NAME}\" -X \"github.com/dogechain-lab/dogechain/versioning.Commit=${GITHUB_SHA}\"" && tar -czvf dogechain.tar.gz dogechain
-        run: CGO_ENABLED=0 GOOS=linux go build -a -o dogechain . && tar -czvf dogechain.tar.gz dogechain
+        run: go build -a -o dogechain . && tar -czvf dogechain.tar.gz dogechain
         env:
+          CGO_ENABLED: 0
           CC: gcc
           CXX: g++
           GOARC: amd64
