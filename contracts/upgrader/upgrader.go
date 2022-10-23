@@ -196,7 +196,7 @@ func applySystemContractUpgrade(
 		// set system contract code
 		txn.SetCode(cfg.ContractAddr, newContractCode)
 
-		// initialize system contract storage if neccessary
+		// initialize system contract storage if necessary
 		for k, v := range cfg.DefaultInitStorage {
 			txn.SetStorage(cfg.ContractAddr, k, v, &forksInTime)
 		}
