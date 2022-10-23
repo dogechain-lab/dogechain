@@ -27,10 +27,12 @@ type Upgrade struct {
 
 const (
 	MainNetChainID = 2000
+	DevNetChainID  = 668
 )
 
 const (
 	mainNet = "Mainnet"
+	devNet  = "Devnet"
 )
 
 var (
@@ -44,7 +46,8 @@ var (
 
 func init() {
 	//nolint:lll
-	_portlandUpgrade[mainNet] = &Upgrade{
+	// porland upgrade config
+	_portlandUpgradeCfg := &Upgrade{
 		UpgradeName: "portland",
 		Configs: []*UpgradeConfig{
 			{
@@ -54,8 +57,13 @@ func init() {
 			},
 		},
 	}
+	// networks support portland upgrade
+	_portlandUpgrade[mainNet] = _portlandUpgradeCfg
+	_portlandUpgrade[devNet] = _portlandUpgradeCfg
+
+	// detroit hardfork
 	//nolint:lll
-	_detroitUpgrade[mainNet] = &Upgrade{
+	_detroitUpgradeContent := &Upgrade{
 		UpgradeName: "detroit",
 		Configs: []*UpgradeConfig{
 			{
@@ -81,6 +89,9 @@ func init() {
 			},
 		},
 	}
+	// network supports detroit upgrade
+	_detroitUpgrade[mainNet] = _detroitUpgradeContent
+	_detroitUpgrade[devNet] = _detroitUpgradeContent
 }
 
 func UpgradeSystem(
@@ -97,6 +108,8 @@ func UpgradeSystem(
 	var network string
 
 	switch chainID {
+	case DevNetChainID:
+		network = devNet
 	case MainNetChainID:
 		fallthrough
 	default:
@@ -105,16 +118,20 @@ func UpgradeSystem(
 
 	// only upgrade portland once
 	if forks.IsOnPortland(blockNumber) {
-		up := _portlandUpgrade[network]
-		applySystemContractUpgrade(up, blockNumber, txn, forks,
-			logger.With("upgrade", up.UpgradeName, "network", network))
+		up, ok := _portlandUpgrade[network]
+		if ok { // only upgrade network needs to be upgraded
+			applySystemContractUpgrade(up, blockNumber, txn, forks,
+				logger.With("upgrade", up.UpgradeName, "network", network))
+		}
 	}
 
 	// only upgrade detroit once
 	if forks.IsOnDetroit(blockNumber) {
-		up := _detroitUpgrade[network]
-		applySystemContractUpgrade(up, blockNumber, txn, forks,
-			logger.With("upgrade", up.UpgradeName, "network", network))
+		up, ok := _detroitUpgrade[network]
+		if ok { // only upgrade network needs to be upgraded
+			applySystemContractUpgrade(up, blockNumber, txn, forks,
+				logger.With("upgrade", up.UpgradeName, "network", network))
+		}
 	}
 }
 
