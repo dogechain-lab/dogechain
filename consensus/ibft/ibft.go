@@ -1514,11 +1514,15 @@ func (i *Ibft) verifyHeaderImpl(snap *Snapshot, parent, header *types.Header) er
 	// check timestamp
 	if i.shouldVerifyTimestamp(header.Number) {
 		// The diff between block timestamp and 'now' should not exceeds timeout.
-		// Timestamp ascending array [parentBlockTs, blockTs, now+msgTimeout]
+		// Timestamp ascending array [blockTs, now+msgTimeout]
 		d := i.state.MessageTimeout()
-		before, after := parent.Timestamp, uint64(time.Now().Add(d).Unix())
+		after := uint64(time.Now().Add(d).Unix())
 
-		if header.Timestamp <= before || header.Timestamp >= after {
+		if header.Timestamp > after {
+			i.logger.Debug("future block time invalid", "after", after,
+				"currentHeader", header.Timestamp,
+			)
+
 			return ErrInvalidBlockTimestamp
 		}
 	}
