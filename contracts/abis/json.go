@@ -340,12 +340,6 @@ const ValidatorSetJSONABI = `[
                 "internalType": "uint256",
                 "name": "amount",
                 "type": "uint256"
-            },
-            {
-                "indexed": false,
-                "internalType": "uint256",
-                "name": "number",
-                "type": "uint256"
             }
         ],
         "name": "ValidatorDeposited",
@@ -409,6 +403,26 @@ const ValidatorSetJSONABI = `[
             }
         ],
         "name": "ValidatorModified",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs":
+        [
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "validator",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "string",
+                "name": "name",
+                "type": "string"
+            }
+        ],
+        "name": "ValidatorNameChanged",
         "type": "event"
     },
     {
@@ -879,6 +893,36 @@ const ValidatorSetJSONABI = `[
     {
         "inputs":
         [],
+        "name": "getPendingValidatorLength",
+        "outputs":
+        [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs":
+        [],
+        "name": "getPendingValidators",
+        "outputs":
+        [
+            {
+                "internalType": "address[]",
+                "name": "",
+                "type": "address[]"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs":
+        [],
         "name": "getRewardPerBlock",
         "outputs":
         [
@@ -1039,6 +1083,27 @@ const ValidatorSetJSONABI = `[
                 "type": "address"
             }
         ],
+        "name": "isPendingValidator",
+        "outputs":
+        [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs":
+        [
+            {
+                "internalType": "address",
+                "name": "validator",
+                "type": "address"
+            }
+        ],
         "name": "isValidator",
         "outputs":
         [
@@ -1164,6 +1229,21 @@ const ValidatorSetJSONABI = `[
             }
         ],
         "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs":
+        [
+            {
+                "internalType": "address",
+                "name": "validatorAddress",
+                "type": "address"
+            }
+        ],
+        "name": "removeFromValidator",
+        "outputs":
+        [],
+        "stateMutability": "nonpayable",
         "type": "function"
     },
     {
@@ -1365,6 +1445,26 @@ const ValidatorSetJSONABI = `[
             }
         ],
         "name": "setValidatorJailEpochLength",
+        "outputs":
+        [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs":
+        [
+            {
+                "internalType": "address",
+                "name": "validatorAddress",
+                "type": "address"
+            },
+            {
+                "internalType": "string",
+                "name": "name",
+                "type": "string"
+            }
+        ],
+        "name": "setValidatorName",
         "outputs":
         [],
         "stateMutability": "nonpayable",
