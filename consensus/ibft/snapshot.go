@@ -556,8 +556,15 @@ func writeDataStore(dir, filename string, obj interface{}) error {
 		return err
 	}
 
+	path := filepath.Join(dir, filename)
+
 	// mv the temporary file to the final file
-	if err := os.Rename(tmpFile.Name(), filepath.Join(dir, filename)); err != nil {
+	if err := os.Rename(tmpFile.Name(), path); err != nil {
+		return err
+	}
+
+	// chmod file to 0644
+	if err := os.Chmod(path, 0644); err != nil {
 		return err
 	}
 
