@@ -629,8 +629,17 @@ func (i *Ibft) buildBlock(snap *Snapshot, parent *types.Header) (*types.Block, e
 		i.logger.Error(fmt.Sprintf("Unable to run hook %s, %v", CandidateVoteHook, hookErr))
 	}
 
-	// set the timestamp
-	header.Timestamp = uint64(time.Now().Unix())
+	// set the brocasting timestamp if possible
+	// must use parent timestamp,
+	parentTime := time.Unix(int64(parent.Timestamp), 0)
+	headerTime := parentTime.Add(i.blockTime)
+	now := time.Now()
+
+	if headerTime.Before(now) {
+		headerTime = now
+	}
+
+	header.Timestamp = uint64(headerTime.Unix())
 
 	// we need to include in the extra field the current set of validators
 	putIbftExtraValidators(header, snap.Set)
@@ -1514,13 +1523,15 @@ func (i *Ibft) verifyHeaderImpl(snap *Snapshot, parent, header *types.Header) er
 	// check timestamp
 	if i.shouldVerifyTimestamp(header.Number) {
 		// The diff between block timestamp and 'now' should not exceeds timeout.
-		// Timestamp ascending array [blockTs, now+msgTimeout]
-		d := i.state.MessageTimeout()
-		after := uint64(time.Now().Add(d).Unix())
+		// Timestamp ascending array [parentTs, blockTs, now+blockTimeout]
+		before, after := parent.Timestamp, uint64(time.Now().Add(i.blockTime).Unix())
 
-		if header.Timestamp > after {
-			i.logger.Debug("future block time invalid", "after", after,
-				"currentHeader", header.Timestamp,
+		// header timestamp should not goes back
+		if header.Timestamp <= before || header.Timestamp > after {
+			i.logger.Debug("future blocktime invalid",
+				"before", before,
+				"after", after,
+				"current", header.Timestamp,
 			)
 
 			return ErrInvalidBlockTimestamp
