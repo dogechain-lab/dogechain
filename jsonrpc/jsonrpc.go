@@ -35,6 +35,10 @@ func (s serverType) String() string {
 	}
 }
 
+const (
+	_authoritativeChainName = "Dogechain"
+)
+
 // JSONRPC is an API backend
 type JSONRPC struct {
 	logger     hclog.Logger
@@ -327,7 +331,7 @@ type GetResponse struct {
 
 func (j *JSONRPC) handleGetRequest(writer io.Writer) {
 	data := &GetResponse{
-		Name:    "Dogechain",
+		Name:    _authoritativeChainName,
 		ChainID: j.config.ChainID,
 		Version: versioning.Version,
 	}
