@@ -141,7 +141,8 @@ func newLevelDBBuilder(logger hclog.Logger, config *Config, path string) kvdb.Le
 		path,
 	)
 
-	leveldbBuilder.SetCacheSize(config.LeveldbOptions.CacheSize).
+	// trie cache + blockchain cache = config.LeveldbOptions.CacheSize / 2
+	leveldbBuilder.SetCacheSize(config.LeveldbOptions.CacheSize / 2).
 		SetHandles(config.LeveldbOptions.Handles).
 		SetBloomKeyBits(config.LeveldbOptions.BloomKeyBits).
 		SetCompactionTableSize(config.LeveldbOptions.CompactionTableSize).
@@ -220,7 +221,7 @@ func NewServer(config *Config) (*Server, error) {
 
 	m.stateStorage = stateStorage
 
-	st := itrie.NewState(stateStorage)
+	st := itrie.NewState(stateStorage, m.serverMetrics.trie)
 	m.state = st
 
 	m.executor = state.NewExecutor(config.Chain.Params, st, logger)

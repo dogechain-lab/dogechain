@@ -403,7 +403,7 @@ func (s *snapshotStore) loadFromPath(path string, l hclog.Logger) error {
 // saveToPath saves the snapshot store as a file to the specified path
 func (s *snapshotStore) saveToPath(path string) error {
 	// Write snapshots
-	if err := writeDataStore(filepath.Join(path, "snapshots"), s.list); err != nil {
+	if err := writeDataStore(path, "snapshots", s.list); err != nil {
 		return err
 	}
 
@@ -411,7 +411,7 @@ func (s *snapshotStore) saveToPath(path string) error {
 	meta := &snapshotMetadata{
 		LastBlock: s.lastNumber,
 	}
-	if err := writeDataStore(filepath.Join(path, "metadata"), meta); err != nil {
+	if err := writeDataStore(path, "metadata", meta); err != nil {
 		return err
 	}
 
@@ -532,14 +532,39 @@ func readDataStore(path string, obj interface{}) error {
 }
 
 // writeDataStore attempts to write the specific file to file storage
-func writeDataStore(path string, obj interface{}) error {
+func writeDataStore(dir, filename string, obj interface{}) error {
 	data, err := json.Marshal(obj)
 	if err != nil {
 		return err
 	}
 
-	//nolint:gosec
-	if err := ioutil.WriteFile(path, data, 0755); err != nil {
+	// atomically overwrite file
+	// https://stackoverflow.com/questions/30385225/is-there-an-os-independent-way-to-atomically-overwrite-a-file
+	// create a temporary file
+	tmpFile, err := os.CreateTemp(dir, filename+"*.tmp")
+	if err != nil {
+		return err
+	}
+
+	// write the data to the temporary file
+	if _, err := tmpFile.Write(data); err != nil {
+		return err
+	}
+
+	// close the temporary file
+	if err := tmpFile.Close(); err != nil {
+		return err
+	}
+
+	path := filepath.Join(dir, filename)
+
+	// mv the temporary file to the final file
+	if err := os.Rename(tmpFile.Name(), path); err != nil {
+		return err
+	}
+
+	// chmod file to 0644
+	if err := os.Chmod(path, 0644); err != nil {
 		return err
 	}
 

@@ -170,7 +170,7 @@ func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte) {
 				accountStateTrie := localTxn.Commit()
 
 				// Add this to the cache
-				t.state.AddState(types.BytesToHash(accountStateRoot), accountStateTrie)
+				t.state.AddAccountState(types.BytesToHash(accountStateRoot), accountStateTrie)
 
 				account.Root = types.BytesToHash(accountStateRoot)
 			}
@@ -201,7 +201,7 @@ func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte) {
 		panic(err)
 	}
 
-	t.state.AddState(types.BytesToHash(root), nTrie)
+	t.state.AddTrieState(types.BytesToHash(root), nTrie)
 
 	return nTrie, root
 }

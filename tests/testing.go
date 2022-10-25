@@ -224,7 +224,7 @@ func (e *exec) UnmarshalJSON(input []byte) error {
 func buildState(
 	allocs map[types.Address]*chain.GenesisAccount,
 ) (state.State, state.Snapshot, types.Hash) {
-	s := itrie.NewState(itrie.NewMemoryStorage())
+	s := itrie.NewState(itrie.NewMemoryStorage(), nil)
 	snap := s.NewSnapshot()
 
 	txn := state.NewTxn(s, snap)
