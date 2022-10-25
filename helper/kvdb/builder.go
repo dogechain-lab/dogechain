@@ -20,8 +20,8 @@ const (
 	DefaultLevelDBCache               = 1024 // 1 GiB
 	DefaultLevelDBHandles             = 512  // files handles to leveldb open files
 	DefaultLevelDBBloomKeyBits        = 2048 // bloom filter bits (256 bytes)
-	DefaultLevelDBCompactionTableSize = 8    // 8  MiB
-	DefaultLevelDBCompactionTotalSize = 32   // 32 MiB
+	DefaultLevelDBCompactionTableSize = 4    // 4  MiB
+	DefaultLevelDBCompactionTotalSize = 40   // 40 MiB
 	DefaultLevelDBNoSync              = false
 )
 
@@ -65,12 +65,10 @@ type leveldbBuilder struct {
 func (builder *leveldbBuilder) SetCacheSize(cacheSize int) LevelDBBuilder {
 	cacheSize = max(cacheSize, minLevelDBCache)
 
-	builder.options.BlockCacheCapacity = (cacheSize / 2) * opt.MiB
-	builder.options.WriteBuffer = (cacheSize / 4) * opt.MiB
+	builder.options.BlockCacheCapacity = cacheSize * opt.MiB
 
 	builder.logger.Info("leveldb",
-		"BlockCacheCapacity", fmt.Sprintf("%d Mib", cacheSize/2),
-		"WriteBuffer", fmt.Sprintf("%d Mib", cacheSize/4),
+		"BlockCacheCapacity", fmt.Sprintf("%d Mib", cacheSize),
 	)
 
 	return builder
@@ -98,9 +96,11 @@ func (builder *leveldbBuilder) SetBloomKeyBits(bloomKeyBits int) LevelDBBuilder 
 
 func (builder *leveldbBuilder) SetCompactionTableSize(compactionTableSize int) LevelDBBuilder {
 	builder.options.CompactionTableSize = compactionTableSize * opt.MiB
+	builder.options.WriteBuffer = builder.options.CompactionTableSize * 2
 
 	builder.logger.Info("leveldb",
 		"CompactionTableSize", fmt.Sprintf("%d Mib", compactionTableSize),
+		"WriteBuffer", fmt.Sprintf("%d Mib", builder.options.WriteBuffer/opt.MiB),
 	)
 
 	return builder
@@ -141,13 +141,16 @@ func NewLevelDBBuilder(logger hclog.Logger, path string) LevelDBBuilder {
 		logger: logger,
 		path:   path,
 		options: &opt.Options{
-			OpenFilesCacheCapacity: minLevelDBHandles,
-			CompactionTableSize:    DefaultLevelDBCompactionTableSize * opt.MiB,
-			CompactionTotalSize:    DefaultLevelDBCompactionTotalSize * opt.MiB,
-			BlockCacheCapacity:     minLevelDBCache / 2 * opt.MiB,
-			WriteBuffer:            minLevelDBCache / 4 * opt.MiB,
-			Filter:                 filter.NewBloomFilter(DefaultLevelDBBloomKeyBits),
-			NoSync:                 false,
+			OpenFilesCacheCapacity:        minLevelDBHandles,
+			CompactionTableSize:           DefaultLevelDBCompactionTableSize * opt.MiB,
+			CompactionTotalSize:           DefaultLevelDBCompactionTotalSize * opt.MiB,
+			BlockCacheCapacity:            minLevelDBCache * opt.MiB,
+			WriteBuffer:                   (DefaultLevelDBCompactionTableSize * 2) * opt.MiB,
+			CompactionTableSizeMultiplier: 1.1, // scale size up 1.1 multiple in next level
+			Filter:                        filter.NewBloomFilter(DefaultLevelDBBloomKeyBits),
+			NoSync:                        false,
+			BlockSize:                     256 * opt.KiB, // default 4kb, but one key-value pair need 0.5kb
+			FilterBaseLg:                  19,            // 512kb
 		},
 	}
 }
