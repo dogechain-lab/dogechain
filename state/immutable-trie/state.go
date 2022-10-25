@@ -10,17 +10,33 @@ import (
 	"github.com/dogechain-lab/dogechain/types"
 )
 
+const (
+	codeLruCacheSize         = 8192
+	trieStateLruCacheSize    = 2048
+	accountStateLruCacheSize = 4096
+)
+
 type State struct {
 	storage Storage
-	cache   *lru.Cache
+
+	codeLruCache      *lru.Cache
+	trieStateCache    *lru.Cache
+	accountStateCache *lru.Cache
+
+	metrics *Metrics
 }
 
-func NewState(storage Storage) *State {
-	cache, _ := lru.New(128)
+func NewState(storage Storage, metrics *Metrics) *State {
+	codeLruCache, _ := lru.New(codeLruCacheSize)
+	trieStateCache, _ := lru.New(trieStateLruCacheSize)
+	accountStateCache, _ := lru.New(accountStateLruCacheSize)
 
 	s := &State{
-		storage: storage,
-		cache:   cache,
+		storage:           storage,
+		trieStateCache:    trieStateCache,
+		accountStateCache: accountStateCache,
+		codeLruCache:      codeLruCache,
+		metrics:           NewDummyMetrics(metrics),
 	}
 
 	return s
@@ -35,11 +51,41 @@ func (s *State) NewSnapshot() state.Snapshot {
 }
 
 func (s *State) SetCode(hash types.Hash, code []byte) error {
-	return s.storage.SetCode(hash, code)
+	err := s.storage.SetCode(hash, code)
+
+	if err != nil {
+		return err
+	}
+
+	s.codeLruCache.Add(hash, code)
+
+	s.metrics.CodeLruCacheWrite.Add(1)
+
+	return err
 }
 
 func (s *State) GetCode(hash types.Hash) ([]byte, bool) {
-	return s.storage.GetCode(hash)
+	defer s.metrics.CodeLruCacheRead.Add(1)
+
+	// find code in cache
+	if cacheCode, ok := s.codeLruCache.Get(hash); ok {
+		if code, ok := cacheCode.([]byte); ok {
+			s.metrics.CodeLruCacheHit.Add(1)
+
+			return code, true
+		}
+	}
+
+	s.metrics.CodeLruCacheMiss.Add(1)
+
+	code, ok := s.storage.GetCode(hash)
+	if ok {
+		s.codeLruCache.Add(hash, code)
+
+		s.metrics.CodeLruCacheWrite.Add(1)
+	}
+
+	return code, ok
 }
 
 func (s *State) NewSnapshotAt(root types.Hash) (state.Snapshot, error) {
@@ -48,19 +94,26 @@ func (s *State) NewSnapshotAt(root types.Hash) (state.Snapshot, error) {
 		return s.NewSnapshot(), nil
 	}
 
-	tt, ok := s.cache.Get(root)
+	tt, ok := s.trieStateCache.Get(root)
 	if ok {
-		t, ok := tt.(*Trie)
-		if !ok {
-			return nil, errors.New("invalid type assertion")
-		}
-
-		t.state = s
-
 		trie, ok := tt.(*Trie)
 		if !ok {
 			return nil, errors.New("invalid type assertion")
 		}
+
+		s.metrics.TrieStateLruCacheHit.Add(1)
+
+		return trie, nil
+	}
+
+	tt, ok = s.accountStateCache.Get(root)
+	if ok {
+		trie, ok := tt.(*Trie)
+		if !ok {
+			return nil, errors.New("invalid type assertion")
+		}
+
+		s.metrics.AccountStateLruCacheHit.Add(1)
 
 		return trie, nil
 	}
@@ -75,6 +128,8 @@ func (s *State) NewSnapshotAt(root types.Hash) (state.Snapshot, error) {
 		return nil, fmt.Errorf("state not found at hash %s", root)
 	}
 
+	s.metrics.StateLruCacheMiss.Add(1)
+
 	t := &Trie{
 		root:    n,
 		state:   s,
@@ -84,6 +139,10 @@ func (s *State) NewSnapshotAt(root types.Hash) (state.Snapshot, error) {
 	return t, nil
 }
 
-func (s *State) AddState(root types.Hash, t *Trie) {
-	s.cache.Add(root, t)
+func (s *State) AddAccountState(root types.Hash, t *Trie) {
+	s.accountStateCache.Add(root, t)
+}
+
+func (s *State) AddTrieState(root types.Hash, t *Trie) {
+	s.trieStateCache.Add(root, t)
 }
