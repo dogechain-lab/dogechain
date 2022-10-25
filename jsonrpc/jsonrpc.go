@@ -66,7 +66,9 @@ type Config struct {
 	JSONNamespaces           []Namespace
 	EnableWS                 bool
 	PriceLimit               uint64
-	Metrics                  *Metrics
+	EnablePProf              bool // whether pprof enable or not
+
+	Metrics *Metrics
 }
 
 // NewJSONRPC returns the JSONRPC http server
@@ -102,7 +104,16 @@ func (j *JSONRPC) setupHTTP() error {
 		return err
 	}
 
-	mux := http.DefaultServeMux
+	var mux *http.ServeMux
+	if j.config.EnablePProf {
+		// debug feature enabled
+		mux = http.DefaultServeMux
+	} else {
+		// NewServeMux must be used, as it disables all debug features.
+		// For some strange reason, with DefaultServeMux debug/vars is always enabled (but not debug/pprof).
+		// If pprof need to be enabled, this should be DefaultServeMux
+		mux = http.NewServeMux()
+	}
 
 	// The middleware factory returns a handler, so we need to wrap the handler function properly.
 	jsonRPCHandler := http.HandlerFunc(j.handle)

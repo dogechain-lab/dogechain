@@ -27,6 +27,7 @@ type Config struct {
 	ChainID                  uint64
 	AccessControlAllowOrigin []string
 	BlockRangeLimit          uint64
+	EnablePProf              bool
 }
 
 // GraphQLStore defines all the methods required
@@ -73,7 +74,16 @@ func (svc *GraphQLService) setupHTTP() error {
 		return err
 	}
 
-	mux := http.DefaultServeMux
+	var mux *http.ServeMux
+	if svc.config.EnablePProf {
+		// debug feature enabled
+		mux = http.DefaultServeMux
+	} else {
+		// NewServeMux must be used, as it disables all debug features.
+		// For some strange reason, with DefaultServeMux debug/vars is always enabled (but not debug/pprof).
+		// If pprof need to be enabled, this should be DefaultServeMux
+		mux = http.NewServeMux()
+	}
 
 	// The middleware factory returns a handler, so we need to wrap the handler function properly.
 	graphqlHandler := http.HandlerFunc(svc.handler.ServeHTTP)
