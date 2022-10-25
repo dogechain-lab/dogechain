@@ -151,6 +151,7 @@ func NewLevelDBBuilder(logger hclog.Logger, path string) LevelDBBuilder {
 			NoSync:                        false,
 			BlockSize:                     256 * opt.KiB, // default 4kb, but one key-value pair need 0.5kb
 			FilterBaseLg:                  19,            // 512kb
+      DisableSeeksCompaction:        true,
 		},
 	}
 }
