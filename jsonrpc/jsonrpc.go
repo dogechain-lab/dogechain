@@ -1,6 +1,7 @@
 package jsonrpc
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -8,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dogechain-lab/dogechain/versioning"
 	"github.com/gorilla/websocket"
 	"github.com/hashicorp/go-hclog"
 )
@@ -279,7 +281,7 @@ func (j *JSONRPC) handle(w http.ResponseWriter, req *http.Request) {
 	case http.MethodPost:
 		j.handleJSONRPCRequest(w, req)
 	case http.MethodGet:
-		w.Write([]byte("Dogechain-Lab Dogechain JSON-RPC"))
+		j.handleGetRequest(w)
 	case http.MethodOptions:
 		// nothing to return
 	default:
@@ -315,4 +317,29 @@ func (j *JSONRPC) handleJSONRPCRequest(w http.ResponseWriter, req *http.Request)
 	}
 
 	j.logger.Debug("handle", "response", string(resp))
+}
+
+type GetResponse struct {
+	Name    string `json:"name"`
+	ChainID uint64 `json:"chain_id"`
+	Version string `json:"version"`
+}
+
+func (j *JSONRPC) handleGetRequest(writer io.Writer) {
+	data := &GetResponse{
+		Name:    "Dogechain",
+		ChainID: j.config.ChainID,
+		Version: versioning.Version,
+	}
+
+	resp, err := json.Marshal(data)
+	if err != nil {
+		_, _ = writer.Write([]byte(err.Error()))
+		j.metrics.Errors.Add(1.0)
+	}
+
+	if _, err = writer.Write(resp); err != nil {
+		_, _ = writer.Write([]byte(err.Error()))
+		j.metrics.Errors.Add(1.0)
+	}
 }
