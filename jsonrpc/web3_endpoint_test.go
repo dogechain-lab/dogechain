@@ -27,9 +27,19 @@ func TestWeb3EndpointSha3(t *testing.T) {
 }
 
 func TestWeb3EndpointClientVersion(t *testing.T) {
-	dispatcher := newDispatcher(hclog.NewNullLogger(), newMockStore(), 0, 20, 1000, 0, []Namespace{
-		NamespaceWeb3,
-	})
+	chainID := uint64(100)
+
+	dispatcher := newDispatcher(
+		hclog.NewNullLogger(),
+		newMockStore(),
+		chainID,
+		20,
+		1000,
+		0,
+		[]Namespace{
+			NamespaceWeb3,
+		},
+	)
 
 	resp, err := dispatcher.Handle([]byte(`{
 		"method": "web3_clientVersion",
@@ -40,5 +50,11 @@ func TestWeb3EndpointClientVersion(t *testing.T) {
 	var res string
 
 	assert.NoError(t, expectJSONResult(resp, &res))
-	assert.Contains(t, res, fmt.Sprintf("dogechain [%v]", versioning.Version))
+	assert.Contains(t, res,
+		fmt.Sprintf(
+			_clientVersionTemplate,
+			chainID,
+			versioning.Version,
+		),
+	)
 }

@@ -9,11 +9,19 @@ import (
 )
 
 // Web3 is the web3 jsonrpc endpoint
-type Web3 struct{}
+type Web3 struct {
+	chainID uint64
+}
+
+var _clientVersionTemplate = "dogechain [chain-id: %d] [version: %s]"
 
 // ClientVersion returns the version of the web3 client (web3_clientVersion)
 func (w *Web3) ClientVersion() (interface{}, error) {
-	return fmt.Sprintf("dogechain [%s]", versioning.Version), nil
+	return fmt.Sprintf(
+		_clientVersionTemplate,
+		w.chainID,
+		versioning.Version,
+	), nil
 }
 
 // Sha3 returns Keccak-256 (not the standardized SHA3-256) of the given data

@@ -104,7 +104,7 @@ func (d *Dispatcher) initEndpoints(store JSONRPCStore) {
 		priceLimit:    d.priceLimit,
 	}
 	d.endpoints.Net = &Net{store, d.chainID}
-	d.endpoints.Web3 = &Web3{}
+	d.endpoints.Web3 = &Web3{d.chainID}
 	d.endpoints.TxPool = &TxPool{store}
 	d.endpoints.Debug = &Debug{store}
 }
