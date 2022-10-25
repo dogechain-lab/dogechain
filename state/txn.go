@@ -597,7 +597,8 @@ func (txn *Txn) CleanDeleteObjects(deleteEmptyObjects bool) {
 	txn.txn.Delete(refundIndex)
 }
 
-func (txn *Txn) Commit(deleteEmptyObjects bool) (Snapshot, []byte) {
+// func (txn *Txn) Commit(deleteEmptyObjects bool) (Snapshot, []byte) {
+func (txn *Txn) Commit(deleteEmptyObjects bool) []*Object {
 	txn.CleanDeleteObjects(deleteEmptyObjects)
 
 	x := txn.txn.Commit()
@@ -644,7 +645,5 @@ func (txn *Txn) Commit(deleteEmptyObjects bool) (Snapshot, []byte) {
 		return false
 	})
 
-	t, hash := txn.snapshot.Commit(objs)
-
-	return t, hash
+	return objs
 }

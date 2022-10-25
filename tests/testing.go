@@ -243,7 +243,8 @@ func buildState(
 		}
 	}
 
-	snap, root := txn.Commit(false)
+	objs := txn.Commit(false)
+	snap, root := snap.Commit(objs)
 
 	return s, snap, types.BytesToHash(root)
 }
