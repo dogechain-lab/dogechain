@@ -419,8 +419,8 @@ func (e *Eth) GetStorageAt(
 	}
 	// Parse the RLP value
 	p := &fastrlp.Parser{}
-	v, err := p.Parse(result)
 
+	v, err := p.Parse(result)
 	if err != nil {
 		return argBytesPtr(types.ZeroHash[:]), nil
 	}
@@ -431,7 +431,8 @@ func (e *Eth) GetStorageAt(
 		return argBytesPtr(types.ZeroHash[:]), nil
 	}
 
-	return argBytesPtr(data), nil
+	// Pad to return 32 bytes data
+	return argBytesPtr(types.BytesToHash(data).Bytes()), nil
 }
 
 // GasPrice returns the average gas price based on the last x blocks
