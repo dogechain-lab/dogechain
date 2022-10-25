@@ -275,28 +275,23 @@ func (j *JSONRPC) handle(w http.ResponseWriter, req *http.Request) {
 		"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization",
 	)
 
-	if (*req).Method == "OPTIONS" {
-		return
-	}
-
-	if req.Method == "GET" {
+	switch req.Method {
+	case http.MethodPost:
+		j.handleJSONRPCRequest(w, req)
+	case http.MethodGet:
 		w.Write([]byte("Dogechain-Lab Dogechain JSON-RPC"))
+	case http.MethodOptions:
+		// nothing to return
+	default:
+		_, _ = w.Write([]byte("method " + req.Method + " not allowed"))
 		j.metrics.Errors.Add(1.0)
-
-		return
 	}
+}
 
-	if req.Method != "POST" {
-		w.Write([]byte("method " + req.Method + " not allowed"))
-		j.metrics.Errors.Add(1.0)
-
-		return
-	}
-
+func (j *JSONRPC) handleJSONRPCRequest(w http.ResponseWriter, req *http.Request) {
 	data, err := io.ReadAll(req.Body)
-
 	if err != nil {
-		w.Write([]byte(err.Error()))
+		_, _ = w.Write([]byte(err.Error()))
 		j.metrics.Errors.Add(1.0)
 
 		return
@@ -310,14 +305,13 @@ func (j *JSONRPC) handle(w http.ResponseWriter, req *http.Request) {
 	// handle request
 	resp, err := j.dispatcher.Handle(data)
 
-	endT := time.Now()
-	j.metrics.ResponseTime.Observe(endT.Sub(startT).Seconds())
+	j.metrics.ResponseTime.Observe(float64(time.Since(startT).Seconds()))
 
 	if err != nil {
-		w.Write([]byte(err.Error()))
+		_, _ = w.Write([]byte(err.Error()))
 		j.metrics.Errors.Add(1.0)
 	} else {
-		w.Write(resp)
+		_, _ = w.Write(resp)
 	}
 
 	j.logger.Debug("handle", "response", string(resp))
