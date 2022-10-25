@@ -459,6 +459,9 @@ func runCommand(cmd *cobra.Command, _ []string) {
 		log.Println("Child process ", os.Getpid(), "ValidatorKey len: ", len(params.validatorKey))
 	}
 
+	// pprof flag
+	params.rawConfig.EnablePprof = helper.GetPprofFlag(cmd)
+
 	if err := runServerLoop(params.generateConfig(), outputter); err != nil {
 		outputter.SetError(err)
 		outputter.WriteOutput()

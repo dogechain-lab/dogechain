@@ -249,6 +249,13 @@ func RegisterPprofFlag(cmd *cobra.Command) {
 	)
 }
 
+// GetPprofFlag extracts the
+func GetPprofFlag(cmd *cobra.Command) bool {
+	v, _ := cmd.Flags().GetBool(command.PprofFlag)
+
+	return v
+}
+
 // ParseGraphQLAddress parses the passed in GraphQL address
 func ParseGraphQLAddress(graphqlAddress string) (*url.URL, error) {
 	return url.ParseRequestURI(graphqlAddress)

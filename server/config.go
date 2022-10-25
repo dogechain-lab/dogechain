@@ -72,10 +72,12 @@ type JSONRPC struct {
 	BlockRangeLimit          uint64
 	JSONNamespace            []string
 	EnableWS                 bool
+	EnablePprof              bool
 }
 
 type GraphQL struct {
 	GraphQLAddr              *net.TCPAddr
 	AccessControlAllowOrigin []string
 	BlockRangeLimit          uint64
+	EnablePprof              bool
 }

@@ -34,7 +34,8 @@ type Config struct {
 	JSONRPCBatchRequestLimit uint64     `json:"json_rpc_batch_request_limit" yaml:"json_rpc_batch_request_limit"`
 	JSONRPCBlockRangeLimit   uint64     `json:"json_rpc_block_range_limit" yaml:"json_rpc_block_range_limit"`
 	JSONNamespace            string     `json:"json_namespace" yaml:"json_namespace"`
-	EnableWS                 bool       `json:"enable_ws"`
+	EnableWS                 bool       `json:"enable_ws" yaml:"enable_ws"`
+	EnablePprof              bool       `json:"enable_pprof" yaml:"enable_pprof"`
 }
 
 // Telemetry holds the config details for metric services.
@@ -103,6 +104,7 @@ func DefaultConfig() *Config {
 		JSONRPCBlockRangeLimit:   jsonrpc.DefaultJSONRPCBlockRangeLimit,
 		JSONNamespace:            string(jsonrpc.NamespaceAll),
 		EnableWS:                 false,
+		EnablePprof:              false,
 	}
 }
 

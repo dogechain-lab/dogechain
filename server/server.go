@@ -685,6 +685,7 @@ func (s *Server) setupJSONRPC() error {
 		JSONNamespaces:           namespaces,
 		EnableWS:                 s.config.JSONRPC.EnableWS,
 		PriceLimit:               s.config.PriceLimit,
+		EnablePProf:              s.config.JSONRPC.EnablePprof,
 		Metrics:                  s.serverMetrics.jsonrpc,
 	}
 
@@ -720,6 +721,7 @@ func (s *Server) setupGraphQL() error {
 		ChainID:                  uint64(s.config.Chain.Params.ChainID),
 		AccessControlAllowOrigin: s.config.GraphQL.AccessControlAllowOrigin,
 		BlockRangeLimit:          s.config.GraphQL.BlockRangeLimit,
+		EnablePProf:              s.config.GraphQL.EnablePprof,
 	}
 
 	srv, err := graphql.NewGraphQLService(s.logger, conf)

@@ -174,6 +174,7 @@ func (p *serverParams) generateConfig() *server.Config {
 		chainCfg.Params.BlockGasTarget = p.blockGasTarget
 	}
 
+	// namespace
 	ns := strings.Split(p.rawConfig.JSONNamespace, ",")
 
 	return &server.Config{
@@ -185,12 +186,14 @@ func (p *serverParams) generateConfig() *server.Config {
 			BlockRangeLimit:          p.rawConfig.JSONRPCBlockRangeLimit,
 			JSONNamespace:            ns,
 			EnableWS:                 p.rawConfig.EnableWS,
+			EnablePprof:              p.rawConfig.EnablePprof,
 		},
 		EnableGraphQL: p.rawConfig.EnableGraphQL,
 		GraphQL: &server.GraphQL{
 			GraphQLAddr:              p.graphqlAddress,
 			AccessControlAllowOrigin: p.corsAllowedOrigins,
 			BlockRangeLimit:          p.rawConfig.JSONRPCBlockRangeLimit,
+			EnablePprof:              p.rawConfig.EnablePprof,
 		},
 		GRPCAddr:   p.grpcAddress,
 		LibP2PAddr: p.libp2pAddress,
