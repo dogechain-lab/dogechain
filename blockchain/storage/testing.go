@@ -470,8 +470,6 @@ type readHeaderDelegate func(types.Hash) (*types.Header, error)
 type writeCanonicalHeaderDelegate func(*types.Header, *big.Int) error
 type writeBodyDelegate func(types.Hash, *types.Body) error
 type readBodyDelegate func(types.Hash) (*types.Body, error)
-type writeSnapshotDelegate func(types.Hash, []byte) error
-type readSnapshotDelegate func(types.Hash) ([]byte, bool)
 type writeReceiptsDelegate func(types.Hash, []*types.Receipt) error
 type readReceiptsDelegate func(types.Hash) ([]*types.Receipt, error)
 type writeTxLookupDelegate func(types.Hash, types.Hash) error
@@ -494,8 +492,6 @@ type MockStorage struct {
 	writeCanonicalHeaderFn writeCanonicalHeaderDelegate
 	writeBodyFn            writeBodyDelegate
 	readBodyFn             readBodyDelegate
-	writeSnapshotFn        writeSnapshotDelegate
-	readSnapshotFn         readSnapshotDelegate
 	writeReceiptsFn        writeReceiptsDelegate
 	readReceiptsFn         readReceiptsDelegate
 	writeTxLookupFn        writeTxLookupDelegate
@@ -685,30 +681,6 @@ func (m *MockStorage) ReadBody(hash types.Hash) (*types.Body, error) {
 
 func (m *MockStorage) HookReadBody(fn readBodyDelegate) {
 	m.readBodyFn = fn
-}
-
-func (m *MockStorage) WriteSnapshot(hash types.Hash, blob []byte) error {
-	if m.writeSnapshotFn != nil {
-		return m.writeSnapshotFn(hash, blob)
-	}
-
-	return nil
-}
-
-func (m *MockStorage) HookWriteSnapshot(fn writeSnapshotDelegate) {
-	m.writeSnapshotFn = fn
-}
-
-func (m *MockStorage) ReadSnapshot(hash types.Hash) ([]byte, bool) {
-	if m.readSnapshotFn != nil {
-		return m.readSnapshotFn(hash)
-	}
-
-	return []byte{}, true
-}
-
-func (m *MockStorage) HookReadSnapshot(fn readSnapshotDelegate) {
-	m.readSnapshotFn = fn
 }
 
 func (m *MockStorage) WriteReceipts(hash types.Hash, receipts []*types.Receipt) error {
