@@ -183,7 +183,7 @@ func TestQueryValidators(t *testing.T) {
 					Value:    big.NewInt(0),
 					Input:    method.ID(),
 					GasPrice: big.NewInt(0),
-					Gas:      _queryGasLimit,
+					Gas:      _systemContractGasLimit,
 					Nonce:    10,
 				},
 			},
@@ -217,7 +217,7 @@ func TestQueryValidators(t *testing.T) {
 				},
 			}
 
-			res, err := QueryValidators(mock, tt.from)
+			res, err := QueryValidators(mock, tt.from, tt.mockArgs.tx.Gas)
 			if tt.succeed {
 				assert.NoError(t, err)
 			} else {

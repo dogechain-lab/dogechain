@@ -28,7 +28,7 @@ const (
 
 const (
 	// Gas limit used when querying the validator set
-	_queryGasLimit uint64 = 2000000
+	_systemContractGasLimit uint64 = 2_000_000
 )
 
 var (
@@ -66,7 +66,7 @@ type TxQueryHandler interface {
 	Apply(*types.Transaction) (*runtime.ExecutionResult, error)
 }
 
-func QueryValidators(t TxQueryHandler, from types.Address) ([]types.Address, error) {
+func QueryValidators(t TxQueryHandler, from types.Address, gasLimit uint64) ([]types.Address, error) {
 	method := abis.ValidatorSetABI.Methods[_validatorsMethodName]
 
 	input, err := abis.EncodeTxMethod(method, nil)
@@ -80,7 +80,7 @@ func QueryValidators(t TxQueryHandler, from types.Address) ([]types.Address, err
 		Value:    big.NewInt(0),
 		Input:    input,
 		GasPrice: big.NewInt(0),
-		Gas:      _queryGasLimit,
+		Gas:      gasLimit,
 		Nonce:    t.GetNonce(from),
 	})
 
@@ -106,7 +106,7 @@ func MakeDepositTx(t NonceHub, from types.Address) (*types.Transaction, error) {
 	tx := &types.Transaction{
 		Nonce:    t.GetNonce(from),
 		GasPrice: big.NewInt(0),
-		Gas:      _queryGasLimit,
+		Gas:      _systemContractGasLimit,
 		To:       &systemcontracts.AddrValidatorSetContract,
 		Value:    nil,
 		Input:    input,
@@ -132,7 +132,7 @@ func MakeSlashTx(t NonceHub, from types.Address, needPunished types.Address) (*t
 	tx := &types.Transaction{
 		Nonce:    t.GetNonce(from),
 		GasPrice: big.NewInt(0),
-		Gas:      _queryGasLimit,
+		Gas:      _systemContractGasLimit,
 		To:       &systemcontracts.AddrValidatorSetContract,
 		Value:    nil,
 		Input:    input,
