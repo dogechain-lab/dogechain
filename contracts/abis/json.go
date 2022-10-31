@@ -893,36 +893,6 @@ const ValidatorSetJSONABI = `[
     {
         "inputs":
         [],
-        "name": "getPendingValidatorLength",
-        "outputs":
-        [
-            {
-                "internalType": "uint256",
-                "name": "",
-                "type": "uint256"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs":
-        [],
-        "name": "getPendingValidators",
-        "outputs":
-        [
-            {
-                "internalType": "address[]",
-                "name": "",
-                "type": "address[]"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs":
-        [],
         "name": "getRewardPerBlock",
         "outputs":
         [
@@ -1083,13 +1053,28 @@ const ValidatorSetJSONABI = `[
                 "type": "address"
             }
         ],
-        "name": "isPendingValidator",
+        "name": "getValidatorStatus",
         "outputs":
         [
             {
-                "internalType": "bool",
+                "internalType": "enum ValidatorSet.Status",
                 "name": "",
-                "type": "bool"
+                "type": "uint8"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs":
+        [],
+        "name": "getValidators",
+        "outputs":
+        [
+            {
+                "internalType": "address[]",
+                "name": "",
+                "type": "address[]"
             }
         ],
         "stateMutability": "view",

@@ -207,7 +207,7 @@ func (pos *PoSMechanism) getNextValidators(header *types.Header) (validator.Vali
 		return nil, err
 	}
 
-	return validatorset.QueryValidators(transition, pos.ibft.validatorKeyAddr)
+	return validatorset.QueryValidators(transition, pos.ibft.validatorKeyAddr, header.GasLimit)
 }
 
 // updateSnapshotValidators updates validators in snapshot at given height
