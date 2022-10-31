@@ -358,6 +358,12 @@ func (i *Ibft) setupTransport() error {
 			return
 		}
 
+		if !i.isActiveValidator(msg.FromAddr()) {
+			// TODO: punish bad node
+			// ignore message from non-validator
+			return
+		}
+
 		if msg.From == i.validatorKeyAddr.String() {
 			// we are the sender, skip this message since we already
 			// relay our own messages internally.
