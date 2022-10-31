@@ -1645,7 +1645,7 @@ func (i *Ibft) shouldVerifyTimestamp(height uint64) bool {
 		return false
 	}
 
-	return true
+	return i.config.Params.Forks.IsDetroit(height)
 }
 
 // VerifyHeader wrapper for verifying headers
