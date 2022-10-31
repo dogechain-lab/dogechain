@@ -339,16 +339,15 @@ func (i *Ibft) setupTransport() error {
 
 	// Subscribe to the newly created topic
 	err = topic.Subscribe(func(obj interface{}) {
+		if !i.isActiveValidator(i.validatorKeyAddr) {
+			// we're not active validator, don't ever care about any ibft messages
+			return
+		}
+
 		msg, ok := obj.(*proto.MessageReq)
 		if !ok {
 			i.logger.Error("invalid type assertion for message request")
 
-			return
-		}
-
-		if !i.isSealing() {
-			// if we are not sealing we do not care about the messages
-			// but we need to subscribe to propagate the messages
 			return
 		}
 
@@ -822,6 +821,10 @@ func (i *Ibft) makeTransitionSlashTx(
 	}
 
 	return tx, err
+}
+
+func (i *Ibft) isActiveValidator(addr types.Address) bool {
+	return i.currentValidators.Includes(addr)
 }
 
 // updateCurrentModules updates Txsigner and Validators
