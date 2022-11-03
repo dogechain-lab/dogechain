@@ -364,6 +364,27 @@ func (s *Syncer) BestPeer() *SyncPeer {
 	return bestPeer
 }
 
+func (s *Syncer) UpdateSyncingSpeed(peerID peer.ID, speed uint64) {
+	s.logger.Debug(
+		"update peer speed",
+		"peer",
+		peerID,
+		"speed(bytes per second)",
+		speed,
+	)
+
+	if peer, ok := s.peers.Load(peerID); ok {
+		syncPeer, ok := peer.(*SyncPeer)
+		if !ok {
+			s.logger.Error("invalid sync peer type cast")
+
+			return
+		}
+
+		syncPeer.UpdateSyncingSpeed(speed)
+	}
+}
+
 // AddPeer establishes new connection with the given peer
 func (s *Syncer) AddPeer(peerID peer.ID) error {
 	if _, ok := s.peers.Load(peerID); ok {
