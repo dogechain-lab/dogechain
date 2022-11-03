@@ -26,6 +26,11 @@ import (
 )
 
 const (
+	_syncerName = "syncer"
+	_syncerV1   = "/syncer/0.1"
+)
+
+const (
 	maxEnqueueSize = 50
 	popTimeout     = 10 * time.Second
 )
@@ -81,7 +86,7 @@ type Syncer struct {
 // NewSyncer creates a new Syncer instance
 func NewSyncer(logger hclog.Logger, server *network.Server, blockchain blockchainShim) *Syncer {
 	s := &Syncer{
-		logger:          logger.Named("syncer"),
+		logger:          logger.Named(_syncerName),
 		stopCh:          make(chan struct{}),
 		blockchain:      blockchain,
 		server:          server,
@@ -150,8 +155,6 @@ func (s *Syncer) updateStatus(status *Status) {
 
 	s.status = status
 }
-
-const syncerV1 = "/syncer/0.1"
 
 // enqueueBlock adds the specific block to the peerID queue
 func (s *Syncer) enqueueBlock(peerID peer.ID, b *types.Block) {
@@ -273,7 +276,7 @@ func (s *Syncer) Start() {
 	grpcStream := libp2pGrpc.NewGrpcStream()
 	proto.RegisterV1Server(grpcStream.GrpcServer(), s.serviceV1)
 	grpcStream.Serve()
-	s.server.RegisterProtocol(syncerV1, grpcStream)
+	s.server.RegisterProtocol(_syncerV1, grpcStream)
 
 	s.setupPeers()
 
@@ -333,9 +336,22 @@ func (s *Syncer) BestPeer() *SyncPeer {
 		}
 
 		peerBlockNumber := syncPeer.Number()
-		if bestPeer == nil || peerBlockNumber > bestBlockNumber {
+		// compare block height
+		if peerBlockNumber > bestBlockNumber {
 			bestPeer = syncPeer
 			bestBlockNumber = peerBlockNumber
+		} else if peerBlockNumber == bestBlockNumber {
+			// compare the distance
+			diff := syncPeer.Distance().Cmp(bestPeer.Distance())
+			switch diff {
+			case -1:
+				bestPeer = syncPeer
+			case 0:
+				// compare the speed
+				if syncPeer.SyncingSpeed() > bestPeer.SyncingSpeed() {
+					bestPeer = syncPeer
+				}
+			}
 		}
 
 		return true
@@ -355,7 +371,7 @@ func (s *Syncer) AddPeer(peerID peer.ID) error {
 		return nil
 	}
 
-	stream, err := s.server.NewStream(syncerV1, peerID)
+	stream, err := s.server.NewStream(_syncerV1, peerID)
 	if err != nil {
 		return fmt.Errorf("failed to open a stream, err %w", err)
 	}
@@ -377,12 +393,14 @@ func (s *Syncer) AddPeer(peerID peer.ID) error {
 	}
 
 	s.peers.Store(peerID, &SyncPeer{
-		peer:      peerID,
-		conn:      conn,
-		client:    clt,
-		status:    status,
-		enqueue:   make(minNumBlockQueue, 0, maxEnqueueSize+1),
-		enqueueCh: make(chan struct{}),
+		peer:         peerID,
+		conn:         conn,
+		client:       clt,
+		status:       status,
+		enqueue:      make(minNumBlockQueue, 0, maxEnqueueSize+1),
+		enqueueCh:    make(chan struct{}),
+		distance:     s.server.GetPeerDistance(peerID),
+		syncingSpeed: 0, // not syncing yet
 	})
 
 	return nil
