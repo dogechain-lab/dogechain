@@ -19,6 +19,7 @@ const PeerID = "peerID"
 var (
 	ErrInvalidChainID   = errors.New("invalid chain ID")
 	ErrNoAvailableSlots = errors.New("no available Slots")
+	ErrSelfConnection   = errors.New("self connection")
 )
 
 // networkingServer defines the base communication interface between
@@ -172,6 +173,9 @@ func (i *IdentityService) handleConnected(peerID peer.ID, direction network.Dire
 		)
 	}
 
+	// self peer ID
+	selfPeerID := i.hostID.Pretty()
+
 	// Construct the response status
 	status := i.constructStatus(peerID)
 
@@ -184,6 +188,10 @@ func (i *IdentityService) handleConnected(peerID peer.ID, direction network.Dire
 	// Validate that the peers are working on the same chain
 	if status.Chain != resp.Chain {
 		return ErrInvalidChainID
+	}
+
+	if selfPeerID == resp.Metadata[PeerID] {
+		return ErrSelfConnection
 	}
 
 	// If this is a NOT temporary connection, save it

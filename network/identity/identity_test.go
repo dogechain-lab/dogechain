@@ -61,7 +61,10 @@ func TestTemporaryDial(t *testing.T) {
 				opts ...grpc.CallOption,
 			) (*proto.Status, error) {
 				return &proto.Status{
-					Chain:         0,
+					Chain: 0,
+					Metadata: map[string]string{
+						PeerID: "TestPeer1",
+					},
 					TemporaryDial: true, // make sure the dial is temporary
 				}, nil
 			})
@@ -71,14 +74,51 @@ func TestTemporaryDial(t *testing.T) {
 	// Check that there was no error during handshaking
 	assert.NoError(
 		t,
-		identityService.handleConnected("TestPeer", network.DirInbound),
+		identityService.handleConnected("TestPeer2", network.DirInbound),
 	)
 
 	// Make sure no peers have been  added to the base networking server
 	assert.Len(t, peersArray, 0)
 }
 
-// TestHandshake_Errors tests peer connections errors
+// TestSelfConnected tests connect self to self
+func TestSelfConnected(t *testing.T) {
+	peersArray := make([]peer.ID, 0)
+
+	identityService := newIdentityService(
+		// Set the relevant hook responses from the mock server
+		func(server *networkTesting.MockNetworkingServer) {
+			// Define the add peer hook
+			server.HookAddPeer(func(
+				id peer.ID,
+				direction network.Direction,
+			) {
+				peersArray = append(peersArray, id)
+			})
+
+			// Define the mock IdentityClient response
+			server.GetMockIdentityClient().HookHello(func(
+				ctx context.Context,
+				in *proto.Status,
+				opts ...grpc.CallOption,
+			) (*proto.Status, error) {
+				// echo back the chain ID
+				return in, nil
+			})
+		},
+	)
+
+	connectErr := identityService.handleConnected("TestPeer", network.DirInbound)
+	if connectErr == nil {
+		t.Fatalf("no connection error occurred")
+	}
+
+	assert.ErrorIs(t, connectErr, ErrSelfConnection)
+
+	assert.Len(t, peersArray, 0)
+}
+
+// TestHandshake_Errors tests peer connections errors (or echo hello)
 func TestHandshake_Errors(t *testing.T) {
 	peersArray := make([]peer.ID, 0)
 	requesterChainID := int64(1)
@@ -103,7 +143,10 @@ func TestHandshake_Errors(t *testing.T) {
 				opts ...grpc.CallOption,
 			) (*proto.Status, error) {
 				return &proto.Status{
-					Chain:         responderChainID,
+					Chain: responderChainID,
+					Metadata: map[string]string{
+						PeerID: "TestPeer1",
+					},
 					TemporaryDial: false,
 				}, nil
 			})
@@ -114,7 +157,7 @@ func TestHandshake_Errors(t *testing.T) {
 	identityService.chainID = requesterChainID
 
 	// Check that there was a chain ID mismatch during handshaking
-	connectErr := identityService.handleConnected("TestPeer", network.DirInbound)
+	connectErr := identityService.handleConnected("TestPeer2", network.DirInbound)
 	if connectErr == nil {
 		t.Fatalf("no connection error occurred")
 	}
