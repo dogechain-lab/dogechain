@@ -103,6 +103,9 @@ type Ibft struct {
 	mechanisms []ConsensusMechanism // IBFT ConsensusMechanism used (PoA / PoS)
 
 	blockTime time.Duration // Minimum block generation time in seconds
+
+	// for banishing some exhausting contracts
+	exhaustingContracts map[types.Address]struct{}
 }
 
 // runHook runs a specified hook if it is present in the hook map
@@ -155,20 +158,21 @@ func Factory(
 	}
 
 	p := &Ibft{
-		logger:         params.Logger.Named("ibft"),
-		config:         params.Config,
-		Grpc:           params.Grpc,
-		blockchain:     params.Blockchain,
-		executor:       params.Executor,
-		closeCh:        make(chan struct{}),
-		txpool:         params.Txpool,
-		state:          &currentState{},
-		network:        params.Network,
-		epochSize:      epochSize,
-		sealing:        params.Seal,
-		metrics:        params.Metrics,
-		secretsManager: params.SecretsManager,
-		blockTime:      time.Duration(params.BlockTime) * time.Second,
+		logger:              params.Logger.Named("ibft"),
+		config:              params.Config,
+		Grpc:                params.Grpc,
+		blockchain:          params.Blockchain,
+		executor:            params.Executor,
+		closeCh:             make(chan struct{}),
+		txpool:              params.Txpool,
+		state:               &currentState{},
+		network:             params.Network,
+		epochSize:           epochSize,
+		sealing:             params.Seal,
+		metrics:             params.Metrics,
+		secretsManager:      params.SecretsManager,
+		blockTime:           time.Duration(params.BlockTime) * time.Second,
+		exhaustingContracts: make(map[types.Address]struct{}),
 	}
 
 	// Initialize the mechanism
@@ -616,6 +620,7 @@ func (i *Ibft) buildBlock(snap *Snapshot, parent *types.Header) (*types.Block, e
 	if err != nil {
 		return nil, err
 	}
+
 	// If the mechanism is PoS -> build a regular block if it's not an end-of-epoch block
 	// If the mechanism is PoA -> always build a regular block, regardless of epoch
 	txns := []*types.Transaction{}
@@ -687,6 +692,21 @@ func (i *Ibft) writeTransactions(gasLimit uint64, transition transitionInterface
 			break
 		}
 
+		// if tx send to some banish contract, drop it
+		if tx.To != nil {
+			_, shouldBanish := i.exhaustingContracts[*tx.To]
+			if shouldBanish {
+				i.logger.Info("banish some exausting contracts amd drop all sender transactions",
+					"address", tx.To,
+					"from", tx.From,
+				)
+
+				i.txpool.Drop(tx)
+
+				continue
+			}
+		}
+
 		if tx.ExceedsBlockGasLimit(gasLimit) {
 			copyTx := tx.Copy()
 			failedTxCount++
@@ -702,7 +722,12 @@ func (i *Ibft) writeTransactions(gasLimit uint64, transition transitionInterface
 			continue
 		}
 
+		begin := time.Now()
+
 		if err := transition.Write(tx); err != nil {
+			duration := time.Since(begin).Milliseconds()
+			i.banishTxCallingContract(tx, duration)
+
 			i.logger.Debug("write transaction failed", "hash", tx.Hash, "from", tx.From,
 				"nonce", tx.Nonce, "err", err)
 
@@ -733,6 +758,9 @@ func (i *Ibft) writeTransactions(gasLimit uint64, transition transitionInterface
 			continue
 		}
 
+		duration := time.Since(begin).Milliseconds()
+		i.banishTxCallingContract(tx, duration)
+
 		// no errors, remove the tx from the pool
 		i.txpool.RemoveExecuted(tx)
 
@@ -745,6 +773,27 @@ func (i *Ibft) writeTransactions(gasLimit uint64, transition transitionInterface
 	i.logger.Info("executed txns", "failed ", failedTxCount, "successful", successTxCount, "remaining in pool", i.txpool.Length())
 
 	return transactions
+}
+
+func (i *Ibft) banishTxCallingContract(tx *types.Transaction, executedMilliseconds int64) {
+	if executedMilliseconds > 100 {
+		i.logger.Warn("some contract consumes too many time",
+			"duration", executedMilliseconds,
+			"from", tx.From,
+			"to", tx.To,
+			"gasPrice", tx.GasPrice,
+			"gas", tx.Gas,
+		)
+	}
+
+	if executedMilliseconds < i.blockTime.Milliseconds() {
+		return
+	}
+
+	if tx.To != nil {
+		// banish the contract
+		i.exhaustingContracts[*tx.To] = struct{}{}
+	}
 }
 
 // runAcceptState runs the Accept state loop
