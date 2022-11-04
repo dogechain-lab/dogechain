@@ -778,8 +778,12 @@ func (i *Ibft) writeTransactions(gasLimit uint64, transition transitionInterface
 		transactions = append(transactions, tx)
 	}
 
-	//nolint:lll
-	i.logger.Info("executed txns", "failed ", failedTxCount, "successful", successTxCount, "remaining in pool", i.txpool.Length())
+	i.logger.Info(
+		"executed txns", "failed ",
+		failedTxCount, "successful",
+		successTxCount, "remaining in pool",
+		i.txpool.Length(),
+	)
 
 	return transactions
 }
