@@ -252,7 +252,7 @@ func (t *Transition) Write(txn *types.Transaction) error {
 
 	result, e := t.Apply(msg)
 	if e != nil {
-		t.logger.Error("failed to apply tx", "err", e)
+		t.logger.Debug("failed to apply tx", "err", e)
 
 		return e
 	}
