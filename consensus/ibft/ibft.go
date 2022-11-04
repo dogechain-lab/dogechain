@@ -640,7 +640,7 @@ func (i *Ibft) buildBlock(snap *Snapshot, parent *types.Header) (*types.Block, e
 	// If the mechanism is PoA -> always build a regular block, regardless of epoch
 	txns := []*types.Transaction{}
 	if i.shouldWriteTransactions(header.Number) {
-		txns = i.writeTransactions(gasLimit, transition)
+		txns = i.writeTransactions(gasLimit, transition, headerTime)
 	}
 
 	if err := i.PreStateCommit(header, transition); err != nil {
@@ -691,7 +691,11 @@ type transitionInterface interface {
 
 // writeTransactions writes transactions from the txpool to the transition object
 // and returns transactions that were included in the transition (new block)
-func (i *Ibft) writeTransactions(gasLimit uint64, transition transitionInterface) []*types.Transaction {
+func (i *Ibft) writeTransactions(
+	gasLimit uint64,
+	transition transitionInterface,
+	terminalTime time.Time,
+) []*types.Transaction {
 	var transactions []*types.Transaction
 
 	successTxCount := 0
@@ -700,6 +704,13 @@ func (i *Ibft) writeTransactions(gasLimit uint64, transition transitionInterface
 	i.txpool.Prepare()
 
 	for {
+		// terminate transaction executing once timeout
+		if i.shouldTerminate(terminalTime) {
+			i.logger.Debug("block building time exceeds")
+
+			break
+		}
+
 		tx := i.txpool.Pop()
 		if tx == nil {
 			i.logger.Debug("no more transactions")
@@ -786,6 +797,10 @@ func (i *Ibft) writeTransactions(gasLimit uint64, transition transitionInterface
 	)
 
 	return transactions
+}
+
+func (i *Ibft) shouldTerminate(terminalTime time.Time) bool {
+	return time.Now().After(terminalTime)
 }
 
 func (i *Ibft) shouldBanishTx(tx *types.Transaction) bool {
