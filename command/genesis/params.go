@@ -215,8 +215,8 @@ func (p *genesisParams) initConsensusEngineConfig() {
 func (p *genesisParams) initIBFTEngineMap(mechanism ibft.MechanismType) {
 	p.consensusEngineConfig = map[string]interface{}{
 		string(server.IBFTConsensus): map[string]interface{}{
-			"type":      mechanism,
-			"epochSize": p.epochSize,
+			ibft.KeyType:      mechanism,
+			ibft.KeyEpochSize: p.epochSize,
 		},
 	}
 }

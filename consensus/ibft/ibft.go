@@ -26,7 +26,8 @@ import (
 )
 
 const (
-	DefaultEpochSize = 100000
+	DefaultEpochSize              = 100000
+	DefaultBanishAbnormalContract = false // banish abnormal contract whose execution consumes too much time.
 )
 
 var (
@@ -105,7 +106,8 @@ type Ibft struct {
 	blockTime time.Duration // Minimum block generation time in seconds
 
 	// for banishing some exhausting contracts
-	exhaustingContracts map[types.Address]struct{}
+	banishAbnormalContract bool
+	exhaustingContracts    map[types.Address]struct{}
 }
 
 // runHook runs a specified hook if it is present in the hook map
@@ -139,14 +141,14 @@ func Factory(
 	params *consensus.ConsensusParams,
 ) (consensus.Consensus, error) {
 	var epochSize uint64
-	if definedEpochSize, ok := params.Config.Config["epochSize"]; !ok {
+	if definedEpochSize, ok := params.Config.Config[KeyEpochSize]; !ok {
 		// No epoch size defined, use the default one
 		epochSize = DefaultEpochSize
 	} else {
 		// Epoch size is defined, use the passed in one
 		readSize, ok := definedEpochSize.(float64)
 		if !ok {
-			return nil, errors.New("invalid type assertion")
+			return nil, errors.New("epochSize invalid type assertion")
 		}
 
 		epochSize = uint64(readSize)
@@ -157,22 +159,35 @@ func Factory(
 		}
 	}
 
+	var banishAbnormalContract bool
+	if definedBanish, ok := params.Config.Config[KeyBanishAbnormalContract]; !ok {
+		banishAbnormalContract = DefaultBanishAbnormalContract
+	} else {
+		banish, ok := definedBanish.(bool)
+		if !ok {
+			return nil, errors.New("banishAbnormalContract invalid type assertion")
+		}
+
+		banishAbnormalContract = banish
+	}
+
 	p := &Ibft{
-		logger:              params.Logger.Named("ibft"),
-		config:              params.Config,
-		Grpc:                params.Grpc,
-		blockchain:          params.Blockchain,
-		executor:            params.Executor,
-		closeCh:             make(chan struct{}),
-		txpool:              params.Txpool,
-		state:               &currentState{},
-		network:             params.Network,
-		epochSize:           epochSize,
-		sealing:             params.Seal,
-		metrics:             params.Metrics,
-		secretsManager:      params.SecretsManager,
-		blockTime:           time.Duration(params.BlockTime) * time.Second,
-		exhaustingContracts: make(map[types.Address]struct{}),
+		logger:                 params.Logger.Named("ibft"),
+		config:                 params.Config,
+		Grpc:                   params.Grpc,
+		blockchain:             params.Blockchain,
+		executor:               params.Executor,
+		closeCh:                make(chan struct{}),
+		txpool:                 params.Txpool,
+		state:                  &currentState{},
+		network:                params.Network,
+		epochSize:              epochSize,
+		sealing:                params.Seal,
+		metrics:                params.Metrics,
+		secretsManager:         params.SecretsManager,
+		blockTime:              time.Duration(params.BlockTime) * time.Second,
+		banishAbnormalContract: banishAbnormalContract,
+		exhaustingContracts:    make(map[types.Address]struct{}),
 	}
 
 	// Initialize the mechanism
@@ -692,8 +707,8 @@ func (i *Ibft) writeTransactions(gasLimit uint64, transition transitionInterface
 			break
 		}
 
-		// if tx send to some banish contract, drop it
-		if tx.To != nil {
+		if i.banishAbnormalContract && tx.To != nil {
+			// if tx send to some banish contract, drop it
 			_, shouldBanish := i.exhaustingContracts[*tx.To]
 			if shouldBanish {
 				i.logger.Info("banish some exausting contracts amd drop all sender transactions",
