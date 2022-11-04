@@ -651,7 +651,7 @@ func (i *Ibft) buildBlock(snap *Snapshot, parent *types.Header) (*types.Block, e
 	)
 
 	if i.shouldWriteTransactions(header.Number) {
-		txs, dropTxs, resetTxs = i.writeTransactions(gasLimit, transition, headerTime)
+		txs, dropTxs, resetTxs = i.writeTransactions(gasLimit, transition, headerTime.Add(i.blockTime))
 	}
 
 	if err := i.PreStateCommit(header, transition); err != nil {
