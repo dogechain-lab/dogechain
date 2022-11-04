@@ -733,11 +733,10 @@ func (i *Ibft) writeTransactions(gasLimit uint64, transition transitionInterface
 			continue
 		}
 
-		begin := time.Now()
+		begin := time.Now() // for duration calculation
 
 		if err := transition.Write(tx); err != nil {
-			duration := time.Since(begin).Milliseconds()
-			i.banishTxCallingContract(tx, duration)
+			i.banishLongTimeConsumingTx(tx, begin)
 
 			i.logger.Debug("write transaction failed", "hash", tx.Hash, "from", tx.From,
 				"nonce", tx.Nonce, "err", err)
@@ -769,8 +768,7 @@ func (i *Ibft) writeTransactions(gasLimit uint64, transition transitionInterface
 			continue
 		}
 
-		duration := time.Since(begin).Milliseconds()
-		i.banishTxCallingContract(tx, duration)
+		i.banishLongTimeConsumingTx(tx, begin)
 
 		// no errors, remove the tx from the pool
 		i.txpool.RemoveExecuted(tx)
@@ -797,25 +795,24 @@ func (i *Ibft) shouldBanishTx(tx *types.Transaction) bool {
 	return shouldBanish
 }
 
-func (i *Ibft) banishTxCallingContract(tx *types.Transaction, executedMilliseconds int64) {
-	if executedMilliseconds > 100 {
-		i.logger.Warn("some contract consumes too many time",
-			"duration", executedMilliseconds,
-			"from", tx.From,
-			"to", tx.To,
-			"gasPrice", tx.GasPrice,
-			"gas", tx.Gas,
-		)
-	}
-
-	if executedMilliseconds < i.blockTime.Milliseconds() {
+func (i *Ibft) banishLongTimeConsumingTx(tx *types.Transaction, begin time.Time) {
+	duration := time.Since(begin).Milliseconds()
+	if duration < i.blockTime.Milliseconds() ||
+		tx.To == nil { // long contract creation is tolerable
 		return
 	}
 
-	if tx.To != nil {
-		// banish the contract
-		i.exhaustingContracts[*tx.To] = struct{}{}
-	}
+	// banish the contract
+	i.exhaustingContracts[*tx.To] = struct{}{}
+
+	i.logger.Info("banish contract who consumes too many CPU time",
+		"duration", duration,
+		"from", tx.From,
+		"to", tx.To,
+		"gasPrice", tx.GasPrice,
+		"gas", tx.Gas,
+		"len", len(tx.Input),
+	)
 }
 
 // runAcceptState runs the Accept state loop
