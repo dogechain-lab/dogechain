@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"math/big"
 	"testing"
 	"time"
 
@@ -1673,4 +1674,29 @@ func TestGetIBFTForks(t *testing.T) {
 			assert.Equal(t, testcase.err, err)
 		})
 	}
+}
+
+func Test_shouldBanishTx(t *testing.T) {
+	var (
+		addr1 = types.StringToAddress("1")
+		addr2 = types.StringToAddress("2")
+	)
+
+	mockTx := &types.Transaction{
+		Nonce:    0,
+		GasPrice: big.NewInt(1000),
+		Gas:      defaultBlockGasLimit,
+		To:       &addr2,
+		Value:    big.NewInt(10),
+		Input:    []byte{'m', 'o', 'k', 'e'},
+		From:     addr1,
+	}
+
+	i := newMockIbft(t, []string{"A", "B", "C", "D"}, "A")
+	i.Ibft.banishAbnormalContract = true
+	i.Ibft.exhaustingContracts = map[types.Address]struct{}{
+		addr2: {},
+	}
+
+	assert.True(t, i.shouldBanishTx(mockTx))
 }
