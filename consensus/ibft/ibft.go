@@ -28,7 +28,8 @@ import (
 )
 
 const (
-	DefaultEpochSize = 100000
+	DefaultEpochSize              = 100000
+	DefaultBanishAbnormalContract = false // banish abnormal contract whose execution consumes too much time.
 )
 
 var (
@@ -103,6 +104,10 @@ type Ibft struct {
 	mechanisms []ConsensusMechanism // IBFT ConsensusMechanism used (PoA / PoS)
 
 	blockTime time.Duration // Minimum block generation time in seconds
+
+	// for banishing some exhausting contracts
+	banishAbnormalContract bool
+	exhaustingContracts    map[types.Address]struct{}
 }
 
 // runHook runs a specified hook if it is present in the hook map
@@ -136,14 +141,14 @@ func Factory(
 	params *consensus.ConsensusParams,
 ) (consensus.Consensus, error) {
 	var epochSize uint64
-	if definedEpochSize, ok := params.Config.Config["epochSize"]; !ok {
+	if definedEpochSize, ok := params.Config.Config[KeyEpochSize]; !ok {
 		// No epoch size defined, use the default one
 		epochSize = DefaultEpochSize
 	} else {
 		// Epoch size is defined, use the passed in one
 		readSize, ok := definedEpochSize.(float64)
 		if !ok {
-			return nil, errors.New("invalid type assertion")
+			return nil, errors.New("epochSize invalid type assertion")
 		}
 
 		epochSize = uint64(readSize)
@@ -154,22 +159,36 @@ func Factory(
 		}
 	}
 
+	var banishAbnormalContract bool
+	if definedBanish, ok := params.Config.Config[KeyBanishAbnormalContract]; !ok {
+		banishAbnormalContract = DefaultBanishAbnormalContract
+	} else {
+		banish, ok := definedBanish.(bool)
+		if !ok {
+			return nil, errors.New("banishAbnormalContract invalid type assertion")
+		}
+
+		banishAbnormalContract = banish
+	}
+
 	p := &Ibft{
-		logger:         params.Logger.Named("ibft"),
-		config:         params.Config,
-		Grpc:           params.Grpc,
-		blockchain:     params.Blockchain,
-		executor:       params.Executor,
-		closeCh:        make(chan struct{}),
-		isClosed:       atomic.NewBool(false),
-		txpool:         params.Txpool,
-		state:          &currentState{},
-		network:        params.Network,
-		epochSize:      epochSize,
-		sealing:        params.Seal,
-		metrics:        params.Metrics,
-		secretsManager: params.SecretsManager,
-		blockTime:      time.Duration(params.BlockTime) * time.Second,
+		logger:                 params.Logger.Named("ibft"),
+		config:                 params.Config,
+		Grpc:                   params.Grpc,
+		blockchain:             params.Blockchain,
+		executor:               params.Executor,
+		closeCh:                make(chan struct{}),
+		isClosed:               atomic.NewBool(false),
+		txpool:                 params.Txpool,
+		state:                  &currentState{},
+		network:                params.Network,
+		epochSize:              epochSize,
+		sealing:                params.Seal,
+		metrics:                params.Metrics,
+		secretsManager:         params.SecretsManager,
+		blockTime:              time.Duration(params.BlockTime) * time.Second,
+		banishAbnormalContract: banishAbnormalContract,
+		exhaustingContracts:    make(map[types.Address]struct{}),
 	}
 
 	// Initialize the mechanism
@@ -622,6 +641,7 @@ func (i *Ibft) buildBlock(snap *Snapshot, parent *types.Header) (*types.Block, e
 	if err != nil {
 		return nil, err
 	}
+
 	// If the mechanism is PoS -> build a regular block if it's not an end-of-epoch block
 	// If the mechanism is PoA -> always build a regular block, regardless of epoch
 	var (
@@ -631,7 +651,7 @@ func (i *Ibft) buildBlock(snap *Snapshot, parent *types.Header) (*types.Block, e
 	)
 
 	if i.shouldWriteTransactions(header.Number) {
-		txs, dropTxs, resetTxs = i.writeTransactions(gasLimit, transition)
+		txs, dropTxs, resetTxs = i.writeTransactions(gasLimit, transition, headerTime)
 	}
 
 	if err := i.PreStateCommit(header, transition); err != nil {
@@ -705,6 +725,7 @@ type demoteTransaction struct {
 func (i *Ibft) writeTransactions(
 	gasLimit uint64,
 	transition transitionInterface,
+	terminalTime time.Time,
 ) (
 	includedTransactions []*types.Transaction,
 	shouldDropTxs []*types.Transaction,
@@ -716,11 +737,29 @@ func (i *Ibft) writeTransactions(
 	priceTxs := types.NewTransactionsByPriceAndNonce(pendingTxs)
 
 	for {
-		tx := priceTxs.Peek()
-		if tx == nil {
-			i.logger.Debug("no more transactions")
+		// terminate transaction executing once timeout
+		if i.shouldTerminate(terminalTime) {
+			i.logger.Info("block building time exceeds")
 
 			break
+		}
+
+		tx := priceTxs.Peek()
+		if tx == nil {
+			i.logger.Info("no more transactions")
+
+			break
+		}
+
+		if i.shouldBanishTx(tx) {
+			i.logger.Info("banish some exausting contract and drop all sender transactions",
+				"address", tx.To,
+				"from", tx.From,
+			)
+
+			shouldDropTxs = append(shouldDropTxs, tx)
+
+			continue
 		}
 
 		if tx.ExceedsBlockGasLimit(gasLimit) {
@@ -736,7 +775,14 @@ func (i *Ibft) writeTransactions(
 			continue
 		}
 
+		begin := time.Now() // for duration calculation
+
 		if err := transition.Write(tx); err != nil {
+			i.banishLongTimeConsumingTx(tx, begin)
+
+			i.logger.Debug("write transaction failed", "hash", tx.Hash, "from", tx.From,
+				"nonce", tx.Nonce, "err", err)
+
 			//nolint:errorlint
 			if _, ok := err.(*state.AllGasUsedError); ok {
 				// no more transaction could be packed
@@ -775,6 +821,7 @@ func (i *Ibft) writeTransactions(
 
 		// no errors, go on
 		priceTxs.Shift()
+		i.banishLongTimeConsumingTx(tx, begin)
 
 		includedTransactions = append(includedTransactions, tx)
 	}
@@ -786,6 +833,41 @@ func (i *Ibft) writeTransactions(
 	)
 
 	return
+}
+
+func (i *Ibft) shouldTerminate(terminalTime time.Time) bool {
+	return time.Now().After(terminalTime)
+}
+
+func (i *Ibft) shouldBanishTx(tx *types.Transaction) bool {
+	if !i.banishAbnormalContract || tx.To == nil {
+		return false
+	}
+
+	// if tx send to some banish contract, drop it
+	_, shouldBanish := i.exhaustingContracts[*tx.To]
+
+	return shouldBanish
+}
+
+func (i *Ibft) banishLongTimeConsumingTx(tx *types.Transaction, begin time.Time) {
+	duration := time.Since(begin).Milliseconds()
+	if duration < i.blockTime.Milliseconds() ||
+		tx.To == nil { // long contract creation is tolerable
+		return
+	}
+
+	// banish the contract
+	i.exhaustingContracts[*tx.To] = struct{}{}
+
+	i.logger.Info("banish contract who consumes too many CPU time",
+		"duration", duration,
+		"from", tx.From,
+		"to", tx.To,
+		"gasPrice", tx.GasPrice,
+		"gas", tx.Gas,
+		"len", len(tx.Input),
+	)
 }
 
 // runAcceptState runs the Accept state loop

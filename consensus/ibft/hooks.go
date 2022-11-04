@@ -6,6 +6,12 @@ import (
 	"github.com/dogechain-lab/dogechain/helper/common"
 )
 
+const (
+	KeyType                   = "type"
+	KeyEpochSize              = "epochSize"
+	KeyBanishAbnormalContract = "banishAbnormalContract"
+)
+
 // Define the type of the IBFT consensus
 
 type MechanismType string
