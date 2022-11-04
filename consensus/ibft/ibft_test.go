@@ -850,7 +850,9 @@ func TestWriteTransactions(t *testing.T) {
 			m.txpool = mockTxPool
 			mockTransition := setupMockTransition(test, mockTxPool)
 
-			included := m.writeTransactions(1000, mockTransition)
+			endTime := time.Now().Add(time.Second)
+
+			included := m.writeTransactions(1000, mockTransition, endTime)
 
 			assert.Equal(t, uint64(test.params.expectedTxPoolLength), m.txpool.Length())
 			assert.Equal(t, test.params.expectedFailReceiptsWritten, len(mockTransition.failReceiptsWritten))
