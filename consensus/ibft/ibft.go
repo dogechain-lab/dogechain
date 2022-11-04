@@ -789,7 +789,7 @@ func (i *Ibft) writeTransactions(gasLimit uint64, transition transitionInterface
 }
 
 func (i *Ibft) shouldBanishTx(tx *types.Transaction) bool {
-	if !i.banishAbnormalContract || tx.To != nil {
+	if !i.banishAbnormalContract || tx.To == nil {
 		return false
 	}
 
