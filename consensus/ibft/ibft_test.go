@@ -24,6 +24,9 @@ import (
 
 var (
 	defaultBlockGasLimit uint64 = 8000000
+
+	addr1 = types.StringToAddress("1")
+	addr2 = types.StringToAddress("2")
 )
 
 type MockBlockchain struct {
@@ -1677,11 +1680,6 @@ func TestGetIBFTForks(t *testing.T) {
 }
 
 func Test_shouldBanishTx(t *testing.T) {
-	var (
-		addr1 = types.StringToAddress("1")
-		addr2 = types.StringToAddress("2")
-	)
-
 	mockTx := &types.Transaction{
 		Nonce:    0,
 		GasPrice: big.NewInt(1000),
@@ -1699,4 +1697,32 @@ func Test_shouldBanishTx(t *testing.T) {
 	}
 
 	assert.True(t, i.shouldBanishTx(mockTx))
+}
+
+func Test_banishLongTimeConsumingTx(t *testing.T) {
+	mockTx := &types.Transaction{
+		Nonce:    0,
+		GasPrice: big.NewInt(1000),
+		Gas:      defaultBlockGasLimit,
+		To:       &addr2,
+		Value:    big.NewInt(10),
+		Input:    []byte{'m', 'o', 'k', 'e'},
+		From:     addr1,
+	}
+
+	i := newMockIbft(t, []string{"A", "B", "C", "D"}, "A")
+	i.Ibft.banishAbnormalContract = true
+
+	// make sure begin time out what we set
+	begin := time.Now().Add(-1*i.blockTime - 1)
+
+	i.banishLongTimeConsumingTx(mockTx, begin)
+
+	assert.Equal(
+		t,
+		map[types.Address]struct{}{
+			addr2: {},
+		},
+		i.exhaustingContracts,
+	)
 }
