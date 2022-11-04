@@ -707,19 +707,15 @@ func (i *Ibft) writeTransactions(gasLimit uint64, transition transitionInterface
 			break
 		}
 
-		if i.banishAbnormalContract && tx.To != nil {
-			// if tx send to some banish contract, drop it
-			_, shouldBanish := i.exhaustingContracts[*tx.To]
-			if shouldBanish {
-				i.logger.Info("banish some exausting contracts amd drop all sender transactions",
-					"address", tx.To,
-					"from", tx.From,
-				)
+		if i.shouldBanishTx(tx) {
+			i.logger.Info("banish some exausting contract and drop all sender transactions",
+				"address", tx.To,
+				"from", tx.From,
+			)
 
-				i.txpool.Drop(tx)
+			i.txpool.Drop(tx)
 
-				continue
-			}
+			continue
 		}
 
 		if tx.ExceedsBlockGasLimit(gasLimit) {
@@ -788,6 +784,17 @@ func (i *Ibft) writeTransactions(gasLimit uint64, transition transitionInterface
 	i.logger.Info("executed txns", "failed ", failedTxCount, "successful", successTxCount, "remaining in pool", i.txpool.Length())
 
 	return transactions
+}
+
+func (i *Ibft) shouldBanishTx(tx *types.Transaction) bool {
+	if !i.banishAbnormalContract || tx.To != nil {
+		return false
+	}
+
+	// if tx send to some banish contract, drop it
+	_, shouldBanish := i.exhaustingContracts[*tx.To]
+
+	return shouldBanish
 }
 
 func (i *Ibft) banishTxCallingContract(tx *types.Transaction, executedMilliseconds int64) {
