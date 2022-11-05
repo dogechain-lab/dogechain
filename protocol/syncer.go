@@ -582,6 +582,12 @@ func (s *Syncer) logSyncPeerPopBlockError(err error, peer *SyncPeer) {
 func (s *Syncer) BulkSyncWithPeer(p *SyncPeer, newBlockHandler func(block *types.Block)) error {
 	// find the common ancestor
 	ancestor, fork, err := s.findCommonAncestor(p.client, p.status)
+	// check whether peer network same with us
+	if isDifferentNetworkError(err) {
+		s.server.DisconnectFromPeer(p.peer, "Different network")
+	}
+
+	// return error
 	if err != nil {
 		// No need to sync with this peer
 		return err
@@ -681,6 +687,21 @@ func (s *Syncer) BulkSyncWithPeer(p *SyncPeer, newBlockHandler func(block *types
 	}
 
 	return nil
+}
+
+func isDifferentNetworkError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	switch {
+	case errors.Is(err, ErrMismatchGenesis), // genesis not right
+		errors.Is(err, ErrCommonAncestorNotFound), // might be data missing
+		errors.Is(err, ErrForkNotFound):           // starting block not found
+		return true
+	}
+
+	return false
 }
 
 func getHeader(clt proto.V1Client, num *uint64, hash *types.Hash) (*types.Header, error) {
