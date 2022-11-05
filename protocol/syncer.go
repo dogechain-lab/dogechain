@@ -633,6 +633,8 @@ func (s *Syncer) BulkSyncWithPeer(p *SyncPeer, newBlockHandler func(block *types
 			// Verify and write the data locally
 			for _, block := range sk.blocks {
 				if err := s.blockchain.VerifyFinalizedBlock(block); err != nil {
+					s.server.DisconnectFromPeer(p.peer, "Different network due to hard fork")
+
 					return fmt.Errorf("unable to verify block, %w", err)
 				}
 
