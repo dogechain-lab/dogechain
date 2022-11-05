@@ -483,14 +483,16 @@ func (s *Server) CheckPeerMatchProtocols(peerID peer.ID) bool {
 		return false
 	}
 
+	s.logger.Debug("peer protocols", "protocols", peerProtocols)
+
 	// check peer supports dogechain protocols
 	for _, peerProtocol := range peerProtocols {
-		if strings.Index(peerProtocol, common.ProtocolPrefix) < 1 {
-			return false
+		if strings.Index(peerProtocol, common.ProtocolPrefix) >= 0 {
+			return true
 		}
 	}
 
-	return true
+	return false
 }
 
 // removePeer removes a peer from the networking server's peer list,
