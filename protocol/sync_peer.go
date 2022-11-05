@@ -74,14 +74,6 @@ type SyncPeer struct {
 	enqueueLock sync.Mutex
 	enqueue     minNumBlockQueue
 	enqueueCh   chan struct{}
-
-	// peer kademlia distance with current node
-	distance *big.Int
-}
-
-// Distance returns the kademlia distance from current peer
-func (s *SyncPeer) Distance() *big.Int {
-	return s.distance
 }
 
 // Number returns the latest peer block height

@@ -340,9 +340,6 @@ func (s *Syncer) BestPeer() *SyncPeer {
 		if bestPeer == nil || peerBlockNumber > bestBlockNumber {
 			bestPeer = syncPeer
 			bestBlockNumber = peerBlockNumber
-		} else if peerBlockNumber == bestBlockNumber &&
-			syncPeer.Distance().Cmp(bestPeer.Distance()) < 0 { // compare the distance
-			bestPeer = syncPeer
 		}
 
 		return true
@@ -390,7 +387,6 @@ func (s *Syncer) AddPeer(peerID peer.ID) error {
 		status:    status,
 		enqueue:   make(minNumBlockQueue, 0, maxEnqueueSize+1),
 		enqueueCh: make(chan struct{}),
-		distance:  s.server.GetPeerDistance(peerID),
 	})
 
 	return nil
