@@ -340,18 +340,9 @@ func (s *Syncer) BestPeer() *SyncPeer {
 		if peerBlockNumber > bestBlockNumber {
 			bestPeer = syncPeer
 			bestBlockNumber = peerBlockNumber
-		} else if peerBlockNumber == bestBlockNumber {
-			// compare the distance
-			diff := syncPeer.Distance().Cmp(bestPeer.Distance())
-			switch diff {
-			case -1:
-				bestPeer = syncPeer
-			case 0:
-				// compare the speed
-				if syncPeer.SyncingSpeed() > bestPeer.SyncingSpeed() {
-					bestPeer = syncPeer
-				}
-			}
+		} else if peerBlockNumber == bestBlockNumber &&
+			syncPeer.Distance().Cmp(bestPeer.Distance()) < 0 { // compare the distance
+			bestPeer = syncPeer
 		}
 
 		return true
@@ -362,27 +353,6 @@ func (s *Syncer) BestPeer() *SyncPeer {
 	}
 
 	return bestPeer
-}
-
-func (s *Syncer) UpdateSyncingSpeed(peerID peer.ID, speed uint64) {
-	s.logger.Debug(
-		"update peer speed",
-		"peer",
-		peerID,
-		"speed(bytes per second)",
-		speed,
-	)
-
-	if peer, ok := s.peers.Load(peerID); ok {
-		syncPeer, ok := peer.(*SyncPeer)
-		if !ok {
-			s.logger.Error("invalid sync peer type cast")
-
-			return
-		}
-
-		syncPeer.UpdateSyncingSpeed(speed)
-	}
 }
 
 // AddPeer establishes new connection with the given peer
@@ -414,14 +384,13 @@ func (s *Syncer) AddPeer(peerID peer.ID) error {
 	}
 
 	s.peers.Store(peerID, &SyncPeer{
-		peer:         peerID,
-		conn:         conn,
-		client:       clt,
-		status:       status,
-		enqueue:      make(minNumBlockQueue, 0, maxEnqueueSize+1),
-		enqueueCh:    make(chan struct{}),
-		distance:     s.server.GetPeerDistance(peerID),
-		syncingSpeed: 0, // not syncing yet
+		peer:      peerID,
+		conn:      conn,
+		client:    clt,
+		status:    status,
+		enqueue:   make(minNumBlockQueue, 0, maxEnqueueSize+1),
+		enqueueCh: make(chan struct{}),
+		distance:  s.server.GetPeerDistance(peerID),
 	})
 
 	return nil

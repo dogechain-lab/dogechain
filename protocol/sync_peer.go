@@ -77,23 +77,11 @@ type SyncPeer struct {
 
 	// peer kademlia distance with current node
 	distance *big.Int
-	// peer syncing speed, bytes per second
-	syncingSpeed uint64
 }
 
 // Distance returns the kademlia distance from current peer
 func (s *SyncPeer) Distance() *big.Int {
 	return s.distance
-}
-
-// UpdateSyncingSpeed sets the syncing speed in bytes per second
-func (s *SyncPeer) UpdateSyncingSpeed(speed uint64) {
-	s.syncingSpeed = speed
-}
-
-// SyncingSpeed returns syncing speed in bytes per second
-func (s *SyncPeer) SyncingSpeed() uint64 {
-	return s.syncingSpeed
 }
 
 // Number returns the latest peer block height
