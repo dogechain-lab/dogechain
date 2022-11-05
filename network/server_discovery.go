@@ -43,7 +43,7 @@ func (s *Server) GetBootnodeConnCount() int64 {
 
 // getProtoStream returns an active protocol stream if present, otherwise
 // it returns nil
-func (s *Server) getProtoStream(protocol common.ProtocolId, peerID peer.ID) *rawGrpc.ClientConn {
+func (s *Server) getProtoStream(protocol common.ProtocolID, peerID peer.ID) *rawGrpc.ClientConn {
 	s.peersLock.Lock()
 	defer s.peersLock.Unlock()
 
@@ -92,7 +92,7 @@ func (s *Server) NewDiscoveryClient(peerID peer.ID) (proto.DiscoveryClient, erro
 // saveProtocolStream saves the protocol stream to the peer
 // protocol stream reference [Thread safe]
 func (s *Server) saveProtocolStream(
-	protocol common.ProtocolId,
+	protocol common.ProtocolID,
 	stream *rawGrpc.ClientConn,
 	peerID peer.ID,
 ) {
@@ -116,7 +116,7 @@ func (s *Server) saveProtocolStream(
 }
 
 // CloseProtocolStream closes a protocol stream to the specified peer
-func (s *Server) CloseProtocolStream(protocol common.ProtocolId, peerID peer.ID) error {
+func (s *Server) CloseProtocolStream(protocol common.ProtocolID, peerID peer.ID) error {
 	s.peersLock.Lock()
 	defer s.peersLock.Unlock()
 

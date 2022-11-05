@@ -7,6 +7,7 @@ import (
 
 	cmap "github.com/dogechain-lab/dogechain/helper/concurrentmap"
 	"github.com/dogechain-lab/dogechain/network/event"
+	"github.com/dogechain-lab/dogechain/types"
 	"github.com/dogechain-lab/dogechain/versioning"
 
 	"github.com/hashicorp/go-hclog"
@@ -28,6 +29,7 @@ var (
 
 	ErrInvalidAppIdentity      = errors.New("invalid app identity")
 	ErrPeerIsNotMatchProtocols = errors.New("peer is not match protocols")
+	ErrGenesisHashNotMatch     = errors.New("genesis hash not match")
 )
 
 // networkingServer defines the base communication interface between
@@ -75,8 +77,9 @@ type IdentityService struct {
 	logger                 hclog.Logger       // The IdentityService logger
 	baseServer             networkingServer   // The interface towards the base networking server
 
-	chainID int64   // The chain ID of the network
-	hostID  peer.ID // The base networking server's host peer ID
+	chainID     int64 // The chain ID of the network
+	genesisHash string
+	hostID      peer.ID // The base networking server's host peer ID
 }
 
 // NewIdentityService returns a new instance of the IdentityService
@@ -85,11 +88,13 @@ func NewIdentityService(
 	logger hclog.Logger,
 	chainID int64,
 	hostID peer.ID,
+	genesisHash types.Hash,
 ) *IdentityService {
 	return &IdentityService{
 		logger:                 logger.Named("identity"),
 		baseServer:             server,
 		chainID:                chainID,
+		genesisHash:            genesisHash.String(),
 		hostID:                 hostID,
 		pendingPeerConnections: cmap.NewConcurrentMap(),
 	}
@@ -196,17 +201,21 @@ func (i *IdentityService) handleConnected(peerID peer.ID, direction network.Dire
 		return err
 	}
 
-	// Validate that the peers are working on the same chain
-	if status.Chain != resp.Chain {
-		return ErrInvalidChainID
-	}
-
 	if selfPeerID == resp.Metadata[PeerID] {
 		return ErrSelfConnection
 	}
 
 	if versioning.AppName != resp.Metadata[AppIdentity] {
 		return ErrInvalidAppIdentity
+	}
+
+	// Validate that the peers are working on the same chain
+	if status.Chain != resp.Chain {
+		return ErrInvalidChainID
+	}
+
+	if status.Genesis != resp.Genesis {
+		return ErrGenesisHashNotMatch
 	}
 
 	if !i.baseServer.CheckPeerMatchProtocols(peerID) {
@@ -242,6 +251,7 @@ func (i *IdentityService) constructStatus(peerID peer.ID) *proto.Status {
 			AppIdentity: versioning.AppName,
 		},
 		Chain:         i.chainID,
+		Genesis:       i.genesisHash,
 		TemporaryDial: i.baseServer.IsTemporaryDial(peerID),
 	}
 }

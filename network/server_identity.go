@@ -62,7 +62,7 @@ func (s *Server) addPeerInfo(id peer.ID, direction network.Direction) bool {
 		connectionInfo = &PeerConnInfo{
 			Info:            s.host.Peerstore().PeerInfo(id),
 			connDirections:  make(map[network.Direction]bool),
-			protocolStreams: make(map[common.ProtocolId]*rawGrpc.ClientConn),
+			protocolStreams: make(map[common.ProtocolID]*rawGrpc.ClientConn),
 		}
 	}
 
@@ -111,6 +111,7 @@ func (s *Server) setupIdentity() error {
 		s.logger,
 		int64(s.config.Chain.Params.ChainID),
 		s.host.ID(),
+		s.config.Chain.Genesis.Hash(),
 	)
 
 	// Register the identity service protocol

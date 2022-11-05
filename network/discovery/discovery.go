@@ -48,7 +48,7 @@ type networkingServer interface {
 	NewDiscoveryClient(peerID peer.ID) (proto.DiscoveryClient, error)
 
 	// CloseProtocolStream closes a protocol stream to the peer
-	CloseProtocolStream(protocol common.ProtocolId, peerID peer.ID) error
+	CloseProtocolStream(protocol common.ProtocolID, peerID peer.ID) error
 
 	// PEER MANIPULATION //
 

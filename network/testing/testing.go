@@ -83,7 +83,7 @@ type checkPeerMatchProtocolsDelegate func(peer.ID) bool
 type getRandomBootnodeDelegate func() *peer.AddrInfo
 type getBootnodeConnCountDelegate func() int64
 type newDiscoveryClientDelegate func(peer.ID) (proto.DiscoveryClient, error)
-type closeProtocolStreamDelegate func(common.ProtocolId, peer.ID) error
+type closeProtocolStreamDelegate func(common.ProtocolID, peer.ID) error
 type addToPeerStoreDelegate func(*peer.AddrInfo)
 type removeFromPeerStoreDelegate func(peerInfo *peer.AddrInfo)
 type getPeerInfoDelegate func(peer.ID) *peer.AddrInfo
@@ -226,7 +226,7 @@ func (m *MockNetworkingServer) HookNewDiscoveryClient(fn newDiscoveryClientDeleg
 	m.newDiscoveryClientFn = fn
 }
 
-func (m *MockNetworkingServer) CloseProtocolStream(protocol common.ProtocolId, peerID peer.ID) error {
+func (m *MockNetworkingServer) CloseProtocolStream(protocol common.ProtocolID, peerID peer.ID) error {
 	if m.closeProtocolStreamFn != nil {
 		return m.closeProtocolStreamFn(protocol, peerID)
 	}
