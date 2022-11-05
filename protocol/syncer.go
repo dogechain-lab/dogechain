@@ -337,7 +337,7 @@ func (s *Syncer) BestPeer() *SyncPeer {
 
 		peerBlockNumber := syncPeer.Number()
 		// compare block height
-		if peerBlockNumber > bestBlockNumber {
+		if bestPeer == nil || peerBlockNumber > bestBlockNumber {
 			bestPeer = syncPeer
 			bestBlockNumber = peerBlockNumber
 		} else if peerBlockNumber == bestBlockNumber &&
