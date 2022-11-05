@@ -6,4 +6,7 @@ var (
 	// Versioning should follow the SemVer guidelines
 	// https://semver.org/
 	Version = "v0.1.0"
+
+	// AppName is the name of the application
+	AppName string = "dogechain"
 )

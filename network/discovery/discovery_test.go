@@ -120,7 +120,7 @@ func TestDiscoveryService_BootnodePeerDiscovery(t *testing.T) {
 			})
 
 			// Define the protocol stream closing hook
-			server.HookCloseProtocolStream(func(s string, id peer.ID) error {
+			server.HookCloseProtocolStream(func(s common.ProtocolId, id peer.ID) error {
 				if id == randomBootnode.ID {
 					// Make sure the correct temporary stream is closed
 					streamClosed = true

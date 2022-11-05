@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -74,8 +75,8 @@ type Server struct {
 
 	discovery *discovery.DiscoveryService // service used for discovering other peers
 
-	protocols     map[string]Protocol // supported protocols
-	protocolsLock sync.Mutex          // lock for the supported protocols map
+	protocols     map[common.ProtocolId]Protocol // supported protocols
+	protocolsLock sync.Mutex                     // lock for the supported protocols map
 
 	secretsManager secrets.SecretsManager // secrets manager for networking keys
 
@@ -147,7 +148,7 @@ func NewServer(logger hclog.Logger, config *Config) (*Server, error) {
 		dialQueue:        dial.NewDialQueue(),
 		closeCh:          make(chan struct{}),
 		emitterPeerEvent: emitter,
-		protocols:        map[string]Protocol{},
+		protocols:        map[common.ProtocolId]Protocol{},
 		secretsManager:   config.SecretsManager,
 		bootnodes: &bootnodesWrapper{
 			bootnodeArr:       make([]*peer.AddrInfo, 0),
@@ -186,16 +187,16 @@ type PeerConnInfo struct {
 	Info peer.AddrInfo
 
 	connDirections  map[network.Direction]bool
-	protocolStreams map[string]*rawGrpc.ClientConn
+	protocolStreams map[common.ProtocolId]*rawGrpc.ClientConn
 }
 
 // addProtocolStream adds a protocol stream
-func (pci *PeerConnInfo) addProtocolStream(protocol string, stream *rawGrpc.ClientConn) {
+func (pci *PeerConnInfo) addProtocolStream(protocol common.ProtocolId, stream *rawGrpc.ClientConn) {
 	pci.protocolStreams[protocol] = stream
 }
 
 // removeProtocolStream removes and closes a protocol stream
-func (pci *PeerConnInfo) removeProtocolStream(protocol string) error {
+func (pci *PeerConnInfo) removeProtocolStream(protocol common.ProtocolId) error {
 	stream, ok := pci.protocolStreams[protocol]
 	if !ok {
 		return nil
@@ -211,7 +212,7 @@ func (pci *PeerConnInfo) removeProtocolStream(protocol string) error {
 }
 
 // getProtocolStream fetches the protocol stream, if any
-func (pci *PeerConnInfo) getProtocolStream(protocol string) *rawGrpc.ClientConn {
+func (pci *PeerConnInfo) getProtocolStream(protocol common.ProtocolId) *rawGrpc.ClientConn {
 	return pci.protocolStreams[protocol]
 }
 
@@ -472,6 +473,26 @@ func (s *Server) GetProtocols(peerID peer.ID) ([]string, error) {
 	return s.host.Peerstore().GetProtocols(peerID)
 }
 
+func (s *Server) CheckPeerMatchProtocols(peerID peer.ID) bool {
+	peerProtocols, err := s.GetProtocols(peerID)
+	if err != nil {
+		return false
+	}
+
+	if len(peerProtocols) <= 0 {
+		return false
+	}
+
+	// check peer supports dogechain protocols
+	for _, peerProtocol := range peerProtocols {
+		if strings.Index(peerProtocol, common.ProtocolPrefix) < 1 {
+			return false
+		}
+	}
+
+	return true
+}
+
 // removePeer removes a peer from the networking server's peer list,
 // and updates relevant counters and metrics. It is called from the
 // disconnection callback of the libp2p network bundle (when the connection is closed)
@@ -602,7 +623,7 @@ func (s *Server) Close() error {
 
 // newProtoConnection opens up a new stream on the set protocol to the peer,
 // and returns a reference to the connection
-func (s *Server) newProtoConnection(protocol string, peerID peer.ID) (*rawGrpc.ClientConn, error) {
+func (s *Server) newProtoConnection(protocol common.ProtocolId, peerID peer.ID) (*rawGrpc.ClientConn, error) {
 	s.protocolsLock.Lock()
 	defer s.protocolsLock.Unlock()
 
@@ -619,7 +640,7 @@ func (s *Server) newProtoConnection(protocol string, peerID peer.ID) (*rawGrpc.C
 	return p.Client(stream), nil
 }
 
-func (s *Server) NewStream(proto string, id peer.ID) (network.Stream, error) {
+func (s *Server) NewStream(proto common.ProtocolId, id peer.ID) (network.Stream, error) {
 	return s.host.NewStream(context.Background(), id, protocol.ID(proto))
 }
 
@@ -628,7 +649,7 @@ type Protocol interface {
 	Handler() func(network.Stream)
 }
 
-func (s *Server) RegisterProtocol(id string, p Protocol) {
+func (s *Server) RegisterProtocol(id common.ProtocolId, p Protocol) {
 	s.protocolsLock.Lock()
 	defer s.protocolsLock.Unlock()
 
@@ -636,7 +657,7 @@ func (s *Server) RegisterProtocol(id string, p Protocol) {
 	s.wrapStream(id, p.Handler())
 }
 
-func (s *Server) wrapStream(id string, handle func(network.Stream)) {
+func (s *Server) wrapStream(id common.ProtocolId, handle func(network.Stream)) {
 	s.host.SetStreamHandler(protocol.ID(id), func(stream network.Stream) {
 		peerID := stream.Conn().RemotePeer()
 		s.logger.Debug("open stream", "protocol", id, "peer", peerID)

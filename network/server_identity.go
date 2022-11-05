@@ -62,7 +62,7 @@ func (s *Server) addPeerInfo(id peer.ID, direction network.Direction) bool {
 		connectionInfo = &PeerConnInfo{
 			Info:            s.host.Peerstore().PeerInfo(id),
 			connDirections:  make(map[network.Direction]bool),
-			protocolStreams: make(map[string]*rawGrpc.ClientConn),
+			protocolStreams: make(map[common.ProtocolId]*rawGrpc.ClientConn),
 		}
 	}
 

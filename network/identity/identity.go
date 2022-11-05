@@ -7,6 +7,8 @@ import (
 
 	cmap "github.com/dogechain-lab/dogechain/helper/concurrentmap"
 	"github.com/dogechain-lab/dogechain/network/event"
+	"github.com/dogechain-lab/dogechain/versioning"
+
 	"github.com/hashicorp/go-hclog"
 
 	"github.com/dogechain-lab/dogechain/network/proto"
@@ -14,12 +16,18 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 )
 
-const PeerID = "peerID"
+const (
+	PeerID      = "peerID"
+	AppIdentity = "appIdentity"
+)
 
 var (
 	ErrInvalidChainID   = errors.New("invalid chain ID")
 	ErrNoAvailableSlots = errors.New("no available Slots")
 	ErrSelfConnection   = errors.New("self connection")
+
+	ErrInvalidAppIdentity      = errors.New("invalid app identity")
+	ErrPeerIsNotMatchProtocols = errors.New("peer is not match protocols")
 )
 
 // networkingServer defines the base communication interface between
@@ -53,6 +61,9 @@ type networkingServer interface {
 
 	// HasFreeConnectionSlot checks if there are available outbound connection slots [Thread safe]
 	HasFreeConnectionSlot(direction network.Direction) bool
+
+	// Check peer match protocols
+	CheckPeerMatchProtocols(peerID peer.ID) bool
 }
 
 // IdentityService is a networking service used to handle peer handshaking.
@@ -194,6 +205,14 @@ func (i *IdentityService) handleConnected(peerID peer.ID, direction network.Dire
 		return ErrSelfConnection
 	}
 
+	if versioning.AppName != resp.Metadata[AppIdentity] {
+		return ErrInvalidAppIdentity
+	}
+
+	if !i.baseServer.CheckPeerMatchProtocols(peerID) {
+		return ErrPeerIsNotMatchProtocols
+	}
+
 	// If this is a NOT temporary connection, save it
 	if !resp.TemporaryDial && !status.TemporaryDial {
 		i.baseServer.AddPeer(peerID, direction)
@@ -219,7 +238,8 @@ func (i *IdentityService) Hello(_ context.Context, req *proto.Status) (*proto.St
 func (i *IdentityService) constructStatus(peerID peer.ID) *proto.Status {
 	return &proto.Status{
 		Metadata: map[string]string{
-			PeerID: i.hostID.Pretty(),
+			PeerID:      i.hostID.Pretty(),
+			AppIdentity: versioning.AppName,
 		},
 		Chain:         i.chainID,
 		TemporaryDial: i.baseServer.IsTemporaryDial(peerID),

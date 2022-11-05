@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/dogechain-lab/dogechain/network/common"
 	"github.com/dogechain-lab/dogechain/network/event"
 	"github.com/dogechain-lab/dogechain/network/proto"
 	"github.com/libp2p/go-libp2p-core/network"
@@ -30,6 +31,8 @@ type MockNetworkingServer struct {
 	emitEventFn              emitEventDelegate
 	isTemporaryDialFn        isTemporaryDialDelegate
 	hasFreeConnectionSlotFn  hasFreeConnectionSlotDelegate
+
+	checkPeerMatchProtocolsFn checkPeerMatchProtocolsDelegate
 
 	// Discovery Hooks
 	newDiscoveryClientFn       newDiscoveryClientDelegate
@@ -74,12 +77,13 @@ type updatePendingConnCountDelegate func(int64, network.Direction)
 type emitEventDelegate func(*event.PeerEvent)
 type isTemporaryDialDelegate func(peer.ID) bool
 type hasFreeConnectionSlotDelegate func(network.Direction) bool
+type checkPeerMatchProtocolsDelegate func(peer.ID) bool
 
 // Required for Discovery
 type getRandomBootnodeDelegate func() *peer.AddrInfo
 type getBootnodeConnCountDelegate func() int64
 type newDiscoveryClientDelegate func(peer.ID) (proto.DiscoveryClient, error)
-type closeProtocolStreamDelegate func(string, peer.ID) error
+type closeProtocolStreamDelegate func(common.ProtocolId, peer.ID) error
 type addToPeerStoreDelegate func(*peer.AddrInfo)
 type removeFromPeerStoreDelegate func(peerInfo *peer.AddrInfo)
 type getPeerInfoDelegate func(peer.ID) *peer.AddrInfo
@@ -174,6 +178,18 @@ func (m *MockNetworkingServer) HookHasFreeConnectionSlot(fn hasFreeConnectionSlo
 	m.hasFreeConnectionSlotFn = fn
 }
 
+func (m *MockNetworkingServer) CheckPeerMatchProtocols(peerID peer.ID) bool {
+	if m.checkPeerMatchProtocolsFn != nil {
+		return m.checkPeerMatchProtocolsFn(peerID)
+	}
+
+	return true
+}
+
+func (m *MockNetworkingServer) HookCheckPeerMatchProtocols(fn checkPeerMatchProtocolsDelegate) {
+	m.checkPeerMatchProtocolsFn = fn
+}
+
 func (m *MockNetworkingServer) GetRandomBootnode() *peer.AddrInfo {
 	if m.getRandomBootnodeFn != nil {
 		return m.getRandomBootnodeFn()
@@ -210,7 +226,7 @@ func (m *MockNetworkingServer) HookNewDiscoveryClient(fn newDiscoveryClientDeleg
 	m.newDiscoveryClientFn = fn
 }
 
-func (m *MockNetworkingServer) CloseProtocolStream(protocol string, peerID peer.ID) error {
+func (m *MockNetworkingServer) CloseProtocolStream(protocol common.ProtocolId, peerID peer.ID) error {
 	if m.closeProtocolStreamFn != nil {
 		return m.closeProtocolStreamFn(protocol, peerID)
 	}

@@ -13,6 +13,7 @@ import (
 	cmap "github.com/dogechain-lab/dogechain/helper/concurrentmap"
 	"github.com/dogechain-lab/dogechain/helper/progress"
 	"github.com/dogechain-lab/dogechain/network"
+	"github.com/dogechain-lab/dogechain/network/common"
 	"github.com/dogechain-lab/dogechain/network/event"
 	libp2pGrpc "github.com/dogechain-lab/dogechain/network/grpc"
 	"github.com/dogechain-lab/dogechain/protocol/proto"
@@ -151,8 +152,6 @@ func (s *Syncer) updateStatus(status *Status) {
 	s.status = status
 }
 
-const syncerV1 = "/syncer/0.1"
-
 // enqueueBlock adds the specific block to the peerID queue
 func (s *Syncer) enqueueBlock(peerID peer.ID, b *types.Block) {
 	s.logger.Debug("enqueue block", "peer", peerID, "number", b.Number(), "hash", b.Hash())
@@ -273,7 +272,7 @@ func (s *Syncer) Start() {
 	grpcStream := libp2pGrpc.NewGrpcStream()
 	proto.RegisterV1Server(grpcStream.GrpcServer(), s.serviceV1)
 	grpcStream.Serve()
-	s.server.RegisterProtocol(syncerV1, grpcStream)
+	s.server.RegisterProtocol(common.SyncerV1Proto, grpcStream)
 
 	s.setupPeers()
 
@@ -355,7 +354,7 @@ func (s *Syncer) AddPeer(peerID peer.ID) error {
 		return nil
 	}
 
-	stream, err := s.server.NewStream(syncerV1, peerID)
+	stream, err := s.server.NewStream(common.SyncerV1Proto, peerID)
 	if err != nil {
 		return fmt.Errorf("failed to open a stream, err %w", err)
 	}
