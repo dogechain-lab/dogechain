@@ -13,7 +13,7 @@ import (
 // Each account (value) is bound to one address (key).
 type accountsMap struct {
 	// sync.Map is thread-safe and high performance.
-	// We should not use some simple locked implementation map for this comprecated usage,
+	// We should not use some simple locked implementation map for this complicate usage,
 	// otherwise there might be deadlock.
 	cmap  sync.Map
 	count uint64
