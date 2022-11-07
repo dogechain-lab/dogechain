@@ -6,21 +6,21 @@ import (
 	"sync/atomic"
 	"time"
 
-	cmap "github.com/dogechain-lab/dogechain/helper/concurrentmap"
 	"github.com/dogechain-lab/dogechain/types"
 )
 
 // Thread safe map of all accounts registered by the pool.
 // Each account (value) is bound to one address (key).
 type accountsMap struct {
-	cmap  cmap.ConcurrentMap
+	// sync.Map is thread-safe and high performance.
+	// We should not use some simple locked implementation map for this comprecated usage,
+	// otherwise there might be deadlock.
+	cmap  sync.Map
 	count uint64
 }
 
 func newAccountsMap() *accountsMap {
-	return &accountsMap{
-		cmap: cmap.NewConcurrentMap(),
-	}
+	return &accountsMap{}
 }
 
 // Intializes an account for the given address.
