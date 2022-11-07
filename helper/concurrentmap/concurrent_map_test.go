@@ -1,6 +1,8 @@
 package concurrentmap
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestConcurrentMap(t *testing.T) {
 	cmap := NewConcurrentMap()

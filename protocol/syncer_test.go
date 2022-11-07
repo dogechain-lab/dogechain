@@ -702,15 +702,7 @@ func createSyncers(count int, servers []*network.Server, blockStores []*mockBloc
 
 // numSyncPeers returns the number of sync peers
 func numSyncPeers(syncer *Syncer) int64 {
-	num := 0
-
-	syncer.peers.Range(func(key, value interface{}) bool {
-		num++
-
-		return true
-	})
-
-	return int64(num)
+	return int64(syncer.peers.Len())
 }
 
 // WaitUntilSyncPeersNumber waits until the number of sync peers reaches a certain number, otherwise it times out
