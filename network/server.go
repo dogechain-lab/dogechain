@@ -487,7 +487,7 @@ func (s *Server) CheckPeerMatchProtocols(peerID peer.ID) bool {
 
 	// check peer supports dogechain protocols
 	for _, peerProtocol := range peerProtocols {
-		if strings.Index(peerProtocol, common.ProtocolPrefix) >= 0 {
+		if strings.HasPrefix(peerProtocol, common.ProtocolPrefix) {
 			return true
 		}
 	}

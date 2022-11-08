@@ -7,6 +7,7 @@ import (
 	cmap "github.com/dogechain-lab/dogechain/helper/concurrentmap"
 	"github.com/dogechain-lab/dogechain/network/proto"
 	networkTesting "github.com/dogechain-lab/dogechain/network/testing"
+	"github.com/dogechain-lab/dogechain/versioning"
 	"github.com/hashicorp/go-hclog"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -63,7 +64,8 @@ func TestTemporaryDial(t *testing.T) {
 				return &proto.Status{
 					Chain: 0,
 					Metadata: map[string]string{
-						PeerID: "TestPeer1",
+						PeerID:      "TestPeer1",
+						AppIdentity: versioning.AppName,
 					},
 					TemporaryDial: true, // make sure the dial is temporary
 				}, nil
@@ -145,7 +147,8 @@ func TestHandshake_Errors(t *testing.T) {
 				return &proto.Status{
 					Chain: responderChainID,
 					Metadata: map[string]string{
-						PeerID: "TestPeer1",
+						PeerID:      "TestPeer1",
+						AppIdentity: versioning.AppName,
 					},
 					TemporaryDial: false,
 				}, nil
