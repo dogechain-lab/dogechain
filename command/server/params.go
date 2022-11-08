@@ -199,6 +199,7 @@ func (p *serverParams) generateConfig() *server.Config {
 		},
 		Network: &network.Config{
 			NoDiscover:       p.rawConfig.Network.NoDiscover,
+			CheckProtocols:   p.rawConfig.Network.CheckProtocols,
 			Addr:             p.libp2pAddress,
 			NatAddr:          p.natAddress,
 			DNS:              p.dnsAddress,

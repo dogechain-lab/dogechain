@@ -474,6 +474,10 @@ func (s *Server) GetProtocols(peerID peer.ID) ([]string, error) {
 }
 
 func (s *Server) CheckPeerMatchProtocols(peerID peer.ID) bool {
+	if !s.config.CheckProtocols {
+		return true
+	}
+
 	peerProtocols, err := s.GetProtocols(peerID)
 	if err != nil {
 		return false

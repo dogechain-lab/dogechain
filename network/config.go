@@ -11,6 +11,7 @@ import (
 // Config details the params for the base networking server
 type Config struct {
 	NoDiscover       bool                   // flag indicating if the discovery mechanism should be turned on
+	CheckProtocols   bool                   // flag indicating if the protocols should be checked
 	Addr             *net.TCPAddr           // the base address
 	NatAddr          *net.TCPAddr           // the NAT address
 	DNS              multiaddr.Multiaddr    // the DNS address
@@ -26,7 +27,8 @@ type Config struct {
 func DefaultConfig() *Config {
 	return &Config{
 		// The discovery service is turned on by default
-		NoDiscover: false,
+		NoDiscover:     false,
+		CheckProtocols: false,
 		// Addresses are bound to localhost by default
 		Addr: &net.TCPAddr{
 			IP:   net.ParseIP("127.0.0.1"),

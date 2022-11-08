@@ -45,6 +45,7 @@ type Telemetry struct {
 // Network defines the network configuration params
 type Network struct {
 	NoDiscover       bool   `json:"no_discover"`
+	CheckProtocols   bool   `json:"check_protocols,omitempty"`
 	Libp2pAddr       string `json:"libp2p_addr"`
 	NatAddr          string `json:"nat_addr"`
 	DNSAddr          string `json:"dns_addr"`
@@ -79,6 +80,7 @@ func DefaultConfig() *Config {
 		BlockGasTarget: "0x0", // Special value signaling the parent gas limit should be applied
 		Network: &Network{
 			NoDiscover:       defaultNetworkConfig.NoDiscover,
+			CheckProtocols:   defaultNetworkConfig.CheckProtocols,
 			MaxPeers:         defaultNetworkConfig.MaxPeers,
 			MaxOutboundPeers: defaultNetworkConfig.MaxOutboundPeers,
 			MaxInboundPeers:  defaultNetworkConfig.MaxInboundPeers,

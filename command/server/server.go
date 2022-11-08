@@ -226,6 +226,13 @@ func setFlags(cmd *cobra.Command) {
 			"prevent the client from discovering other peers (default: false)",
 		)
 
+		cmd.Flags().BoolVar(
+			&params.rawConfig.Network.CheckProtocols,
+			command.CheckProtocols,
+			defaultConfig.Network.CheckProtocols,
+			"check peer protocols (default: false)",
+		)
+
 		cmd.Flags().Int64Var(
 			&params.rawConfig.Network.MaxPeers,
 			maxPeersFlag,
