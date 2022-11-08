@@ -203,7 +203,12 @@ func (s *Syncer) Broadcast(b *types.Block) {
 	sendNotify := func(peerID, peer interface{}, req *proto.NotifyReq) {
 		startTime := time.Now()
 
-		if _, err := peer.(*SyncPeer).client.Notify(context.Background(), req); err != nil {
+		syncPeer, ok := peer.(*SyncPeer)
+		if !ok {
+			return
+		}
+
+		if _, err := syncPeer.client.Notify(context.Background(), req); err != nil {
 			s.logger.Error("failed to notify", "err", err)
 
 			return
@@ -684,8 +689,15 @@ func getHeader(clt proto.V1Client, num *uint64, hash *types.Hash) (*types.Header
 
 func (s *Syncer) prunePeerEnqueuedBlocks(block *types.Block) {
 	s.peers.Range(func(key, value interface{}) bool {
-		peerID, _ := key.(peer.ID)
-		syncPeer, _ := value.(*SyncPeer)
+		peerID, ok := key.(peer.ID)
+		if !ok {
+			return true
+		}
+
+		syncPeer, ok := value.(*SyncPeer)
+		if !ok {
+			return true
+		}
 
 		pruned := syncPeer.purgeBlocks(block.Hash())
 

@@ -1,6 +1,8 @@
 package concurrentmap
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestConcurrentMap(t *testing.T) {
 	cmap := NewConcurrentMap()
@@ -49,6 +51,11 @@ func TestConcurrentMap(t *testing.T) {
 		if key == "key3" && value != "value3" {
 			t.Error("Range() failed")
 		}
+
+		// test re-entrant deadlock
+		k, _ := key.(string)
+		v, _ := value.(string)
+		cmap.Store(k+"-re", v+"-re")
 
 		return true
 	})

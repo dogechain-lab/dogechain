@@ -88,11 +88,12 @@ func (m *concurrentMap) Delete(key interface{}) {
 }
 
 func (m *concurrentMap) Range(f func(key, value interface{}) bool) {
-	m.lock.RLock()
-	defer m.lock.RUnlock()
+	keys := m.Keys()
 
-	for key, value := range m.m {
-		if !f(key, value) {
+	for _, key := range keys {
+		load, _ := m.Load(key)
+
+		if !f(key, load) {
 			break
 		}
 	}
