@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/dogechain-lab/dogechain/blockchain"
+	"github.com/dogechain-lab/dogechain/chain"
 	"github.com/dogechain-lab/dogechain/consensus"
 	"github.com/dogechain-lab/dogechain/consensus/ibft/currentstate"
 	"github.com/dogechain-lab/dogechain/consensus/ibft/proto"
@@ -1214,8 +1215,13 @@ func newMockIbft(t *testing.T, accounts []string, validatorAccount string) *mock
 	}
 
 	ibft := &Ibft{
-		logger:           hclog.NewNullLogger(),
-		config:           &consensus.Config{},
+		logger: hclog.NewNullLogger(),
+		config: &consensus.Config{
+			Params: &chain.Params{
+				Forks:   chain.AllForksEnabled,
+				ChainID: 100,
+			},
+		},
 		blockchain:       m,
 		validatorKey:     addr.priv,
 		validatorKeyAddr: addr.Address(),
@@ -1273,8 +1279,13 @@ func newMockIBFTWithMockBlockchain(
 	}
 
 	ibft := &Ibft{
-		logger:           hclog.NewNullLogger(),
-		config:           &consensus.Config{},
+		logger: hclog.NewNullLogger(),
+		config: &consensus.Config{
+			Params: &chain.Params{
+				Forks:   chain.AllForksEnabled,
+				ChainID: 404,
+			},
+		},
 		blockchain:       m,
 		validatorKey:     addr.priv,
 		validatorKeyAddr: addr.Address(),
