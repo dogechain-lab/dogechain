@@ -52,6 +52,11 @@ func TestConcurrentMap(t *testing.T) {
 			t.Error("Range() failed")
 		}
 
+		// test re-entrant deadlock
+		k, _ := key.(string)
+		v, _ := value.(string)
+		cmap.Store(k+"-re", v+"-re")
+
 		return true
 	})
 
