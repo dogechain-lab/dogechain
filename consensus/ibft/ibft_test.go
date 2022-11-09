@@ -1760,3 +1760,28 @@ func TestState_AddMessages(t *testing.T) {
 
 	assert.Equal(t, c.NumPrepared(), 2)
 }
+
+func Test_increaseHeaderGasIfNeeded(t *testing.T) {
+	var (
+		header     = &types.Header{GasLimit: 100_000}
+		transition = &state.Transition{}
+		tx1        = &types.Transaction{Gas: 63_000}
+		tx2        = &types.Transaction{Gas: 29_000}
+	)
+
+	// before tx1
+	transition.HookTotalGas(func() uint64 {
+		return 92_000 // gas left 8000, not enought for tx1
+	})
+
+	increaseHeaderGasIfNeeded(transition, header, tx1)
+	assert.Equal(t, uint64(155000), header.GasLimit)
+
+	// after tx1
+	transition.HookTotalGas(func() uint64 {
+		return 92_000 + 28_000 // gas left 35000, enough for tx2
+	})
+
+	increaseHeaderGasIfNeeded(transition, header, tx2)
+	assert.Equal(t, uint64(155000), header.GasLimit)
+}

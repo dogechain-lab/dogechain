@@ -235,8 +235,9 @@ type Transition struct {
 	gasPool uint64
 
 	// result
-	receipts []*types.Receipt
-	totalGas uint64
+	receipts     []*types.Receipt
+	totalGas     uint64
+	totalGasHook func() uint64 // for testing
 
 	// evmLogger for debugging, set a dummy logger to 'collect' tracing,
 	// then we wouldn't have to judge any tracing flag
@@ -262,7 +263,18 @@ func (t *Transition) GetEVMLogger() runtime.EVMLogger {
 	return t.evmLogger
 }
 
+// HookTotalGas uses hook to return total gas
+//
+// Use it for testing
+func (t *Transition) HookTotalGas(fn func() uint64) {
+	t.totalGasHook = fn
+}
+
 func (t *Transition) TotalGas() uint64 {
+	if t.totalGasHook != nil {
+		return t.totalGasHook()
+	}
+
 	return t.totalGas
 }
 
@@ -440,6 +452,11 @@ func (t *Transition) subGasPool(amount uint64) error {
 	t.gasPool -= amount
 
 	return nil
+}
+
+// IncreaseSystemTransactionGas updates gas pool so that system contract transactions can be sealed.
+func (t *Transition) IncreaseSystemTransactionGas(amount uint64) {
+	t.addGasPool(amount)
 }
 
 func (t *Transition) addGasPool(amount uint64) {
