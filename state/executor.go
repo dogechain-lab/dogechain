@@ -457,6 +457,8 @@ func (t *Transition) subGasPool(amount uint64) error {
 // IncreaseSystemTransactionGas updates gas pool so that system contract transactions can be sealed.
 func (t *Transition) IncreaseSystemTransactionGas(amount uint64) {
 	t.addGasPool(amount)
+	// don't forget to increase current context
+	t.ctx.GasLimit += int64(amount)
 }
 
 func (t *Transition) addGasPool(amount uint64) {
