@@ -788,6 +788,15 @@ func (i *Ibft) buildBlock(snap *Snapshot, parent *types.Header) (*types.Block, e
 }
 
 func increaseHeaderGasIfNeeded(transition *state.Transition, header *types.Header, tx *types.Transaction) {
+	if transition.TotalGas()+tx.Gas <= header.GasLimit {
+		return
+	}
+
+	extractAmount := transition.TotalGas() + tx.Gas - header.GasLimit
+
+	// increase it
+	header.GasLimit += extractAmount
+	transition.IncreaseSystemTransactionGas(extractAmount)
 }
 
 func (i *Ibft) currentRound() uint64 {
