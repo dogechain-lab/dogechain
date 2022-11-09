@@ -11,6 +11,7 @@ import (
 	"github.com/dogechain-lab/dogechain/blockchain/storage"
 	"github.com/dogechain-lab/dogechain/chain"
 	"github.com/dogechain-lab/dogechain/contracts/upgrader"
+	"github.com/dogechain-lab/dogechain/contracts/validatorset"
 	"github.com/dogechain-lab/dogechain/helper/common"
 	"github.com/dogechain-lab/dogechain/state"
 	"github.com/dogechain-lab/dogechain/types"
@@ -1080,10 +1081,17 @@ func (b *Blockchain) verifyGasLimit(header, parentHeader *types.Header) error {
 		diff *= -1
 	}
 
+	// gas limit should not count system transactions
 	limit := parentHeader.GasLimit / BlockGasTargetDivisor
+	// system transactions after detroit fork
+	if b.Config().Forks.IsDetroit(header.Number) {
+		// might be 2 txs.
+		limit += 2 * validatorset.SystemTransactionGasLimit
+	}
+
 	if uint64(diff) > limit {
 		return fmt.Errorf(
-			"invalid gas limit, limit = %d, want %d +- %d",
+			"limit = %d, want %d +- %d",
 			header.GasLimit,
 			parentHeader.GasLimit,
 			limit-1,

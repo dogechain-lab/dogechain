@@ -28,7 +28,7 @@ const (
 
 const (
 	// Gas limit used when querying the validator set
-	_systemContractGasLimit uint64 = 100_000
+	SystemTransactionGasLimit uint64 = 100_000
 )
 
 var (
@@ -106,7 +106,7 @@ func MakeDepositTx(t NonceHub, from types.Address) (*types.Transaction, error) {
 	tx := &types.Transaction{
 		Nonce:    t.GetNonce(from),
 		GasPrice: big.NewInt(0),
-		Gas:      _systemContractGasLimit,
+		Gas:      SystemTransactionGasLimit,
 		To:       &systemcontracts.AddrValidatorSetContract,
 		Value:    nil,
 		Input:    input,
@@ -132,7 +132,7 @@ func MakeSlashTx(t NonceHub, from types.Address, needPunished types.Address) (*t
 	tx := &types.Transaction{
 		Nonce:    t.GetNonce(from),
 		GasPrice: big.NewInt(0),
-		Gas:      _systemContractGasLimit,
+		Gas:      SystemTransactionGasLimit,
 		To:       &systemcontracts.AddrValidatorSetContract,
 		Value:    nil,
 		Input:    input,
