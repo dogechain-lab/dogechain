@@ -22,9 +22,10 @@ import (
 )
 
 const (
-	defaultPriceLimit uint64 = 1
-	defaultMaxSlots   uint64 = 4096
-	validGasLimit     uint64 = 4712350
+	defaultPriceLimit         uint64 = 1
+	defaultMaxSlots           uint64 = 4096
+	defaultMaxAccountEnqueued uint64 = 128
+	validGasLimit             uint64 = 4712350
 )
 
 var (
@@ -47,16 +48,6 @@ var (
 
 // returns a new valid tx of slots size with the given nonce
 func newTx(addr types.Address, nonce, slots uint64) *types.Transaction {
-	return newPriceTx(
-		addr,
-		big.NewInt(0).SetUint64(defaultPriceLimit),
-		nonce,
-		slots,
-	)
-}
-
-// returns a new valid tx of slots size with the given nonce and gas price
-func newPriceTx(addr types.Address, price *big.Int, nonce, slots uint64) *types.Transaction {
 	// base field should take 1 slot at least
 	size := txSlotSize * (slots - 1)
 	if size <= 0 {
@@ -72,7 +63,7 @@ func newPriceTx(addr types.Address, price *big.Int, nonce, slots uint64) *types.
 		From:     addr,
 		Nonce:    nonce,
 		Value:    big.NewInt(1),
-		GasPrice: price,
+		GasPrice: big.NewInt(0).SetUint64(defaultPriceLimit),
 		Gas:      validGasLimit,
 		Input:    input,
 	}
@@ -101,17 +92,18 @@ func newTestPoolWithSlots(maxSlots uint64, mockStore ...store) (*TxPool, error) 
 		nil,
 		nilMetrics,
 		&Config{
-			PriceLimit:            defaultPriceLimit,
-			MaxSlots:              maxSlots,
-			Sealing:               false,
-			PruneTickSeconds:      DefaultPruneTickSeconds,
-			PromoteOutdateSeconds: DefaultPromoteOutdateSeconds,
+			PriceLimit:          defaultPriceLimit,
+			MaxSlots:            maxSlots,
+			MaxAccountEnqueued:  defaultMaxAccountEnqueued,
+			DeploymentWhitelist: []types.Address{},
 		},
 	)
 }
 
 type accountState struct {
-	enqueued, promoted, nextNonce uint64
+	enqueued,
+	promoted,
+	nextNonce uint64
 }
 
 type result struct {
@@ -122,6 +114,8 @@ type result struct {
 /* Single account cases (unit tests) */
 
 func TestAddTxErrors(t *testing.T) {
+	t.Parallel()
+
 	poolSigner := crypto.NewEIP155Signer(100)
 
 	// Generate a private key and address
@@ -148,6 +142,7 @@ func TestAddTxErrors(t *testing.T) {
 	}
 
 	t.Run("ErrNegativeValue", func(t *testing.T) {
+		t.Parallel()
 		pool := setupPool()
 
 		tx := newTx(defaultAddr, 0, 1)
@@ -160,6 +155,7 @@ func TestAddTxErrors(t *testing.T) {
 	})
 
 	t.Run("ErrBlockLimitExceeded", func(t *testing.T) {
+		t.Parallel()
 		pool := setupPool()
 
 		tx := newTx(defaultAddr, 0, 1)
@@ -175,6 +171,7 @@ func TestAddTxErrors(t *testing.T) {
 	})
 
 	t.Run("ErrExtractSignature", func(t *testing.T) {
+		t.Parallel()
 		pool := setupPool()
 
 		tx := newTx(defaultAddr, 0, 1)
@@ -186,6 +183,7 @@ func TestAddTxErrors(t *testing.T) {
 	})
 
 	t.Run("ErrInvalidSender", func(t *testing.T) {
+		t.Parallel()
 		pool := setupPool()
 
 		tx := newTx(addr1, 0, 1)
@@ -201,6 +199,7 @@ func TestAddTxErrors(t *testing.T) {
 	})
 
 	t.Run("ErrUnderpriced", func(t *testing.T) {
+		t.Parallel()
 		pool := setupPool()
 		pool.priceLimit = 1000000
 
@@ -214,6 +213,7 @@ func TestAddTxErrors(t *testing.T) {
 	})
 
 	t.Run("ErrInvalidAccountState", func(t *testing.T) {
+		t.Parallel()
 		pool := setupPool()
 		pool.store = faultyMockStore{}
 
@@ -229,6 +229,7 @@ func TestAddTxErrors(t *testing.T) {
 	})
 
 	t.Run("ErrTxPoolOverflow", func(t *testing.T) {
+		t.Parallel()
 		pool := setupPool()
 
 		// fill the pool
@@ -244,6 +245,7 @@ func TestAddTxErrors(t *testing.T) {
 	})
 
 	t.Run("ErrIntrinsicGas", func(t *testing.T) {
+		t.Parallel()
 		pool := setupPool()
 
 		tx := newTx(defaultAddr, 0, 1)
@@ -257,6 +259,7 @@ func TestAddTxErrors(t *testing.T) {
 	})
 
 	t.Run("ErrAlreadyKnown", func(t *testing.T) {
+		t.Parallel()
 		pool := setupPool()
 
 		tx := newTx(defaultAddr, 0, 1)
@@ -278,6 +281,7 @@ func TestAddTxErrors(t *testing.T) {
 	})
 
 	t.Run("ErrOversizedData", func(t *testing.T) {
+		t.Parallel()
 		pool := setupPool()
 
 		tx := newTx(defaultAddr, 0, 1)
@@ -297,6 +301,7 @@ func TestAddTxErrors(t *testing.T) {
 	})
 
 	t.Run("ErrNonceTooLow", func(t *testing.T) {
+		t.Parallel()
 		pool := setupPool()
 
 		// faultyMockStore.GetNonce() == 99999
@@ -311,6 +316,7 @@ func TestAddTxErrors(t *testing.T) {
 	})
 
 	t.Run("ErrInsufficientFunds", func(t *testing.T) {
+		t.Parallel()
 		pool := setupPool()
 
 		tx := newTx(defaultAddr, 0, 1)
@@ -324,17 +330,200 @@ func TestAddTxErrors(t *testing.T) {
 	})
 }
 
+func TestPruneAccountsWithNonceHoles(t *testing.T) {
+	t.Parallel()
+
+	t.Run(
+		"no enqueued to prune",
+		func(t *testing.T) {
+			t.Parallel()
+
+			pool, err := newTestPool()
+			assert.NoError(t, err)
+			pool.SetSigner(&mockSigner{})
+
+			pool.createAccountOnce(addr1)
+
+			assert.Equal(t, uint64(0), pool.gauge.read())
+			assert.Equal(t, uint64(0), pool.accounts.get(addr1).getNonce())
+			assert.Equal(t, uint64(0), pool.accounts.get(addr1).enqueued.length())
+
+			pool.pruneAccountsWithNonceHoles()
+
+			assert.Equal(t, uint64(0), pool.gauge.read())
+			assert.Equal(t, uint64(0), pool.accounts.get(addr1).getNonce())
+			assert.Equal(t, uint64(0), pool.accounts.get(addr1).enqueued.length())
+		},
+	)
+
+	t.Run(
+		"skip valid account",
+		func(t *testing.T) {
+			t.Parallel()
+
+			pool, err := newTestPool()
+			assert.NoError(t, err)
+			pool.SetSigner(&mockSigner{})
+
+			//	enqueue tx
+			go func() {
+				assert.NoError(t,
+					pool.addTx(local, newTx(addr1, 0, 1)),
+				)
+			}()
+			go pool.handleEnqueueRequest(<-pool.enqueueReqCh)
+			<-pool.promoteReqCh
+
+			assert.Equal(t, uint64(1), pool.gauge.read())
+			assert.Equal(t, uint64(1), pool.accounts.get(addr1).enqueued.length())
+
+			//	assert no nonce hole
+			assert.Equal(t,
+				pool.accounts.get(addr1).getNonce(),
+				pool.accounts.get(addr1).enqueued.peek().Nonce,
+			)
+
+			pool.pruneAccountsWithNonceHoles()
+
+			assert.Equal(t, uint64(1), pool.gauge.read())
+			assert.Equal(t, uint64(1), pool.accounts.get(addr1).enqueued.length())
+		},
+	)
+
+	t.Run(
+		"prune nonce hole account",
+		func(t *testing.T) {
+			t.Parallel()
+
+			pool, err := newTestPool()
+			assert.NoError(t, err)
+			pool.SetSigner(&mockSigner{})
+
+			//	enqueue tx
+			go func() {
+				assert.NoError(t,
+					pool.addTx(local, newTx(addr1, 5, 1)),
+				)
+			}()
+			pool.handleEnqueueRequest(<-pool.enqueueReqCh)
+
+			assert.Equal(t, uint64(1), pool.gauge.read())
+			assert.Equal(t, uint64(1), pool.accounts.get(addr1).enqueued.length())
+
+			//	assert nonce hole
+			assert.NotEqual(t,
+				pool.accounts.get(addr1).getNonce(),
+				pool.accounts.get(addr1).enqueued.peek().Nonce,
+			)
+
+			pool.pruneAccountsWithNonceHoles()
+
+			assert.Equal(t, uint64(0), pool.gauge.read())
+			assert.Equal(t, uint64(0), pool.accounts.get(addr1).enqueued.length())
+		},
+	)
+}
+
+func TestAddTxHighPressure(t *testing.T) {
+	t.Parallel()
+
+	t.Run(
+		"pruning handler is signaled",
+		func(t *testing.T) {
+			t.Parallel()
+
+			pool, err := newTestPool()
+			assert.NoError(t, err)
+			pool.SetSigner(&mockSigner{})
+
+			//	mock high pressure
+			slots := 1 + (highPressureMark*pool.gauge.max)/100
+			pool.gauge.increase(slots)
+
+			//	enqueue tx
+			go func() {
+				assert.NoError(t,
+					pool.addTx(local, newTx(addr1, 0, 1)),
+				)
+			}()
+
+			//	pick up signal
+			_, ok := <-pool.pruneCh
+			assert.True(t, ok)
+
+			//	unblock the handler (handler would block entire test run)
+			<-pool.enqueueReqCh
+		},
+	)
+
+	t.Run(
+		"reject tx with nonce not matching expected",
+		func(t *testing.T) {
+			t.Parallel()
+
+			pool, err := newTestPool()
+			assert.NoError(t, err)
+			pool.SetSigner(&mockSigner{})
+
+			pool.createAccountOnce(addr1)
+			pool.accounts.get(addr1).nextNonce = 5
+
+			//	mock high pressure
+			slots := 1 + (highPressureMark*pool.gauge.max)/100
+			pool.gauge.increase(slots)
+
+			assert.ErrorIs(t,
+				ErrRejectFutureTx,
+				pool.addTx(local, newTx(addr1, 8, 1)),
+			)
+		},
+	)
+
+	t.Run(
+		"accept tx with expected nonce during high gauge level",
+		func(t *testing.T) {
+			t.Parallel()
+
+			pool, err := newTestPool()
+			assert.NoError(t, err)
+			pool.SetSigner(&mockSigner{})
+
+			pool.createAccountOnce(addr1)
+			pool.accounts.get(addr1).nextNonce = 5
+
+			//	mock high pressure
+			slots := 1 + (highPressureMark*pool.gauge.max)/100
+			println("slots", slots, "max", pool.gauge.max)
+			pool.gauge.increase(slots)
+
+			go func() {
+				assert.NoError(t,
+					pool.addTx(local, newTx(addr1, 5, 1)),
+				)
+			}()
+			enq := <-pool.enqueueReqCh
+
+			_, exists := pool.index.get(enq.tx.Hash)
+			assert.True(t, exists)
+		},
+	)
+}
+
 func TestAddGossipTx(t *testing.T) {
+	t.Parallel()
+
 	key, sender := tests.GenerateKeyAndAddr(t)
 	signer := crypto.NewEIP155Signer(uint64(100))
 	tx := newTx(types.ZeroAddress, 1, 1)
 
 	t.Run("node is a validator", func(t *testing.T) {
+		t.Parallel()
+
 		pool, err := newTestPool()
 		assert.NoError(t, err)
 		pool.SetSigner(signer)
 
-		pool.sealing = true
+		pool.SetSealing(true)
 
 		signedTx, err := signer.SignTx(tx, key)
 		if err != nil {
@@ -348,7 +537,7 @@ func TestAddGossipTx(t *testing.T) {
 					Value: signedTx.MarshalRLP(),
 				},
 			}
-			pool.addGossipTx(protoTx)
+			pool.addGossipTx(protoTx, "")
 		}()
 		pool.handleEnqueueRequest(<-pool.enqueueReqCh)
 
@@ -356,11 +545,13 @@ func TestAddGossipTx(t *testing.T) {
 	})
 
 	t.Run("node is a non validator", func(t *testing.T) {
+		t.Parallel()
+
 		pool, err := newTestPool()
 		assert.NoError(t, err)
 		pool.SetSigner(signer)
 
-		pool.sealing = false
+		pool.SetSealing(false)
 
 		pool.createAccountOnce(sender)
 
@@ -375,7 +566,7 @@ func TestAddGossipTx(t *testing.T) {
 				Value: signedTx.MarshalRLP(),
 			},
 		}
-		pool.addGossipTx(protoTx)
+		pool.addGossipTx(protoTx, "")
 
 		assert.Equal(t, uint64(0), pool.accounts.get(sender).enqueued.length())
 	})
@@ -406,103 +597,146 @@ func TestDropKnownGossipTx(t *testing.T) {
 	)
 }
 
-func TestAddGossipTx_ShouldNotCrash(t *testing.T) {
-	pool, err := newTestPool()
-	assert.NoError(t, err)
-	pool.SetSigner(&mockSigner{})
+func TestEnqueueHandler(t *testing.T) {
+	t.Parallel()
 
-	assert.NotPanics(t, func() {
-		// type assertion
-		pool.addGossipTx(&types.Block{Header: &types.Header{Number: 10}})
-	})
+	t.Run(
+		"enqueue new tx with higher nonce",
+		func(t *testing.T) {
+			t.Parallel()
 
-	assert.Nil(t, pool.accounts.get(addr1), "addr in txpool should be nil")
+			pool, err := newTestPool()
+			assert.NoError(t, err)
+			pool.SetSigner(&mockSigner{})
 
-	assert.NotPanics(t, func() {
-		pool.addGossipTx(createNilRawTxn())
-		pool.addGossipTx(createNilRawDataTxn())
-	})
+			// send higher nonce tx
+			go func() {
+				err := pool.addTx(local, newTx(addr1, 10, 1)) // 10 > 0
+				assert.NoError(t, err)
+			}()
+			pool.handleEnqueueRequest(<-pool.enqueueReqCh)
 
-	assert.Nil(t, pool.accounts.get(addr1), "addr in txpool should be nil")
-}
-
-func createNilRawTxn() *proto.Txn {
-	return &proto.Txn{
-		Raw: nil,
-	}
-}
-
-func createNilRawDataTxn() *proto.Txn {
-	return &proto.Txn{
-		Raw: &anypb.Any{
-			Value: nil,
+			assert.Equal(t, uint64(1), pool.gauge.read())
+			assert.Equal(t, uint64(1), pool.accounts.get(addr1).enqueued.length())
 		},
-	}
-}
+	)
 
-func TestAddHandler(t *testing.T) {
-	t.Run("enqueue new tx with higher nonce", func(t *testing.T) {
-		pool, err := newTestPool()
-		assert.NoError(t, err)
-		pool.SetSigner(&mockSigner{})
+	t.Run(
+		"reject new tx with low nonce",
+		func(t *testing.T) {
+			t.Parallel()
 
-		// send higher nonce tx
-		go func() {
-			err := pool.addTx(local, newTx(addr1, 10, 1)) // 10 > 0
+			pool, err := newTestPool()
 			assert.NoError(t, err)
-		}()
-		pool.handleEnqueueRequest(<-pool.enqueueReqCh)
+			pool.SetSigner(&mockSigner{})
 
-		assert.Equal(t, uint64(1), pool.gauge.read())
-		assert.Equal(t, uint64(1), pool.accounts.get(addr1).enqueued.length())
-	})
+			// setup prestate
+			acc := pool.createAccountOnce(addr1)
+			acc.setNonce(20)
 
-	t.Run("reject new tx with low nonce", func(t *testing.T) {
-		pool, err := newTestPool()
-		assert.NoError(t, err)
-		pool.SetSigner(&mockSigner{})
+			// send tx
+			go func() {
+				err := pool.addTx(local, newTx(addr1, 10, 1)) // 10 < 20
+				assert.NoError(t, err)
+			}()
+			pool.handleEnqueueRequest(<-pool.enqueueReqCh)
 
-		// setup prestate
-		acc := pool.createAccountOnce(addr1)
-		acc.setNonce(20)
+			assert.Equal(t, uint64(0), pool.gauge.read())
+			assert.Equal(t, uint64(0), pool.accounts.get(addr1).enqueued.length())
+		},
+	)
 
-		// send tx
-		go func() {
-			err := pool.addTx(local, newTx(addr1, 10, 1)) // 10 < 20
+	t.Run(
+		"signal promotion for new tx with expected nonce",
+		func(t *testing.T) {
+			t.Parallel()
+
+			pool, err := newTestPool()
 			assert.NoError(t, err)
-		}()
-		pool.handleEnqueueRequest(<-pool.enqueueReqCh)
+			pool.SetSigner(&mockSigner{})
 
-		assert.Equal(t, uint64(0), pool.gauge.read())
-		assert.Equal(t, uint64(0), pool.accounts.get(addr1).enqueued.length())
-	})
+			// send tx
+			go func() {
+				err := pool.addTx(local, newTx(addr1, 0, 1)) // 0 == 0
+				assert.NoError(t, err)
+			}()
+			go pool.handleEnqueueRequest(<-pool.enqueueReqCh)
 
-	t.Run("signal promotion for new tx with expected nonce", func(t *testing.T) {
-		pool, err := newTestPool()
-		assert.NoError(t, err)
-		pool.SetSigner(&mockSigner{})
+			// catch pending promotion
+			<-pool.promoteReqCh
 
-		// send tx
-		go func() {
-			err := pool.addTx(local, newTx(addr1, 0, 1)) // 0 == 0
+			assert.Equal(t, uint64(1), pool.gauge.read())
+			assert.Equal(t, uint64(1), pool.accounts.get(addr1).enqueued.length())
+			assert.Equal(t, uint64(0), pool.accounts.get(addr1).promoted.length())
+		},
+	)
+
+	t.Run(
+		"reject new tx when enqueued is full",
+		func(t *testing.T) {
+			t.Parallel()
+
+			fillEnqueued := func(pool *TxPool, num uint64) {
+				//	first tx will signal promotion, grab the signal
+				//	but don't execute the handler
+				go func() {
+					err := pool.addTx(local, newTx(addr1, 0, 1))
+					assert.NoError(t, err)
+				}()
+
+				go pool.handleEnqueueRequest(<-pool.enqueueReqCh)
+
+				// catch pending promotion
+				<-pool.promoteReqCh
+
+				for i := uint64(1); i < num; i++ {
+					go func() {
+						err := pool.addTx(local, newTx(addr1, i, 1))
+						assert.NoError(t, err)
+					}()
+
+					pool.handleEnqueueRequest(<-pool.enqueueReqCh)
+				}
+			}
+
+			pool, err := newTestPool()
 			assert.NoError(t, err)
-		}()
-		go pool.handleEnqueueRequest(<-pool.enqueueReqCh)
+			pool.SetSigner(&mockSigner{})
 
-		// catch pending promotion
-		<-pool.promoteReqCh
+			//	mock full enqueued
+			pool.accounts.maxEnqueuedLimit = 1
+			fillEnqueued(pool, 1)
 
-		assert.Equal(t, uint64(1), pool.gauge.read())
-		assert.Equal(t, uint64(1), pool.accounts.get(addr1).enqueued.length())
-		assert.Equal(t, uint64(0), pool.accounts.get(addr1).promoted.length())
-	})
+			assert.Equal(t, uint64(1), pool.accounts.get(addr1).enqueued.length())
+			assert.Equal(t, uint64(1), pool.gauge.read())
+			assert.Equal(t, uint64(0), pool.accounts.get(addr1).getNonce())
+
+			//	send next expected tx
+			go func() {
+				assert.NoError(t,
+					pool.addTx(local, newTx(addr1, 1, 1)),
+				)
+			}()
+
+			pool.handleEnqueueRequest(<-pool.enqueueReqCh)
+
+			//	assert the transaction was rejected
+			assert.Equal(t, uint64(1), pool.accounts.get(addr1).enqueued.length())
+			assert.Equal(t, uint64(1), pool.gauge.read())
+			assert.Equal(t, uint64(0), pool.accounts.get(addr1).getNonce())
+		},
+	)
 }
 
 func TestPromoteHandler(t *testing.T) {
+	t.Parallel()
+
 	t.Run("nothing to promote", func(t *testing.T) {
 		/* This test demonstrates that if some promotion handler
 		got its job done by a previous one, it will not perform any logic
 		by doing an early return. */
+		t.Parallel()
+
 		pool, err := newTestPool()
 		assert.NoError(t, err)
 		pool.SetSigner(&mockSigner{})
@@ -539,6 +773,8 @@ func TestPromoteHandler(t *testing.T) {
 	})
 
 	t.Run("promote one tx", func(t *testing.T) {
+		t.Parallel()
+
 		pool, err := newTestPool()
 		assert.NoError(t, err)
 		pool.SetSigner(&mockSigner{})
@@ -560,10 +796,12 @@ func TestPromoteHandler(t *testing.T) {
 	})
 
 	t.Run("promote several txs", func(t *testing.T) {
+		t.Parallel()
 		/* This example illustrates the flexibility of the handlers:
 		One promotion handler can be executed at any time after it
 		was invoked (when the runtime decides), resulting in promotion
 		of several enqueued txs. */
+
 		pool, err := newTestPool()
 		assert.NoError(t, err)
 		pool.SetSigner(&mockSigner{})
@@ -604,6 +842,8 @@ func TestPromoteHandler(t *testing.T) {
 	t.Run("one tx -> one promotion", func(t *testing.T) {
 		/* In this scenario, each received tx will be instantly promoted.
 		All txs are sent in the order of expected nonce. */
+		t.Parallel()
+
 		pool, err := newTestPool()
 		assert.NoError(t, err)
 		pool.SetSigner(&mockSigner{})
@@ -624,70 +864,111 @@ func TestPromoteHandler(t *testing.T) {
 		assert.Equal(t, uint64(20), pool.accounts.get(addr1).promoted.length())
 	})
 
-	t.Run("Two txs -> one promoted, the lower nonce dropped", func(t *testing.T) {
-		/* This example illustrates the fault tolerance of the promoting handler:
-		The lower nonce transaction should be dropped when it is accidentally inserted
-		into the enqueued queue. It should not block any promotable transactions. */
-		pool, err := newTestPool()
-		assert.NoError(t, err)
-		pool.SetSigner(&mockSigner{})
-		const promotableNonce = uint64(5)
+	t.Run(
+		"promote handler discards cheaper tx",
+		func(t *testing.T) {
+			t.Parallel()
 
-		// event sub
-		subscription := pool.eventManager.subscribe([]proto.EventType{
-			proto.EventType_PROMOTED,
-			proto.EventType_PRUNED_ENQUEUED,
-		})
+			// helper
+			newPricedTx := func(
+				addr types.Address,
+				nonce,
+				gasPrice,
+				slots uint64,
+			) *types.Transaction {
+				tx := newTx(addr, nonce, slots)
+				tx.GasPrice.SetUint64(gasPrice)
 
-		// Prepare the bug test case. It is a bug, but sometimes it happeds.
-		// set account nonce large to make the first tx lower nonce
-		acc := pool.createAccountOnce(addr1)
-		acc.setNonce(promotableNonce)
-		// lower nonce tx
-		lowerNonceTx := newTx(addr1, 0, 1)
-		// enqueue it by hand
-		acc.enqueued.push(lowerNonceTx)
-		pool.gauge.increase(1)
-		assert.Equal(t, uint64(1), pool.accounts.get(addr1).enqueued.length())
-
-		go func() {
-			// promotable
-			err = pool.addTx(local, newTx(addr1, promotableNonce, 1))
-			assert.NoError(t, err)
-		}()
-		// enqueue
-		go pool.handleEnqueueRequest(<-pool.enqueueReqCh)
-		// promote
-		go pool.handlePromoteRequest(<-pool.promoteReqCh)
-
-		// waiting for the promoted event
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-		defer cancel()
-
-		// 1 dropped, 1 promoted.
-		events := waitForEvents(ctx, subscription, 2)
-
-		var prunedCount, promotedCount int
-		// count events
-		for _, ev := range events {
-			switch ev.Type {
-			case proto.EventType_PROMOTED:
-				promotedCount++
-			case proto.EventType_PRUNED_ENQUEUED:
-				prunedCount++
+				return tx
 			}
-		}
 
-		// assert
-		assert.Equal(t, 1, prunedCount)
-		assert.Equal(t, 1, promotedCount)
+			pool, err := newTestPool()
+			assert.NoError(t, err)
+			pool.SetSigner(&mockSigner{})
 
-		assert.Equal(t, uint64(1), pool.gauge.read())
-		assert.Equal(t, promotableNonce+1, pool.accounts.get(addr1).getNonce())
+			addTx := func(tx *types.Transaction) enqueueRequest {
+				tx.ComputeHash()
 
-		assert.Equal(t, uint64(0), pool.accounts.get(addr1).enqueued.length())
-		assert.Equal(t, uint64(1), pool.accounts.get(addr1).promoted.length())
-	})
+				go func() {
+					assert.NoError(t,
+						pool.addTx(local, tx),
+					)
+				}()
+
+				//	grab the enqueue signal
+				return <-pool.enqueueReqCh
+			}
+
+			handleEnqueueRequest := func(req enqueueRequest) promoteRequest {
+				go func() {
+					pool.handleEnqueueRequest(req)
+				}()
+
+				return <-pool.promoteReqCh
+			}
+
+			assertTxExists := func(t *testing.T, tx *types.Transaction, shouldExists bool) {
+				t.Helper()
+
+				_, exists := pool.index.get(tx.Hash)
+				assert.Equal(t, shouldExists, exists)
+			}
+
+			tx1 := newPricedTx(addr1, 0, 10, 2)
+			tx2 := newPricedTx(addr1, 0, 20, 3)
+
+			// add the transactions
+			enqTx1 := addTx(tx1)
+			enqTx2 := addTx(tx2)
+
+			assertTxExists(t, tx1, true)
+			assertTxExists(t, tx2, true)
+
+			// check the account nonce before promoting
+			assert.Equal(t, uint64(0), pool.accounts.get(addr1).getNonce())
+
+			//	execute the enqueue handlers
+			promReq1 := handleEnqueueRequest(enqTx1)
+			promReq2 := handleEnqueueRequest(enqTx2)
+
+			assert.Equal(t, uint64(0), pool.accounts.get(addr1).getNonce())
+			assert.Equal(t, uint64(2), pool.accounts.get(addr1).enqueued.length())
+			assert.Equal(t, uint64(0), pool.accounts.get(addr1).promoted.length())
+			assert.Equal(
+				t,
+				slotsRequired(tx1)+slotsRequired(tx2),
+				pool.gauge.read(),
+			)
+
+			// promote the second Tx and remove the first Tx
+			pool.handlePromoteRequest(promReq1)
+
+			assert.Equal(t, uint64(1), pool.accounts.get(addr1).getNonce())
+			assert.Equal(t, uint64(0), pool.accounts.get(addr1).enqueued.length()) // should be empty
+			assert.Equal(t, uint64(1), pool.accounts.get(addr1).promoted.length())
+			assertTxExists(t, tx1, false)
+			assertTxExists(t, tx2, true)
+			assert.Equal(
+				t,
+				slotsRequired(tx2),
+				pool.gauge.read(),
+			)
+
+			// should do nothing in the 2nd promotion
+			pool.handlePromoteRequest(promReq2)
+
+			assert.Equal(t, uint64(1), pool.accounts.get(addr1).getNonce())
+			assert.Equal(t, uint64(0), pool.accounts.get(addr1).enqueued.length())
+			assert.Equal(t, uint64(1), pool.accounts.get(addr1).promoted.length())
+			assertTxExists(t, tx1, false)
+			assertTxExists(t, tx2, true)
+			assert.Equal(
+				t,
+				slotsRequired(tx2),
+				pool.gauge.read(),
+			)
+		},
+	)
 }
 
 func TestResetAccount(t *testing.T) {
@@ -696,7 +977,7 @@ func TestResetAccount(t *testing.T) {
 	t.Run("reset promoted", func(t *testing.T) {
 		t.Parallel()
 
-		testCases := []*struct {
+		testCases := []struct {
 			name     string
 			txs      []*types.Transaction
 			newNonce uint64
@@ -757,6 +1038,7 @@ func TestResetAccount(t *testing.T) {
 			},
 		}
 		for _, test := range testCases {
+			test := test
 			t.Run(test.name, func(t *testing.T) {
 				t.Parallel()
 
@@ -812,7 +1094,7 @@ func TestResetAccount(t *testing.T) {
 	t.Run("reset enqueued", func(t *testing.T) {
 		t.Parallel()
 
-		testCases := []*struct {
+		testCases := []struct {
 			name     string
 			txs      []*types.Transaction
 			newNonce uint64
@@ -894,6 +1176,7 @@ func TestResetAccount(t *testing.T) {
 		}
 
 		for _, test := range testCases {
+			test := test
 			t.Run(test.name, func(t *testing.T) {
 				t.Parallel()
 
@@ -938,7 +1221,7 @@ func TestResetAccount(t *testing.T) {
 	t.Run("reset enqueued and promoted", func(t *testing.T) {
 		t.Parallel()
 
-		testCases := []*struct {
+		testCases := []struct {
 			name     string
 			txs      []*types.Transaction
 			newNonce uint64
@@ -1041,6 +1324,7 @@ func TestResetAccount(t *testing.T) {
 		}
 
 		for _, test := range testCases {
+			test := test
 			t.Run(test.name, func(t *testing.T) {
 				t.Parallel()
 
@@ -1100,6 +1384,8 @@ func TestResetAccount(t *testing.T) {
 }
 
 func TestPop(t *testing.T) {
+	t.Parallel()
+
 	pool, err := newTestPool()
 	assert.NoError(t, err)
 	pool.SetSigner(&mockSigner{})
@@ -1117,14 +1403,16 @@ func TestPop(t *testing.T) {
 
 	// pop the tx
 	pool.Prepare()
-	tx := pool.Pop()
-	pool.RemoveExecuted(tx)
+	tx := pool.Peek()
+	pool.Pop(tx)
 
 	assert.Equal(t, uint64(0), pool.gauge.read())
 	assert.Equal(t, uint64(0), pool.accounts.get(addr1).promoted.length())
 }
 
 func TestDrop(t *testing.T) {
+	t.Parallel()
+
 	pool, err := newTestPool()
 	assert.NoError(t, err)
 	pool.SetSigner(&mockSigner{})
@@ -1143,7 +1431,7 @@ func TestDrop(t *testing.T) {
 
 	// pop the tx
 	pool.Prepare()
-	tx := pool.Pop()
+	tx := pool.Peek()
 	pool.Drop(tx)
 
 	assert.Equal(t, uint64(0), pool.gauge.read())
@@ -1151,178 +1439,283 @@ func TestDrop(t *testing.T) {
 	assert.Equal(t, uint64(0), pool.accounts.get(addr1).promoted.length())
 }
 
-func TestDrop_RecoverRightNonce(t *testing.T) {
-	pool, err := newTestPool()
-	assert.NoError(t, err)
-	pool.SetSigner(&mockSigner{})
-
-	const maxTxLength = 2
-
-	// send txs
-	go func() {
-		for i := 0; i < maxTxLength; i++ {
-			err := pool.addTx(local, newTx(addr1, uint64(i), 1))
-			assert.NoError(t, err)
-		}
-	}()
-	// enqueue them
-	go func() {
-		for i := 0; i < maxTxLength; i++ {
-			pool.handleEnqueueRequest(<-pool.enqueueReqCh)
-		}
-	}()
-	// promote them
-	go func() {
-		for i := 0; i < maxTxLength; i++ {
-			pool.handlePromoteRequest(<-pool.promoteReqCh)
-		}
-	}()
-
-	// waiting for the promoted event
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-	defer cancel()
-
-	nonce, err := tests.RetryUntilTimeout(ctx, func() (interface{}, bool) {
-		account1 := pool.accounts.get(addr1)
-		if account1 == nil {
-			return nil, true // retry
-		}
-
-		nonce := account1.getNonce()
-		if nonce < maxTxLength {
-			return nil, true // retry
-		}
-
-		return nonce, false
-	})
-
-	assert.NoError(t, err)
-	assert.Equal(t, uint64(2), nonce)
-	assert.Equal(t, uint64(2), pool.gauge.read())
-	assert.Equal(t, uint64(2), pool.accounts.get(addr1).getNonce())
-	assert.Equal(t, uint64(2), pool.accounts.get(addr1).promoted.length())
-
-	// pop the tx
-	pool.Prepare()
-	tx := pool.Pop()
-	pool.Drop(tx)
-
-	assert.Equal(t, uint64(0), pool.gauge.read())
-	assert.Equal(t, uint64(0), pool.accounts.get(addr1).getNonce())
-	assert.Equal(t, uint64(0), pool.accounts.get(addr1).promoted.length())
-}
-
-func TestTxpool_PruneStaleAccounts(t *testing.T) {
+func TestDemote(t *testing.T) {
 	t.Parallel()
 
-	testTable := []struct {
-		name            string
-		futureTx        *types.Transaction
-		lastPromoted    time.Time
-		expectedTxCount uint64
-		expectedGauge   uint64
-	}{
-		{
-			"prune stale tx",
-			newTx(addr1, 3, 1),
-			time.Now().Add(-time.Second * DefaultPromoteOutdateSeconds),
-			0,
-			0,
-		},
-		{
-			"no stale tx to prune",
-			newTx(addr1, 5, 1),
-			time.Now().Add(-5 * time.Second),
-			1,
-			1,
-		},
-	}
+	t.Run("Demote increments counter", func(t *testing.T) {
+		t.Parallel()
+		// create pool
+		pool, err := newTestPool()
+		assert.NoError(t, err)
+		pool.SetSigner(&mockSigner{})
 
-	for _, test := range testTable {
-		test := test
-
-		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-
-			pool, err := newTestPool()
+		// send tx
+		go func() {
+			err := pool.addTx(local, newTx(addr1, 0, 1))
 			assert.NoError(t, err)
-			pool.SetSigner(&mockSigner{})
+		}()
+		go pool.handleEnqueueRequest(<-pool.enqueueReqCh)
+		pool.handlePromoteRequest(<-pool.promoteReqCh)
 
-			go func() {
-				// add a future nonce tx
-				err := pool.addTx(local, test.futureTx)
-				assert.NoError(t, err)
-			}()
-			pool.handleEnqueueRequest(<-pool.enqueueReqCh)
+		assert.Equal(t, uint64(1), pool.gauge.read())
+		assert.Equal(t, uint64(1), pool.accounts.get(addr1).getNonce())
+		assert.Equal(t, uint64(1), pool.accounts.get(addr1).promoted.length())
+		assert.Equal(t, uint64(0), pool.accounts.get(addr1).Demotions())
 
-			acc := pool.accounts.get(addr1)
-			acc.lastPromoted = test.lastPromoted
+		// call demote
+		pool.Prepare()
+		tx := pool.Peek()
+		pool.Demote(tx)
 
-			assert.Equal(t, uint64(1), acc.enqueued.length())
-			assert.Equal(t, uint64(1), pool.gauge.read())
+		assert.Equal(t, uint64(1), pool.gauge.read())
+		assert.Equal(t, uint64(1), pool.accounts.get(addr1).getNonce())
+		assert.Equal(t, uint64(1), pool.accounts.get(addr1).promoted.length())
 
-			//	pretend ticker ticks and triggers the pruning cycle
-			pool.pruneStaleAccounts()
+		// assert counter was incremented
+		assert.Equal(t, uint64(1), pool.accounts.get(addr1).Demotions())
+	})
 
-			//	enqueued tx is removed
-			assert.Equal(t, test.expectedTxCount, acc.enqueued.length())
-			assert.Equal(t, test.expectedGauge, pool.gauge.read())
-		})
-	}
+	t.Run("Demote calls Drop", func(t *testing.T) {
+		t.Parallel()
+
+		// create pool
+		pool, err := newTestPool()
+		assert.NoError(t, err)
+		pool.SetSigner(&mockSigner{})
+
+		// send tx
+		go func() {
+			err := pool.addTx(local, newTx(addr1, 0, 1))
+			assert.NoError(t, err)
+		}()
+		go pool.handleEnqueueRequest(<-pool.enqueueReqCh)
+		pool.handlePromoteRequest(<-pool.promoteReqCh)
+
+		assert.Equal(t, uint64(1), pool.gauge.read())
+		assert.Equal(t, uint64(1), pool.accounts.get(addr1).getNonce())
+		assert.Equal(t, uint64(1), pool.accounts.get(addr1).promoted.length())
+
+		// set counter to max allowed demotions
+		pool.accounts.get(addr1).demotions = maxAccountDemotions
+
+		// call demote
+		pool.Prepare()
+		tx := pool.Peek()
+		pool.Demote(tx)
+
+		// account was dropped
+		assert.Equal(t, uint64(0), pool.gauge.read())
+		assert.Equal(t, uint64(0), pool.accounts.get(addr1).getNonce())
+		assert.Equal(t, uint64(0), pool.accounts.get(addr1).promoted.length())
+
+		// demotions are reset to 0
+		assert.Equal(t, uint64(0), pool.accounts.get(addr1).Demotions())
+	})
 }
 
-func BenchmarkPruneStaleAccounts1KAccounts(b *testing.B)   { benchmarkPruneStaleAccounts(b, 1000) }
-func BenchmarkPruneStaleAccounts10KAccounts(b *testing.B)  { benchmarkPruneStaleAccounts(b, 10000) }
-func BenchmarkPruneStaleAccounts100KAccounts(b *testing.B) { benchmarkPruneStaleAccounts(b, 100000) }
+func Test_updateAccountSkipsCounts(t *testing.T) {
+	t.Parallel()
 
-func benchmarkPruneStaleAccounts(b *testing.B, accountSize int) {
-	b.Helper()
+	sendTx := func(
+		t *testing.T,
+		pool *TxPool,
+		tx *types.Transaction,
+		shouldPromote bool,
+	) {
+		t.Helper()
 
-	pool, err := newTestPoolWithSlots(uint64(accountSize + 1))
-	assert.NoError(b, err)
+		go func() {
+			err := pool.addTx(local, tx)
+			assert.NoError(t, err)
+		}()
 
-	pool.SetSigner(&mockSigner{})
-	pool.pruneTick = time.Second // prune check on every second
-
-	pool.Start()
-	defer pool.Close()
-
-	var (
-		addresses        = make([]types.Address, accountSize)
-		lastPromotedTime = time.Now()
-	)
-
-	for i := 0; i < accountSize; i++ {
-		addresses[i] = types.StringToAddress("0x" + strconv.FormatInt(int64(1024+i), 16))
-		addr := addresses[i]
-		// add enough future tx
-		err := pool.addTx(local, newTx(addr, uint64(10+i), 1))
-		if !assert.NoError(b, err, "add tx failed") {
-			b.FailNow()
+		if shouldPromote {
+			go pool.handleEnqueueRequest(<-pool.enqueueReqCh)
+			pool.handlePromoteRequest(<-pool.promoteReqCh)
+		} else {
+			pool.handleEnqueueRequest(<-pool.enqueueReqCh)
 		}
-		// set the account lastPromoted to the same timestamp
-		if !pool.accounts.exists(addr) {
-			pool.createAccountOnce(addr)
-		}
-
-		pool.accounts.get(addr).lastPromoted = lastPromotedTime
 	}
 
-	// mark all transactions outdated
-	pool.promoteOutdateDuration = time.Since(lastPromotedTime) - time.Millisecond
+	checkTxExistence := func(t *testing.T, pool *TxPool, txHash types.Hash, shouldExist bool) {
+		t.Helper()
 
-	// Reset the benchmark and measure pruning task
-	b.ResetTimer()
-	b.ReportAllocs()
+		_, ok := pool.index.get(txHash)
 
-	for i := 0; i < b.N; i++ {
-		// benchmark pruning task
-		pool.pruneStaleAccounts()
+		assert.Equal(t, shouldExist, ok)
 	}
 
-	promoted, enqueued := pool.GetTxs(true)
-	assert.Len(b, promoted, 0)
-	assert.Len(b, enqueued, 0)
+	t.Run("should drop the first transaction from promoted queue", func(t *testing.T) {
+		t.Parallel()
+		// create pool
+		pool, err := newTestPool()
+		assert.NoError(t, err)
+
+		pool.SetSigner(&mockSigner{})
+
+		tx := newTx(addr1, 0, 1)
+		sendTx(t, pool, tx, true)
+
+		accountMap := pool.accounts.get(addr1)
+
+		// make sure the transaction is promoted and skips count is zero
+		assert.Zero(t, accountMap.enqueued.length())
+		assert.Equal(t, uint64(1), accountMap.promoted.length())
+		assert.Zero(t, accountMap.skips)
+		assert.Equal(t, slotsRequired(tx), pool.gauge.read())
+		checkTxExistence(t, pool, tx.Hash, true)
+
+		// set 9 to skips in order to drop transaction next
+		accountMap.skips = 9
+
+		pool.updateAccountSkipsCounts(map[types.Address]uint64{
+			// empty
+		})
+
+		// make sure the account queue is empty and skips is reset
+		assert.Zero(t, accountMap.enqueued.length())
+		assert.Zero(t, accountMap.promoted.length())
+		assert.Zero(t, accountMap.skips)
+		assert.Zero(t, pool.gauge.read())
+		checkTxExistence(t, pool, tx.Hash, false)
+	})
+
+	t.Run("should drop the first transaction from enqueued queue", func(t *testing.T) {
+		t.Parallel()
+		// create pool
+		pool, err := newTestPool()
+		assert.NoError(t, err)
+
+		pool.SetSigner(&mockSigner{})
+
+		tx := newTx(addr1, 1, 1) // set non-zero nonce to prevent the tx from being added
+		sendTx(t, pool, tx, false)
+
+		accountMap := pool.accounts.get(addr1)
+
+		// make sure the transaction is promoted and skips count is zero
+		assert.NotZero(t, accountMap.enqueued.length())
+		assert.Zero(t, accountMap.promoted.length())
+		assert.Zero(t, accountMap.skips)
+		assert.Equal(t, slotsRequired(tx), pool.gauge.read())
+		checkTxExistence(t, pool, tx.Hash, true)
+
+		// set 9 to skips in order to drop transaction next
+		accountMap.skips = 9
+
+		pool.updateAccountSkipsCounts(map[types.Address]uint64{
+			// empty
+		})
+
+		// make sure the account queue is empty and skips is reset
+		assert.Zero(t, accountMap.enqueued.length())
+		assert.Zero(t, accountMap.promoted.length())
+		assert.Zero(t, accountMap.skips)
+		assert.Zero(t, pool.gauge.read())
+		checkTxExistence(t, pool, tx.Hash, false)
+	})
+
+	t.Run("should not drop a transaction", func(t *testing.T) {
+		t.Parallel()
+		// create pool
+		pool, err := newTestPool()
+		assert.NoError(t, err)
+
+		pool.SetSigner(&mockSigner{})
+
+		tx := newTx(addr1, 0, 1)
+		sendTx(t, pool, tx, true)
+
+		accountMap := pool.accounts.get(addr1)
+
+		// make sure the transaction is promoted and skips count is zero
+		assert.Zero(t, accountMap.enqueued.length())
+		assert.Equal(t, uint64(1), accountMap.promoted.length())
+		assert.Zero(t, accountMap.skips)
+		assert.Equal(t, slotsRequired(tx), pool.gauge.read())
+		checkTxExistence(t, pool, tx.Hash, true)
+
+		// set 9 to skips in order to drop transaction next
+		accountMap.skips = 5
+
+		pool.updateAccountSkipsCounts(map[types.Address]uint64{
+			addr1: 1,
+		})
+
+		// make sure the account queue is empty and skips is reset
+		assert.Zero(t, accountMap.enqueued.length())
+		assert.Equal(t, uint64(1), accountMap.promoted.length())
+		assert.Equal(t, uint64(0), accountMap.skips)
+		assert.Equal(t, slotsRequired(tx), pool.gauge.read())
+		checkTxExistence(t, pool, tx.Hash, true)
+	})
+}
+
+// TestPermissionSmartContractDeployment tests sending deployment tx with deployment whitelist
+func TestPermissionSmartContractDeployment(t *testing.T) {
+	t.Parallel()
+
+	signer := crypto.NewEIP155Signer(uint64(100))
+
+	poolSigner := crypto.NewEIP155Signer(100)
+
+	// Generate a private key and address
+	defaultKey, defaultAddr := tests.GenerateKeyAndAddr(t)
+
+	setupPool := func() *TxPool {
+		pool, err := newTestPool()
+		if err != nil {
+			t.Fatalf("cannot create txpool - err: %v\n", err)
+		}
+
+		pool.SetSigner(signer)
+
+		return pool
+	}
+
+	signTx := func(transaction *types.Transaction) *types.Transaction {
+		signedTx, signErr := poolSigner.SignTx(transaction, defaultKey)
+		if signErr != nil {
+			t.Fatalf("Unable to sign transaction, %v", signErr)
+		}
+
+		return signedTx
+	}
+
+	t.Run("contract deployment whitelist empty, anyone can deploy", func(t *testing.T) {
+		t.Parallel()
+		pool := setupPool()
+
+		tx := newTx(defaultAddr, 0, 1)
+		tx.To = nil
+
+		assert.NoError(t, pool.validateTx(signTx(tx)))
+	})
+	t.Run("Addresses inside whitelist can deploy smart contract", func(t *testing.T) {
+		t.Parallel()
+		pool := setupPool()
+		pool.deploymentWhitelist.add(addr1)
+		pool.deploymentWhitelist.add(defaultAddr)
+
+		tx := newTx(defaultAddr, 0, 1)
+		tx.To = nil
+
+		assert.NoError(t, pool.validateTx(signTx(tx)))
+	})
+	t.Run("Addresses outside whitelist can not deploy smart contract", func(t *testing.T) {
+		t.Parallel()
+		pool := setupPool()
+		pool.deploymentWhitelist.add(addr1)
+		pool.deploymentWhitelist.add(addr2)
+
+		tx := newTx(defaultAddr, 0, 1)
+		tx.To = nil
+
+		assert.ErrorIs(t,
+			pool.validateTx(signTx(tx)),
+			ErrSmartContractRestricted,
+		)
+	})
 }
 
 /* "Integrated" tests */
@@ -1380,66 +1773,6 @@ func (e *eoa) signTx(tx *types.Transaction, signer crypto.TxSigner) *types.Trans
 
 var signerEIP155 = crypto.NewEIP155Signer(100)
 
-func TestAddTxns(t *testing.T) {
-	slotSize := uint64(1)
-
-	testTable := []*struct {
-		name   string
-		numTxs uint64
-	}{
-		{
-			"send 100 txns",
-			100,
-		},
-		{
-			"send 1k txns",
-			1000,
-		},
-		{
-			"send 10k txns",
-			10000,
-		},
-		{
-			"send 100k txns",
-			100000,
-		},
-		{
-			"send 1m txns",
-			1000000,
-		},
-	}
-
-	for _, test := range testTable {
-		t.Run(test.name, func(t *testing.T) {
-			pool, err := newTestPoolWithSlots(test.numTxs * slotSize)
-
-			assert.NoError(t, err)
-
-			pool.SetSigner(&mockSigner{})
-
-			pool.Start()
-			defer pool.Close()
-
-			subscription := pool.eventManager.subscribe([]proto.EventType{proto.EventType_PROMOTED})
-
-			addr := types.Address{0x1}
-			for nonce := uint64(0); nonce < test.numTxs; nonce++ {
-				err := pool.addTx(local, newTx(addr, nonce, slotSize))
-				assert.NoError(t, err)
-			}
-
-			ctx, cancelFunc := context.WithTimeout(context.Background(), time.Second*20)
-			defer cancelFunc()
-
-			waitForEvents(ctx, subscription, int(test.numTxs))
-
-			assert.Equal(t, test.numTxs, pool.accounts.get(addr).promoted.length())
-
-			assert.Equal(t, test.numTxs*slotSize, pool.gauge.read())
-		})
-	}
-}
-
 func TestResetAccounts_Promoted(t *testing.T) {
 	t.Parallel()
 
@@ -1463,17 +1796,20 @@ func TestResetAccounts_Promoted(t *testing.T) {
 				eoa1.signTx(newTx(addr1, 2, 1), signerEIP155), // will be pruned
 				eoa1.signTx(newTx(addr1, 3, 1), signerEIP155), // will be pruned
 			},
+
 			addr2: {
 				eoa2.signTx(newTx(addr2, 0, 1), signerEIP155), // will be pruned
 				eoa2.signTx(newTx(addr2, 1, 1), signerEIP155), // will be pruned
 			},
+
 			addr3: {
 				eoa3.signTx(newTx(addr3, 0, 1), signerEIP155), // will be pruned
 				eoa3.signTx(newTx(addr3, 1, 1), signerEIP155), // will be pruned
 				eoa3.signTx(newTx(addr3, 2, 1), signerEIP155), // will be pruned
 			},
+
 			addr4: {
-				//	all txs will be pruned
+				// all txs will be pruned
 				eoa4.signTx(newTx(addr4, 0, 1), signerEIP155), // will be pruned
 				eoa4.signTx(newTx(addr4, 1, 1), signerEIP155), // will be pruned
 				eoa4.signTx(newTx(addr4, 2, 1), signerEIP155), // will be pruned
@@ -1768,7 +2104,7 @@ func TestExecutablesOrder(t *testing.T) {
 		return tx
 	}
 
-	testCases := []*struct {
+	testCases := []struct {
 		name               string
 		allTxs             map[types.Address][]*types.Transaction
 		expectedPriceOrder []uint64
@@ -1857,6 +2193,7 @@ func TestExecutablesOrder(t *testing.T) {
 	}
 
 	for _, test := range testCases {
+		test := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -1889,12 +2226,12 @@ func TestExecutablesOrder(t *testing.T) {
 
 			var successful []*types.Transaction
 			for {
-				tx := pool.Pop()
+				tx := pool.Peek()
 				if tx == nil {
 					break
 				}
 
-				pool.RemoveExecuted(tx)
+				pool.Pop(tx)
 				successful = append(successful, tx)
 			}
 
@@ -1907,71 +2244,54 @@ func TestExecutablesOrder(t *testing.T) {
 	}
 }
 
-func TestDropAndRequeue(t *testing.T) {
+type status int
+
+// Status of a transaction resulted
+// from a transition write attempt
+const (
+	// if a tx is recoverable,
+	// account is excluded from
+	// further processing
+	recoverable status = iota
+
+	// if a tx is unrecoverable,
+	// entire account is dropped
+	unrecoverable
+
+	ok
+)
+
+type statusTx struct {
+	tx     *types.Transaction
+	status status
+}
+
+func TestRecovery(t *testing.T) {
 	t.Parallel()
 
-	type status int
-
-	// Status of a transaction resulted
-	// from a transition write attempt
-	const (
-		// if a tx is recoverable,
-		// entire account is dropped,
-		// the transactions behind it
-		// is not executable
-		recoverable status = iota
-
-		// if a tx is unrecoverable,
-		// entire account is dropped
-		unrecoverable
-
-		// if a tx is failed,
-		// remove it only, but the other
-		// txs would be demote if not
-		// promotable
-		failed
-
-		ok
-	)
-
-	type statusTx struct {
-		tx     *types.Transaction
-		status status
-	}
-
-	type testCase struct {
-		name               string
-		allTxs             map[types.Address][]statusTx
-		executableTxsCount uint64
-		expected           result
-	}
-
-	commonAssert := func(test *testCase, pool *TxPool) {
-		accounts := test.expected.accounts
+	commonAssert := func(accounts map[types.Address]accountState, pool *TxPool) {
 		for addr := range accounts {
 			assert.Equal(t, // nextNonce
 				accounts[addr].nextNonce,
-				pool.accounts.get(addr).getNonce(),
-				fmt.Sprintf("%+v: %s nonce not equal", test.name, addr),
-			)
+				pool.accounts.get(addr).getNonce())
 
 			assert.Equal(t, // enqueued
 				accounts[addr].enqueued,
-				pool.accounts.get(addr).enqueued.length(),
-				fmt.Sprintf("%+v: %s enqueued not equal", test.name, addr),
-			)
+				pool.accounts.get(addr).enqueued.length())
 
 			assert.Equal(t, // promoted
 				accounts[addr].promoted,
-				pool.accounts.get(addr).promoted.length(),
-				fmt.Sprintf("%+v: %s promoted not equal", test.name, addr),
-			)
+				pool.accounts.get(addr).promoted.length())
 		}
 	}
 
-	testCases := []*testCase{
+	testCases := []struct {
+		name     string
+		allTxs   map[types.Address][]statusTx
+		expected result
+	}{
 		{
-			name: "unrecoverable and recoverable all drops account",
+			name: "unrecoverable drops account",
 			allTxs: map[types.Address][]statusTx{
 				addr1: {
 					{newTx(addr1, 0, 1), ok},
@@ -1980,64 +2300,69 @@ func TestDropAndRequeue(t *testing.T) {
 					{newTx(addr1, 3, 1), recoverable},
 					{newTx(addr1, 4, 1), recoverable},
 				},
+
 				addr2: {
 					{newTx(addr2, 9, 1), unrecoverable},
-					{newTx(addr2, 10, 1), ok},
+					{newTx(addr2, 10, 1), recoverable},
 				},
+
 				addr3: {
 					{newTx(addr3, 5, 1), ok},
 					{newTx(addr3, 6, 1), recoverable},
-					{newTx(addr3, 7, 1), ok},
+					{newTx(addr3, 7, 1), recoverable},
+					{newTx(addr3, 8, 1), recoverable},
 				},
 			},
-			executableTxsCount: 1 + 1, // addr1 + addr3
 			expected: result{
-				slots: 0, // all executed
+				slots: 3, // addr3
 				accounts: map[types.Address]accountState{
 					addr1: {
 						enqueued:  0,
 						promoted:  0,
 						nextNonce: 1,
 					},
+
 					addr2: {
 						enqueued:  0,
 						promoted:  0,
 						nextNonce: 9,
 					},
+
 					addr3: {
 						enqueued:  0,
-						promoted:  0,
-						nextNonce: 6,
+						promoted:  3,
+						nextNonce: 9,
 					},
 				},
 			},
 		},
 		{
-			name: "failed tx account is dropped",
+			name: "recoverable remains in account",
 			allTxs: map[types.Address][]statusTx{
 				addr1: {
 					{newTx(addr1, 0, 1), ok},
 					{newTx(addr1, 1, 1), ok},
-					{newTx(addr1, 2, 1), failed},
+					{newTx(addr1, 2, 1), ok},
+					{newTx(addr1, 3, 1), recoverable},
+					{newTx(addr1, 4, 1), recoverable},
 				},
 				addr2: {
-					{newTx(addr2, 9, 1), failed},
-					{newTx(addr2, 10, 1), ok},
+					{newTx(addr2, 9, 1), recoverable},
+					{newTx(addr2, 10, 1), recoverable},
 				},
 			},
-			executableTxsCount: 2, // all from addr1
 			expected: result{
-				slots: 0,
+				slots: 4,
 				accounts: map[types.Address]accountState{
 					addr1: {
 						enqueued:  0,
-						promoted:  0,
-						nextNonce: 2,
+						promoted:  2,
+						nextNonce: 5,
 					},
 					addr2: {
 						enqueued:  0,
-						promoted:  0,
-						nextNonce: 9,
+						promoted:  2,
+						nextNonce: 11,
 					},
 				},
 			},
@@ -2045,6 +2370,7 @@ func TestDropAndRequeue(t *testing.T) {
 	}
 
 	for _, test := range testCases {
+		test := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -2068,17 +2394,19 @@ func TestDropAndRequeue(t *testing.T) {
 			pool.Start()
 			defer pool.Close()
 
-			promotionSubscription := pool.eventManager.subscribe([]proto.EventType{proto.EventType_PROMOTED})
+			promoteSubscription := pool.eventManager.subscribe(
+				[]proto.EventType{proto.EventType_PROMOTED},
+			)
 
 			// setup prestate
 			totalTx := 0
-			expectedReenqueued := 0
+			expectedEnqueued := uint64(0)
 			for addr, txs := range test.allTxs {
 				// preset nonce so promotions can happen
 				acc := pool.createAccountOnce(addr)
 				acc.setNonce(txs[0].tx.Nonce)
 
-				expectedReenqueued += int(test.expected.accounts[addr].enqueued)
+				expectedEnqueued += test.expected.accounts[addr].enqueued
 
 				// send txs
 				for _, sTx := range txs {
@@ -2087,43 +2415,33 @@ func TestDropAndRequeue(t *testing.T) {
 				}
 			}
 
-			// wait for all promotion
 			ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*10)
 			defer cancelFn()
 
 			// All txns should get added
-			assert.Len(
-				t,
-				waitForEvents(ctx, promotionSubscription, totalTx),
-				totalTx,
-			)
+			assert.Len(t, waitForEvents(ctx, promoteSubscription, totalTx), totalTx)
 
-			var executableTxsCount uint64
 			func() {
 				pool.Prepare()
 				for {
-					tx := pool.Pop()
+					tx := pool.Peek()
 					if tx == nil {
 						break
 					}
 
 					switch status(tx) {
 					case recoverable:
-						pool.Drop(tx)
+						pool.Demote(tx)
 					case unrecoverable:
 						pool.Drop(tx)
 					case ok:
-						executableTxsCount++
-						pool.RemoveExecuted(tx)
-					case failed:
-						pool.Drop(tx)
+						pool.Pop(tx)
 					}
 				}
 			}()
 
-			assert.Equal(t, test.executableTxsCount, executableTxsCount, "executable transaction count")
-			assert.Equal(t, test.expected.slots, pool.gauge.read(), "gauge not equal")
-			commonAssert(test, pool)
+			assert.Equal(t, test.expected.slots, pool.gauge.read())
+			commonAssert(test.expected.accounts, pool)
 		})
 	}
 }
@@ -2141,7 +2459,7 @@ func TestGetTxs(t *testing.T) {
 		addr3 = eoa3.Address
 	)
 
-	testCases := []*struct {
+	testCases := []struct {
 		name             string
 		allTxs           map[types.Address][]*types.Transaction
 		expectedEnqueued map[types.Address][]*types.Transaction
@@ -2155,11 +2473,13 @@ func TestGetTxs(t *testing.T) {
 					eoa1.signTx(newTx(addr1, 1, 1), signerEIP155),
 					eoa1.signTx(newTx(addr1, 2, 1), signerEIP155),
 				},
+
 				addr2: {
 					eoa2.signTx(newTx(addr2, 0, 1), signerEIP155),
 					eoa2.signTx(newTx(addr2, 1, 1), signerEIP155),
 					eoa2.signTx(newTx(addr2, 2, 1), signerEIP155),
 				},
+
 				addr3: {
 					eoa3.signTx(newTx(addr3, 0, 1), signerEIP155),
 					eoa3.signTx(newTx(addr3, 1, 1), signerEIP155),
@@ -2172,11 +2492,13 @@ func TestGetTxs(t *testing.T) {
 					eoa1.signTx(newTx(addr1, 1, 1), signerEIP155),
 					eoa1.signTx(newTx(addr1, 2, 1), signerEIP155),
 				},
+
 				addr2: {
 					eoa2.signTx(newTx(addr2, 0, 1), signerEIP155),
 					eoa2.signTx(newTx(addr2, 1, 1), signerEIP155),
 					eoa2.signTx(newTx(addr2, 2, 1), signerEIP155),
 				},
+
 				addr3: {
 					eoa3.signTx(newTx(addr3, 0, 1), signerEIP155),
 					eoa3.signTx(newTx(addr3, 1, 1), signerEIP155),
@@ -2196,19 +2518,23 @@ func TestGetTxs(t *testing.T) {
 					eoa1.signTx(newTx(addr1, 11, 1), signerEIP155),
 					eoa1.signTx(newTx(addr1, 12, 1), signerEIP155),
 				},
+
 				addr2: {
 					eoa2.signTx(newTx(addr2, 0, 1), signerEIP155),
 					eoa2.signTx(newTx(addr2, 1, 1), signerEIP155),
 					eoa2.signTx(newTx(addr2, 2, 1), signerEIP155),
+
 					// enqueued
 					eoa2.signTx(newTx(addr2, 10, 1), signerEIP155),
 					eoa2.signTx(newTx(addr2, 11, 1), signerEIP155),
 					eoa2.signTx(newTx(addr2, 12, 1), signerEIP155),
 				},
+
 				addr3: {
 					eoa3.signTx(newTx(addr3, 0, 1), signerEIP155),
 					eoa3.signTx(newTx(addr3, 1, 1), signerEIP155),
 					eoa3.signTx(newTx(addr3, 2, 1), signerEIP155),
+
 					// enqueued
 					eoa3.signTx(newTx(addr3, 10, 1), signerEIP155),
 					eoa3.signTx(newTx(addr3, 11, 1), signerEIP155),
@@ -2221,11 +2547,13 @@ func TestGetTxs(t *testing.T) {
 					eoa1.signTx(newTx(addr1, 1, 1), signerEIP155),
 					eoa1.signTx(newTx(addr1, 2, 1), signerEIP155),
 				},
+
 				addr2: {
 					eoa2.signTx(newTx(addr2, 0, 1), signerEIP155),
 					eoa2.signTx(newTx(addr2, 1, 1), signerEIP155),
 					eoa2.signTx(newTx(addr2, 2, 1), signerEIP155),
 				},
+
 				addr3: {
 					eoa3.signTx(newTx(addr3, 0, 1), signerEIP155),
 					eoa3.signTx(newTx(addr3, 1, 1), signerEIP155),
@@ -2238,11 +2566,13 @@ func TestGetTxs(t *testing.T) {
 					eoa1.signTx(newTx(addr1, 11, 1), signerEIP155),
 					eoa1.signTx(newTx(addr1, 12, 1), signerEIP155),
 				},
+
 				addr2: {
 					eoa2.signTx(newTx(addr2, 10, 1), signerEIP155),
 					eoa2.signTx(newTx(addr2, 11, 1), signerEIP155),
 					eoa2.signTx(newTx(addr2, 12, 1), signerEIP155),
 				},
+
 				addr3: {
 					eoa3.signTx(newTx(addr3, 10, 1), signerEIP155),
 					eoa3.signTx(newTx(addr3, 11, 1), signerEIP155),
@@ -2253,6 +2583,7 @@ func TestGetTxs(t *testing.T) {
 	}
 
 	for _, test := range testCases {
+		test := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -2338,119 +2669,6 @@ func TestGetTxs(t *testing.T) {
 					assert.True(t, found)
 				}
 			}
-		})
-	}
-}
-
-func TestAddTx_ReplaceSameNonce(t *testing.T) {
-	var (
-		eoa  = new(eoa).create(t)
-		addr = eoa.Address
-		// price
-		lowPrice  = big.NewInt(int64(defaultPriceLimit))
-		midPrice  = big.NewInt(0).Mul(lowPrice, big.NewInt(2))
-		highPrice = big.NewInt(0).Mul(lowPrice, big.NewInt(3))
-		// normal txs
-		tx0 = eoa.signTx(newTx(addr, 0, 1), signerEIP155)
-		// same nonce txs
-		tx1_1 = eoa.signTx(newPriceTx(addr, lowPrice, 1, 1), signerEIP155)
-		tx1_2 = eoa.signTx(newPriceTx(addr, midPrice, 1, 1), signerEIP155)
-		tx2_1 = eoa.signTx(newPriceTx(addr, lowPrice, 2, 1), signerEIP155)
-		tx2_2 = eoa.signTx(newPriceTx(addr, midPrice, 2, 1), signerEIP155)
-		tx3_1 = eoa.signTx(newPriceTx(addr, lowPrice, 3, 1), signerEIP155)
-		tx3_2 = eoa.signTx(newPriceTx(addr, midPrice, 3, 1), signerEIP155)
-		tx3_3 = eoa.signTx(newPriceTx(addr, highPrice, 3, 1), signerEIP155)
-	)
-
-	testCases := []struct {
-		name                  string
-		allTxs                []*types.Transaction
-		expectedEnqueued      []*types.Transaction
-		expectedPromoted      []*types.Transaction
-		expectedPromotedCount int
-		expectedReplacedCount int
-	}{
-		{
-			name: "replace same nonce tx in enqueued list",
-			allTxs: []*types.Transaction{
-				tx1_1,
-				tx1_2,
-				tx2_1,
-				tx2_2,
-				tx3_1,
-				tx3_2,
-				tx3_3,
-			},
-			expectedEnqueued: []*types.Transaction{
-				tx1_2,
-				tx2_2,
-				tx3_3,
-			},
-			expectedReplacedCount: 4,
-		},
-		{
-			name: "replace same nonce tx in promoted list",
-			allTxs: []*types.Transaction{
-				tx0,
-				tx1_1,
-				tx1_2,
-				tx2_1,
-				tx2_2,
-				tx3_1,
-				tx3_2,
-				tx3_3,
-			},
-			expectedPromoted: []*types.Transaction{
-				tx0,
-				tx1_2,
-				tx2_2,
-				tx3_3,
-			},
-			expectedPromotedCount: 8,
-			expectedReplacedCount: 4,
-		},
-	}
-
-	for _, test := range testCases {
-		test := test
-
-		t.Run(test.name, func(t *testing.T) {
-			pool, err := newTestPool()
-			assert.NoError(t, err)
-			pool.SetSigner(signerEIP155)
-
-			pool.Start()
-			defer pool.Close()
-
-			var eventSubscription = pool.eventManager.subscribe(
-				[]proto.EventType{
-					proto.EventType_PROMOTED,
-					proto.EventType_REPLACED,
-				},
-			)
-
-			// send txs in a goroutine, to avoid hanging event subscriptions.
-			go func() {
-				for _, tx := range test.allTxs {
-					assert.NoError(t, pool.addTx(local, tx))
-				}
-			}()
-
-			// Wait for promoted transactions
-			ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*10)
-			defer cancelFn()
-
-			expectedEventCount := test.expectedPromotedCount + test.expectedReplacedCount
-			// the events might be emitted too soon in the rpc node, so do not rely on it
-			waitForEvents(ctx, eventSubscription, expectedEventCount)
-
-			allPromoted, allEnqueued := pool.GetTxs(true)
-
-			// assert promoted
-			assert.Equal(t, test.expectedPromoted, allPromoted[addr])
-
-			// assert enqueued
-			assert.Equal(t, test.expectedEnqueued, allEnqueued[addr])
 		})
 	}
 }
