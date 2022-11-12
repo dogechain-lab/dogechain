@@ -108,8 +108,8 @@ func (t *Txn) Hash() ([]byte, error) {
 
 			root = h.hash.Sum(nil)
 
-			if t.batch != nil {
-				t.batch.Set(root, val.Raw())
+			if t.state != nil && t.state.ExistTransaction() {
+				t.state.Set(root, val.Raw())
 			}
 		} else {
 			root = make([]byte, 32)
@@ -122,8 +122,8 @@ func (t *Txn) Hash() ([]byte, error) {
 
 		root = h.hash.Sum(nil)
 
-		if t.batch != nil {
-			t.batch.Set(root, tmp)
+		if t.state != nil && t.state.ExistTransaction() {
+			t.state.Set(root, tmp)
 		}
 	}
 
@@ -194,8 +194,8 @@ func (t *Txn) hash(node Node, h *hasher, a *fastrlp.Arena, d int) *fastrlp.Value
 	hh := node.SetHash(tmp)
 
 	// Write data
-	if t.batch != nil {
-		t.batch.Set(tmp, h.buf)
+	if t.state != nil && t.state.ExistTransaction() {
+		t.state.Set(tmp, h.buf)
 	}
 
 	return a.NewCopyBytes(hh)

@@ -105,7 +105,7 @@ func NewTestBlockchain(t *testing.T, headers []*types.Header) *Blockchain {
 		},
 	}
 
-	st := itrie.NewState(itrie.NewMemoryStorage(), nil)
+	st := itrie.NewState(itrie.NewMemoryStorage(), hclog.NewNullLogger())
 	b, err := newBlockChain(config, state.NewExecutor(config.Params, st, hclog.NewNullLogger()))
 
 	if err != nil {

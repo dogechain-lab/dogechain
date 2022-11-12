@@ -221,7 +221,7 @@ func NewServer(config *Config) (*Server, error) {
 
 	m.stateStorage = stateStorage
 
-	st := itrie.NewState(stateStorage, m.serverMetrics.trie)
+	st := itrie.NewState(stateStorage, logger)
 	m.state = st
 
 	m.executor = state.NewExecutor(config.Chain.Params, st, logger)

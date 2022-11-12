@@ -90,10 +90,9 @@ func (f *FullNode) getEdge(idx byte) Node {
 }
 
 type Trie struct {
-	state   *State
-	root    Node
-	epoch   uint32
-	storage Storage
+	state State
+	root  Node
+	epoch uint32
 }
 
 func NewTrie() *Trie {
@@ -119,89 +118,84 @@ var accountArenaPool fastrlp.ArenaPool
 var stateArenaPool fastrlp.ArenaPool // TODO, Remove once we do update in fastrlp
 
 func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte) {
+	var root []byte = nil
+	var nTrie *Trie = nil
+
 	// Create an insertion batch for all the entries
-	batch := t.storage.Batch()
+	t.state.ExclusiveTransaction(func(st StateTransaction) {
+		defer st.Cancel()
 
-	tt := t.Txn()
-	tt.batch = batch
+		tt := t.Txn()
 
-	arena := accountArenaPool.Get()
-	defer accountArenaPool.Put(arena)
+		arena := accountArenaPool.Get()
+		defer accountArenaPool.Put(arena)
 
-	ar1 := stateArenaPool.Get()
-	defer stateArenaPool.Put(ar1)
+		ar1 := stateArenaPool.Get()
+		defer stateArenaPool.Put(ar1)
 
-	for _, obj := range objs {
-		if obj.Deleted {
-			tt.Delete(hashit(obj.Address.Bytes()))
-		} else {
-			account := state.Account{
-				Balance:  obj.Balance,
-				Nonce:    obj.Nonce,
-				CodeHash: obj.CodeHash.Bytes(),
-				Root:     obj.Root, // old root
-			}
-
-			if len(obj.Storage) != 0 {
-				localSnapshot, err := t.state.NewSnapshotAt(obj.Root)
-				if err != nil {
-					panic(err)
+		for _, obj := range objs {
+			if obj.Deleted {
+				tt.Delete(hashit(obj.Address.Bytes()))
+			} else {
+				account := state.Account{
+					Balance:  obj.Balance,
+					Nonce:    obj.Nonce,
+					CodeHash: obj.CodeHash.Bytes(),
+					Root:     obj.Root, // old root
 				}
 
-				trie, ok := localSnapshot.(*Trie)
-				if !ok {
-					panic("invalid type assertion")
-				}
-
-				localTxn := trie.Txn()
-				localTxn.batch = batch
-
-				for _, entry := range obj.Storage {
-					k := hashit(entry.Key)
-					if entry.Deleted {
-						localTxn.Delete(k)
-					} else {
-						vv := ar1.NewBytes(bytes.TrimLeft(entry.Val, "\x00"))
-						localTxn.Insert(k, vv.MarshalTo(nil))
+				if len(obj.Storage) != 0 {
+					localSnapshot, err := t.state.NewSnapshotAt(obj.Root)
+					if err != nil {
+						panic(err)
 					}
+
+					trie, ok := localSnapshot.(*Trie)
+					if !ok {
+						panic("invalid type assertion")
+					}
+
+					localTxn := trie.Txn()
+
+					for _, entry := range obj.Storage {
+						k := hashit(entry.Key)
+						if entry.Deleted {
+							localTxn.Delete(k)
+						} else {
+							vv := ar1.NewBytes(bytes.TrimLeft(entry.Val, "\x00"))
+							localTxn.Insert(k, vv.MarshalTo(nil))
+						}
+					}
+
+					accountStateRoot, _ := localTxn.Hash()
+					account.Root = types.BytesToHash(accountStateRoot)
 				}
 
-				accountStateRoot, _ := localTxn.Hash()
-				accountStateTrie := localTxn.Commit()
+				if obj.DirtyCode {
+					// TODO, we need to handle error here
+					_ = t.state.SetCode(obj.CodeHash, obj.Code)
+				}
 
-				// Add this to the cache
-				t.state.AddAccountState(types.BytesToHash(accountStateRoot), accountStateTrie)
+				vv := account.MarshalWith(arena)
+				data := vv.MarshalTo(nil)
 
-				account.Root = types.BytesToHash(accountStateRoot)
+				tt.Insert(hashit(obj.Address.Bytes()), data)
+				arena.Reset()
 			}
-
-			if obj.DirtyCode {
-				// TODO, we need to handle error here
-				_ = t.state.SetCode(obj.CodeHash, obj.Code)
-			}
-
-			vv := account.MarshalWith(arena)
-			data := vv.MarshalTo(nil)
-
-			tt.Insert(hashit(obj.Address.Bytes()), data)
-			arena.Reset()
 		}
-	}
 
-	root, _ := tt.Hash()
+		root, _ = tt.Hash()
 
-	nTrie := tt.Commit()
-	nTrie.state = t.state
-	nTrie.storage = t.storage
+		nTrie = tt.Commit()
+		nTrie.state = t.state
 
-	// Write all the entries to db
-	// TODO, need to handle error
-	err := batch.Write()
-	if err != nil {
-		panic(err)
-	}
-
-	t.state.AddTrieState(types.BytesToHash(root), nTrie)
+		// Commit all the entries to db
+		// TODO, need to handle error
+		err := st.Commit()
+		if err != nil {
+			panic(err)
+		}
+	})
 
 	return nTrie, root
 }
@@ -245,22 +239,17 @@ func (t *Trie) hashRoot() ([]byte, Node, error) {
 }
 
 func (t *Trie) Txn() *Txn {
-	return &Txn{root: t.root, epoch: t.epoch + 1, storage: t.storage}
-}
-
-type Putter interface {
-	Set(k, v []byte)
+	return &Txn{root: t.root, epoch: t.epoch + 1, state: t.state}
 }
 
 type Txn struct {
-	root    Node
-	epoch   uint32
-	storage Storage
-	batch   Putter
+	root  Node
+	epoch uint32
+	state State
 }
 
 func (t *Txn) Commit() *Trie {
-	return &Trie{epoch: t.epoch, root: t.root, storage: t.storage}
+	return &Trie{epoch: t.epoch, root: t.root, state: t.state}
 }
 
 func (t *Txn) Lookup(key []byte) []byte {
@@ -276,7 +265,7 @@ func (t *Txn) lookup(node interface{}, key []byte) (Node, []byte) {
 
 	case *ValueNode:
 		if n.hash {
-			nc, ok, err := GetNode(n.buf, t.storage)
+			nc, ok, err := GetNode(n.buf, t.state)
 			if err != nil {
 				panic(err)
 			}
@@ -368,7 +357,7 @@ func (t *Txn) insert(node Node, search, value []byte) Node {
 
 	case *ValueNode:
 		if n.hash {
-			nc, ok, err := GetNode(n.buf, t.storage)
+			nc, ok, err := GetNode(n.buf, t.state)
 			if err != nil {
 				panic(err)
 			}
@@ -487,7 +476,7 @@ func (t *Txn) delete(node Node, search []byte) (Node, bool) {
 
 	case *ValueNode:
 		if n.hash {
-			nc, ok, err := GetNode(n.buf, t.storage)
+			nc, ok, err := GetNode(n.buf, t.state)
 			if err != nil {
 				panic(err)
 			}
@@ -560,7 +549,7 @@ func (t *Txn) delete(node Node, search []byte) (Node, bool) {
 		if vv, ok := nc.(*ValueNode); ok && vv.hash {
 			// If the value is a hash, we have to resolve it first.
 			// This needs better testing
-			aux, ok, err := GetNode(vv.buf, t.storage)
+			aux, ok, err := GetNode(vv.buf, t.state)
 			if err != nil {
 				panic(err)
 			}
