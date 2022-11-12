@@ -335,23 +335,23 @@ func (e *Eth) GetTransactionReceipt(hash types.Hash) (interface{}, error) {
 		return nil, nil
 	}
 	// find the transaction in the body
-	indx := -1
+	txIndex := -1
 
 	for i, txn := range block.Transactions {
 		if txn.Hash() == hash {
-			indx = i
+			txIndex = i
 
 			break
 		}
 	}
 
-	if indx == -1 {
+	if txIndex == -1 {
 		// txn not found
 		return nil, nil
 	}
 
-	txn := block.Transactions[indx]
-	raw := receipts[indx]
+	txn := block.Transactions[txIndex]
+	raw := receipts[txIndex]
 
 	logs := make([]*Log, len(raw.Logs))
 	for indx, elem := range raw.Logs {
@@ -362,7 +362,7 @@ func (e *Eth) GetTransactionReceipt(hash types.Hash) (interface{}, error) {
 			BlockHash:   block.Hash(),
 			BlockNumber: argUint64(block.Number()),
 			TxHash:      txn.Hash(),
-			TxIndex:     argUint64(indx),
+			TxIndex:     argUint64(txIndex),
 			LogIndex:    argUint64(indx),
 			Removed:     false,
 		}
@@ -374,7 +374,7 @@ func (e *Eth) GetTransactionReceipt(hash types.Hash) (interface{}, error) {
 		LogsBloom:         raw.LogsBloom,
 		Status:            argUint64(*raw.Status),
 		TxHash:            txn.Hash(),
-		TxIndex:           argUint64(indx),
+		TxIndex:           argUint64(txIndex),
 		BlockHash:         block.Hash(),
 		BlockNumber:       argUint64(block.Number()),
 		GasUsed:           argUint64(raw.GasUsed),
