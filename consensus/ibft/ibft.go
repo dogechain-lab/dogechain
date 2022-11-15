@@ -708,47 +708,12 @@ func (i *Ibft) buildBlock(snap *Snapshot, parent *types.Header) (*types.Block, e
 
 	// insert system transactions at last to ensure it works
 	if i.shouldWriteSystemTransactions(header.Number) {
-		txn := transition.Txn()
-
-		// make slash tx if needed
-		if i.currentRound() > 0 {
-			// only punish the first validator
-			lastBlockProposer, _ := ecrecoverFromHeader(parent)
-
-			needPunished := i.state.CalcNeedPunished(i.currentRound(), lastBlockProposer)
-			if len(needPunished) > 0 {
-				tx, err := i.makeTransitionSlashTx(txn, header.Number, needPunished[0])
-				if err != nil {
-					return nil, err
-				}
-
-				// system transaction, increase gas limit if needed
-				increaseHeaderGasIfNeeded(transition, header, tx)
-
-				// execute slash tx
-				if err := transition.Write(tx); err != nil {
-					return nil, err
-				}
-
-				txs = append(txs, tx)
-			}
-		}
-
-		// make deposit tx
-		tx, err := i.makeTransitionDepositTx(transition.Txn(), header.Number)
+		systemTxs, err := i.writeSystemTxs(transition, parent, header)
 		if err != nil {
 			return nil, err
 		}
 
-		// system transaction, increase gas limit if needed
-		increaseHeaderGasIfNeeded(transition, header, tx)
-
-		// execute deposit tx
-		if err := transition.Write(tx); err != nil {
-			return nil, err
-		}
-
-		txs = append(txs, tx)
+		txs = append(txs, systemTxs...)
 	}
 
 	if err := i.PreStateCommit(header, transition); err != nil {
@@ -796,6 +761,84 @@ func (i *Ibft) buildBlock(snap *Snapshot, parent *types.Header) (*types.Block, e
 	)
 
 	return block, nil
+}
+
+func (i *Ibft) writeSystemSlashTx(
+	transition *state.Transition,
+	parent, header *types.Header,
+) (*types.Transaction, error) {
+	if i.currentRound() == 0 {
+		// no need slashing
+		return nil, nil
+	}
+
+	// only punish the first validator
+	lastBlockProposer, _ := ecrecoverFromHeader(parent)
+
+	needPunished := i.state.CalcNeedPunished(i.currentRound(), lastBlockProposer)
+	if len(needPunished) == 0 {
+		// it shouldn't be, but we still need to prevent overwhelming
+		return nil, nil
+	}
+
+	tx, err := i.makeTransitionSlashTx(transition.Txn(), header.Number, needPunished[0])
+	if err != nil {
+		return nil, err
+	}
+
+	// system transaction, increase gas limit if needed
+	increaseHeaderGasIfNeeded(transition, header, tx)
+
+	// execute slash tx
+	if err := transition.Write(tx); err != nil {
+		return nil, err
+	}
+
+	return tx, nil
+}
+
+func (i *Ibft) writeSystemDepositTx(
+	transition *state.Transition,
+	header *types.Header,
+) (*types.Transaction, error) {
+	// make deposit tx
+	tx, err := i.makeTransitionDepositTx(transition.Txn(), header.Number)
+	if err != nil {
+		return nil, err
+	}
+
+	// system transaction, increase gas limit if needed
+	increaseHeaderGasIfNeeded(transition, header, tx)
+
+	// execute deposit tx
+	if err := transition.Write(tx); err != nil {
+		return nil, err
+	}
+
+	return tx, nil
+}
+
+func (i *Ibft) writeSystemTxs(
+	transition *state.Transition,
+	parent, header *types.Header,
+) (txs []*types.Transaction, err error) {
+	// slash transaction
+	slashTx, err := i.writeSystemSlashTx(transition, parent, header)
+	if err != nil {
+		return nil, err
+	} else if slashTx != nil {
+		txs = append(txs, slashTx)
+	}
+
+	// deposit transaction
+	depositTx, err := i.writeSystemDepositTx(transition, header)
+	if err != nil {
+		return nil, err
+	}
+
+	txs = append(txs, depositTx)
+
+	return txs, nil
 }
 
 func increaseHeaderGasIfNeeded(transition *state.Transition, header *types.Header, tx *types.Transaction) {
