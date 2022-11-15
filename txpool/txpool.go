@@ -26,8 +26,9 @@ const (
 )
 
 const (
-	_ddosReduceCount    = 10               // contract ddos count reduction
-	_ddosReduceDuration = 10 * time.Minute // trigger for ddos count reduction
+	_ddosThreshold      = 3               // >= 3/minute is a ddos attack
+	_ddosReduceCount    = 5               // contract ddos count reduction
+	_ddosReduceDuration = 1 * time.Minute // trigger for ddos count reduction
 )
 
 // errors
@@ -192,10 +193,10 @@ type TxPool struct {
 
 	// some very bad guys whose txs should never be included
 	blacklist map[types.Address]struct{}
-	// drop all those ddos contract transactions
-	ddosPretection      bool
-	ddosReductionTicker *time.Ticker
-	ddosContracts       sync.Map
+	// ddos protection fields
+	ddosPretection      bool         // enable ddos protection
+	ddosReductionTicker *time.Ticker // ddos reduction ticker for releasing from imprisonment
+	ddosContracts       sync.Map     // ddos contract caching
 }
 
 // NewTxPool returns a new pool for processing incoming transactions.
@@ -327,6 +328,7 @@ func (p *TxPool) Start() {
 
 // Close shuts down the pool's main loop.
 func (p *TxPool) Close() {
+	p.ddosReductionTicker.Stop()
 	p.pruneAccountTicker.Stop()
 	p.eventManager.Close()
 	// stop
@@ -532,9 +534,6 @@ func (p *TxPool) ResetWithHeaders(headers ...*types.Header) {
 	// process the txs in the event
 	// to make sure the pool is up-to-date
 	p.processEvent(e)
-
-	// reduce ddos count
-	p.reduceDDOSCounts()
 }
 
 // processEvent collects the latest nonces for each account containted
@@ -687,6 +686,7 @@ func (p *TxPool) validateTx(tx *types.Transaction) error {
 	return nil
 }
 
+// IsDDOSTx returns whether a contract transaction marks as ddos attack
 func (p *TxPool) IsDDOSTx(tx *types.Transaction) bool {
 	if !p.ddosPretection || tx.To == nil {
 		return false
@@ -694,22 +694,24 @@ func (p *TxPool) IsDDOSTx(tx *types.Transaction) bool {
 
 	count, exists := p.ddosContracts.Load(*tx.To)
 	//nolint:forcetypeassert
-	if exists && count.(int) > 0 {
+	if exists && count.(int) > _ddosThreshold {
 		return true
 	}
 
 	return false
 }
 
-func (p *TxPool) MarkDDOSTx(tx *types.Transaction, count int) {
+// MarkDDOSTx marks resource consuming transaction as a might-be attack
+func (p *TxPool) MarkDDOSTx(tx *types.Transaction) {
 	if !p.ddosPretection || tx.To == nil {
 		return
 	}
 
 	// update its ddos count
-	old, _ := p.ddosContracts.Load(*tx.To)
-	oldCount, _ := old.(int)
-	p.ddosContracts.Store(*tx.To, oldCount+count)
+	v, _ := p.ddosContracts.Load(*tx.To)
+	count, _ := v.(int)
+	count++
+	p.ddosContracts.Store(*tx.To, count)
 }
 
 // reduceDDOSCounts reduces might-be misunderstanding of ddos attack
