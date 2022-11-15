@@ -936,7 +936,7 @@ func (i *Ibft) writeTransactions(
 		}
 
 		if i.txpool.IsDDOSTx(tx) {
-			i.logger.Info("drop ddos attack contract transactions",
+			i.logger.Info("drop ddos attack contract transaction",
 				"address", tx.To,
 				"from", tx.From,
 			)
