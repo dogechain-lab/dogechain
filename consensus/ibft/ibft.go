@@ -1602,6 +1602,7 @@ func (i *Ibft) runRoundChangeState() {
 	for i.getState() == currentstate.RoundChangeState {
 		// timeout should update every time it enters a new round
 		timeout := i.state.MessageTimeout()
+
 		msg, ok := i.getNextMessage(timeout)
 		if !ok {
 			// closing
