@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"sync"
 	"time"
 
 	"github.com/dogechain-lab/dogechain/blockchain"
@@ -24,6 +25,11 @@ const (
 	topicNameV1 = "txpool/0.1"
 )
 
+const (
+	_ddosReduceCount    = 10               // contract ddos count reduction
+	_ddosReduceDuration = 10 * time.Minute // trigger for ddos count reduction
+)
+
 // errors
 var (
 	ErrIntrinsicGas        = errors.New("intrinsic gas too low")
@@ -40,6 +46,7 @@ var (
 	ErrOversizedData       = errors.New("oversized data")
 	ErrReplaceUnderpriced  = errors.New("replacement transaction underpriced")
 	ErrBlackList           = errors.New("address in blacklist")
+	ErrContractDDOSList    = errors.New("contract in ddos list")
 )
 
 // indicates origin of a transaction
@@ -83,6 +90,7 @@ type Config struct {
 	PruneTickSeconds      uint64
 	PromoteOutdateSeconds uint64
 	BlackList             []types.Address
+	DDOSPretection        bool
 }
 
 /* All requests are passed to the main loop
@@ -184,6 +192,10 @@ type TxPool struct {
 
 	// some very bad guys whose txs should never be included
 	blacklist map[types.Address]struct{}
+	// drop all those ddos contract transactions
+	ddosPretection      bool
+	ddosReductionTicker *time.Ticker
+	ddosContracts       sync.Map
 }
 
 // NewTxPool returns a new pool for processing incoming transactions.
@@ -226,6 +238,7 @@ func NewTxPool(
 		priceLimit:             config.PriceLimit,
 		pruneTick:              time.Second * time.Duration(pruneTickSeconds),
 		promoteOutdateDuration: time.Second * time.Duration(promoteOutdateSeconds),
+		ddosPretection:         config.DDOSPretection,
 	}
 
 	pool.SetSealing(config.Sealing) // sealing flag
@@ -284,6 +297,7 @@ func (p *TxPool) Start() {
 	p.metrics.SetDefaultValue(0)
 
 	p.pruneAccountTicker = time.NewTicker(p.pruneTick)
+	p.ddosReductionTicker = time.NewTicker(_ddosReduceDuration)
 
 	go func() {
 		for {
@@ -301,6 +315,10 @@ func (p *TxPool) Start() {
 			case _, ok := <-p.pruneAccountTicker.C:
 				if ok { // readable
 					go p.pruneStaleAccounts()
+				}
+			case _, ok := <-p.ddosReductionTicker.C:
+				if ok {
+					go p.reduceDDOSCounts()
 				}
 			}
 		}
@@ -514,6 +532,9 @@ func (p *TxPool) ResetWithHeaders(headers ...*types.Header) {
 	// process the txs in the event
 	// to make sure the pool is up-to-date
 	p.processEvent(e)
+
+	// reduce ddos count
+	p.reduceDDOSCounts()
 }
 
 // processEvent collects the latest nonces for each account containted
@@ -666,11 +687,56 @@ func (p *TxPool) validateTx(tx *types.Transaction) error {
 	return nil
 }
 
+func (p *TxPool) IsDDOSTx(tx *types.Transaction) bool {
+	if !p.ddosPretection || tx.To == nil {
+		return false
+	}
+
+	count, exists := p.ddosContracts.Load(*tx.To)
+	//nolint:forcetypeassert
+	if exists && count.(int) > 0 {
+		return true
+	}
+
+	return false
+}
+
+func (p *TxPool) MarkDDOSTx(tx *types.Transaction, count int) {
+	if !p.ddosPretection || tx.To == nil {
+		return
+	}
+
+	// update its ddos count
+	old, _ := p.ddosContracts.Load(*tx.To)
+	oldCount, _ := old.(int)
+	p.ddosContracts.Store(*tx.To, oldCount+count)
+}
+
+// reduceDDOSCounts reduces might-be misunderstanding of ddos attack
+func (p *TxPool) reduceDDOSCounts() {
+	p.ddosContracts.Range(func(key, value interface{}) bool {
+		count, _ := value.(int)
+
+		count -= _ddosReduceCount
+		if count < 0 {
+			count = 0
+		}
+
+		p.ddosContracts.Store(key, count)
+
+		return true
+	})
+}
+
 // addTx is the main entry point to the pool
 // for all new transactions. If the call is
 // successful, an account is created for this address
 // (only once) and an enqueueRequest is signaled.
 func (p *TxPool) addTx(origin txOrigin, tx *types.Transaction) error {
+	if p.IsDDOSTx(tx) {
+		return ErrContractDDOSList
+	}
+
 	// get the hash already from the very beginning
 	p.logger.Debug("add tx",
 		"origin", origin.String(),
