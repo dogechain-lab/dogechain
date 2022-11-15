@@ -712,12 +712,20 @@ func (p *TxPool) MarkDDOSTx(tx *types.Transaction) {
 	count, _ := v.(int)
 	count++
 	p.ddosContracts.Store(*tx.To, count)
+
+	p.logger.Debug("increase ddos contract transaction count",
+		"address", tx.To,
+		"count", count,
+	)
 }
 
 // reduceDDOSCounts reduces might-be misunderstanding of ddos attack
 func (p *TxPool) reduceDDOSCounts() {
 	p.ddosContracts.Range(func(key, value interface{}) bool {
 		count, _ := value.(int)
+		if count <= 0 {
+			return true
+		}
 
 		count -= _ddosReduceCount
 		if count < 0 {
@@ -725,6 +733,11 @@ func (p *TxPool) reduceDDOSCounts() {
 		}
 
 		p.ddosContracts.Store(key, count)
+
+		p.logger.Debug("decrease ddos contract transaction count",
+			"address", key,
+			"count", count,
+		)
 
 		return true
 	})
