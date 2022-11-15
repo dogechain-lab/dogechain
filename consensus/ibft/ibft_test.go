@@ -1044,6 +1044,7 @@ type mockTxPool struct {
 	nonceDecreased        map[*types.Transaction]bool
 	resetWithHeaderCalled bool
 	resetWithHeadersParam []*types.Header
+	ddosContracts         map[types.Address]bool
 }
 
 func newMockTxPool(txs []*types.Transaction) *mockTxPool {
@@ -1086,6 +1087,20 @@ func (p *mockTxPool) Pending() map[types.Address][]*types.Transaction {
 	}
 
 	return txs
+}
+
+func (p *mockTxPool) IsDDOSTx(tx *types.Transaction) bool {
+	if tx.To == nil {
+		return false
+	}
+
+	_, exists := p.ddosContracts[*tx.To]
+
+	return exists
+}
+
+func (p *mockTxPool) MarkDDOSTx(tx *types.Transaction) {
+	p.ddosContracts[*tx.To] = true
 }
 
 type mockTransition struct {
@@ -1792,7 +1807,7 @@ func Test_increaseHeaderGasIfNeeded(t *testing.T) {
 	assert.Equal(t, uint64(155000), header.GasLimit)
 }
 
-func Test_shouldBanishTx(t *testing.T) {
+func Test_shouldMarkLongConsumingTx(t *testing.T) {
 	mockTx := &types.Transaction{
 		Nonce:    0,
 		GasPrice: big.NewInt(1000),
@@ -1804,13 +1819,12 @@ func Test_shouldBanishTx(t *testing.T) {
 	}
 
 	i := newMockIbft(t, []string{"A", "B", "C", "D"}, "A")
-	i.Ibft.banishAbnormalContract = true
 	i.Ibft.exhaustingContracts[addr2] = struct{}{}
 
-	assert.True(t, i.shouldBanishTx(mockTx))
+	assert.True(t, i.shouldMarkLongConsumingTx(mockTx))
 }
 
-func Test_banishLongTimeConsumingTx(t *testing.T) {
+func Test_markLongTimeConsumingContract(t *testing.T) {
 	mockTx := &types.Transaction{
 		Nonce:    0,
 		GasPrice: big.NewInt(1000),
@@ -1822,12 +1836,11 @@ func Test_banishLongTimeConsumingTx(t *testing.T) {
 	}
 
 	i := newMockIbft(t, []string{"A", "B", "C", "D"}, "A")
-	i.Ibft.banishAbnormalContract = true
 
 	// make sure begin time out what we set
 	begin := time.Now().Add(-1*i.blockTime - 1)
 
-	i.banishLongTimeConsumingTx(mockTx, begin)
+	i.markLongTimeConsumingContract(mockTx, begin)
 
 	assert.Equal(
 		t,
