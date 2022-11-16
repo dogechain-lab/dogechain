@@ -32,8 +32,8 @@ import (
 
 const (
 	DefaultEpochSize = 100000
-	// banish abnormal contract whose execution consumes too much time
-	DefaultBanishAbnormalContract = false
+	// When threshold reached, we mark it as a really annoying contract
+	_annoyingContractThrshold = 3
 )
 
 var (
@@ -125,7 +125,8 @@ type Ibft struct {
 	currentValidators validator.Validators // Validator set at current sequence
 	// Recording resource exhausting contracts
 	// but would not banish it until it became a real ddos attack
-	exhaustingContracts map[types.Address]struct{}
+	// not thread safe, but can be used sequentially
+	exhaustingContracts map[types.Address]uint64
 }
 
 // runHook runs a specified hook if it is present in the hook map
@@ -193,7 +194,7 @@ func Factory(
 		metrics:             params.Metrics,
 		secretsManager:      params.SecretsManager,
 		blockTime:           time.Duration(params.BlockTime) * time.Second,
-		exhaustingContracts: make(map[types.Address]struct{}),
+		exhaustingContracts: make(map[types.Address]uint64),
 	}
 
 	// Initialize the mechanism
@@ -1074,9 +1075,9 @@ func (i *Ibft) shouldMarkLongConsumingTx(tx *types.Transaction) bool {
 		return false
 	}
 
-	_, exists := i.exhaustingContracts[*tx.To]
+	count, exists := i.exhaustingContracts[*tx.To]
 
-	return exists
+	return exists && count >= _annoyingContractThrshold
 }
 
 func (i *Ibft) countDDOSAttack(tx *types.Transaction) {
@@ -1091,10 +1092,13 @@ func (i *Ibft) markLongTimeConsumingContract(tx *types.Transaction, begin time.T
 	}
 
 	// banish the contract
-	i.exhaustingContracts[*tx.To] = struct{}{}
+	count := i.exhaustingContracts[*tx.To]
+	count++
+	i.exhaustingContracts[*tx.To] = count
 
 	i.logger.Info("mark contract who consumes too many CPU or I/O time",
 		"duration", duration,
+		"count", count,
 		"from", tx.From,
 		"to", tx.To,
 		"gasPrice", tx.GasPrice,
