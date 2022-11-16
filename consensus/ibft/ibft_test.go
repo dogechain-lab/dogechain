@@ -1252,7 +1252,7 @@ func newMockIbft(t *testing.T, accounts []string, validatorAccount string) *mock
 		state:               currentstate.NewState(),
 		epochSize:           DefaultEpochSize,
 		metrics:             consensus.NilMetrics(),
-		exhaustingContracts: make(map[types.Address]struct{}),
+		exhaustingContracts: make(map[types.Address]uint64),
 	}
 
 	initIbftMechanism(PoA, ibft)
@@ -1819,34 +1819,49 @@ func Test_shouldMarkLongConsumingTx(t *testing.T) {
 	}
 
 	i := newMockIbft(t, []string{"A", "B", "C", "D"}, "A")
-	i.Ibft.exhaustingContracts[addr2] = struct{}{}
+	i.Ibft.exhaustingContracts[addr2] = _annoyingContractThrshold
 
 	assert.True(t, i.shouldMarkLongConsumingTx(mockTx))
 }
 
 func Test_markLongTimeConsumingContract(t *testing.T) {
-	mockTx := &types.Transaction{
-		Nonce:    0,
-		GasPrice: big.NewInt(1000),
-		Gas:      defaultBlockGasLimit,
-		To:       &addr2,
-		Value:    big.NewInt(10),
-		Input:    []byte{'m', 'o', 'k', 'e'},
-		From:     addr1,
+	tests := []*struct {
+		markTimes         int
+		expectedContracts map[types.Address]uint64
+	}{
+		{
+			0,
+			map[types.Address]uint64{},
+		},
+		{
+			_annoyingContractThrshold - 1,
+			map[types.Address]uint64{addr2: _annoyingContractThrshold - 1},
+		},
+		{
+			_annoyingContractThrshold,
+			map[types.Address]uint64{addr2: _annoyingContractThrshold},
+		},
 	}
 
-	i := newMockIbft(t, []string{"A", "B", "C", "D"}, "A")
+	for _, tt := range tests {
+		mockTx := &types.Transaction{
+			Nonce:    0,
+			GasPrice: big.NewInt(1000),
+			Gas:      defaultBlockGasLimit,
+			To:       &addr2,
+			Value:    big.NewInt(10),
+			Input:    []byte{'m', 'o', 'k', 'e'},
+			From:     addr1,
+		}
 
-	// make sure begin time out what we set
-	begin := time.Now().Add(-1*i.blockTime - 1)
+		i := newMockIbft(t, []string{"A", "B", "C", "D"}, "A")
+		// make sure begin time out what we set
+		begin := time.Now().Add(-1*i.blockTime - 1)
 
-	i.markLongTimeConsumingContract(mockTx, begin)
+		for idx := 0; idx < tt.markTimes; idx++ {
+			i.markLongTimeConsumingContract(mockTx, begin)
+		}
 
-	assert.Equal(
-		t,
-		map[types.Address]struct{}{
-			addr2: {},
-		},
-		i.exhaustingContracts,
-	)
+		assert.Equal(t, tt.expectedContracts, i.exhaustingContracts)
+	}
 }
