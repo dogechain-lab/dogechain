@@ -984,6 +984,8 @@ func (i *Ibft) writeTransactions(
 				"address", tx.To,
 				"from", tx.From,
 			)
+			// don't forget to pop the transaction if not execute it
+			priceTxs.Pop()
 
 			// drop tx
 			shouldDropTxs = append(shouldDropTxs, tx)
