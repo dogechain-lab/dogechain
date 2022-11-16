@@ -564,7 +564,10 @@ func (s *Syncer) BulkSyncWithPeer(p *SyncPeer, newBlockHandler func(block *types
 	}
 
 	// find in batches
-	s.logger.Debug("fork found", "ancestor", ancestor.Number)
+	s.logger.Info("fork found",
+		"peer", p.peer,
+		"ancestor", ancestor.Number,
+	)
 
 	startBlock := fork
 
@@ -598,12 +601,11 @@ func (s *Syncer) BulkSyncWithPeer(p *SyncPeer, newBlockHandler func(block *types
 		}
 
 		for {
-			s.logger.Debug(
+			s.logger.Info(
 				"sync up to block",
-				"from",
-				currentSyncHeight,
-				"to",
-				target,
+				"peer", p.peer,
+				"from", currentSyncHeight,
+				"to", target,
 			)
 
 			// Create the base request skeleton
