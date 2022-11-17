@@ -84,6 +84,10 @@ func (s *SyncPeer) Number() uint64 {
 	return s.status.Number
 }
 
+func (s *SyncPeer) ID() peer.ID {
+	return s.peer
+}
+
 // IsClosed returns whether peer's connectivity has been closed
 func (s *SyncPeer) IsClosed() bool {
 	return s.conn.GetState() == connectivity.Shutdown

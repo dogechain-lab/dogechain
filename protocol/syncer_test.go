@@ -205,7 +205,7 @@ func TestBestPeer(t *testing.T) {
 
 				expectedBestPeer := peerSyncers[tt.bestPeerIndex]
 				expectedBestPeerStatus := GetCurrentStatus(expectedBestPeer.blockchain)
-				assert.Equal(t, expectedBestPeer.server.AddrInfo().ID.String(), bestPeer.peer.String())
+				assert.Equal(t, expectedBestPeer.server.AddrInfo().ID.String(), bestPeer.ID().String())
 				assert.Equal(t, expectedBestPeerStatus, bestPeer.status)
 			} else {
 				assert.Nil(t, bestPeer, "syncer shouldn't find best peer, but found")

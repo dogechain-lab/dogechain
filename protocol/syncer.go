@@ -504,7 +504,7 @@ func (s *Syncer) WatchSyncWithPeer(
 	// listen and enqueue the messages
 	for {
 		if p.IsClosed() {
-			s.logger.Info("Connection to a peer has closed already", "id", p.peer)
+			s.logger.Info("Connection to a peer has closed already", "id", p.ID())
 
 			break
 		}
@@ -542,9 +542,9 @@ func (s *Syncer) WatchSyncWithPeer(
 func (s *Syncer) logSyncPeerPopBlockError(err error, peer *SyncPeer) {
 	if errors.Is(err, ErrPopTimeout) {
 		msg := "failed to pop block within %ds from peer: id=%s, please check if all the validators are running"
-		s.logger.Warn(fmt.Sprintf(msg, int(popTimeout.Seconds()), peer.peer))
+		s.logger.Warn(fmt.Sprintf(msg, int(popTimeout.Seconds()), peer.ID()))
 	} else {
-		s.logger.Info("failed to pop block from peer", "id", peer.peer, "err", err)
+		s.logger.Info("failed to pop block from peer", "id", peer.ID(), "err", err)
 	}
 }
 
@@ -557,19 +557,19 @@ func (s *Syncer) BulkSyncWithPeer(p *SyncPeer, newBlockHandler func(block *types
 	ancestor, fork, err := s.findCommonAncestor(p.client, p.status)
 	// check whether peer network same with us
 	if isDifferentNetworkError(err) {
-		s.server.DisconnectFromPeer(p.peer, "Different network")
+		s.server.DisconnectFromPeer(p.ID(), "Different network")
 	}
 
 	// return error
 	if err != nil {
-		logger.Info("common ancestor not found from peer", "peer", p.peer)
+		logger.Info("common ancestor not found from peer", "peer", p.ID())
 
 		return err
 	}
 
 	// find in batches
 	logger.Info("fork found",
-		"peer", p.peer,
+		"peer", p.ID(),
 		"ancestor", ancestor.Number,
 	)
 
@@ -606,7 +606,7 @@ func (s *Syncer) BulkSyncWithPeer(p *SyncPeer, newBlockHandler func(block *types
 		}
 
 		if !p.IsForwardable() {
-			logger.Info("peer is not forwardable", "peer", p.peer)
+			logger.Info("peer is not forwardable", "peer", p.ID())
 
 			break
 		}
@@ -614,7 +614,7 @@ func (s *Syncer) BulkSyncWithPeer(p *SyncPeer, newBlockHandler func(block *types
 		for {
 			logger.Info(
 				"sync up to block",
-				"peer", p.peer,
+				"peer", p.ID(),
 				"from", currentSyncHeight,
 				"to", target,
 			)
@@ -647,7 +647,7 @@ func (s *Syncer) BulkSyncWithPeer(p *SyncPeer, newBlockHandler func(block *types
 			// Verify and write the data locally
 			for _, block := range sk.blocks {
 				if err := s.blockchain.VerifyFinalizedBlock(block); err != nil {
-					s.server.DisconnectFromPeer(p.peer, "Different network due to hard fork")
+					s.server.DisconnectFromPeer(p.ID(), "Different network due to hard fork")
 
 					return fmt.Errorf("unable to verify block, %w", err)
 				}
