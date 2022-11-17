@@ -432,6 +432,7 @@ func (s *Syncer) findCommonAncestor(clt proto.V1Client, status *Status) (*types.
 	var header *types.Header
 
 	for min <= max {
+		// half-interval search
 		m := uint64(math.Floor(float64(min+max) / 2))
 
 		if m == 0 {
@@ -550,6 +551,8 @@ func (s *Syncer) logSyncPeerPopBlockError(err error, peer *SyncPeer) {
 // BulkSyncWithPeer finds common ancestor with a peer and syncs block until latest block
 // Only missing blocks are synced up to the peer's highest block number
 func (s *Syncer) BulkSyncWithPeer(p *SyncPeer, newBlockHandler func(block *types.Block)) error {
+	logger := s.logger.Named("bulkSync")
+
 	// find the common ancestor
 	ancestor, fork, err := s.findCommonAncestor(p.client, p.status)
 	// check whether peer network same with us
@@ -559,12 +562,13 @@ func (s *Syncer) BulkSyncWithPeer(p *SyncPeer, newBlockHandler func(block *types
 
 	// return error
 	if err != nil {
-		// No need to sync with this peer
+		logger.Info("common ancestor not found from peer", "peer", p.peer)
+
 		return err
 	}
 
 	// find in batches
-	s.logger.Info("fork found",
+	logger.Info("fork found",
 		"peer", p.peer,
 		"ancestor", ancestor.Number,
 	)
@@ -596,19 +600,19 @@ func (s *Syncer) BulkSyncWithPeer(p *SyncPeer, newBlockHandler func(block *types
 		s.syncProgression.UpdateHighestProgression(target)
 
 		if target == lastTarget {
-			s.logger.Info("catch up, no need to bulk sync now")
+			logger.Info("catch up, no need to bulk sync now")
 
 			break
 		}
 
 		if !p.IsForwardable() {
-			s.logger.Info("peer is not forwardable", "peer", p.peer)
+			logger.Info("peer is not forwardable", "peer", p.peer)
 
 			break
 		}
 
 		for {
-			s.logger.Info(
+			logger.Info(
 				"sync up to block",
 				"peer", p.peer,
 				"from", currentSyncHeight,
