@@ -766,35 +766,46 @@ func (s *Server) JoinPeer(rawPeerMultiaddr string) error {
 	return s.network.JoinPeer(rawPeerMultiaddr)
 }
 
-// Close closes the Minimal server (blockchain, networking, consensus)
+// Close closes the server
+// sequence:
+//
+//	consensus:
+//		wait for consensus exit any IbftState,
+//		stop write any block to blockchain storage and
+//		stop write any state to state storage
+//
+//	txpool: stop accepting new transactions
+//	networking: stop transport
+//	stateStorage: safe close state storage
+//	blockchain: safe close state storage
 func (s *Server) Close() {
-	s.logger.Info("shutdown consensus layer")
+	s.logger.Info("close consensus layer")
 
 	// Close the consensus layer
 	if err := s.consensus.Close(); err != nil {
 		s.logger.Error("failed to close consensus", "err", err.Error())
 	}
 
-	s.logger.Info("shutdown txpool")
+	s.logger.Info("close txpool")
 
 	// close the txpool's main loop
 	s.txpool.Close()
 
-	s.logger.Info("shutdown network layer")
+	s.logger.Info("close network layer")
 
 	// Close the networking layer
 	if err := s.network.Close(); err != nil {
 		s.logger.Error("failed to close networking", "err", err.Error())
 	}
 
-	s.logger.Info("shutdown state storage")
+	s.logger.Info("close state storage")
 
 	// Close the state storage
 	if err := s.stateStorage.Close(); err != nil {
 		s.logger.Error("failed to close storage for trie", "err", err.Error())
 	}
 
-	s.logger.Info("shutdown blockchain storage")
+	s.logger.Info("close blockchain storage")
 
 	// Close the blockchain layer
 	if err := s.blockchain.Close(); err != nil {
