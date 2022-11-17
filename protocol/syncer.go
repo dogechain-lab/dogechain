@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"sort"
 	"sync"
 	"time"
@@ -416,81 +415,6 @@ func (s *Syncer) DeletePeer(peerID peer.ID) error {
 	return nil
 }
 
-// findCommonAncestor returns the common ancestor header and fork
-func (s *Syncer) findCommonAncestor(clt proto.V1Client, status *Status) (*types.Header, *types.Header, error) {
-	h := s.blockchain.Header()
-
-	min := uint64(0) // genesis
-	max := h.Number
-
-	targetHeight := status.Number
-
-	if heightNumber := targetHeight; max > heightNumber {
-		max = heightNumber
-	}
-
-	var header *types.Header
-
-	for min <= max {
-		// half-interval search
-		m := uint64(math.Floor(float64(min+max) / 2))
-
-		if m == 0 {
-			// our common ancestor is the genesis
-			genesis, ok := s.blockchain.GetHeaderByNumber(0)
-			if !ok {
-				return nil, nil, ErrLoadLocalGenesisFailed
-			}
-
-			header = genesis
-
-			break
-		}
-
-		found, err := getHeader(clt, &m, nil)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		if found == nil {
-			// peer does not have the m peer, search in lower bounds
-			max = m - 1
-		} else {
-			expectedHeader, ok := s.blockchain.GetHeaderByNumber(m)
-			if !ok {
-				return nil, nil, fmt.Errorf("cannot find the header %d in local chain", m)
-			}
-			if expectedHeader.Hash == found.Hash {
-				header = found
-				min = m + 1
-			} else {
-				if m == 0 {
-					return nil, nil, ErrMismatchGenesis
-				}
-				max = m - 1
-			}
-		}
-	}
-
-	if header == nil {
-		return nil, nil, ErrCommonAncestorNotFound
-	}
-
-	// get the block fork
-	forkNum := header.Number + 1
-	fork, err := getHeader(clt, &forkNum, nil)
-
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get fork at num %d", header.Number)
-	}
-
-	if fork == nil {
-		return nil, nil, ErrForkNotFound
-	}
-
-	return header, fork, nil
-}
-
 // WatchSyncWithPeer subscribes and adds peer's latest block
 func (s *Syncer) WatchSyncWithPeer(
 	p *SyncPeer,
@@ -500,6 +424,9 @@ func (s *Syncer) WatchSyncWithPeer(
 	// purge from the cache of broadcasted blocks all the ones we have written so far
 	header := s.blockchain.Header()
 	p.purgeBlocks(header.Hash)
+
+	// localLatest := header.Number
+	// shouldTerminate := false
 
 	// listen and enqueue the messages
 	for {
@@ -548,40 +475,23 @@ func (s *Syncer) logSyncPeerPopBlockError(err error, peer *SyncPeer) {
 	}
 }
 
-// BulkSyncWithPeer finds common ancestor with a peer and syncs block until latest block
+// BulkSyncWithPeer syncs block with a given peer
+//
+// No need to find common ancestor, download blocks and execute it concurrently,
+// drop peer connection when execute failed.
 // Only missing blocks are synced up to the peer's highest block number
 func (s *Syncer) BulkSyncWithPeer(p *SyncPeer, newBlockHandler func(block *types.Block)) error {
 	logger := s.logger.Named("bulkSync")
 
-	// find the common ancestor
-	ancestor, fork, err := s.findCommonAncestor(p.client, p.status)
-	// check whether peer network same with us
-	if isDifferentNetworkError(err) {
-		s.server.DisconnectFromPeer(p.ID(), "Different network")
-	}
-
-	// return error
-	if err != nil {
-		logger.Info("common ancestor not found from peer", "peer", p.ID())
-
-		return err
-	}
-
-	// find in batches
-	logger.Info("fork found",
-		"peer", p.ID(),
-		"ancestor", ancestor.Number,
-	)
-
-	startBlock := fork
+	localLatest := s.blockchain.Header().Number
 
 	var (
 		lastTarget        uint64
-		currentSyncHeight = ancestor.Number + 1
+		currentSyncHeight = localLatest + 1
 	)
 
 	// Create a blockchain subscription for the sync progression and start tracking
-	s.syncProgression.StartProgression(startBlock.Number, s.blockchain.SubscribeEvents())
+	s.syncProgression.StartProgression(localLatest, s.blockchain.SubscribeEvents())
 
 	// Stop monitoring the sync progression upon exit
 	defer s.syncProgression.StopProgression()
