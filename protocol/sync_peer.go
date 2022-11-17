@@ -89,6 +89,18 @@ func (s *SyncPeer) IsClosed() bool {
 	return s.conn.GetState() == connectivity.Shutdown
 }
 
+// IsForwardable returns whether peer's connectivity if forwardable
+func (s *SyncPeer) IsForwardable() bool {
+	state := s.conn.GetState()
+
+	switch state {
+	case connectivity.Idle, connectivity.Ready:
+		return true
+	}
+
+	return false
+}
+
 // purgeBlocks purges the cache of broadcasted blocks the node has written so far
 // from the SyncPeer
 func (s *SyncPeer) purgeBlocks(lastSeen types.Hash) uint64 {

@@ -596,7 +596,14 @@ func (s *Syncer) BulkSyncWithPeer(p *SyncPeer, newBlockHandler func(block *types
 		s.syncProgression.UpdateHighestProgression(target)
 
 		if target == lastTarget {
-			// there are no more changes to pull for now
+			s.logger.Info("catch up, no need to bulk sync now")
+
+			break
+		}
+
+		if !p.IsForwardable() {
+			s.logger.Info("peer is not forwardable", "peer", p.peer)
+
 			break
 		}
 
