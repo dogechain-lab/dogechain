@@ -510,6 +510,8 @@ func (i *Ibft) isValidSnapshot() bool {
 //
 // It fetches fresh data from the blockchain. Checks if the current node is a validator and resolves any pending blocks
 func (i *Ibft) runSyncState() {
+	logger := i.logger.Named("syncState")
+
 	// updateSnapshotCallback keeps the snapshot store in sync with the updated
 	// chain data, by calling the SyncStateHook
 	callInsertBlockHook := func(block *types.Block) {
@@ -517,12 +519,12 @@ func (i *Ibft) runSyncState() {
 
 		// insert block
 		if hookErr := i.runHook(InsertBlockHook, blockNumber, blockNumber); hookErr != nil {
-			i.logger.Error(fmt.Sprintf("Unable to run hook %s, %v", InsertBlockHook, hookErr))
+			logger.Error(fmt.Sprintf("Unable to run hook %s, %v", InsertBlockHook, hookErr))
 		}
 
 		// update module cache
 		if err := i.updateCurrentModules(blockNumber + 1); err != nil {
-			i.logger.Error("failed to update sub modules", "height", blockNumber+1, "err", err)
+			logger.Error("failed to update sub modules", "height", blockNumber+1, "err", err)
 		}
 
 		// reset headers of txpool
@@ -560,7 +562,7 @@ func (i *Ibft) runSyncState() {
 		if err := i.syncer.BulkSyncWithPeer(p, func(newBlock *types.Block) {
 			callInsertBlockHook(newBlock)
 		}); err != nil {
-			i.logger.Error("failed to bulk sync", "err", err)
+			logger.Error("failed to bulk sync", "err", err)
 
 			continue
 		}
@@ -1132,7 +1134,7 @@ func (i *Ibft) runAcceptState() { // start new round
 	number := parent.Number + 1
 
 	if number != i.state.Sequence() {
-		i.logger.Error("sequence not correct", "parent", parent.Number, "sequence", i.state.Sequence())
+		logger.Error("sequence not correct", "parent", parent.Number, "sequence", i.state.Sequence())
 		i.setState(currentstate.SyncState)
 
 		return
@@ -1140,7 +1142,7 @@ func (i *Ibft) runAcceptState() { // start new round
 
 	// update current module cache
 	if err := i.updateCurrentModules(number); err != nil {
-		i.logger.Error(
+		logger.Error(
 			"failed to update submodules",
 			"height", number,
 			"err", err,
@@ -1150,7 +1152,7 @@ func (i *Ibft) runAcceptState() { // start new round
 	snap, err := i.getSnapshot(parent.Number)
 
 	if err != nil {
-		i.logger.Error("cannot find snapshot", "num", parent.Number)
+		logger.Error("cannot find snapshot", "num", parent.Number)
 		i.setState(currentstate.SyncState)
 
 		return
@@ -1158,14 +1160,14 @@ func (i *Ibft) runAcceptState() { // start new round
 
 	if !snap.Set.Includes(i.validatorKeyAddr) {
 		// we are not a validator anymore, move back to sync state
-		i.logger.Info("we are not a validator anymore")
+		logger.Info("we are not a validator anymore")
 		i.setState(currentstate.SyncState)
 
 		return
 	}
 
 	if hookErr := i.runHook(AcceptStateLogHook, i.state.Sequence(), snap); hookErr != nil {
-		i.logger.Error(fmt.Sprintf("Unable to run hook %s, %v", AcceptStateLogHook, hookErr))
+		logger.Error(fmt.Sprintf("Unable to run hook %s, %v", AcceptStateLogHook, hookErr))
 	}
 
 	i.state.SetValidators(snap.Set)
@@ -1182,7 +1184,7 @@ func (i *Ibft) runAcceptState() { // start new round
 	}
 
 	if hookErr := i.runHook(CalculateProposerHook, i.state.Sequence(), lastProposer); hookErr != nil {
-		i.logger.Error(fmt.Sprintf("Unable to run hook %s, %v", CalculateProposerHook, hookErr))
+		logger.Error(fmt.Sprintf("Unable to run hook %s, %v", CalculateProposerHook, hookErr))
 	}
 
 	if i.state.Proposer() == i.validatorKeyAddr {
@@ -1192,7 +1194,7 @@ func (i *Ibft) runAcceptState() { // start new round
 			// since the state is not locked, we need to build a new block
 			block, err := i.buildBlock(snap, parent)
 			if err != nil {
-				i.logger.Error("failed to build block", "err", err)
+				logger.Error("failed to build block", "err", err)
 				i.setState(currentstate.RoundChangeState)
 
 				return
@@ -1224,7 +1226,7 @@ func (i *Ibft) runAcceptState() { // start new round
 		return
 	}
 
-	i.logger.Info("proposer calculated", "proposer", i.state.Proposer(), "block", number)
+	logger.Info("proposer calculated", "proposer", i.state.Proposer(), "block", number)
 
 	// we are NOT a proposer for the block. Then, we have to wait
 	// for a pre-prepare message from the proposer
@@ -1243,14 +1245,14 @@ func (i *Ibft) runAcceptState() { // start new round
 		}
 
 		if msg.From != i.state.Proposer().String() {
-			i.logger.Error("msg received from wrong proposer")
+			logger.Error("msg received from wrong proposer")
 
 			continue
 		}
 
 		if msg.Proposal == nil {
 			// A malicious node conducted a DoS attack
-			i.logger.Error("proposal data in msg is nil")
+			logger.Error("proposal data in msg is nil")
 
 			continue
 		}
@@ -1258,7 +1260,7 @@ func (i *Ibft) runAcceptState() { // start new round
 		// retrieve the block proposal
 		block := &types.Block{}
 		if err := block.UnmarshalRLP(msg.Proposal.Value); err != nil {
-			i.logger.Error("failed to unmarshal block", "err", err)
+			logger.Error("failed to unmarshal block", "err", err)
 			i.setState(currentstate.RoundChangeState)
 
 			return
@@ -1266,7 +1268,7 @@ func (i *Ibft) runAcceptState() { // start new round
 
 		// Make sure the proposing block height match the current sequence
 		if block.Number() != i.state.Sequence() {
-			i.logger.Error("sequence not correct", "block", block.Number, "sequence", i.state.Sequence())
+			logger.Error("sequence not correct", "block", block.Number, "sequence", i.state.Sequence())
 			i.handleStateErr(errIncorrectBlockHeight)
 
 			return
@@ -1284,7 +1286,7 @@ func (i *Ibft) runAcceptState() { // start new round
 		} else {
 			// since it's a new block, we have to verify it first
 			if err := i.verifyHeaderImpl(snap, parent, block.Header); err != nil {
-				i.logger.Error("block header verification failed", "err", err)
+				logger.Error("block header verification failed", "err", err)
 				i.handleStateErr(errBlockVerificationFailed)
 
 				continue
@@ -1292,7 +1294,7 @@ func (i *Ibft) runAcceptState() { // start new round
 
 			// Verify other block params
 			if err := i.blockchain.VerifyPotentialBlock(block); err != nil {
-				i.logger.Error("block verification failed", "err", err)
+				logger.Error("block verification failed", "err", err)
 				i.handleStateErr(errBlockVerificationFailed)
 
 				continue
@@ -1300,10 +1302,10 @@ func (i *Ibft) runAcceptState() { // start new round
 
 			if hookErr := i.runHook(VerifyBlockHook, block.Number(), block); hookErr != nil {
 				if errors.Is(hookErr, errBlockVerificationFailed) {
-					i.logger.Error("block verification failed, block at the end of epoch has transactions")
+					logger.Error("block verification failed, block at the end of epoch has transactions")
 					i.handleStateErr(errBlockVerificationFailed)
 				} else {
-					i.logger.Error(fmt.Sprintf("Unable to run hook %s, %v", VerifyBlockHook, hookErr))
+					logger.Error(fmt.Sprintf("Unable to run hook %s, %v", VerifyBlockHook, hookErr))
 				}
 
 				continue
@@ -1431,7 +1433,7 @@ func (i *Ibft) runValidateState() {
 		// check msg number and round, might from some faulty nodes
 		if i.state.Sequence() != msg.View.GetSequence() ||
 			i.state.Round() != msg.View.GetRound() {
-			logger.Info("ValidateState got message not matching sequence and round",
+			logger.Debug("ValidateState got message not matching sequence and round",
 				"my-sequence", i.state.Sequence(), "my-round", i.state.Round()+1,
 				"other-sequence", msg.View.GetSequence(), "other-round", msg.View.GetRound())
 
@@ -1635,8 +1637,10 @@ func (i *Ibft) handleStateErr(err error) {
 }
 
 func (i *Ibft) runRoundChangeState() {
+	logger := i.logger.Named("roundChangeState")
+
 	sendRoundChange := func(round uint64) {
-		i.logger.Debug("local round change", "round", round+1)
+		logger.Debug("local round change", "round", round+1)
 		// set the new round and update the round metric
 		i.startNewRound(round)
 		i.metrics.Rounds.Set(float64(round))
@@ -1656,7 +1660,7 @@ func (i *Ibft) runRoundChangeState() {
 			if bestPeer != nil {
 				lastProposal := i.blockchain.Header()
 				if bestPeer.Number() > lastProposal.Number {
-					i.logger.Info("it has found a better peer to connect", "local", lastProposal.Number, "remote", bestPeer.Number())
+					logger.Info("it has found a better peer to connect", "local", lastProposal.Number, "remote", bestPeer.Number())
 					// we need to catch up with the last sequence
 					i.setState(currentstate.SyncState)
 
@@ -1673,13 +1677,13 @@ func (i *Ibft) runRoundChangeState() {
 	// if the round was triggered due to an error, we send our own
 	// next round change
 	if err := i.state.ConsumeErr(); err != nil {
-		i.logger.Debug("round change handle err", "err", err)
+		logger.Debug("round change handle err", "err", err)
 		sendNextRoundChange()
 	} else {
 		// otherwise, it is due to a timeout in any stage
 		// First, we try to sync up with any max round already available
 		if maxRound, ok := i.state.MaxRound(); ok {
-			i.logger.Debug("round change set max round", "round", maxRound)
+			logger.Debug("round change set max round", "round", maxRound)
 			sendRoundChange(maxRound)
 		} else {
 			// otherwise, do your best to sync up
@@ -1699,7 +1703,7 @@ func (i *Ibft) runRoundChangeState() {
 		}
 
 		if msg == nil {
-			i.logger.Info("round change timeout")
+			logger.Info("round change timeout")
 			checkTimeout()
 
 			continue
@@ -1707,7 +1711,7 @@ func (i *Ibft) runRoundChangeState() {
 
 		if msg.View == nil {
 			// A malicious node conducted a DoS attack
-			i.logger.Error("view data in msg is nil")
+			logger.Error("view data in msg is nil")
 
 			continue
 		}
