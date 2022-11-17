@@ -71,10 +71,10 @@ func TestBackup(t *testing.T) {
 		svr.Stop()
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
 	for _, backupFile := range backupFiles {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		t.Cleanup(cancel)
+
 		os.RemoveAll(path.Join(svr.Config.RootDir, "blockchain"))
 		os.RemoveAll(path.Join(svr.Config.RootDir, "trie"))
 
@@ -84,6 +84,9 @@ func TestBackup(t *testing.T) {
 		})
 
 		err := restoreSvr.Start(ctx)
+		assert.NoError(t, err)
+
+		_, err = framework.WaitUntilBlockMined(ctx, restoreSvr, toBlock)
 		assert.NoError(t, err)
 
 		block, err := restoreSvr.JSONRPC().Eth().GetBlockByNumber(web3.BlockNumber(toBlock), false)

@@ -5,8 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"sync/atomic"
 	"time"
+
+	"go.uber.org/atomic"
 
 	"github.com/dogechain-lab/dogechain/network/common"
 	"github.com/dogechain-lab/dogechain/network/dial"
@@ -364,6 +365,9 @@ func (s *Server) runDial() {
 	notifyCh := make(chan struct{}, 1)
 	defer close(notifyCh)
 
+	closeFlag := atomic.NewBool(false)
+	defer closeFlag.Store(true)
+
 	if err := s.SubscribeFn(func(event *peerEvent.PeerEvent) {
 		// Only concerned about the listed event types
 		switch event.Type {
@@ -374,6 +378,10 @@ func (s *Server) runDial() {
 			peerEvent.PeerDialCompleted, // @Yoshiki, not sure we need to monitor this event type here
 			peerEvent.PeerAddedToDialQueue:
 		default:
+			return
+		}
+
+		if closeFlag.Load() {
 			return
 		}
 
@@ -740,15 +748,16 @@ func (s *Server) SubscribeFn(handler func(evnt *peerEvent.PeerEvent)) error {
 func (s *Server) SubscribeCh() (<-chan *peerEvent.PeerEvent, error) {
 	ch := make(chan *peerEvent.PeerEvent)
 
-	var isClosed int32 = 0
+	var isClosed = atomic.NewBool(false)
 
 	err := s.SubscribeFn(func(evnt *peerEvent.PeerEvent) {
-		if atomic.LoadInt32(&isClosed) == 0 {
+		if !isClosed.Load() {
 			ch <- evnt
 		}
 	})
+
 	if err != nil {
-		atomic.StoreInt32(&isClosed, 1)
+		isClosed.Store(true)
 		close(ch)
 
 		return nil, err
@@ -756,7 +765,7 @@ func (s *Server) SubscribeCh() (<-chan *peerEvent.PeerEvent, error) {
 
 	go func() {
 		<-s.closeCh
-		atomic.StoreInt32(&isClosed, 1)
+		isClosed.Store(true)
 		close(ch)
 	}()
 

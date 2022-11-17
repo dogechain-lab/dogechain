@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"go.uber.org/atomic"
+
 	"github.com/dogechain-lab/dogechain/blockchain"
 	"github.com/dogechain-lab/dogechain/chain"
 	"github.com/dogechain-lab/dogechain/network"
@@ -48,6 +50,7 @@ var (
 	ErrReplaceUnderpriced  = errors.New("replacement transaction underpriced")
 	ErrBlackList           = errors.New("address in blacklist")
 	ErrContractDDOSList    = errors.New("contract in ddos list")
+	ErrTxPoolClosed        = errors.New("txpool is close")
 )
 
 // indicates origin of a transaction
@@ -197,6 +200,9 @@ type TxPool struct {
 	ddosPretection      bool         // enable ddos protection
 	ddosReductionTicker *time.Ticker // ddos reduction ticker for releasing from imprisonment
 	ddosContracts       sync.Map     // ddos contract caching
+
+	// close flag
+	isClosed *atomic.Bool
 }
 
 // NewTxPool returns a new pool for processing incoming transactions.
@@ -240,6 +246,7 @@ func NewTxPool(
 		pruneTick:              time.Second * time.Duration(pruneTickSeconds),
 		promoteOutdateDuration: time.Second * time.Duration(promoteOutdateSeconds),
 		ddosPretection:         config.DDOSPretection,
+		isClosed:               atomic.NewBool(false),
 	}
 
 	pool.SetSealing(config.Sealing) // sealing flag
@@ -328,16 +335,27 @@ func (p *TxPool) Start() {
 
 // Close shuts down the pool's main loop.
 func (p *TxPool) Close() {
+	if p.isClosed.Load() {
+		p.logger.Error("txpool is Closed")
+
+		return
+	}
+
+	p.isClosed.Store(true)
+
 	p.ddosReductionTicker.Stop()
+
+	p.logger.Info("txpool close pruneAccountTicker")
 	p.pruneAccountTicker.Stop()
 	p.eventManager.Close()
-	// stop
-	p.shutdownCh <- struct{}{}
+
+	p.logger.Info("txpool close topic")
 
 	if p.topic != nil {
 		p.topic.Close()
 	}
 
+	p.logger.Info("txpool close all channels")
 	// close all channels
 	close(p.enqueueReqCh)
 	close(p.promoteReqCh)
@@ -353,6 +371,12 @@ func (p *TxPool) SetSigner(s signer) {
 // AddTx adds a new transaction to the pool (sent from json-RPC/gRPC endpoints)
 // and broadcasts it to the network (if enabled).
 func (p *TxPool) AddTx(tx *types.Transaction) error {
+	if p.isClosed.Load() {
+		p.logger.Error("txpool is Closed")
+
+		return ErrTxPoolClosed
+	}
+
 	if err := p.addTx(local, tx); err != nil {
 		p.logger.Error("failed to add tx", "err", err)
 
@@ -919,6 +943,12 @@ func (p *TxPool) pruneEnqueuedTxs(pruned []*types.Transaction) {
 
 // addGossipTx handles receiving transactions gossiped by the network.
 func (p *TxPool) addGossipTx(obj interface{}) {
+	if p.isClosed.Load() {
+		p.logger.Error("txpool is Closed")
+
+		return
+	}
+
 	if !p.getSealing() {
 		// we're not validator, not interested in it
 		return

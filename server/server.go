@@ -768,27 +768,37 @@ func (s *Server) JoinPeer(rawPeerMultiaddr string) error {
 
 // Close closes the Minimal server (blockchain, networking, consensus)
 func (s *Server) Close() {
+	s.logger.Info("shutdown consensus layer")
+
 	// Close the consensus layer
 	if err := s.consensus.Close(); err != nil {
 		s.logger.Error("failed to close consensus", "err", err.Error())
 	}
+
+	s.logger.Info("shutdown txpool")
+
+	// close the txpool's main loop
+	s.txpool.Close()
+
+	s.logger.Info("shutdown network layer")
 
 	// Close the networking layer
 	if err := s.network.Close(); err != nil {
 		s.logger.Error("failed to close networking", "err", err.Error())
 	}
 
-	// close the txpool's main loop
-	s.txpool.Close()
-
-	// Close the blockchain layer
-	if err := s.blockchain.Close(); err != nil {
-		s.logger.Error("failed to close blockchain", "err", err.Error())
-	}
+	s.logger.Info("shutdown state storage")
 
 	// Close the state storage
 	if err := s.stateStorage.Close(); err != nil {
 		s.logger.Error("failed to close storage for trie", "err", err.Error())
+	}
+
+	s.logger.Info("shutdown blockchain storage")
+
+	// Close the blockchain layer
+	if err := s.blockchain.Close(); err != nil {
+		s.logger.Error("failed to close blockchain", "err", err.Error())
 	}
 
 	if s.prometheusServer != nil {

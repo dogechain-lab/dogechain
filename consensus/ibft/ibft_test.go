@@ -253,7 +253,9 @@ func TestTransition_ValidateState_Prepare(t *testing.T) {
 		Type: proto.MessageReq_Prepare,
 		View: proto.ViewMsg(1, 0),
 	})
-	i.Close()
+	t.Cleanup(func() {
+		i.Close()
+	})
 
 	i.runCycle()
 
@@ -321,7 +323,9 @@ func TestTransition_AcceptState_ToSync(t *testing.T) {
 	// means that we have been removed as validator, move to sync state
 	i := newMockIbft(t, []string{"A", "B", "C", "D"}, "")
 	i.setState(currentstate.AcceptState)
-	i.Close()
+	t.Cleanup(func() {
+		i.Close()
+	})
 
 	// we are the proposer and we need to build a block
 	i.runCycle()

@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"math/big"
 	"sync"
-	"sync/atomic"
 	"time"
+
+	"go.uber.org/atomic"
 
 	"github.com/dogechain-lab/dogechain/blockchain/storage"
 	"github.com/dogechain-lab/dogechain/chain"
@@ -49,7 +50,7 @@ type Blockchain struct {
 	db        storage.Storage // The Storage object (database)
 	consensus Verifier
 	executor  Executor
-	stopped   uint32 // used in executor halting
+	stopped   atomic.Bool // used in executor halting
 
 	config  *chain.Chain // Config containing chain information
 	genesis types.Hash   // The hash of the genesis block
@@ -76,6 +77,8 @@ type Blockchain struct {
 	gpAverage *gasPriceAverage // A reference to the average gas price
 
 	metrics *Metrics
+
+	wg sync.WaitGroup // for shutdown sync
 }
 
 // gasPriceAverage keeps track of the average gas price (rolling average)
@@ -464,6 +467,10 @@ func (b *Blockchain) GetTD(hash types.Hash) (*big.Int, bool) {
 
 // writeCanonicalHeader writes the new header
 func (b *Blockchain) writeCanonicalHeader(event *Event, h *types.Header) error {
+	if b.isStopped() {
+		return ErrClosed
+	}
+
 	parentTD, ok := b.readTotalDifficulty(h.ParentHash)
 	if !ok {
 		return fmt.Errorf("parent difficulty not found")
@@ -626,6 +633,10 @@ func (b *Blockchain) WriteHeaders(headers []*types.Header) error {
 
 // WriteHeadersWithBodies writes a batch of headers
 func (b *Blockchain) WriteHeadersWithBodies(headers []*types.Header) error {
+	if b.isStopped() {
+		return ErrClosed
+	}
+
 	// Check the size
 	if len(headers) == 0 {
 		return fmt.Errorf("passed in headers array is empty")
@@ -674,6 +685,13 @@ func (b *Blockchain) VerifyPotentialBlock(block *types.Block) error {
 // VerifyFinalizedBlock verifies that the block is valid by performing a series of checks.
 // It is assumed that the block status is sealed (committed)
 func (b *Blockchain) VerifyFinalizedBlock(block *types.Block) error {
+	if b.isStopped() {
+		return ErrClosed
+	}
+
+	b.wg.Add(1)
+	defer b.wg.Done()
+
 	if block == nil {
 		return ErrNoBlock
 	}
@@ -698,6 +716,13 @@ func (b *Blockchain) VerifyFinalizedBlock(block *types.Block) error {
 // verifyBlock does the base (common) block verification steps by
 // verifying the block body as well as the parent information
 func (b *Blockchain) verifyBlock(block *types.Block) error {
+	if b.isStopped() {
+		return ErrClosed
+	}
+
+	b.wg.Add(1)
+	defer b.wg.Done()
+
 	// Make sure the block is present
 	if block == nil {
 		return ErrNoBlock
@@ -772,6 +797,13 @@ func (b *Blockchain) verifyBlockParent(childBlock *types.Block) error {
 // - The receipts match up
 // - The execution result matches up
 func (b *Blockchain) verifyBlockBody(block *types.Block) error {
+	if b.isStopped() {
+		return ErrClosed
+	}
+
+	b.wg.Add(1)
+	defer b.wg.Done()
+
 	// Make sure the Uncles root matches up
 	if hash := buildroot.CalculateUncleRoot(block.Uncles); hash != block.Header.Sha3Uncles {
 		b.logger.Error(fmt.Sprintf(
@@ -838,6 +870,13 @@ func (br *BlockResult) verifyBlockResult(referenceBlock *types.Block) error {
 // executeBlockTransactions executes the transactions in the block locally,
 // and reports back the block execution result
 func (b *Blockchain) executeBlockTransactions(block *types.Block) (*BlockResult, error) {
+	if b.isStopped() {
+		return nil, ErrClosed
+	}
+
+	b.wg.Add(1)
+	defer b.wg.Done()
+
 	header := block.Header
 
 	parent, ok := b.readHeader(header.ParentHash)
@@ -911,6 +950,13 @@ func (b *Blockchain) executeBlockTransactions(block *types.Block) (*BlockResult,
 
 // WriteBlock writes a single block
 func (b *Blockchain) WriteBlock(block *types.Block) error {
+	if b.isStopped() {
+		return ErrClosed
+	}
+
+	b.wg.Add(1)
+	defer b.wg.Done()
+
 	// Log the information
 	b.logger.Info(
 		"write block",
@@ -1055,6 +1101,10 @@ func (b *Blockchain) writeBody(block *types.Block) error {
 
 // ReadTxLookup returns the block hash using the transaction hash
 func (b *Blockchain) ReadTxLookup(hash types.Hash) (types.Hash, bool) {
+	if b.isStopped() {
+		return types.ZeroHash, false
+	}
+
 	v, ok := b.db.ReadTxLookup(hash)
 
 	return v, ok
@@ -1131,9 +1181,13 @@ func (b *Blockchain) GetHashHelper(header *types.Header) func(i uint64) (res typ
 
 // GetHashByNumber returns the block hash using the block number
 func (b *Blockchain) GetHashByNumber(blockNumber uint64) types.Hash {
+	if b.isStopped() {
+		return types.ZeroHash
+	}
+
 	block, ok := b.GetBlockByNumber(blockNumber, false)
 	if !ok {
-		return types.Hash{}
+		return types.ZeroHash
 	}
 
 	return block.Hash()
@@ -1146,6 +1200,10 @@ func (b *Blockchain) dispatchEvent(evnt *Event) {
 
 // writeHeaderImpl writes a block and the data, assumes the genesis is already set
 func (b *Blockchain) writeHeaderImpl(evnt *Event, header *types.Header) error {
+	if b.isStopped() {
+		return ErrClosed
+	}
+
 	currentHeader := b.Header()
 
 	currentTD, ok := b.readTotalDifficulty(currentHeader.Hash)
@@ -1323,6 +1381,13 @@ func (b *Blockchain) GetForks() ([]types.Hash, error) {
 
 // GetBlockByHash returns the block using the block hash
 func (b *Blockchain) GetBlockByHash(hash types.Hash, full bool) (*types.Block, bool) {
+	if b.isStopped() {
+		return nil, false
+	}
+
+	b.wg.Add(1)
+	defer b.wg.Done()
+
 	header, ok := b.readHeader(hash)
 	if !ok {
 		return nil, false
@@ -1351,6 +1416,13 @@ func (b *Blockchain) GetBlockByHash(hash types.Hash, full bool) (*types.Block, b
 
 // GetBlockByNumber returns the block using the block number
 func (b *Blockchain) GetBlockByNumber(blockNumber uint64, full bool) (*types.Block, bool) {
+	if b.isStopped() {
+		return nil, false
+	}
+
+	b.wg.Add(1)
+	defer b.wg.Done()
+
 	blockHash, ok := b.db.ReadCanonicalHash(blockNumber)
 	if !ok {
 		return nil, false
@@ -1369,14 +1441,16 @@ func (b *Blockchain) Close() error {
 	b.executor.Stop()
 	b.stop()
 
+	b.wg.Wait()
+
 	// close db at last
 	return b.db.Close()
 }
 
 func (b *Blockchain) stop() {
-	atomic.StoreUint32(&b.stopped, 1)
+	b.stopped.Store(true)
 }
 
 func (b *Blockchain) isStopped() bool {
-	return atomic.LoadUint32(&b.stopped) > 0
+	return b.stopped.Load()
 }

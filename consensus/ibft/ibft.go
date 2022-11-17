@@ -1109,6 +1109,10 @@ func (i *Ibft) markLongTimeConsumingContract(tx *types.Transaction, begin time.T
 // If it turns out that the current node is the proposer, it builds a block,
 // and sends preprepare and then prepare messages.
 func (i *Ibft) runAcceptState() { // start new round
+	if i.isClosed.Load() {
+		return
+	}
+
 	// set log output
 	logger := i.logger.Named("acceptState")
 	logger.Info("Accept state", "sequence", i.state.Sequence(), "round", i.state.Round()+1)
