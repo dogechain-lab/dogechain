@@ -252,7 +252,6 @@ func (s *stateImpl) NewSnapshotAt(root types.Hash) (state.Snapshot, error) {
 }
 
 func (s *stateImpl) ExclusiveTransaction(execute func(StateTransaction)) {
-	// lock, only use StateTransaction.Cancel unlock
 	s.txnMux.Lock()
 	defer s.txnMux.Unlock()
 	s.isTransaction.Store(true)
