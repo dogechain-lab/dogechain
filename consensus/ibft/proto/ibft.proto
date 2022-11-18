@@ -32,17 +32,21 @@ message MessageReq {
     // view is the view assigned to the message
     View view = 5;
 
-    // hash of the locked block
+    // deprecated. hash of the locked block
     string digest = 6;
 
     // proposal is the rlp encoded block in preprepare messages
     google.protobuf.Any proposal = 7;
+
+    // canonical is the canonical seal from proposer, who should be the only one to seal
+    CanonicalSeal canonical = 8;
 
     enum Type {
         Preprepare = 0;
         Prepare = 1;
         Commit = 2;
         RoundChange = 3;
+        PostCommit = 4;
     }
 }
 
@@ -51,36 +55,9 @@ message View {
     uint64 sequence = 2;
 }
 
-/*
-message MessageReq {
-    oneof message {
-        Preprepare preprepare = 1;
-        Subject prepare = 2;
-        Subject commit = 3;
-        Subject roundChange = 4;
-    }
-    string from = 10;
-
-    // commited seal if its a commit message
-    string seal = 11;
-
-    // signed signature
-    string signature = 12;
+message CanonicalSeal {
+    // block hash before sealed
+    string hash = 1;
+    // enough seals collected by proposer
+    repeated string seals = 2;
 }
-
-message Preprepare {
-    View view = 1;
-    Proposal proposal = 2;
-}
-
-message Subject {
-    View view = 1;
-    string digest = 2;
-}
-*/
-
-/*
-message Proposal {
-    google.protobuf.Any block = 1;
-}
-*/
