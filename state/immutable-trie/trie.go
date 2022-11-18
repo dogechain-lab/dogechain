@@ -124,7 +124,7 @@ func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte) {
 
 	// Create an insertion batch for all the entries
 	t.state.ExclusiveTransaction(func(st StateTransaction) {
-		defer st.Cancel()
+		defer st.Rollback()
 
 		tt := t.Txn()
 

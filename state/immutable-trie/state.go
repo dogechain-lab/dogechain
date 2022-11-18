@@ -21,7 +21,7 @@ var (
 
 type StateTransaction interface {
 	Commit() error
-	Cancel()
+	Rollback()
 }
 
 type State interface {
@@ -78,8 +78,8 @@ func (s *stateExTxn) Commit() error {
 	return batch.Commit()
 }
 
-// other storage backend handle cancel in this function
-func (s *stateExTxn) Cancel() {
+// other storage backend handle rollback in this function
+func (s *stateExTxn) Rollback() {
 	s.dbMux.Lock()
 	defer s.dbMux.Unlock()
 
