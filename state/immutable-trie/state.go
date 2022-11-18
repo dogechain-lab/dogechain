@@ -78,6 +78,7 @@ func (s *stateExTxn) Commit() error {
 	return batch.Commit()
 }
 
+// other storage backend handle cancel in this function
 func (s *stateExTxn) Cancel() {
 	s.dbMux.Lock()
 	defer s.dbMux.Unlock()
@@ -87,8 +88,6 @@ func (s *stateExTxn) Cancel() {
 	}
 
 	s.cancel.Store(true)
-
-	// other storage backend handle cancel in this
 }
 
 func (s *stateExTxn) Set(k []byte, v []byte) error {

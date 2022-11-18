@@ -119,6 +119,7 @@ var stateArenaPool fastrlp.ArenaPool // TODO, Remove once we do update in fastrl
 
 func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte) {
 	var root []byte = nil
+
 	var nTrie *Trie = nil
 
 	// Create an insertion batch for all the entries
