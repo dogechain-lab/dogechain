@@ -997,6 +997,7 @@ func (b *Blockchain) WriteBlock(block *types.Block) error {
 		return err
 	}
 
+	// Send new head after written
 	b.dispatchEvent(evnt)
 
 	// Update the average gas price

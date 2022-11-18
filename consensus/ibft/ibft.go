@@ -1405,7 +1405,7 @@ func (i *Ibft) runValidateState() {
 		// check msg number and round, might from some faulty nodes
 		if i.state.Sequence() != msg.View.GetSequence() ||
 			i.state.Round() != msg.View.GetRound() {
-			i.logger.Debug("ValidateState got message not matching sequence and round",
+			i.logger.Info("ValidateState got message not matching sequence and round",
 				"my-sequence", i.state.Sequence(), "my-round", i.state.Round()+1,
 				"other-sequence", msg.View.GetSequence(), "other-round", msg.View.GetRound())
 
@@ -1670,10 +1670,8 @@ func (i *Ibft) sendCommitMsg() {
 func (i *Ibft) gossip(typ proto.MessageReq_Type) {
 	msg := &proto.MessageReq{
 		Type: typ,
+		View: i.state.View().Copy(), // add View, all state needs
 	}
-
-	// add View
-	msg.View = i.state.View().Copy()
 
 	// if we are sending a preprepare message we need to include the proposed block
 	if msg.Type == proto.MessageReq_Preprepare {
