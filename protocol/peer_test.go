@@ -48,20 +48,13 @@ func sortNoForkPeers(peers []*NoForkPeer) []*NoForkPeer {
 }
 
 func peerMapToPeers(peerMap *PeerMap) []*NoForkPeer {
-	res := make([]*NoForkPeer, 0)
+	peers := peerMap.ToList()
 
-	for {
-		bestPeer := peerMap.BestPeer(nil)
-		if bestPeer == nil {
-			break
-		}
+	sort.Slice(peers, func(i, j int) bool {
+		return peers[i].IsBetter(peers[j])
+	})
 
-		res = append(res, bestPeer)
-
-		peerMap.Remove(bestPeer.ID)
-	}
-
-	return res
+	return peers
 }
 
 func TestConstructor(t *testing.T) {
@@ -123,19 +116,16 @@ func TestBestPeer(t *testing.T) {
 			name:     "should return best peer",
 			skipList: nil,
 			peers:    peers,
-			result:   peers[1],
 		},
 		{
 			name:     "should return null in case of empty map",
 			skipList: nil,
 			peers:    nil,
-			result:   nil,
 		},
 		{
 			name:     "should return the 2nd best peer if the best peer is in skip list",
 			skipList: skipList,
 			peers:    peers,
-			result:   peers[1],
 		},
 	}
 
@@ -147,9 +137,18 @@ func TestBestPeer(t *testing.T) {
 
 			peerMap := NewPeerMap(test.peers)
 
-			bestPeer := peerMap.BestPeer(test.skipList)
+			betterPeer := peerMap.BetterPeer(test.skipList, peers[0].Number)
 
-			assert.Equal(t, test.result, bestPeer)
+			if test.peers != nil {
+				assert.NotNil(t, betterPeer)
+
+				assert.True(
+					t,
+					betterPeer.Number > peers[0].Number,
+				)
+			} else {
+				assert.Nil(t, betterPeer)
+			}
 		})
 	}
 }

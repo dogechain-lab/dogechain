@@ -230,10 +230,10 @@ func (s *noForkSyncer) Close() error {
 // HasSyncPeer returns whether syncer has the peer to syncs blocks
 // return false if syncer has no peer whose latest block height doesn't exceed local height
 func (s *noForkSyncer) HasSyncPeer() bool {
-	bestPeer := s.peerMap.BestPeer(nil)
 	header := s.blockchain.Header()
+	betterPeer := s.peerMap.BetterPeer(nil, header.Number)
 
-	return bestPeer != nil && bestPeer.Number > header.Number
+	return betterPeer != nil && betterPeer.Number > header.Number
 }
 
 // Sync syncs block with the best peer until callback returns true
@@ -288,8 +288,8 @@ func (s *noForkSyncer) syncWithSkipList(
 	}
 
 	// pick one best peer
-	bestPeer := s.peerMap.BestPeer(skipList)
-	if bestPeer == nil {
+	betterPeer := s.peerMap.BetterPeer(skipList, localLatest)
+	if betterPeer == nil {
 		s.logger.Info("empty skip list for not getting a best peer")
 
 		if skipList != nil {
@@ -305,23 +305,23 @@ func (s *noForkSyncer) syncWithSkipList(
 	}
 
 	// if the bestPeer does not have a new block continue
-	if bestPeer.Number <= localLatest {
-		s.logger.Debug("wait for the best peer catching up the latest block", "bestPeer", bestPeer.ID)
+	if betterPeer.Number <= localLatest {
+		s.logger.Debug("wait for the best peer catching up the latest block", "bestPeer", betterPeer.ID)
 
 		return
 	}
 
 	// set up a peer to receive its status updates for progress updates
-	s.syncingPeer = bestPeer.ID.String()
+	s.syncingPeer = betterPeer.ID.String()
 
 	// use subscription for updating progression
 	s.syncProgression.StartProgression(s.syncingPeer, localLatest, s.blockchain.SubscribeEvents())
-	s.syncProgression.UpdateHighestProgression(bestPeer.Number)
+	s.syncProgression.UpdateHighestProgression(betterPeer.Number)
 
 	// fetch block from the peer
-	result, err := s.bulkSyncWithPeer(bestPeer, callback)
+	result, err := s.bulkSyncWithPeer(betterPeer, callback)
 	if err != nil {
-		s.logger.Warn("failed to complete bulk sync with peer", "peer ID", bestPeer.ID, "error", err)
+		s.logger.Warn("failed to complete bulk sync with peer", "peer ID", betterPeer.ID, "error", err)
 	}
 
 	// stop progression even it might be not done

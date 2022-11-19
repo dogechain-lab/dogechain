@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"sort"
 	"sync"
 
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -50,9 +51,30 @@ func (m *PeerMap) Remove(peerID peer.ID) {
 	m.Delete(peerID.String())
 }
 
-// BestPeer returns the top of heap
-func (m *PeerMap) BestPeer(skipMap *sync.Map) *NoForkPeer {
-	var bestPeer *NoForkPeer
+// ToList return all peers (sort by IsBetter)
+func (m *PeerMap) ToList() []*NoForkPeer {
+	// get all values
+	var peers = []*NoForkPeer{}
+
+	m.Range(func(_, val interface{}) bool {
+		peer, ok := val.(*NoForkPeer)
+		if ok {
+			peers = append(peers, peer)
+		}
+
+		return true
+	})
+
+	sort.Slice(peers, func(i, j int) bool {
+		return peers[i].IsBetter(peers[j])
+	})
+
+	return peers
+}
+
+// BetterPeer returns higher node
+func (m *PeerMap) BetterPeer(skipMap *sync.Map, height uint64) *NoForkPeer {
+	var betterPeer *NoForkPeer
 
 	needSkipPeer := func(skipMap *sync.Map, id peer.ID) bool {
 		if skipMap == nil {
@@ -70,18 +92,19 @@ func (m *PeerMap) BestPeer(skipMap *sync.Map) *NoForkPeer {
 	}
 
 	m.Range(func(key, value interface{}) bool {
-		peer, _ := value.(*NoForkPeer)
-
-		if needSkipPeer(skipMap, peer.ID) {
+		peer, ok := value.(*NoForkPeer)
+		if !ok || needSkipPeer(skipMap, peer.ID) {
 			return true
 		}
 
-		if bestPeer == nil || peer.IsBetter(bestPeer) {
-			bestPeer = peer
+		if betterPeer == nil && peer.Number > height {
+			betterPeer = peer
+
+			return false
 		}
 
 		return true
 	})
 
-	return bestPeer
+	return betterPeer
 }
