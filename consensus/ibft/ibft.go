@@ -1465,8 +1465,6 @@ func (i *Ibft) runValidateState() {
 		}
 
 		if i.state.NumCommitted() > i.state.NumValid() {
-			// we have received enough commit messages, but still submit more for network security
-			sendCommit()
 			// send post commit message
 			sendPostCommit()
 		}
@@ -1475,7 +1473,7 @@ func (i *Ibft) runValidateState() {
 			// switch to commit state
 			i.setState(currentstate.CommitState)
 			// get out of loop
-			break
+			continue
 		}
 	}
 
