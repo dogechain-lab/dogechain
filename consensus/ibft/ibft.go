@@ -1365,22 +1365,38 @@ func (i *Ibft) isSlashTx(height uint64, coinbase types.Address, tx *types.Transa
 // The Validate state is rather simple - all nodes do in this state is read messages
 // and add them to their local snapshot state
 func (i *Ibft) runValidateState() {
+	// for all validators commit checking
 	hasCommitted := false
 	sendCommit := func() {
+		if hasCommitted {
+			return
+		}
 		// at this point either we have enough prepare messages
 		// or commit messages so we can lock the block
 		i.state.Lock()
-
-		if !hasCommitted {
-			// send the commit message
-			i.sendCommitMsg()
-
-			hasCommitted = true
-		}
+		// send the commit message
+		i.sendCommitMsg()
+		hasCommitted = true
 	}
+	// change round logic
 	changeRound := func() {
 		i.state.Unlock()
 		i.setState(currentstate.RoundChangeState)
+	}
+	// for proposer post commit checking
+	hasPostCommitted := false
+	sendPostCommit := func() {
+		if hasPostCommitted {
+			return
+		}
+		// only proposer need to send post commit
+		// block lock, so we use short cut for faster query
+		if i.state.Block().Header.Miner != i.validatorKeyAddr {
+			return
+		}
+
+		i.sendPostCommitMsg()
+		hasPostCommitted = true
 	}
 
 	timeout := i.state.MessageTimeout()
@@ -1449,9 +1465,12 @@ func (i *Ibft) runValidateState() {
 		if i.state.NumCommitted() > i.state.NumValid() {
 			// we have received enough commit messages, but still submit more for network security
 			sendCommit()
+			// send post commit message
+			sendPostCommit()
 		}
 
 		if i.state.CanonicalSeal() != nil {
+			// switch to commit state
 			i.setState(currentstate.CommitState)
 			// get out of loop
 			break
@@ -1696,6 +1715,10 @@ func (i *Ibft) sendCommitMsg() {
 	i.gossip(proto.MessageReq_Commit)
 }
 
+func (i *Ibft) sendPostCommitMsg() {
+	i.gossip(proto.MessageReq_PostCommit)
+}
+
 func (i *Ibft) gossip(typ proto.MessageReq_Type) {
 	msg := &proto.MessageReq{
 		Type: typ,
@@ -1719,6 +1742,20 @@ func (i *Ibft) gossip(typ proto.MessageReq_Type) {
 		}
 
 		msg.Seal = hex.EncodeToHex(seal)
+	}
+
+	if msg.Type == proto.MessageReq_PostCommit {
+		committeds := i.state.Committed()
+		seals := make([]string, 0, len(committeds))
+
+		for _, committed := range committeds {
+			seals = append(seals, committed.Seal)
+		}
+
+		msg.Canonical = &proto.CanonicalSeal{
+			Hash:  i.state.Block().Hash().String(),
+			Seals: seals,
+		}
 	}
 
 	if msg.Type != proto.MessageReq_Preprepare {
