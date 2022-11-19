@@ -1376,6 +1376,7 @@ func (i *Ibft) runValidateState() {
 		i.state.Lock()
 		// send the commit message
 		i.sendCommitMsg()
+
 		hasCommitted = true
 	}
 	// change round logic
@@ -1385,18 +1386,19 @@ func (i *Ibft) runValidateState() {
 	}
 	// for proposer post commit checking
 	hasPostCommitted := false
+	// send post commit logic to check without
 	sendPostCommit := func() {
 		if hasPostCommitted {
 			return
 		}
-		// only proposer need to send post commit
-		// block lock, so we use short cut for faster query
-		if i.state.Block().Header.Miner != i.validatorKeyAddr {
-			return
-		}
 
-		i.sendPostCommitMsg()
+		// update flag for repeating skip
 		hasPostCommitted = true
+		// only proposer need to send post commit
+		signer, _ := ecrecoverFromHeader(i.state.Block().Header)
+		if signer == i.validatorKeyAddr {
+			i.sendPostCommitMsg()
+		}
 	}
 
 	timeout := i.state.MessageTimeout()
