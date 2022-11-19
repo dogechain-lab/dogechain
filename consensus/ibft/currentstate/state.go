@@ -17,7 +17,7 @@ type IbftState uint32
 const (
 	AcceptState IbftState = iota
 	RoundChangeState
-	ValidateState
+	ValidateState // including prepare, commit, and post commit state stage
 	CommitState
 	SyncState
 )
@@ -66,6 +66,9 @@ type CurrentState struct {
 
 	// List of committed messages
 	committed map[types.Address]*proto.MessageReq
+
+	// canonical seal from proposer
+	canonicalSeal *proto.MessageReq
 
 	// List of round change messages
 	roundMessages map[uint64]map[types.Address]*proto.MessageReq
@@ -290,6 +293,14 @@ func (c *CurrentState) AddCommitted(msg *proto.MessageReq) {
 	c.AddMessage(msg)
 }
 
+func (c *CurrentState) AddPostCommitted(msg *proto.MessageReq) {
+	if msg.Type != proto.MessageReq_PostCommit {
+		return
+	}
+
+	c.AddMessage(msg)
+}
+
 func (c *CurrentState) Committed() map[types.Address]*proto.MessageReq {
 	return c.committed
 }
@@ -302,12 +313,16 @@ func (c *CurrentState) AddMessage(msg *proto.MessageReq) {
 		return
 	}
 
-	switch {
-	case msg.Type == proto.MessageReq_Commit:
+	switch msg.Type {
+	case proto.MessageReq_PostCommit:
+		if c.proposer == addr && msg != nil {
+			c.canonicalSeal = msg
+		}
+	case proto.MessageReq_Commit:
 		c.committed[addr] = msg
-	case msg.Type == proto.MessageReq_Prepare:
+	case proto.MessageReq_Prepare:
 		c.prepared[addr] = msg
-	case msg.Type == proto.MessageReq_RoundChange:
+	case proto.MessageReq_RoundChange:
 		view := msg.View
 		if _, ok := c.roundMessages[view.Round]; !ok {
 			c.roundMessages[view.Round] = map[types.Address]*proto.MessageReq{}
@@ -325,4 +340,8 @@ func (c *CurrentState) NumPrepared() int {
 // numCommitted returns the number of messages in the committed message list
 func (c *CurrentState) NumCommitted() int {
 	return len(c.committed)
+}
+
+func (c *CurrentState) CanonicalSeal() *proto.MessageReq {
+	return c.canonicalSeal
 }

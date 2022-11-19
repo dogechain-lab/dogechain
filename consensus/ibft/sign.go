@@ -84,6 +84,18 @@ func writeSeal(prv *ecdsa.PrivateKey, h *types.Header) (*types.Header, error) {
 	return h, nil
 }
 
+func committedSealFromHex(hexSeal string, rawHash types.Hash) (seal []byte, addr types.Address, err error) {
+	seal, err = hex.DecodeHex(hexSeal)
+	if err != nil {
+		return
+	}
+
+	// check whether seals from validators
+	addr, err = ecrecoverImpl(seal, commitMsg(rawHash[:]))
+
+	return
+}
+
 func writeCommittedSeal(prv *ecdsa.PrivateKey, h *types.Header) ([]byte, error) {
 	return signSealImpl(prv, h, true)
 }

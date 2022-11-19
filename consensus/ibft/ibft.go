@@ -45,6 +45,7 @@ var (
 	ErrInvalidUncleHash      = errors.New("invalid uncle hash")
 	ErrWrongDifficulty       = errors.New("wrong difficulty")
 	ErrInvalidBlockTimestamp = errors.New("invalid block timestamp")
+	ErrInvalidCommittedSeal  = errors.New("invalid committed seal")
 )
 
 type blockchainInterface interface {
@@ -1377,6 +1378,10 @@ func (i *Ibft) runValidateState() {
 			hasCommitted = true
 		}
 	}
+	changeRound := func() {
+		i.state.Unlock()
+		i.setState(currentstate.RoundChangeState)
+	}
 
 	timeout := i.state.MessageTimeout()
 	for i.getState() == currentstate.ValidateState {
@@ -1389,10 +1394,9 @@ func (i *Ibft) runValidateState() {
 		if msg == nil {
 			i.logger.Debug("ValidateState got message timeout, should change round",
 				"sequence", i.state.Sequence(), "round", i.state.Round()+1)
-			i.state.Unlock()
-			i.setState(currentstate.RoundChangeState)
+			changeRound()
 
-			continue
+			return
 		}
 
 		if msg.View == nil {
@@ -1419,6 +1423,19 @@ func (i *Ibft) runValidateState() {
 		case proto.MessageReq_Commit:
 			i.state.AddCommitted(msg)
 
+		case proto.MessageReq_PostCommit:
+			// not valid canonical seals
+			if msg.Canonical == nil ||
+				msg.Canonical.Hash == i.state.Block().Hash().String() ||
+				len(msg.Canonical.Seals) < i.state.NumValid() {
+				i.logger.Error("invalid canonical seal")
+				changeRound()
+
+				return
+			}
+
+			i.state.AddPostCommitted(msg)
+
 		default:
 			i.logger.Error("BUG: %s, validate state don't not handle type.msg: %d",
 				reflect.TypeOf(msg.Type), msg.Type)
@@ -1430,11 +1447,14 @@ func (i *Ibft) runValidateState() {
 		}
 
 		if i.state.NumCommitted() > i.state.NumValid() {
-			// we have received enough commit messages
+			// we have received enough commit messages, but still submit more for network security
 			sendCommit()
+		}
 
-			// try to commit the block (TODO: just to get out of the loop)
+		if i.state.CanonicalSeal() != nil {
 			i.setState(currentstate.CommitState)
+			// get out of loop
+			break
 		}
 	}
 
@@ -1480,24 +1500,33 @@ func (i *Ibft) updateMetrics(block *types.Block) {
 	i.metrics.NumTxs.Set(float64(len(block.Body().Transactions)))
 }
 
-func (i *Ibft) insertBlock(block *types.Block) error {
-	// Gather the committed seals for the block
-	committedSeals := make([][]byte, 0)
+func (i *Ibft) gatherCanonicalCommittedSeals() ([][]byte, error) {
+	hexSeals := i.state.CanonicalSeal().Canonical.Seals
+	committedSeals := make([][]byte, 0, len(hexSeals))
 
-	for _, commit := range i.state.Committed() {
+	for _, commit := range hexSeals {
 		// no need to check the format of seal here because writeCommittedSeals will check
-		seal, err := hex.DecodeHex(commit.Seal)
+		seal, addr, err := committedSealFromHex(commit, i.state.Block().Hash())
 		if err != nil {
-			i.logger.Error(
-				fmt.Sprintf(
-					"unable to decode committed seal from %s: %v",
-					commit.From, err,
-				))
+			return nil, err
+		}
 
-			continue
+		// check whether seals from validators
+		if !i.currentValidators.Includes(addr) {
+			return nil, ErrInvalidCommittedSeal
 		}
 
 		committedSeals = append(committedSeals, seal)
+	}
+
+	return committedSeals, nil
+}
+
+func (i *Ibft) insertBlock(block *types.Block) error {
+	// Gather the committed seals for the block
+	committedSeals, err := i.gatherCanonicalCommittedSeals()
+	if err != nil {
+		return err
 	}
 
 	// Push the committed seals to the header
