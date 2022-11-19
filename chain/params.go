@@ -11,7 +11,7 @@ type Params struct {
 	Engine         map[string]interface{} `json:"engine"`
 	BlockGasTarget uint64                 `json:"blockGasTarget"`
 	BlackList      []string               `json:"blackList,omitempty"`
-	DDOSPretection bool                   `json:"ddosPretection,omitempty"`
+	DDOSProtection bool                   `json:"ddosProtection,omitempty"`
 }
 
 func (p *Params) GetEngine() string {

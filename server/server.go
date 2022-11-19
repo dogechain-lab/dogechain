@@ -281,7 +281,7 @@ func NewServer(config *Config) (*Server, error) {
 				PruneTickSeconds:      m.config.PruneTickSeconds,
 				PromoteOutdateSeconds: m.config.PromoteOutdateSeconds,
 				BlackList:             blackList,
-				DDOSPretection:        m.config.Chain.Params.DDOSPretection,
+				DDOSProtection:        m.config.Chain.Params.DDOSProtection,
 			},
 		)
 		if err != nil {

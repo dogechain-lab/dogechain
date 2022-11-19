@@ -94,7 +94,7 @@ type Config struct {
 	PruneTickSeconds      uint64
 	PromoteOutdateSeconds uint64
 	BlackList             []types.Address
-	DDOSPretection        bool
+	DDOSProtection        bool
 }
 
 /* All requests are passed to the main loop
@@ -197,7 +197,7 @@ type TxPool struct {
 	// some very bad guys whose txs should never be included
 	blacklist map[types.Address]struct{}
 	// ddos protection fields
-	ddosPretection      bool         // enable ddos protection
+	ddosProtection      bool         // enable ddos protection
 	ddosReductionTicker *time.Ticker // ddos reduction ticker for releasing from imprisonment
 	ddosContracts       sync.Map     // ddos contract caching
 
@@ -245,7 +245,7 @@ func NewTxPool(
 		priceLimit:             config.PriceLimit,
 		pruneTick:              time.Second * time.Duration(pruneTickSeconds),
 		promoteOutdateDuration: time.Second * time.Duration(promoteOutdateSeconds),
-		ddosPretection:         config.DDOSPretection,
+		ddosProtection:         config.DDOSProtection,
 		isClosed:               atomic.NewBool(false),
 	}
 
@@ -712,7 +712,7 @@ func (p *TxPool) validateTx(tx *types.Transaction) error {
 
 // IsDDOSTx returns whether a contract transaction marks as ddos attack
 func (p *TxPool) IsDDOSTx(tx *types.Transaction) bool {
-	if !p.ddosPretection || tx.To == nil {
+	if !p.ddosProtection || tx.To == nil {
 		return false
 	}
 
@@ -727,7 +727,7 @@ func (p *TxPool) IsDDOSTx(tx *types.Transaction) bool {
 
 // MarkDDOSTx marks resource consuming transaction as a might-be attack
 func (p *TxPool) MarkDDOSTx(tx *types.Transaction) {
-	if !p.ddosPretection || tx.To == nil {
+	if !p.ddosProtection || tx.To == nil {
 		return
 	}
 
