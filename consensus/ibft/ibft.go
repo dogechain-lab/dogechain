@@ -1686,7 +1686,7 @@ func (i *Ibft) runRoundChangeState() {
 		// we only expect RoundChange messages right now
 		num := i.state.AddRoundMessage(msg)
 
-		if num == i.state.NumValid() {
+		if num >= i.state.NumValid() {
 			// start a new round immediately
 			i.startNewRound(msg.View.Round)
 			i.setState(currentstate.AcceptState)
