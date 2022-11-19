@@ -326,7 +326,7 @@ func (p *TxPool) Start() {
 				}
 			case _, ok := <-p.ddosReductionTicker.C:
 				if ok {
-					go p.reduceDDOSCounts()
+					// go p.reduceDDOSCounts()
 				}
 			}
 		}
