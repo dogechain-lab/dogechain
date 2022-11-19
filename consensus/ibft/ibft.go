@@ -1405,6 +1405,8 @@ func (i *Ibft) runValidateState() {
 
 	timeout := i.state.MessageTimeout()
 	for i.getState() == currentstate.ValidateState {
+		logger.Debug("wait for seal message")
+
 		msg, ok := i.getNextMessage(timeout)
 		if !ok {
 			// closing
@@ -1457,7 +1459,7 @@ func (i *Ibft) runValidateState() {
 			i.state.AddPostCommitted(msg)
 
 		default:
-			logger.Error("BUG: %s, validate state don't not handle type.msg: %d",
+			logger.Error("BUG: %s, validate state do not handle type.msg: %d",
 				reflect.TypeOf(msg.Type), msg.Type)
 		}
 
@@ -1472,6 +1474,7 @@ func (i *Ibft) runValidateState() {
 		}
 
 		if i.state.CanonicalSeal() != nil {
+			logger.Info("got canonical seal and move on")
 			// switch to commit state
 			i.setState(currentstate.CommitState)
 			// get out of loop
