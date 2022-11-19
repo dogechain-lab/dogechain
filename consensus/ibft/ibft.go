@@ -1365,6 +1365,8 @@ func (i *Ibft) isSlashTx(height uint64, coinbase types.Address, tx *types.Transa
 // The Validate state is rather simple - all nodes do in this state is read messages
 // and add them to their local snapshot state
 func (i *Ibft) runValidateState() {
+	logger := i.logger.Named("validateState")
+
 	// for all validators commit checking
 	hasCommitted := false
 	sendCommit := func() {
@@ -1410,7 +1412,7 @@ func (i *Ibft) runValidateState() {
 		}
 
 		if msg == nil {
-			i.logger.Debug("ValidateState got message timeout, should change round",
+			logger.Info("ValidateState got message timeout, should change round",
 				"sequence", i.state.Sequence(), "round", i.state.Round()+1)
 			changeRound()
 
@@ -1419,7 +1421,7 @@ func (i *Ibft) runValidateState() {
 
 		if msg.View == nil {
 			// A malicious node conducted a DoS attack
-			i.logger.Error("view data in msg is nil")
+			logger.Error("view data in msg is nil")
 
 			continue
 		}
@@ -1427,7 +1429,7 @@ func (i *Ibft) runValidateState() {
 		// check msg number and round, might from some faulty nodes
 		if i.state.Sequence() != msg.View.GetSequence() ||
 			i.state.Round() != msg.View.GetRound() {
-			i.logger.Info("ValidateState got message not matching sequence and round",
+			logger.Info("ValidateState got message not matching sequence and round",
 				"my-sequence", i.state.Sequence(), "my-round", i.state.Round()+1,
 				"other-sequence", msg.View.GetSequence(), "other-round", msg.View.GetRound())
 
@@ -1446,7 +1448,7 @@ func (i *Ibft) runValidateState() {
 			if msg.Canonical == nil ||
 				msg.Canonical.Hash == i.state.Block().Hash().String() ||
 				len(msg.Canonical.Seals) < i.state.NumValid() {
-				i.logger.Error("invalid canonical seal")
+				logger.Error("invalid canonical seal")
 				changeRound()
 
 				return
@@ -1455,7 +1457,7 @@ func (i *Ibft) runValidateState() {
 			i.state.AddPostCommitted(msg)
 
 		default:
-			i.logger.Error("BUG: %s, validate state don't not handle type.msg: %d",
+			logger.Error("BUG: %s, validate state don't not handle type.msg: %d",
 				reflect.TypeOf(msg.Type), msg.Type)
 		}
 
@@ -1485,7 +1487,7 @@ func (i *Ibft) runValidateState() {
 		if err := i.insertBlock(block); err != nil {
 			// start a new round with the state unlocked since we need to
 			// be able to propose/validate a different block
-			i.logger.Error("failed to insert block", "err", err)
+			i.logger.Named("commitState").Error("failed to insert block", "err", err)
 			i.handleStateErr(errFailedToInsertBlock)
 		} else {
 			// update metrics
