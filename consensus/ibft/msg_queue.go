@@ -85,7 +85,7 @@ func (m *msgQueue) getQueue(state currentstate.IbftState) *msgQueueImpl {
 		// preprepare
 		return &m.acceptStateQueue
 	} else {
-		// prepare and commit
+		// prepare, commit and post commit
 		return &m.validateStateQueue
 	}
 }
@@ -101,27 +101,31 @@ func newMsgQueue() *msgQueue {
 
 // protoTypeToMsg converts the proto message request type to a MsgType object
 func protoTypeToMsg(msgType proto.MessageReq_Type) MsgType {
-	if msgType == proto.MessageReq_Preprepare {
+	switch msgType {
+	case proto.MessageReq_Preprepare:
 		return msgPreprepare
-	} else if msgType == proto.MessageReq_Prepare {
+	case proto.MessageReq_Prepare:
 		return msgPrepare
-	} else if msgType == proto.MessageReq_Commit {
+	case proto.MessageReq_Commit:
 		return msgCommit
+	case proto.MessageReq_PostCommit:
+		return msgPostCommit
+	default:
+		return msgRoundChange
 	}
-
-	return msgRoundChange
 }
 
 // msgToState converts the message type to an IbftState
 func msgToState(msg MsgType) currentstate.IbftState {
-	if msg == msgRoundChange {
+	switch msg {
+	case msgRoundChange:
 		// round change
 		return currentstate.RoundChangeState
-	} else if msg == msgPreprepare {
+	case msgPreprepare:
 		// preprepare
 		return currentstate.AcceptState
-	} else if msg == msgPrepare || msg == msgCommit {
-		// prepare and commit
+	case msgPrepare, msgCommit, msgPostCommit:
+		// prepare, commit and post commit
 		return currentstate.ValidateState
 	}
 
@@ -137,6 +141,7 @@ const (
 	msgPreprepare  MsgType = 1
 	msgCommit      MsgType = 2
 	msgPrepare     MsgType = 3
+	msgPostCommit  MsgType = 4
 )
 
 // String returns the string representation of the message type
@@ -150,6 +155,8 @@ func (m MsgType) String() string {
 		return "Preprepare"
 	case msgCommit:
 		return "Commit"
+	case msgPostCommit:
+		return "PostCommit"
 	default:
 		panic("BUG")
 	}
