@@ -76,7 +76,7 @@ func (a *Address) Scan(src interface{}) error {
 }
 
 func StringToAddress(str string) Address {
-	return BytesToAddress(stringToBytes(str))
+	return BytesToAddress(StringToBytes(str))
 }
 
 func AddressToString(address Address) string {
@@ -96,7 +96,7 @@ func BytesToAddress(b []byte) Address {
 
 // UnmarshalText parses an address in hex syntax.
 func (a *Address) UnmarshalText(input []byte) error {
-	buf := stringToBytes(string(input))
+	buf := StringToBytes(string(input))
 	if len(buf) != AddressLength {
 		return fmt.Errorf("incorrect length")
 	}

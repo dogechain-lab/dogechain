@@ -14,7 +14,7 @@ func min(i, j int) int {
 	return j
 }
 
-func stringToBytes(str string) []byte {
+func StringToBytes(str string) []byte {
 	str = strings.TrimPrefix(str, "0x")
 	if len(str)%2 == 1 {
 		str = "0" + str

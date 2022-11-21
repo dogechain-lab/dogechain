@@ -26,7 +26,7 @@ const (
 type Hash [HashLength]byte
 
 func StringToHash(str string) Hash {
-	return BytesToHash(stringToBytes(str))
+	return BytesToHash(StringToBytes(str))
 }
 
 func BytesToHash(b []byte) Hash {
@@ -70,7 +70,7 @@ func (h *Hash) Scan(src interface{}) error {
 
 // UnmarshalText parses a hash in hex syntax.
 func (h *Hash) UnmarshalText(input []byte) error {
-	*h = BytesToHash(stringToBytes(string(input)))
+	*h = BytesToHash(StringToBytes(string(input)))
 
 	return nil
 }
