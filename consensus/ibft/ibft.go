@@ -1450,7 +1450,11 @@ func (i *Ibft) runValidateState() {
 			if msg.Canonical == nil ||
 				msg.Canonical.Hash == i.state.Block().Hash().String() ||
 				len(msg.Canonical.Seals) < i.state.NumValid() {
-				logger.Error("invalid canonical seal")
+				logger.Error("invalid canonical seal",
+					"msg", msg,
+					"block", i.state.Block().Hash(),
+					"seals", len(msg.Canonical.Seals),
+				)
 				changeRound()
 
 				return
