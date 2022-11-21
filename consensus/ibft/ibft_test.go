@@ -13,6 +13,7 @@ import (
 	"github.com/dogechain-lab/dogechain/consensus"
 	"github.com/dogechain-lab/dogechain/consensus/ibft/currentstate"
 	"github.com/dogechain-lab/dogechain/consensus/ibft/proto"
+	"github.com/dogechain-lab/dogechain/consensus/ibft/validator"
 	"github.com/dogechain-lab/dogechain/helper/common"
 	"github.com/dogechain-lab/dogechain/helper/hex"
 	"github.com/dogechain-lab/dogechain/helper/progress"
@@ -666,7 +667,8 @@ func TestTransition_RoundChangeState_WeakCertificate(t *testing.T) {
 func TestTransition_RoundChangeState_ErrStartNewRound(t *testing.T) {
 	// if we start a round change because there was an error we start
 	// a new round right away
-	m := newMockIbft(t, []string{"A", "B"}, "A")
+	m := newMockIbft(t, []string{"A", "B", "C", "D", "E", "F", "G"}, "A")
+	// stop it immediately
 	m.Close()
 
 	m.state.HandleErr(errBlockVerificationFailed)
@@ -674,6 +676,7 @@ func TestTransition_RoundChangeState_ErrStartNewRound(t *testing.T) {
 	m.setState(currentstate.RoundChangeState)
 	m.runCycle()
 
+	// not enough round change message, so we should be in round change state
 	m.expect(expectResult{
 		sequence: 1,
 		round:    1,
@@ -685,7 +688,7 @@ func TestTransition_RoundChangeState_ErrStartNewRound(t *testing.T) {
 func TestTransition_RoundChangeState_StartNewRound(t *testing.T) {
 	// if we start round change due to a state timeout and we are on the
 	// correct sequence, we start a new round
-	m := newMockIbft(t, []string{"A", "B"}, "A")
+	m := newMockIbft(t, []string{"A", "B", "C", "D", "E", "F", "G"}, "A")
 	m.Close()
 
 	m.state.SetView(proto.ViewMsg(1, 0))
@@ -693,6 +696,7 @@ func TestTransition_RoundChangeState_StartNewRound(t *testing.T) {
 	m.setState(currentstate.RoundChangeState)
 	m.runCycle()
 
+	// not enough round change message, so we should be in round change state
 	m.expect(expectResult{
 		sequence: 1,
 		round:    1,
@@ -1741,7 +1745,7 @@ func TestState_FaultyNodes(t *testing.T) {
 	for _, c := range cases {
 		pool := newTesterAccountPool(int(c.Network))
 		vals := pool.ValidatorSet()
-		assert.Equal(t, vals.MaxFaultyNodes(), int(c.Faulty))
+		assert.Equal(t, validator.CalcMaxFaultyNodes(vals), int(c.Faulty))
 	}
 }
 
