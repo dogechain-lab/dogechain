@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"log"
 	"net"
 	"strings"
 
@@ -182,9 +183,15 @@ func (p *serverParams) generateConfig() *server.Config {
 	ingoreCIDRs := []*net.IPNet{}
 
 	for _, s := range cidrList {
+		if s == "" {
+			continue
+		}
+
 		_, ipnet, err := net.ParseCIDR(s)
 		if err != nil {
-			panic(err)
+			log.Printf("CIDR formart error: %s \n", err)
+
+			continue
 		}
 
 		ingoreCIDRs = append(ingoreCIDRs, ipnet)
