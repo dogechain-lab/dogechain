@@ -1482,7 +1482,7 @@ func (i *Ibft) runValidateState() {
 			// switch to commit state
 			i.setState(currentstate.CommitState)
 			// get out of loop
-			continue
+			break
 		}
 	}
 
@@ -1528,19 +1528,22 @@ func (i *Ibft) updateMetrics(block *types.Block) {
 	i.metrics.NumTxs.Set(float64(len(block.Body().Transactions)))
 }
 
-func (i *Ibft) gatherCanonicalCommittedSeals() ([][]byte, error) {
-	hexSeals := i.state.CanonicalSeal().Canonical.Seals
-	committedSeals := make([][]byte, 0, len(hexSeals))
+func gatherCanonicalCommittedSeals(
+	canonicalSeals []string,
+	validators validator.Validators,
+	block *types.Block,
+) ([][]byte, error) {
+	committedSeals := make([][]byte, 0, len(canonicalSeals))
 
-	for _, commit := range hexSeals {
+	for _, commit := range canonicalSeals {
 		// no need to check the format of seal here because writeCommittedSeals will check
-		seal, addr, err := committedSealFromHex(commit, i.state.Block().Hash())
+		seal, addr, err := committedSealFromHex(commit, block.Hash())
 		if err != nil {
 			return nil, err
 		}
 
 		// check whether seals from validators
-		if !i.currentValidators.Includes(addr) {
+		if !validators.Includes(addr) {
 			return nil, ErrInvalidCommittedSeal
 		}
 
@@ -1552,7 +1555,11 @@ func (i *Ibft) gatherCanonicalCommittedSeals() ([][]byte, error) {
 
 func (i *Ibft) insertBlock(block *types.Block) error {
 	// Gather the committed seals for the block
-	committedSeals, err := i.gatherCanonicalCommittedSeals()
+	committedSeals, err := gatherCanonicalCommittedSeals(
+		i.state.CanonicalSeal().Canonical.Seals,
+		i.currentValidators,
+		block,
+	)
 	if err != nil {
 		return err
 	}
