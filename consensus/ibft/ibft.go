@@ -1437,22 +1437,37 @@ func (i *Ibft) runValidateState() {
 			continue
 		}
 
+		currentBlockHash := i.state.Block().Hash()
+
 		switch msg.Type {
 		case proto.MessageReq_Prepare:
 			i.state.AddPrepared(msg)
 
 		case proto.MessageReq_Commit:
+			// check seal before execute any of it
+			_, addr, err := committedSealFromHex(msg.Seal, currentBlockHash)
+			if err != nil ||
+				addr != msg.FromAddr() {
+				logger.Warn("invalid seal",
+					"blockHash", currentBlockHash,
+					"msg", msg,
+					"signer", addr,
+					"err", err,
+				)
+
+				break // current switch
+			}
+
 			i.state.AddCommitted(msg)
 
 		case proto.MessageReq_PostCommit:
 			// not valid canonical seals
 			if msg.Canonical == nil ||
-				msg.Canonical.Hash != i.state.Block().Hash().String() ||
+				msg.Canonical.Hash != currentBlockHash.String() ||
 				len(msg.Canonical.Seals) < i.state.NumValid() {
 				logger.Error("invalid canonical seal",
+					"blockHash", i.state.Block().Hash(),
 					"msg", msg,
-					"block", i.state.Block().Hash(),
-					"seals", len(msg.Canonical.Seals),
 				)
 				changeRound()
 
