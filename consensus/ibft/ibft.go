@@ -1105,6 +1105,7 @@ func (i *Ibft) markLongTimeConsumingContract(tx *types.Transaction, begin time.T
 		"to", tx.To,
 		"gasPrice", tx.GasPrice,
 		"gas", tx.Gas,
+		"hash", tx.Hash(),
 	)
 }
 
