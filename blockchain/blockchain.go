@@ -877,6 +877,11 @@ func (b *Blockchain) executeBlockTransactions(block *types.Block) (*BlockResult,
 	b.wg.Add(1)
 	defer b.wg.Done()
 
+	begin := time.Now()
+	defer func() {
+		b.metrics.BlockExecutionSeconds.Observe(time.Since(begin).Seconds())
+	}()
+
 	header := block.Header
 
 	parent, ok := b.readHeader(header.ParentHash)
@@ -1075,10 +1080,9 @@ func (b *Blockchain) updateGasPriceAvgWithBlock(block *types.Block) {
 // writeBody writes the block body to the DB.
 // Additionally, it also updates the txn lookup, for txnHash -> block lookups
 func (b *Blockchain) writeBody(block *types.Block) error {
-	startT := time.Now()
+	begin := time.Now()
 	defer func() {
-		endT := time.Now()
-		b.metrics.BlockWrittenSeconds.Observe(endT.Sub(startT).Seconds())
+		b.metrics.BlockWrittenSeconds.Observe(time.Since(begin).Seconds())
 	}()
 
 	body := block.Body()
