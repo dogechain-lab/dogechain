@@ -1404,9 +1404,8 @@ func (i *Ibft) runValidateState() {
 	}
 
 	timeout := i.state.MessageTimeout()
-	for i.getState() == currentstate.ValidateState {
-		logger.Debug("wait for seal message")
 
+	for i.getState() == currentstate.ValidateState {
 		msg, ok := i.getNextMessage(timeout)
 		if !ok {
 			// closing
