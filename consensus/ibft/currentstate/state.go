@@ -210,6 +210,7 @@ func (c *CurrentState) MessageTimeout() time.Duration {
 func (c *CurrentState) ResetRoundMsgs() {
 	c.prepared = map[types.Address]*proto.MessageReq{}
 	c.committed = map[types.Address]*proto.MessageReq{}
+	c.canonicalSeal = nil // reset canonical seal when round change
 	c.roundMessages = map[uint64]map[types.Address]*proto.MessageReq{}
 }
 
