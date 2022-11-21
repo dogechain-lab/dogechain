@@ -15,6 +15,8 @@ import (
 	"github.com/dogechain-lab/dogechain/network/proto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	kb "github.com/libp2p/go-libp2p-kbucket"
+
+	ranger "github.com/libp2p/go-cidranger"
 )
 
 const (
@@ -94,6 +96,8 @@ type DiscoveryService struct {
 	logger       hclog.Logger     // The DiscoveryService logger
 	routingTable *kb.RoutingTable // Kademlia 'k-bucket' routing table that contains connected nodes info
 
+	ignoreCIDR ranger.Ranger // CIDR ranges to ignore when finding peers
+
 	closeCh chan struct{} // Channel used for stopping the DiscoveryService
 }
 
@@ -101,12 +105,14 @@ type DiscoveryService struct {
 func NewDiscoveryService(
 	server networkingServer,
 	routingTable *kb.RoutingTable,
+	ignoreCIDR ranger.Ranger,
 	logger hclog.Logger,
 ) *DiscoveryService {
 	return &DiscoveryService{
-		logger:       logger.Named("discovery"),
 		baseServer:   server,
+		logger:       logger.Named("discovery"),
 		routingTable: routingTable,
+		ignoreCIDR:   ignoreCIDR,
 		closeCh:      make(chan struct{}),
 	}
 }
@@ -232,6 +238,44 @@ func (d *DiscoveryService) attemptToFindPeers(peerID peer.ID) error {
 	return nil
 }
 
+// checkPeerInIgnoreCIDR checks if the peer is in the ignore CIDR range
+func (d *DiscoveryService) checkPeerInIgnoreCIDR(peerAddr string) bool {
+	if d.ignoreCIDR == nil {
+		return false
+	}
+
+	peerInfo, err := common.StringToAddrInfo(peerAddr)
+	if err != nil || peerInfo == nil {
+		// failed back to the default behaviour
+		d.logger.Error("cant parse peer address", "err", err)
+
+		return false
+	}
+
+	findValidAddress := false
+
+	for _, addr := range peerInfo.Addrs {
+		ip, err := common.ParseMultiaddrIP(addr)
+		if err != nil && errors.Is(err, common.ErrMultiaddrContainsDNS) {
+			d.logger.Debug("peer multiaddr is dns", "err", err)
+
+			findValidAddress = true
+
+			break
+		}
+
+		// Check if the peer IP is in the ignore CIDR range
+		exist, err := d.ignoreCIDR.Contains(ip)
+		if err == nil && exist {
+			findValidAddress = true
+
+			break
+		}
+	}
+
+	return findValidAddress
+}
+
 // findPeersCall queries the set peer for their peer set
 func (d *DiscoveryService) findPeersCall(
 	peerID peer.ID,
@@ -259,7 +303,15 @@ func (d *DiscoveryService) findPeersCall(
 		}
 	}
 
-	return resp.Nodes, nil
+	var filterNode []string
+
+	for _, node := range resp.Nodes {
+		if !d.checkPeerInIgnoreCIDR(node) {
+			filterNode = append(filterNode, node)
+		}
+	}
+
+	return filterNode, nil
 }
 
 // startDiscovery starts the DiscoveryService loop,

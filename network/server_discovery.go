@@ -4,12 +4,14 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math/big"
+	"net"
 	"time"
 
 	"github.com/dogechain-lab/dogechain/network/common"
 	"github.com/dogechain-lab/dogechain/network/discovery"
 	"github.com/dogechain-lab/dogechain/network/grpc"
 	"github.com/dogechain-lab/dogechain/network/proto"
+	ranger "github.com/libp2p/go-cidranger"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/peerstore"
 	kb "github.com/libp2p/go-libp2p-kbucket"
@@ -214,10 +216,30 @@ func (s *Server) setupDiscovery() error {
 		s.dialQueue.DeleteTask(p)
 	}
 
+	// Create ignore CIDR filter
+	ignoreCIDR := func(list []*net.IPNet) ranger.Ranger {
+		if len(list) == 0 {
+			return nil
+		}
+
+		// Create a new CIDR set
+		ignoreRange := ranger.NewPCTrieRanger()
+
+		for _, cidr := range list {
+			// Add the CIDR to the set
+			if cidr != nil {
+				ignoreRange.Insert(ranger.NewBasicRangerEntry(*cidr))
+			}
+		}
+
+		return ignoreRange
+	}(s.config.DiscoverIngoreCIDR)
+
 	// Create an instance of the discovery service
 	discoveryService := discovery.NewDiscoveryService(
 		s,
 		routingTable,
+		ignoreCIDR,
 		s.logger,
 	)
 

@@ -3,6 +3,9 @@ package command
 const (
 	ConsensusFlag  = "consensus"
 	NoDiscoverFlag = "no-discover"
-	BootnodeFlag   = "bootnode"
-	LogLevelFlag   = "log-level"
+
+	DiscoverIgnoreCIDRFlag = "discover-ignore-cidr"
+
+	BootnodeFlag = "bootnode"
+	LogLevelFlag = "log-level"
 )

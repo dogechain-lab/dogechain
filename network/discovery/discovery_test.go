@@ -3,18 +3,25 @@ package discovery
 import (
 	"context"
 	"errors"
+	"fmt"
+	"net"
 	"testing"
 	"time"
+
+	ma "github.com/multiformats/go-multiaddr"
 
 	"github.com/dogechain-lab/dogechain/helper/tests"
 	"github.com/dogechain-lab/dogechain/network/common"
 	"github.com/dogechain-lab/dogechain/network/proto"
 	networkTesting "github.com/dogechain-lab/dogechain/network/testing"
 	"github.com/hashicorp/go-hclog"
+	libp2pCrypto "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	kb "github.com/libp2p/go-libp2p-kbucket"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
+
+	ranger "github.com/libp2p/go-cidranger"
 )
 
 // newDiscoveryService creates a new discovery service instance
@@ -295,4 +302,82 @@ func TestDiscoveryService_RegularPeerDiscoveryUnconnected(t *testing.T) {
 
 	// Make sure that no peers were added to the peer store
 	assert.Len(t, peerStore, 0)
+}
+
+func TestDiscoveryService_IgnorePeer(t *testing.T) {
+	randomPeers := getRandomPeers(t, 3)
+	bootnode := randomPeers[0]
+
+	ignorePeer := func() *peer.AddrInfo {
+		priv, _, err := libp2pCrypto.GenerateKeyPair(libp2pCrypto.Secp256k1, 256)
+		if err != nil {
+			t.Fatalf("Unable to generate key pair, %v", err)
+		}
+
+		nodeID, err := peer.IDFromPrivateKey(priv)
+		assert.NoError(t, err)
+
+		return &peer.AddrInfo{
+			ID:    nodeID,
+			Addrs: []ma.Multiaddr{ma.StringCast(fmt.Sprintf("/ip4/192.168.1.1/tcp/1234/p2p/%s", nodeID))},
+		}
+	}()
+
+	randomPeers = append(randomPeers, ignorePeer)
+
+	peerStore := make(map[peer.ID]*peer.AddrInfo)
+
+	// Create an instance of the identity service
+	discoveryService, setupErr := newDiscoveryService(
+		// Set the relevant hook responses from the mock server
+		func(server *networkTesting.MockNetworkingServer) {
+			// Define the random bootnode hook
+			server.HookGetRandomBootnode(func() *peer.AddrInfo {
+				return bootnode
+			})
+
+			// Define the discovery client find peers hook
+			server.GetMockDiscoveryClient().HookFindPeers(
+				func(
+					ctx context.Context,
+					in *proto.FindPeersReq,
+					opts ...grpc.CallOption,
+				) (*proto.FindPeersResp, error) {
+					// Encode the response to a string array
+					peers := make([]string, len(randomPeers))
+
+					for i, peerInfo := range randomPeers {
+						// The peer info needs to be formatted as a MultiAddr
+						peers[i] = common.AddrInfoToString(peerInfo)
+					}
+
+					return &proto.FindPeersResp{
+						Nodes: peers,
+					}, nil
+				},
+			)
+
+			// Define the peer store addition
+			server.HookAddToPeerStore(func(info *peer.AddrInfo) {
+				peerStore[info.ID] = info
+			})
+		},
+	)
+	if setupErr != nil {
+		t.Fatalf("Unable to setup the discovery service")
+	}
+
+	// add ignore cidr
+	_, network, _ := net.ParseCIDR("192.168.1.0/24")
+
+	ignoreRange := ranger.NewPCTrieRanger()
+	ignoreRange.Insert(ranger.NewBasicRangerEntry(*network))
+
+	discoveryService.ignoreCIDR = ignoreRange
+
+	discoveryService.bootnodePeerDiscovery()
+
+	// check ignore peer not added
+	assert.Len(t, peerStore, 3)
+	assert.NotContains(t, peerStore, ignorePeer.ID)
 }

@@ -10,6 +10,8 @@ import (
 
 // Config details the params for the base networking server
 type Config struct {
+	DiscoverIngoreCIDR []*net.IPNet // list of CIDR ranges to ignore when discovering peers
+
 	NoDiscover       bool                   // flag indicating if the discovery mechanism should be turned on
 	Addr             *net.TCPAddr           // the base address
 	NatAddr          *net.TCPAddr           // the NAT address
@@ -25,6 +27,8 @@ type Config struct {
 
 func DefaultConfig() *Config {
 	return &Config{
+		// The discovery service ignore peer IP ranges
+		DiscoverIngoreCIDR: []*net.IPNet{},
 		// The discovery service is turned on by default
 		NoDiscover: false,
 		// Addresses are bound to localhost by default

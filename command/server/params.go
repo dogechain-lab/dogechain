@@ -177,6 +177,19 @@ func (p *serverParams) generateConfig() *server.Config {
 	// namespace
 	ns := strings.Split(p.rawConfig.JSONNamespace, ",")
 
+	// ignore cidr
+	cidrList := strings.Split(p.rawConfig.Network.DiscoverIgnoreCIDR, ",")
+	ingoreCIDRs := []*net.IPNet{}
+
+	for _, s := range cidrList {
+		_, ipnet, err := net.ParseCIDR(s)
+		if err != nil {
+			panic(err)
+		}
+
+		ingoreCIDRs = append(ingoreCIDRs, ipnet)
+	}
+
 	return &server.Config{
 		Chain: chainCfg,
 		JSONRPC: &server.JSONRPC{
@@ -201,7 +214,9 @@ func (p *serverParams) generateConfig() *server.Config {
 			PrometheusAddr: p.prometheusAddress,
 		},
 		Network: &network.Config{
-			NoDiscover:       p.rawConfig.Network.NoDiscover,
+			NoDiscover:         p.rawConfig.Network.NoDiscover,
+			DiscoverIngoreCIDR: ingoreCIDRs,
+
 			Addr:             p.libp2pAddress,
 			NatAddr:          p.natAddress,
 			DNS:              p.dnsAddress,

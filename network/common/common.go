@@ -3,6 +3,7 @@ package common
 import (
 	"errors"
 	"fmt"
+	"net"
 	"regexp"
 	"strings"
 
@@ -20,6 +21,14 @@ const (
 const (
 	DiscProto     = "/disc/0.1"
 	IdentityProto = "/id/0.1"
+)
+
+var (
+	ErrInvalidMultiaddr        = errors.New("invalid multiaddr")
+	ErrCouldNotCreateMultiaddr = errors.New("could not create a multi address")
+
+	ErrMultiaddrNoFoundIP   = errors.New("no IP address found")
+	ErrMultiaddrContainsDNS = errors.New("multiaddr contains dns")
 )
 
 // DNSRegex is a regex string to match against a valid dns/dns4/dns6 addr
@@ -94,14 +103,14 @@ func MultiAddrFromDNS(addr string, port int) (multiaddr.Multiaddr, error) {
 		addr,
 	)
 	if err != nil || !match {
-		return nil, errors.New("invalid DNS address")
+		return nil, ErrInvalidMultiaddr
 	}
 
 	s := strings.Trim(addr, "/")
 	split := strings.Split(s, "/")
 
 	if len(split) != 2 {
-		return nil, errors.New("invalid DNS address")
+		return nil, ErrInvalidMultiaddr
 	}
 
 	switch split[0] {
@@ -112,7 +121,7 @@ func MultiAddrFromDNS(addr string, port int) (multiaddr.Multiaddr, error) {
 	case "dns6":
 		version = "dns6"
 	default:
-		return nil, errors.New("invalid DNS version")
+		return nil, ErrInvalidMultiaddr
 	}
 
 	domain = split[1]
@@ -127,8 +136,28 @@ func MultiAddrFromDNS(addr string, port int) (multiaddr.Multiaddr, error) {
 	)
 
 	if err != nil {
-		return nil, errors.New("could not create a multi address")
+		return nil, ErrCouldNotCreateMultiaddr
 	}
 
 	return multiAddr, nil
+}
+
+// ParseMultiaddrIP parse a multiaddr into a net.IP
+func ParseMultiaddrIP(ma multiaddr.Multiaddr) (net.IP, error) {
+	_, err := ma.ValueForProtocol(multiaddr.P_DNS)
+	if err == nil {
+		return nil, ErrMultiaddrContainsDNS
+	}
+
+	ip, err := ma.ValueForProtocol(multiaddr.P_IP4)
+	if err == nil {
+		return net.ParseIP(ip), nil
+	}
+
+	ip, err = ma.ValueForProtocol(multiaddr.P_IP6)
+	if err == nil {
+		return net.ParseIP(ip), nil
+	}
+
+	return nil, ErrMultiaddrNoFoundIP
 }
