@@ -128,7 +128,7 @@ func (c *CurrentState) NumValid() int {
 }
 
 func (c *CurrentState) MaxFaultyNodes() int {
-	return c.validators.MaxFaultyNodes()
+	return validator.CalcMaxFaultyNodes(c.validators)
 }
 
 func (c *CurrentState) HandleErr(err error) {
@@ -168,7 +168,7 @@ func (c *CurrentState) NextRound() uint64 {
 }
 
 func (c *CurrentState) MaxRound() (maxRound uint64, found bool) {
-	num := c.validators.MaxFaultyNodes() + 1
+	num := validator.CalcMaxFaultyNodes(c.validators) + 1
 
 	for k, round := range c.roundMessages {
 		if len(round) < num {

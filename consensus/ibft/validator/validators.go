@@ -1,6 +1,8 @@
 package validator
 
-import "github.com/dogechain-lab/dogechain/types"
+import (
+	"github.com/dogechain-lab/dogechain/types"
+)
 
 type Validators []types.Address
 
@@ -75,8 +77,8 @@ func (v *Validators) Includes(addr types.Address) bool {
 	return v.Index(addr) != -1
 }
 
-// MaxFaultyNodes returns the maximum number of allowed faulty nodes (F), based on the current validator set
-func (v *Validators) MaxFaultyNodes() int {
+// CalcMaxFaultyNodes returns the maximum number of allowed faulty nodes (F), based on the current validator set
+func CalcMaxFaultyNodes(s Validators) int {
 	// N -> number of nodes in IBFT
 	// F -> number of faulty nodes
 	//
@@ -88,5 +90,5 @@ func (v *Validators) MaxFaultyNodes() int {
 	// To tolerate 2 failures, IBFT requires 7 nodes
 	// 7 = 3 * 2 + 1
 	// It should always take the floor of the result
-	return (len(*v) - 1) / 3
+	return (s.Len() - 1) / 3
 }
