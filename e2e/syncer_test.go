@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/dogechain-lab/dogechain/e2e/framework"
+	"github.com/stretchr/testify/assert"
+	"github.com/umbracle/go-web3"
 )
 
 func TestClusterBlockSync(t *testing.T) {
@@ -42,5 +44,24 @@ func TestClusterBlockSync(t *testing.T) {
 
 	if len(waitErrors) != 0 {
 		t.Fatalf("Unable to wait for all nodes to seal blocks, %v", waitErrors)
+	}
+
+	// should get the same block results no matter which one to query
+	var (
+		blocks = make([]*web3.Block, len(servers))
+		err    error
+	)
+
+	// take a long time, but we must take it
+	for idx, server := range servers {
+		blocks[idx], err = server.JSONRPC().Eth().GetBlockByNumber(desiredHeight, false)
+		assert.NoError(t, err)
+	}
+
+	expectedBlock := blocks[0]
+
+	assert.NotNil(t, expectedBlock)
+	for _, block := range blocks {
+		assert.Equal(t, expectedBlock, block)
 	}
 }
