@@ -1448,7 +1448,7 @@ func (i *Ibft) runValidateState() {
 		case proto.MessageReq_PostCommit:
 			// not valid canonical seals
 			if msg.Canonical == nil ||
-				msg.Canonical.Hash == i.state.Block().Hash().String() ||
+				msg.Canonical.Hash != i.state.Block().Hash().String() ||
 				len(msg.Canonical.Seals) < i.state.NumValid() {
 				logger.Error("invalid canonical seal",
 					"msg", msg,
