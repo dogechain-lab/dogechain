@@ -708,11 +708,20 @@ func TestTransition_RoundChangeState_StartNewRound(t *testing.T) {
 func TestTransition_RoundChangeState_MaxRound(t *testing.T) {
 	// if we start round change due to a state timeout we try to catch up
 	// with the highest round seen.
-	m := newMockIbft(t, []string{"A", "B", "C"}, "A")
+	m := newMockIbft(t, []string{"A", "B", "C", "D"}, "A")
 	m.Close()
 
 	m.addMessage(&proto.MessageReq{
 		From: "B",
+		Type: proto.MessageReq_RoundChange,
+		View: &proto.View{
+			Round:    10,
+			Sequence: 1,
+		},
+	})
+
+	m.addMessage(&proto.MessageReq{
+		From: "C",
 		Type: proto.MessageReq_RoundChange,
 		View: &proto.View{
 			Round:    10,
