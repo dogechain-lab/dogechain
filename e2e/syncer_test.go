@@ -61,6 +61,7 @@ func TestClusterBlockSync(t *testing.T) {
 	expectedBlock := blocks[0]
 
 	assert.NotNil(t, expectedBlock)
+
 	for _, block := range blocks {
 		assert.Equal(t, expectedBlock, block)
 	}
