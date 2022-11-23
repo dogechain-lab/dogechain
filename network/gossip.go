@@ -25,7 +25,7 @@ const (
 )
 
 // max worker number (min 2 and max 64)
-var workerNum = int(common.Min(common.Max(uint64(runtime.NumCPU()), 2), 64))
+var _workerNum = int(common.Min(common.Max(uint64(runtime.NumCPU()), 2), 64))
 
 type Topic struct {
 	logger hclog.Logger
@@ -82,7 +82,7 @@ func (t *Topic) readLoop(sub *pubsub.Subscription, handler func(obj interface{},
 	// wait group for better close?
 	t.wg.Add(1)
 	// work queue for less goroutine allocation
-	workqueue := make(chan *task, workerNum*4)
+	workqueue := make(chan *task, _workerNum*4)
 	// cancel context
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -109,7 +109,7 @@ func (t *Topic) readLoop(sub *pubsub.Subscription, handler func(obj interface{},
 		t.wg.Done()
 	}()
 
-	for i := 0; i < workerNum; i++ {
+	for i := 0; i < _workerNum; i++ {
 		go func() {
 			for {
 				task, ok := <-workqueue
