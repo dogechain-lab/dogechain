@@ -20,6 +20,8 @@ const (
 	// we should have enough capacity of the queue
 	// because when queue is full, if the consumer does not read fast enough, new messages are dropped
 	subscribeOutputBufferSize = 1024
+
+	_unsubscriptionTimeout = 10 * time.Second
 )
 
 // max worker number (min 2 and max 64)
@@ -89,7 +91,7 @@ func (t *Topic) readLoop(sub *pubsub.Subscription, handler func(obj interface{},
 		<-t.unsubscribeCh
 
 		// send cancel timeout
-		timeoutCtx, timeoutCancel := context.WithTimeout(ctx, 10*time.Second)
+		timeoutCtx, timeoutCancel := context.WithTimeout(ctx, _unsubscriptionTimeout)
 
 		go func() {
 			sub.Cancel()
