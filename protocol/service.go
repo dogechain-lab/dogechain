@@ -21,8 +21,6 @@ var (
 )
 
 type syncPeerService struct {
-	proto.UnimplementedSyncPeerServer
-	// deprecated protocoal
 	proto.UnimplementedV1Server
 
 	blockchain Blockchain       // blockchain service
@@ -61,7 +59,7 @@ func (s *syncPeerService) SetSyncer(syncer *Syncer) {
 func (s *syncPeerService) setupGRPCServer() {
 	s.stream = grpc.NewGrpcStream()
 
-	proto.RegisterSyncPeerServer(s.stream.GrpcServer(), s)
+	proto.RegisterV1Server(s.stream.GrpcServer(), s)
 	s.stream.Serve()
 	s.network.RegisterProtocol(_syncerV1, s.stream)
 }
@@ -69,7 +67,7 @@ func (s *syncPeerService) setupGRPCServer() {
 // GetBlocks is a gRPC endpoint to return blocks from the specific height via stream
 func (s *syncPeerService) GetBlocks(
 	req *proto.GetBlocksRequest,
-	stream proto.SyncPeer_GetBlocksServer,
+	stream proto.V1_GetBlocksServer,
 ) error {
 	// from to latest
 	for i := req.From; i <= s.blockchain.Header().Number; i++ {

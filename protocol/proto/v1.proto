@@ -7,17 +7,23 @@ option go_package = "/protocol/proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/any.proto";
 
-// deprecated service
 service V1 {
+    // deprecated methods
 
     rpc GetCurrent(google.protobuf.Empty) returns (V1Status);
     rpc GetObjectsByHash(HashRequest) returns (Response);
     rpc GetHeaders(GetHeadersRequest) returns (Response);
     rpc Notify(NotifyReq) returns (google.protobuf.Empty);
+
+    // new service for better syncing performance
+
+    // Returns stream of blocks beginning specified from
+    rpc GetBlocks(GetBlocksRequest) returns (stream Block);
+    // Returns server's status
+    rpc GetStatus(google.protobuf.Empty) returns (SyncPeerStatus);
 }
 
 message GetCurrentResponse {
-
 }
 
 message GetHeadersRequest {
@@ -62,4 +68,22 @@ message V1Status {
 message NotifyReq {
     V1Status status = 1;
     google.protobuf.Any raw = 2;
+}
+
+// GetBlocksRequest is a request for GetBlocks
+message GetBlocksRequest {
+  // The height of beginning block to sync
+  uint64 from = 1;
+}
+
+// Block contains a block data
+message Block {
+  // RLP Encoded Block Data
+  bytes block = 1;
+}
+
+// SyncPeerStatus contains peer status
+message SyncPeerStatus {
+  // Latest block height
+  uint64 number = 1;
 }
