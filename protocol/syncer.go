@@ -577,59 +577,6 @@ func (s *Syncer) BulkSyncWithPeer(p *SyncPeer, newBlockHandler func(block *types
 	return nil
 }
 
-func isDifferentNetworkError(err error) bool {
-	if err == nil {
-		return false
-	}
-
-	switch {
-	case errors.Is(err, ErrMismatchGenesis), // genesis not right
-		errors.Is(err, ErrCommonAncestorNotFound), // might be data missing
-		errors.Is(err, ErrForkNotFound):           // starting block not found
-		return true
-	}
-
-	return false
-}
-
-func getHeader(clt proto.V1Client, num *uint64, hash *types.Hash) (*types.Header, error) {
-	req := &proto.GetHeadersRequest{}
-	if num != nil {
-		req.Number = int64(*num)
-	}
-
-	if hash != nil {
-		req.Hash = (*hash).String()
-	}
-
-	resp, err := clt.GetHeaders(context.Background(), req)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(resp.Objs) == 0 {
-		return nil, nil
-	}
-
-	if len(resp.Objs) != 1 {
-		return nil, ErrTooManyHeaders
-	}
-
-	obj := resp.Objs[0]
-
-	if obj == nil || obj.Spec == nil || len(obj.Spec.Value) == 0 {
-		return nil, errNilHeaderResponse
-	}
-
-	header := &types.Header{}
-
-	if err := header.UnmarshalRLP(obj.Spec.Value); err != nil {
-		return nil, err
-	}
-
-	return header, nil
-}
-
 func (s *Syncer) prunePeerEnqueuedBlocks(block *types.Block) {
 	s.peers.Range(func(key, value interface{}) bool {
 		peerID, ok := key.(peer.ID)
