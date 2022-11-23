@@ -7,7 +7,9 @@ option go_package = "/protocol/proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/any.proto";
 
+// deprecated service
 service V1 {
+
     rpc GetCurrent(google.protobuf.Empty) returns (V1Status);
     rpc GetObjectsByHash(HashRequest) returns (Response);
     rpc GetHeaders(GetHeadersRequest) returns (Response);
