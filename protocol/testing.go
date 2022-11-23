@@ -232,6 +232,14 @@ func HeaderToStatus(h *types.Header) *Status {
 type mockBlockchain struct {
 	blocks        []*types.Block
 	subscriptions []*mockSubscription
+
+	// fields for new version protocol tests
+
+	subscription                blockchain.Subscription
+	headerHandler               func() *types.Header
+	getBlockByNumberHandler     func(uint64, bool) (*types.Block, bool)
+	verifyFinalizedBlockHandler func(*types.Block) error
+	writeBlockHandler           func(*types.Block) error
 }
 
 func (b *mockBlockchain) CalculateGasLimit(number uint64) (uint64, error) {
@@ -253,6 +261,10 @@ func (b *mockBlockchain) SubscribeEvents() blockchain.Subscription {
 }
 
 func (b *mockBlockchain) Header() *types.Header {
+	if b.headerHandler != nil {
+		return b.headerHandler()
+	}
+
 	l := len(b.blocks)
 	if l == 0 {
 		return nil
@@ -314,6 +326,10 @@ func (b *mockBlockchain) GetHeaderByNumber(n uint64) (*types.Header, bool) {
 }
 
 func (b *mockBlockchain) GetBlockByNumber(n uint64, full bool) (*types.Block, bool) {
+	if b.getBlockByNumberHandler != nil {
+		return b.getBlockByNumberHandler(n, full)
+	}
+
 	for _, b := range b.blocks {
 		if b.Number() == n {
 			return b, true
@@ -323,7 +339,19 @@ func (b *mockBlockchain) GetBlockByNumber(n uint64, full bool) (*types.Block, bo
 	return nil, false
 }
 
+func newSimpleHeaderHandler(num uint64) func() *types.Header {
+	return func() *types.Header {
+		return &types.Header{
+			Number: num,
+		}
+	}
+}
+
 func (b *mockBlockchain) WriteBlock(block *types.Block) error {
+	if b.writeBlockHandler != nil {
+		return b.writeBlockHandler(block)
+	}
+
 	b.blocks = append(b.blocks, block)
 	for _, subscription := range b.subscriptions {
 		subscription.AppendBlock(block)
@@ -333,6 +361,10 @@ func (b *mockBlockchain) WriteBlock(block *types.Block) error {
 }
 
 func (b *mockBlockchain) VerifyFinalizedBlock(block *types.Block) error {
+	if b.verifyFinalizedBlockHandler != nil {
+		return b.verifyFinalizedBlockHandler(block)
+	}
+
 	return nil
 }
 
@@ -375,4 +407,17 @@ func (s *mockSubscription) GetEvent() *blockchain.Event {
 
 func (s *mockSubscription) Close() {
 	close(s.eventCh)
+}
+
+func createMockBlocks(num int) []*types.Block {
+	blocks := make([]*types.Block, num)
+	for i := 0; i < num; i++ {
+		blocks[i] = &types.Block{
+			Header: &types.Header{
+				Number: uint64(i + 1),
+			},
+		}
+	}
+
+	return blocks
 }
