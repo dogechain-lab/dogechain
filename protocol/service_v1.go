@@ -27,7 +27,7 @@ type serviceV1 struct {
 	syncer *Syncer
 	logger hclog.Logger
 
-	store blockchainShim
+	store Blockchain
 }
 
 type rlpObject interface {

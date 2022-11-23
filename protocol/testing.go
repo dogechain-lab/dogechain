@@ -43,7 +43,7 @@ func getPeer(syncer *Syncer, id peer.ID) *SyncPeer {
 }
 
 // CreateSyncer initialize syncer with server
-func CreateSyncer(t *testing.T, blockchain blockchainShim, serverCfg *func(c *network.Config)) *Syncer {
+func CreateSyncer(t *testing.T, blockchain Blockchain, serverCfg *func(c *network.Config)) *Syncer {
 	t.Helper()
 
 	if serverCfg == nil {
@@ -120,7 +120,7 @@ func WaitUntilProgressionUpdated(t *testing.T, syncer *Syncer, timeout time.Dura
 }
 
 // NewRandomChain returns new blockchain with random seed
-func NewRandomChain(t *testing.T, height int) blockchainShim {
+func NewRandomChain(t *testing.T, height int) Blockchain {
 	t.Helper()
 
 	randNum, _ := rand.Int(rand.Reader, big.NewInt(int64(maxSeed)))
@@ -138,8 +138,8 @@ func NewRandomChain(t *testing.T, height int) blockchainShim {
 // SetupSyncerNetwork connects syncers
 func SetupSyncerNetwork(
 	t *testing.T,
-	chain blockchainShim,
-	peerChains []blockchainShim,
+	chain Blockchain,
+	peerChains []Blockchain,
 ) (syncer *Syncer, peerSyncers []*Syncer) {
 	t.Helper()
 
@@ -163,7 +163,7 @@ func SetupSyncerNetwork(
 }
 
 // GenerateNewBlocks returns new blocks from latest block of given chain
-func GenerateNewBlocks(t *testing.T, chain blockchainShim, num int) []*types.Block {
+func GenerateNewBlocks(t *testing.T, chain Blockchain, num int) []*types.Block {
 	t.Helper()
 
 	currentHeight := chain.Header().Number
@@ -206,7 +206,7 @@ func TryPopBlock(t *testing.T, syncer *Syncer, peerID peer.ID, timeout time.Dura
 }
 
 // GetCurrentStatus return status by latest block in blockchain
-func GetCurrentStatus(b blockchainShim) *Status {
+func GetCurrentStatus(b Blockchain) *Status {
 	return &Status{
 		Hash:       b.Header().Hash,
 		Number:     b.Header().Number,

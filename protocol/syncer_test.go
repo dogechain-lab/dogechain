@@ -22,13 +22,13 @@ import (
 func TestHandleNewPeer(t *testing.T) {
 	tests := []struct {
 		name       string
-		chain      blockchainShim
-		peerChains []blockchainShim
+		chain      Blockchain
+		peerChains []Blockchain
 	}{
 		{
 			name:  "should set peer's status",
 			chain: NewRandomChain(t, 5),
-			peerChains: []blockchainShim{
+			peerChains: []Blockchain{
 				NewRandomChain(t, 5),
 				NewRandomChain(t, 10),
 				NewRandomChain(t, 15),
@@ -56,14 +56,14 @@ func TestHandleNewPeer(t *testing.T) {
 func TestDeletePeer(t *testing.T) {
 	tests := []struct {
 		name                 string
-		chain                blockchainShim
-		peerChains           []blockchainShim
+		chain                Blockchain
+		peerChains           []Blockchain
 		numDisconnectedPeers int
 	}{
 		{
 			name:  "should not have data in peers for disconnected peer",
 			chain: NewRandomChain(t, 5),
-			peerChains: []blockchainShim{
+			peerChains: []Blockchain{
 				NewRandomChain(t, 5),
 				NewRandomChain(t, 10),
 				NewRandomChain(t, 15),
@@ -113,7 +113,7 @@ func TestBroadcast(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			chain, peerChain := NewMockBlockchain(tt.syncerHeaders), NewMockBlockchain(tt.peerHeaders)
-			syncer, peerSyncers := SetupSyncerNetwork(t, chain, []blockchainShim{peerChain})
+			syncer, peerSyncers := SetupSyncerNetwork(t, chain, []Blockchain{peerChain})
 			peerSyncer := peerSyncers[0]
 
 			newBlocks := GenerateNewBlocks(t, peerSyncer.blockchain, tt.numNewBlocks)
@@ -166,15 +166,15 @@ func TestBroadcast(t *testing.T) {
 func TestBestPeer(t *testing.T) {
 	tests := []struct {
 		name          string
-		chain         blockchainShim
-		peersChain    []blockchainShim
+		chain         Blockchain
+		peersChain    []Blockchain
 		found         bool
 		bestPeerIndex int
 	}{
 		{
 			name:  "should find the peer that has the longest chain",
 			chain: NewRandomChain(t, 100),
-			peersChain: []blockchainShim{
+			peersChain: []Blockchain{
 				NewRandomChain(t, 10),
 				NewRandomChain(t, 1000),
 				NewRandomChain(t, 100),
@@ -186,7 +186,7 @@ func TestBestPeer(t *testing.T) {
 		{
 			name:  "shouldn't find if all peer doesn't have longer chain than syncer's chain",
 			chain: NewRandomChain(t, 1000),
-			peersChain: []blockchainShim{
+			peersChain: []Blockchain{
 				NewRandomChain(t, 10),
 				NewRandomChain(t, 10),
 				NewRandomChain(t, 10),
@@ -245,7 +245,7 @@ func TestWatchSyncWithPeer(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			chain, peerChain := NewMockBlockchain(tt.headers), NewMockBlockchain(tt.peerHeaders)
 
-			syncer, peerSyncers := SetupSyncerNetwork(t, chain, []blockchainShim{peerChain})
+			syncer, peerSyncers := SetupSyncerNetwork(t, chain, []Blockchain{peerChain})
 			peerSyncer := peerSyncers[0]
 
 			newBlocks := GenerateNewBlocks(t, peerChain, tt.numNewBlocks)
@@ -338,7 +338,7 @@ func TestNilPointerAttackFromFaultyPeer(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			chain, peerChain := NewMockBlockchain(tt.headers), NewMockBlockchain(tt.peerHeaders)
 
-			_, peerSyncers := SetupSyncerNetwork(t, chain, []blockchainShim{peerChain})
+			_, peerSyncers := SetupSyncerNetwork(t, chain, []Blockchain{peerChain})
 			peerSyncer := peerSyncers[0]
 
 			newBlocks := GenerateNewBlocks(t, peerChain, tt.numNewBlocks)
@@ -435,7 +435,7 @@ func TestBulkSyncWithPeer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			chain, peerChain := NewMockBlockchain(tt.headers), NewMockBlockchain(tt.peerHeaders)
-			syncer, peerSyncers := SetupSyncerNetwork(t, chain, []blockchainShim{peerChain})
+			syncer, peerSyncers := SetupSyncerNetwork(t, chain, []Blockchain{peerChain})
 			peerSyncer := peerSyncers[0]
 			var handledNewBlocks []*types.Block
 			newBlocksHandler := func(block *types.Block) {

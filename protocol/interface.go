@@ -9,21 +9,23 @@ import (
 )
 
 // Blockchain is the interface required by the syncer to connect to the blockchain
-type blockchainShim interface {
+type Blockchain interface {
+	// SubscribeEvents subscribes new blockchain event
 	SubscribeEvents() blockchain.Subscription
 	Header() *types.Header
-	CurrentTD() *big.Int
 
+	// deprecated methods. Those are old version protocols, keep it only for backward compatible
+	CurrentTD() *big.Int
 	GetTD(hash types.Hash) (*big.Int, bool)
 	GetReceiptsByHash(types.Hash) ([]*types.Receipt, error)
 	GetBodyByHash(types.Hash) (*types.Body, bool)
 	GetHeaderByHash(types.Hash) (*types.Header, bool)
 	GetHeaderByNumber(n uint64) (*types.Header, bool)
+	CalculateGasLimit(number uint64) (uint64, error)
 
 	// advance chain methods
 	WriteBlock(block *types.Block) error
 	VerifyFinalizedBlock(block *types.Block) error
-	CalculateGasLimit(number uint64) (uint64, error)
 }
 
 type Progression interface {

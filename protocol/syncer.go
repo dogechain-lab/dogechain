@@ -67,7 +67,7 @@ func (q *minNumBlockQueue) Swap(i, j int) {
 // Syncer is a sync protocol
 type Syncer struct {
 	logger          hclog.Logger
-	blockchain      blockchainShim
+	blockchain      Blockchain
 	syncProgression Progression
 
 	peers cmap.ConcurrentMap // Maps peer.ID -> SyncPeer
@@ -82,7 +82,7 @@ type Syncer struct {
 }
 
 // NewSyncer creates a new Syncer instance
-func NewSyncer(logger hclog.Logger, server *network.Server, blockchain blockchainShim) *Syncer {
+func NewSyncer(logger hclog.Logger, server *network.Server, blockchain Blockchain) *Syncer {
 	s := &Syncer{
 		logger:          logger.Named(_syncerName),
 		stopCh:          make(chan struct{}),
