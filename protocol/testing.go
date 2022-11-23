@@ -313,6 +313,16 @@ func (b *mockBlockchain) GetHeaderByNumber(n uint64) (*types.Header, bool) {
 	return nil, false
 }
 
+func (b *mockBlockchain) GetBlockByNumber(n uint64, full bool) (*types.Block, bool) {
+	for _, b := range b.blocks {
+		if b.Number() == n {
+			return b, true
+		}
+	}
+
+	return nil, false
+}
+
 func (b *mockBlockchain) WriteBlock(block *types.Block) error {
 	b.blocks = append(b.blocks, block)
 	for _, subscription := range b.subscriptions {

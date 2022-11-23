@@ -75,4 +75,9 @@ type SyncPeerService interface {
 	Start()
 	// Close terminates running processes for SyncPeerService
 	Close() error
+
+	// deprecated methods
+
+	// SetSyncer sets referent syncer
+	SetSyncer(syncer *Syncer)
 }

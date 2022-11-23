@@ -72,8 +72,8 @@ type Syncer struct {
 
 	peers cmap.ConcurrentMap // Maps peer.ID -> SyncPeer
 
-	serviceV1 *serviceV1
-	stopCh    chan struct{}
+	syncPeerService SyncPeerService
+	stopCh          chan struct{}
 
 	status     *Status
 	statusLock sync.Mutex
@@ -85,12 +85,16 @@ type Syncer struct {
 func NewSyncer(logger hclog.Logger, server *network.Server, blockchain Blockchain) *Syncer {
 	s := &Syncer{
 		logger:          logger.Named(_syncerName),
-		stopCh:          make(chan struct{}),
 		blockchain:      blockchain,
-		server:          server,
 		syncProgression: progress.NewProgressionWrapper(progress.ChainSyncBulk),
 		peers:           cmap.NewConcurrentMap(),
+		syncPeerService: NewSyncPeerService(server, blockchain),
+		stopCh:          make(chan struct{}),
+		server:          server,
 	}
+
+	// set reference instance
+	s.syncPeerService.SetSyncer(s)
 
 	return s
 }
@@ -256,12 +260,6 @@ func (s *Syncer) Broadcast(b *types.Block) {
 
 // Start starts the syncer protocol
 func (s *Syncer) Start() {
-	s.serviceV1 = &serviceV1{
-		syncer: s,
-		logger: s.logger.With("name", "serviceV1"),
-		store:  s.blockchain,
-	}
-
 	// Get the current status of the syncer
 	currentHeader := s.blockchain.Header()
 	diff, _ := s.blockchain.GetTD(currentHeader.Hash)
@@ -275,11 +273,7 @@ func (s *Syncer) Start() {
 	// Run the blockchain event listener loop
 	go s.syncCurrentStatus()
 
-	// Register the grpc protocol for syncer
-	grpcStream := libp2pGrpc.NewGrpcStream()
-	proto.RegisterV1Server(grpcStream.GrpcServer(), s.serviceV1)
-	grpcStream.Serve()
-	s.server.RegisterProtocol(_syncerV1, grpcStream)
+	s.syncPeerService.Start()
 
 	s.setupPeers()
 
@@ -297,7 +291,7 @@ func (s *Syncer) setupPeers() {
 
 // handlePeerEvent subscribes network event and adds/deletes peer from syncer
 func (s *Syncer) handlePeerEvent() {
-	updateCh, err := s.server.SubscribeCh()
+	updateCh, err := s.server.SubscribeCh(context.Background())
 	if err != nil {
 		s.logger.Error("failed to subscribe", "err", err)
 
