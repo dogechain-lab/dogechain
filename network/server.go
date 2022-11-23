@@ -7,8 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"go.uber.org/atomic"
-
 	"github.com/dogechain-lab/dogechain/network/common"
 	"github.com/dogechain-lab/dogechain/network/dial"
 	"github.com/dogechain-lab/dogechain/network/discovery"
@@ -363,12 +361,15 @@ func (s *Server) runDial() {
 	// having events go missing, as they're crucial to the functioning
 	// of the runDial mechanism
 	notifyCh := make(chan struct{}, 1)
-	defer close(notifyCh)
 
-	closeFlag := atomic.NewBool(false)
-	defer closeFlag.Store(true)
+	ctx, cancel := context.WithCancel(context.Background())
 
-	if err := s.SubscribeFn(func(event *peerEvent.PeerEvent) {
+	defer func() {
+		cancel()
+		close(notifyCh)
+	}()
+
+	if err := s.SubscribeFn(ctx, func(event *peerEvent.PeerEvent) {
 		// Only concerned about the listed event types
 		switch event.Type {
 		case
@@ -381,11 +382,9 @@ func (s *Server) runDial() {
 			return
 		}
 
-		if closeFlag.Load() {
-			return
-		}
-
 		select {
+		case <-ctx.Done():
+			return
 		case notifyCh <- struct{}{}:
 		default:
 		}
@@ -721,22 +720,23 @@ func (s *Server) Subscribe() (*Subscription, error) {
 }
 
 // SubscribeFn is a helper method to run subscription of PeerEvents
-func (s *Server) SubscribeFn(handler func(evnt *peerEvent.PeerEvent)) error {
+func (s *Server) SubscribeFn(ctx context.Context, handler func(evnt *peerEvent.PeerEvent)) error {
 	sub, err := s.Subscribe()
 	if err != nil {
 		return err
 	}
 
 	go func() {
+		defer sub.Close()
+
 		for {
 			select {
+			case <-ctx.Done():
+				return
+			case <-s.closeCh:
+				return
 			case evnt := <-sub.GetCh():
 				handler(evnt)
-
-			case <-s.closeCh:
-				sub.Close()
-
-				return
 			}
 		}
 	}()
@@ -745,28 +745,32 @@ func (s *Server) SubscribeFn(handler func(evnt *peerEvent.PeerEvent)) error {
 }
 
 // SubscribeCh returns an event of of subscription events
-func (s *Server) SubscribeCh() (<-chan *peerEvent.PeerEvent, error) {
+func (s *Server) SubscribeCh(ctx context.Context) (<-chan *peerEvent.PeerEvent, error) {
 	ch := make(chan *peerEvent.PeerEvent)
+	ctx, cancel := context.WithCancel(ctx)
 
-	var isClosed = atomic.NewBool(false)
-
-	err := s.SubscribeFn(func(evnt *peerEvent.PeerEvent) {
-		if !isClosed.Load() {
-			ch <- evnt
-		}
-	})
-
-	if err != nil {
-		isClosed.Store(true)
+	cleanup := func() {
+		// note the necessary order
+		cancel()
 		close(ch)
+	}
+
+	if err := s.SubscribeFn(ctx, func(evnt *peerEvent.PeerEvent) {
+		select {
+		case <-ctx.Done():
+			return
+		case ch <- evnt:
+		}
+	}); err != nil {
+		cleanup()
 
 		return nil, err
 	}
 
 	go func() {
 		<-s.closeCh
-		isClosed.Store(true)
-		close(ch)
+
+		cleanup()
 	}()
 
 	return ch, nil
