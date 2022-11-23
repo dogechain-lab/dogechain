@@ -25,6 +25,7 @@ import (
 	"github.com/dogechain-lab/dogechain/state"
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/hashicorp/go-hclog"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"go.uber.org/atomic"
 	"google.golang.org/grpc"
 	anypb "google.golang.org/protobuf/types/known/anypb"
@@ -355,7 +356,7 @@ func (i *Ibft) setupTransport() error {
 	}
 
 	// Subscribe to the newly created topic
-	err = topic.Subscribe(func(obj interface{}) {
+	err = topic.Subscribe(func(obj interface{}, _ peer.ID) {
 		if !i.isActiveValidator(i.validatorKeyAddr) {
 			// we're not active validator, don't ever care about any ibft messages
 			return

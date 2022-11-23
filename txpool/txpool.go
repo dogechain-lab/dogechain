@@ -18,6 +18,7 @@ import (
 	"github.com/go-kit/kit/metrics"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/hashicorp/go-hclog"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"google.golang.org/grpc"
 )
 
@@ -942,7 +943,7 @@ func (p *TxPool) pruneEnqueuedTxs(pruned []*types.Transaction) {
 }
 
 // addGossipTx handles receiving transactions gossiped by the network.
-func (p *TxPool) addGossipTx(obj interface{}) {
+func (p *TxPool) addGossipTx(obj interface{}, from peer.ID) {
 	if p.isClosed.Load() {
 		p.logger.Error("txpool is Closed")
 
