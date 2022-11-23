@@ -428,7 +428,7 @@ func TestBulkSyncWithPeer(t *testing.T) {
 			peerHeaders:   blockchain.NewTestHeadersWithSeed(nil, 10, 0),
 			shouldSync:    false,
 			syncFromBlock: 0,
-			err:           errors.New("fork not found"),
+			err:           nil,
 		},
 	}
 
