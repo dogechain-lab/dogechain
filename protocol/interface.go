@@ -3,6 +3,7 @@ package protocol
 import (
 	"context"
 	"math/big"
+	"time"
 
 	"github.com/dogechain-lab/dogechain/blockchain"
 	"github.com/dogechain-lab/dogechain/helper/progress"
@@ -80,4 +81,27 @@ type SyncPeerService interface {
 
 	// SetSyncer sets referent syncer
 	SetSyncer(syncer *Syncer)
+}
+
+type SyncPeerClient interface {
+	// Start processes for SyncPeerClient
+	Start() error
+	// Close terminates running processes for SyncPeerClient
+	Close()
+	// GetPeerStatus fetches peer status
+	GetPeerStatus(id peer.ID) (*NoForkPeer, error)
+	// GetConnectedPeerStatuses fetches the statuses of all connecting peers
+	GetConnectedPeerStatuses() []*NoForkPeer
+	// GetBlocks returns a stream of blocks from given height to peer's latest
+	GetBlocks(peer.ID, uint64, time.Duration) (<-chan *types.Block, error)
+	// GetPeerStatusUpdateCh returns a channel of peer's status update
+	GetPeerStatusUpdateCh() <-chan *NoForkPeer
+	// GetPeerConnectionUpdateEventCh returns peer's connection change event
+	GetPeerConnectionUpdateEventCh() <-chan *event.PeerEvent
+	// CloseStream close a stream
+	CloseStream(peerID peer.ID) error
+	// DisablePublishingPeerStatus disables publishing status in syncer topic
+	DisablePublishingPeerStatus()
+	// EnablePublishingPeerStatus enables publishing status in syncer topic
+	EnablePublishingPeerStatus()
 }
