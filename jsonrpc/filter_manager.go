@@ -317,6 +317,7 @@ func (f *FilterManager) Run() {
 		}
 
 		// reset timer for next check
+		// TODO: not safe use case
 		checkTimer.Reset(_checkDuration)
 
 		select {

@@ -112,11 +112,14 @@ func TestEventManager_SignalEvent(t *testing.T) {
 
 	completed := false
 
-	delay := time.NewTimer(5 * time.Second)
+	const duration = 5 * time.Second
+
+	delay := time.NewTimer(duration)
 	defer delay.Stop()
 
 	for !completed {
-		delay.Reset(5 * time.Second)
+		// TODO: not safe use case
+		delay.Reset(duration)
 
 		select {
 		case event := <-subscription.subscriptionChannel:

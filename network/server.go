@@ -331,6 +331,7 @@ func (s *Server) keepAliveMinimumPeerConnections() {
 	defer delay.Stop()
 
 	for {
+		// TODO: not safe use case
 		delay.Reset(duration)
 
 		select {
