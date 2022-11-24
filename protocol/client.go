@@ -180,6 +180,8 @@ func (client *syncPeerClient) startGossip() error {
 
 // handleStatusUpdate is a handler of gossip
 func (client *syncPeerClient) handleStatusUpdate(obj interface{}, from peer.ID) {
+	client.logger.Debug("handleStatusUpdate")
+
 	status, ok := obj.(*proto.SyncPeerStatus)
 	if !ok {
 		client.logger.Error("failed to cast gossiped message to txn")
@@ -213,6 +215,7 @@ func (client *syncPeerClient) startNewBlockProcess() {
 
 		if l := len(event.NewChain); l > 0 {
 			latest := event.NewChain[l-1]
+			client.logger.Debug("client try to publish status", "latest", latest.Number)
 			// Publish status
 			if err := client.topic.Publish(&proto.SyncPeerStatus{
 				Number: latest.Number,

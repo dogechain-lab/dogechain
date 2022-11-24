@@ -229,6 +229,8 @@ func NewBlockchain(
 		return nil, err
 	}
 
+	b.logger.Debug("NewBlockchain try to update new chain event", "event", &Event{})
+
 	// Push the initial event to the stream
 	b.stream.push(&Event{})
 
@@ -441,6 +443,9 @@ func (b *Blockchain) writeGenesisImpl(header *types.Header) error {
 	// Create an event and send it to the stream
 	event := &Event{}
 	event.AddNewHeader(header)
+
+	b.logger.Debug("writeGenesisImpl try to update new chain event", "event", event)
+
 	b.stream.push(event)
 
 	return nil
@@ -1200,6 +1205,8 @@ func (b *Blockchain) GetHashByNumber(blockNumber uint64) types.Hash {
 
 // dispatchEvent pushes a new event to the stream
 func (b *Blockchain) dispatchEvent(evnt *Event) {
+	b.logger.Debug("dispatchEvent try to update new chain event", "event", evnt)
+
 	b.stream.push(evnt)
 }
 
