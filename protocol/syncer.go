@@ -26,7 +26,8 @@ import (
 
 const (
 	_syncerName = "syncer"
-	_syncerV1   = "/syncer/0.1"
+	// version not change for backward compatibility
+	_syncerV1 = "/syncer/0.1"
 )
 
 const (
@@ -64,8 +65,11 @@ func (q *minNumBlockQueue) Swap(i, j int) {
 	(*q)[i], (*q)[j] = (*q)[j], (*q)[i]
 }
 
-// Syncer is a sync protocol
-type Syncer struct {
+// noForkSyncer is an implementation for Syncer Protocol
+//
+// NOTE: Do not use this syncer for the consensus that may cause fork.
+// This syncer doesn't assume forks
+type noForkSyncer struct {
 	logger          hclog.Logger
 	blockchain      Blockchain
 	syncProgression Progression
@@ -82,8 +86,8 @@ type Syncer struct {
 }
 
 // NewSyncer creates a new Syncer instance
-func NewSyncer(logger hclog.Logger, server *network.Server, blockchain Blockchain) *Syncer {
-	s := &Syncer{
+func NewSyncer(logger hclog.Logger, server *network.Server, blockchain Blockchain) Syncer {
+	s := &noForkSyncer{
 		logger:          logger.Named(_syncerName),
 		blockchain:      blockchain,
 		syncProgression: progress.NewProgressionWrapper(progress.ChainSyncBulk),
@@ -100,12 +104,12 @@ func NewSyncer(logger hclog.Logger, server *network.Server, blockchain Blockchai
 }
 
 // GetSyncProgression returns the latest sync progression, if any
-func (s *Syncer) GetSyncProgression() *progress.Progression {
+func (s *noForkSyncer) GetSyncProgression() *progress.Progression {
 	return s.syncProgression.GetProgression()
 }
 
 // syncCurrentStatus taps into the blockchain event steam and updates the Syncer.status field
-func (s *Syncer) syncCurrentStatus() {
+func (s *noForkSyncer) syncCurrentStatus() {
 	sub := s.blockchain.SubscribeEvents()
 	eventCh := sub.GetEventCh()
 
@@ -139,7 +143,7 @@ func (s *Syncer) syncCurrentStatus() {
 	}
 }
 
-func (s *Syncer) updateStatus(status *Status) {
+func (s *noForkSyncer) updateStatus(status *Status) {
 	s.statusLock.Lock()
 	defer s.statusLock.Unlock()
 
@@ -159,7 +163,7 @@ func (s *Syncer) updateStatus(status *Status) {
 }
 
 // enqueueBlock adds the specific block to the peerID queue
-func (s *Syncer) enqueueBlock(peerID peer.ID, b *types.Block) {
+func (s *noForkSyncer) enqueueBlock(peerID peer.ID, b *types.Block) {
 	s.logger.Debug("enqueue block", "peer", peerID, "number", b.Number(), "hash", b.Hash())
 
 	peer, exists := s.peers.Load(peerID)
@@ -179,7 +183,7 @@ func (s *Syncer) enqueueBlock(peerID peer.ID, b *types.Block) {
 	syncPeer.appendBlock(b)
 }
 
-func (s *Syncer) updatePeerStatus(peerID peer.ID, status *Status) {
+func (s *noForkSyncer) updatePeerStatus(peerID peer.ID, status *Status) {
 	s.logger.Debug(
 		"update peer status",
 		"peer",
@@ -204,7 +208,7 @@ func (s *Syncer) updatePeerStatus(peerID peer.ID, status *Status) {
 }
 
 // Broadcast broadcasts a block to all peers
-func (s *Syncer) Broadcast(b *types.Block) {
+func (s *noForkSyncer) Broadcast(b *types.Block) {
 	sendNotify := func(peerID, peer interface{}, req *proto.NotifyReq) {
 		startTime := time.Now()
 
@@ -259,7 +263,7 @@ func (s *Syncer) Broadcast(b *types.Block) {
 }
 
 // Start starts the syncer protocol
-func (s *Syncer) Start() {
+func (s *noForkSyncer) Start() error {
 	// Get the current status of the syncer
 	currentHeader := s.blockchain.Header()
 	diff, _ := s.blockchain.GetTD(currentHeader.Hash)
@@ -278,10 +282,36 @@ func (s *Syncer) Start() {
 	s.setupPeers()
 
 	go s.handlePeerEvent()
+
+	return nil
+}
+
+func (s *noForkSyncer) Close() error {
+	close(s.stopCh)
+
+	if err := s.syncPeerService.Close(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// HasSyncPeer returns whether syncer has the peer to syncs blocks
+// return false if syncer has no peer whose latest block height doesn't exceed local height
+func (s *noForkSyncer) HasSyncPeer() bool {
+	bestPeer := s.BestPeer()
+	header := s.blockchain.Header()
+
+	return bestPeer != nil && bestPeer.status.Number > header.Number
+}
+
+// Sync syncs block with the best peer until callback returns true
+func (s *noForkSyncer) Sync(callback func(*types.Block) bool) error {
+	return nil
 }
 
 // setupPeers adds connected peers as syncer peers
-func (s *Syncer) setupPeers() {
+func (s *noForkSyncer) setupPeers() {
 	for _, p := range s.server.Peers() {
 		if addErr := s.AddPeer(p.Info.ID); addErr != nil {
 			s.logger.Error(fmt.Sprintf("Error when adding peer [%s], %v", p.Info.ID, addErr))
@@ -290,7 +320,7 @@ func (s *Syncer) setupPeers() {
 }
 
 // handlePeerEvent subscribes network event and adds/deletes peer from syncer
-func (s *Syncer) handlePeerEvent() {
+func (s *noForkSyncer) handlePeerEvent() {
 	updateCh, err := s.server.SubscribeCh(context.Background())
 	if err != nil {
 		s.logger.Error("failed to subscribe", "err", err)
@@ -320,7 +350,7 @@ func (s *Syncer) handlePeerEvent() {
 }
 
 // BestPeer returns the best peer by difficulty (if any)
-func (s *Syncer) BestPeer() *SyncPeer {
+func (s *noForkSyncer) BestPeer() *SyncPeer {
 	var (
 		bestPeer        *SyncPeer
 		bestBlockNumber uint64
@@ -350,7 +380,7 @@ func (s *Syncer) BestPeer() *SyncPeer {
 }
 
 // AddPeer establishes new connection with the given peer
-func (s *Syncer) AddPeer(peerID peer.ID) error {
+func (s *noForkSyncer) AddPeer(peerID peer.ID) error {
 	if _, ok := s.peers.Load(peerID); ok {
 		// already connected
 		return nil
@@ -390,7 +420,7 @@ func (s *Syncer) AddPeer(peerID peer.ID) error {
 }
 
 // DeletePeer deletes a peer from syncer
-func (s *Syncer) DeletePeer(peerID peer.ID) error {
+func (s *noForkSyncer) DeletePeer(peerID peer.ID) error {
 	p, ok := s.peers.LoadAndDelete(peerID)
 	if ok {
 		syncPeer, ok := p.(*SyncPeer)
@@ -409,7 +439,7 @@ func (s *Syncer) DeletePeer(peerID peer.ID) error {
 }
 
 // WatchSyncWithPeer subscribes and adds peer's latest block
-func (s *Syncer) WatchSyncWithPeer(
+func (s *noForkSyncer) WatchSyncWithPeer(
 	p *SyncPeer,
 	newBlockHandler func(b *types.Block) bool,
 	blockTimeout time.Duration,
@@ -459,7 +489,7 @@ func (s *Syncer) WatchSyncWithPeer(
 	}
 }
 
-func (s *Syncer) logSyncPeerPopBlockError(err error, peer *SyncPeer) {
+func (s *noForkSyncer) logSyncPeerPopBlockError(err error, peer *SyncPeer) {
 	if errors.Is(err, ErrPopTimeout) {
 		msg := "failed to pop block within %ds from peer: id=%s, please check if all the validators are running"
 		s.logger.Warn(fmt.Sprintf(msg, int(popTimeout.Seconds()), peer.ID()))
@@ -473,7 +503,7 @@ func (s *Syncer) logSyncPeerPopBlockError(err error, peer *SyncPeer) {
 // No need to find common ancestor, download blocks and execute it concurrently,
 // drop peer connection when execute failed.
 // Only missing blocks are synced up to the peer's highest block number
-func (s *Syncer) BulkSyncWithPeer(p *SyncPeer, newBlockHandler func(block *types.Block)) error {
+func (s *noForkSyncer) BulkSyncWithPeer(p *SyncPeer, newBlockHandler func(block *types.Block)) error {
 	logger := s.logger.Named("bulkSync")
 
 	localLatest := s.blockchain.Header().Number
@@ -577,7 +607,7 @@ func (s *Syncer) BulkSyncWithPeer(p *SyncPeer, newBlockHandler func(block *types
 	return nil
 }
 
-func (s *Syncer) prunePeerEnqueuedBlocks(block *types.Block) {
+func (s *noForkSyncer) prunePeerEnqueuedBlocks(block *types.Block) {
 	s.peers.Range(func(key, value interface{}) bool {
 		peerID, ok := key.(peer.ID)
 		if !ok {

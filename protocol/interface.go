@@ -15,6 +15,26 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// Syncer is a sync protocol for block downloading
+type Syncer interface {
+	// Start starts syncer processes
+	Start() error
+	// Close terminates syncer process
+	Close() error
+	// GetSyncProgression returns sync progression
+	GetSyncProgression() *progress.Progression
+	// HasSyncPeer returns whether syncer has the peer syncer can sync with
+	HasSyncPeer() bool
+	// Sync starts routine to sync blocks
+	Sync(func(*types.Block) bool) error
+
+	// deprecated methods
+	BestPeer() *SyncPeer
+	BulkSyncWithPeer(p *SyncPeer, newBlockHandler func(block *types.Block)) error
+	WatchSyncWithPeer(p *SyncPeer, newBlockHandler func(b *types.Block) bool, blockTimeout time.Duration)
+	Broadcast(b *types.Block)
+}
+
 // Blockchain is the interface required by the syncer to connect to the blockchain
 type Blockchain interface {
 	// SubscribeEvents subscribes new blockchain event
@@ -80,7 +100,7 @@ type SyncPeerService interface {
 	// deprecated methods
 
 	// SetSyncer sets referent syncer
-	SetSyncer(syncer *Syncer)
+	SetSyncer(syncer *noForkSyncer)
 }
 
 type SyncPeerClient interface {

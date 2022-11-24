@@ -265,7 +265,7 @@ func TestNilPointerAttackFromFaultyPeer(t *testing.T) {
 		headers           []*types.Header
 		peerHeaders       []*types.Header
 		numNewBlocks      int
-		testBroadcastFunc func(s *Syncer, b *types.Block)
+		testBroadcastFunc func(s *noForkSyncer, b *types.Block)
 	}{
 		{
 			name:              "should not crash even notify raw data is nil",
@@ -306,7 +306,7 @@ func TestNilPointerAttackFromFaultyPeer(t *testing.T) {
 	}
 }
 
-func broadcastNilRawData(s *Syncer, b *types.Block) {
+func broadcastNilRawData(s *noForkSyncer, b *types.Block) {
 	// Get the chain difficulty associated with block
 	td, ok := s.blockchain.GetTD(b.Hash())
 	if !ok {
@@ -335,7 +335,7 @@ func broadcastNilRawData(s *Syncer, b *types.Block) {
 	})
 }
 
-func broadcastNilStatusData(s *Syncer, b *types.Block) {
+func broadcastNilStatusData(s *noForkSyncer, b *types.Block) {
 	// broadcast the new block to all the peers
 	req := &proto.NotifyReq{
 		Status: nil,
@@ -419,7 +419,7 @@ func TestSyncer_GetSyncProgression(t *testing.T) {
 
 	existingChain := blockchain.NewTestHeadersWithSeed(nil, initialChainSize, 0)
 	syncerChain := NewMockBlockchain(existingChain)
-	syncer := CreateSyncer(t, syncerChain, nil)
+	syncer := createSyncer(t, syncerChain, nil)
 
 	syncHeaders := blockchain.NewTestHeadersWithSeed(nil, targetChainSize, 0)
 	syncBlocks := blockchain.HeadersToBlocks(syncHeaders)
@@ -584,8 +584,8 @@ func createNetworkServers(t *testing.T, count int, conf func(c *network.Config))
 
 // createSyncers is a helper function for generating syncers. Servers and BlockStores should be at least the length
 // of count
-func createSyncers(count int, servers []*network.Server, blockStores []*mockBlockStore) []*Syncer {
-	syncers := make([]*Syncer, count)
+func createSyncers(count int, servers []*network.Server, blockStores []*mockBlockStore) []*noForkSyncer {
+	syncers := make([]*noForkSyncer, count)
 
 	for indx := 0; indx < count; indx++ {
 		syncers[indx] = NewSyncer(hclog.NewNullLogger(), servers[indx], blockStores[indx])
@@ -595,12 +595,12 @@ func createSyncers(count int, servers []*network.Server, blockStores []*mockBloc
 }
 
 // numSyncPeers returns the number of sync peers
-func numSyncPeers(syncer *Syncer) int64 {
+func numSyncPeers(syncer *noForkSyncer) int64 {
 	return int64(syncer.peers.Len())
 }
 
 // WaitUntilSyncPeersNumber waits until the number of sync peers reaches a certain number, otherwise it times out
-func WaitUntilSyncPeersNumber(ctx context.Context, syncer *Syncer, requiredNum int64) (int64, error) {
+func WaitUntilSyncPeersNumber(ctx context.Context, syncer *noForkSyncer, requiredNum int64) (int64, error) {
 	res, err := tests.RetryUntilTimeout(ctx, func() (interface{}, bool) {
 		numPeers := numSyncPeers(syncer)
 		if numPeers == requiredNum {

@@ -28,7 +28,7 @@ type syncPeerService struct {
 	stream     *grpc.GrpcStream // grpc stream controlling
 
 	// deprecated fields
-	syncer *Syncer // for rpc unary querying
+	syncer *noForkSyncer // for rpc unary querying
 }
 
 func NewSyncPeerService(
@@ -51,7 +51,7 @@ func (s *syncPeerService) Close() error {
 	return s.stream.Close()
 }
 
-func (s *syncPeerService) SetSyncer(syncer *Syncer) {
+func (s *syncPeerService) SetSyncer(syncer *noForkSyncer) {
 	s.syncer = syncer
 }
 

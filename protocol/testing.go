@@ -28,7 +28,7 @@ var (
 )
 
 // getPeer returns a peer with given ID in syncer's map
-func getPeer(syncer *Syncer, id peer.ID) *SyncPeer {
+func getPeer(syncer *noForkSyncer, id peer.ID) *SyncPeer {
 	rawPeer, ok := syncer.peers.Load(id)
 	if !ok {
 		return nil
@@ -42,8 +42,8 @@ func getPeer(syncer *Syncer, id peer.ID) *SyncPeer {
 	return syncPeer
 }
 
-// CreateSyncer initialize syncer with server
-func CreateSyncer(t *testing.T, blockchain Blockchain, serverCfg *func(c *network.Config)) *Syncer {
+// createSyncer initialize syncer with server
+func createSyncer(t *testing.T, blockchain Blockchain, serverCfg *func(c *network.Config)) *noForkSyncer {
 	t.Helper()
 
 	if serverCfg == nil {
@@ -63,11 +63,16 @@ func CreateSyncer(t *testing.T, blockchain Blockchain, serverCfg *func(c *networ
 	syncer := NewSyncer(hclog.NewNullLogger(), srv, blockchain)
 	syncer.Start()
 
-	return syncer
+	s, ok := syncer.(*noForkSyncer)
+	if !ok {
+		t.Fatal("syncer not a noForkSyncer")
+	}
+
+	return s
 }
 
 // WaitUntilPeerConnected waits until syncer connects to given number of peers
-func WaitUntilPeerConnected(t *testing.T, syncer *Syncer, numPeer int, timeout time.Duration) {
+func WaitUntilPeerConnected(t *testing.T, syncer *noForkSyncer, numPeer int, timeout time.Duration) {
 	t.Helper()
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -88,7 +93,7 @@ func WaitUntilPeerConnected(t *testing.T, syncer *Syncer, numPeer int, timeout t
 }
 
 // WaitUntilProcessedAllEvents waits until syncer finish to process all blockchain events
-func WaitUntilProcessedAllEvents(t *testing.T, syncer *Syncer, timeout time.Duration) {
+func WaitUntilProcessedAllEvents(t *testing.T, syncer *noForkSyncer, timeout time.Duration) {
 	t.Helper()
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -104,7 +109,7 @@ func WaitUntilProcessedAllEvents(t *testing.T, syncer *Syncer, timeout time.Dura
 }
 
 // WaitUntilProgressionUpdated waits until the syncer's progression current block reaches a target
-func WaitUntilProgressionUpdated(t *testing.T, syncer *Syncer, timeout time.Duration, target uint64) {
+func WaitUntilProgressionUpdated(t *testing.T, syncer *noForkSyncer, timeout time.Duration, target uint64) {
 	t.Helper()
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -140,14 +145,14 @@ func SetupSyncerNetwork(
 	t *testing.T,
 	chain Blockchain,
 	peerChains []Blockchain,
-) (syncer *Syncer, peerSyncers []*Syncer) {
+) (syncer *noForkSyncer, peerSyncers []*noForkSyncer) {
 	t.Helper()
 
-	syncer = CreateSyncer(t, chain, nil)
-	peerSyncers = make([]*Syncer, len(peerChains))
+	syncer = createSyncer(t, chain, nil)
+	peerSyncers = make([]*noForkSyncer, len(peerChains))
 
 	for idx, peerChain := range peerChains {
-		peerSyncers[idx] = CreateSyncer(t, peerChain, nil)
+		peerSyncers[idx] = createSyncer(t, peerChain, nil)
 
 		if joinErr := network.JoinAndWait(
 			syncer.server,
@@ -181,7 +186,7 @@ func GenerateNewBlocks(t *testing.T, chain Blockchain, num int) []*types.Block {
 }
 
 // TryPopBlock tries to take block from peer's queue in syncer within timeout
-func TryPopBlock(t *testing.T, syncer *Syncer, peerID peer.ID, timeout time.Duration) (*types.Block, bool) {
+func TryPopBlock(t *testing.T, syncer *noForkSyncer, peerID peer.ID, timeout time.Duration) (*types.Block, bool) {
 	t.Helper()
 
 	peer := getPeer(syncer, peerID)

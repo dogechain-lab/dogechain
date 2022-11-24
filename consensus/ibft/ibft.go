@@ -70,15 +70,6 @@ type txPoolInterface interface {
 	Pending() map[types.Address][]*types.Transaction
 }
 
-type syncerInterface interface {
-	Start()
-	BestPeer() *protocol.SyncPeer
-	BulkSyncWithPeer(p *protocol.SyncPeer, newBlockHandler func(block *types.Block)) error
-	WatchSyncWithPeer(p *protocol.SyncPeer, newBlockHandler func(b *types.Block) bool, blockTimeout time.Duration)
-	GetSyncProgression() *progress.Progression
-	Broadcast(b *types.Block)
-}
-
 // Ibft represents the IBFT consensus mechanism object
 type Ibft struct {
 	sealing bool // Flag indicating if the node is a sealer
@@ -104,7 +95,7 @@ type Ibft struct {
 	msgQueue *msgQueue     // Structure containing different message queues
 	updateCh chan struct{} // Update channel
 
-	syncer syncerInterface // Reference to the sync protocol
+	syncer protocol.Syncer // Reference to the sync protocol
 
 	network   *network.Server // Reference to the networking layer
 	transport transport       // Reference to the transport protocol

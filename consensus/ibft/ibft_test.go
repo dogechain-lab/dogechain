@@ -1010,7 +1010,15 @@ func newMockSyncer(
 	}
 }
 
-func (s *mockSyncer) Start() {}
+func (s *mockSyncer) Start() error { return nil }
+
+func (s *mockSyncer) Close() error { return nil }
+
+func (s *mockSyncer) HasSyncPeer() bool { return true }
+
+func (s *mockSyncer) Sync(func(*types.Block) bool) error {
+	return nil
+}
 
 func (s *mockSyncer) BestPeer() *protocol.SyncPeer {
 	return &protocol.SyncPeer{}

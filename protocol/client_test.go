@@ -26,8 +26,12 @@ var (
 func newTestNetwork(t *testing.T) *network.Server {
 	t.Helper()
 
+	logger := hclog.Default()
+	logger.SetLevel(hclog.Debug)
+
 	srv, err := network.CreateServer(&network.CreateServerParams{
 		ConfigCallback: networkConfig,
+		Logger:         logger,
 	})
 
 	assert.NoError(t, err)
@@ -454,7 +458,7 @@ func Test_shouldEmitBlocks(t *testing.T) {
 
 		pushSubscription(subscription, clientLatest)
 
-		timer := time.NewTimer(5*time.Second)
+		timer := time.NewTimer(5 * time.Second)
 		canceled := waitForContext(receiveContext, timer)
 
 		assert.Equal(t, shouldEmit, canceled)
