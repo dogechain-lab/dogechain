@@ -348,7 +348,7 @@ func TestAddGossipTx(t *testing.T) {
 					Value: signedTx.MarshalRLP(),
 				},
 			}
-			pool.addGossipTx(protoTx)
+			pool.addGossipTx(protoTx, "")
 		}()
 		pool.handleEnqueueRequest(<-pool.enqueueReqCh)
 
@@ -375,7 +375,7 @@ func TestAddGossipTx(t *testing.T) {
 				Value: signedTx.MarshalRLP(),
 			},
 		}
-		pool.addGossipTx(protoTx)
+		pool.addGossipTx(protoTx, "")
 
 		assert.Equal(t, uint64(0), pool.accounts.get(sender).enqueued.length())
 	})
@@ -413,14 +413,14 @@ func TestAddGossipTx_ShouldNotCrash(t *testing.T) {
 
 	assert.NotPanics(t, func() {
 		// type assertion
-		pool.addGossipTx(&types.Block{Header: &types.Header{Number: 10}})
+		pool.addGossipTx(&types.Block{Header: &types.Header{Number: 10}}, "")
 	})
 
 	assert.Nil(t, pool.accounts.get(addr1), "addr in txpool should be nil")
 
 	assert.NotPanics(t, func() {
-		pool.addGossipTx(createNilRawTxn())
-		pool.addGossipTx(createNilRawDataTxn())
+		pool.addGossipTx(createNilRawTxn(), "")
+		pool.addGossipTx(createNilRawDataTxn(), "")
 	})
 
 	assert.Nil(t, pool.accounts.get(addr1), "addr in txpool should be nil")
