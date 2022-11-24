@@ -460,7 +460,7 @@ func Test_shouldEmitBlocks(t *testing.T) {
 
 		timer := time.NewTimer(5 * time.Second)
 		defer timer.Stop()
-		
+
 		canceled := waitForContext(receiveContext, timer)
 
 		assert.Equal(t, shouldEmit, canceled)

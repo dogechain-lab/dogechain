@@ -353,6 +353,7 @@ func (s *noForkSyncer) Sync(callback func(*types.Block) bool) error {
 		bestPeer := s.peerMap.BestPeer(skipList)
 		if bestPeer == nil {
 			s.logger.Info("empty skip list for not getting a best peer")
+
 			skipList = make(map[peer.ID]bool)
 
 			continue
@@ -387,7 +388,10 @@ func (s *noForkSyncer) Sync(callback func(*types.Block) bool) error {
 }
 
 // bulkSyncWithPeer syncs block with a given peer
-func (s *noForkSyncer) bulkSyncWithPeer(peerID peer.ID, newBlockCallback func(*types.Block) bool) (uint64, bool, error) {
+func (s *noForkSyncer) bulkSyncWithPeer(
+	peerID peer.ID,
+	newBlockCallback func(*types.Block) bool,
+) (uint64, bool, error) {
 	localLatest := s.blockchain.Header().Number
 	shouldTerminate := false
 

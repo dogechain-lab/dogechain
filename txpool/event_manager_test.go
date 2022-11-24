@@ -111,6 +111,7 @@ func TestEventManager_SignalEvent(t *testing.T) {
 	supportedEventsProcessed := 0
 
 	completed := false
+
 	delay := time.NewTimer(5 * time.Second)
 	defer delay.Stop()
 
