@@ -201,6 +201,7 @@ func TryPopBlock(t *testing.T, syncer *noForkSyncer, peerID peer.ID, timeout tim
 	}()
 
 	delay := time.NewTimer(timeout)
+	defer delay.Stop()
 
 	select {
 	case block := <-blockCh:

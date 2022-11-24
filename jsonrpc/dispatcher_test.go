@@ -85,6 +85,7 @@ func TestDispatcher_HandleWebsocketConnection_EthSubscribe(t *testing.T) {
 		})
 
 		delayTimer := time.NewTimer(2 * time.Second)
+		defer delayTimer.Stop()
 
 		select {
 		case <-mockConnection.msgCh:

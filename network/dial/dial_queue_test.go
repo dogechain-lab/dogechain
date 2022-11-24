@@ -38,6 +38,8 @@ func TestDialQueue(t *testing.T) {
 
 	{
 		delay := time.NewTimer(1 * time.Second)
+		defer delay.Stop()
+
 		// we should not get any peer now
 		select {
 		case <-done:
@@ -50,6 +52,7 @@ func TestDialQueue(t *testing.T) {
 
 	{
 		delay := time.NewTimer(1 * time.Second)
+		defer delay.Stop()
 
 		select {
 		case <-done:

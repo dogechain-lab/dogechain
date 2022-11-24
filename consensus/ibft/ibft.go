@@ -1202,6 +1202,7 @@ func (i *Ibft) runAcceptState() { // start new round
 			delay := time.Until(time.Unix(int64(block.Header.Timestamp), 0))
 
 			delayTimer := time.NewTimer(delay)
+			defer delayTimer.Stop()
 
 			select {
 			case <-delayTimer.C:
@@ -2005,6 +2006,7 @@ func (i *Ibft) Close() error {
 // getNextMessage reads a new message from the message queue
 func (i *Ibft) getNextMessage(timeout time.Duration) (*proto.MessageReq, bool) {
 	timeoutCh := time.NewTimer(timeout)
+	defer timeoutCh.Stop()
 
 	for {
 		msg := i.msgQueue.readMessage(i.getState(), i.state.View())

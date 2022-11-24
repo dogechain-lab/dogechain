@@ -69,6 +69,7 @@ func HandleSignals(
 	}()
 
 	timeoutDelay := time.NewTimer(5 * time.Second)
+	defer timeoutDelay.Stop()
 
 	select {
 	case <-signalCh:

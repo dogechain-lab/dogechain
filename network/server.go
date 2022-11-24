@@ -325,10 +325,13 @@ func (s *Server) setupBootnodes() error {
 // keepAliveMinimumPeerConnections will attempt to make new connections
 // if the active peer count is lesser than the specified limit.
 func (s *Server) keepAliveMinimumPeerConnections() {
-	delay := time.NewTimer(10 * time.Second)
+	const duration = 10 * time.Second
+
+	delay := time.NewTimer(duration)
+	defer delay.Stop()
 
 	for {
-		delay.Reset(10 * time.Second)
+		delay.Reset(duration)
 
 		select {
 		case <-delay.C:
@@ -336,19 +339,19 @@ func (s *Server) keepAliveMinimumPeerConnections() {
 			return
 		}
 
-		if s.numPeers() < MinimumPeerConnections {
-			if s.config.NoDiscover || !s.bootnodes.hasBootnodes() {
-				// dial unconnected peer
-				randPeer := s.GetRandomPeer()
-				if randPeer != nil && !s.IsConnected(*randPeer) {
-					s.addToDialQueue(s.GetPeerInfo(*randPeer), common.PriorityRandomDial)
-				}
-			} else {
-				// dial random unconnected bootnode
-				if randomNode := s.GetRandomBootnode(); randomNode != nil {
-					s.addToDialQueue(randomNode, common.PriorityRandomDial)
-				}
+		if s.numPeers() >= MinimumPeerConnections {
+			continue
+		}
+
+		if s.config.NoDiscover || !s.bootnodes.hasBootnodes() {
+			// dial unconnected peer
+			randPeer := s.GetRandomPeer()
+			if randPeer != nil && !s.IsConnected(*randPeer) {
+				s.addToDialQueue(s.GetPeerInfo(*randPeer), common.PriorityRandomDial)
 			}
+		} else if randomNode := s.GetRandomBootnode(); randomNode != nil {
+			// dial random unconnected bootnode
+			s.addToDialQueue(randomNode, common.PriorityRandomDial)
 		}
 	}
 }

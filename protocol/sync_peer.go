@@ -134,6 +134,7 @@ func (s *SyncPeer) purgeBlocks(lastSeen types.Hash) uint64 {
 // popBlock pops a block from the block queue [BLOCKING]
 func (s *SyncPeer) popBlock(timeout time.Duration) (b *types.Block, err error) {
 	timeoutCh := time.NewTimer(timeout)
+	defer timeoutCh.Stop()
 
 	for {
 		if !s.IsClosed() {

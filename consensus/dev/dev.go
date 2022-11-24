@@ -75,6 +75,7 @@ func (d *Dev) nextNotify() chan struct{} {
 	}
 
 	delay := time.NewTimer(time.Duration(d.interval) * time.Second)
+	defer delay.Stop()
 
 	go func() {
 		<-delay.C

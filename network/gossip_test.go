@@ -31,6 +31,7 @@ func WaitForSubscribers(ctx context.Context, srv *Server, topic string, expected
 		}
 
 		delay := time.NewTimer(100 * time.Millisecond)
+		defer delay.Stop()
 
 		select {
 		case <-ctx.Done():
@@ -107,6 +108,7 @@ func TestSimpleGossip(t *testing.T) {
 
 	for {
 		delay := time.NewTimer(15 * time.Second)
+		defer delay.Stop()
 
 		select {
 		case <-delay.C:
