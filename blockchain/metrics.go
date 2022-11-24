@@ -56,15 +56,12 @@ func GetPrometheusMetrics(namespace string, labelsWithValues ...string) *Metrics
 			Name:      "block_write_seconds",
 			Help:      "block write time (seconds)",
 		}, labels).With(labelsWithValues...),
-		BlockExecutionSeconds: prometheus.NewHistogramFrom(
-			stdprometheus.HistogramOpts{
-				Namespace: namespace,
-				Subsystem: "blockchain",
-				Name:      "block_write_seconds",
-				Help:      "block write time (seconds)",
-			},
-			labels,
-		).With(labelsWithValues...),
+		BlockExecutionSeconds: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+			Namespace: namespace,
+			Subsystem: "blockchain",
+			Name:      "block_execution_seconds",
+			Help:      "block execution time (seconds)",
+		}, labels).With(labelsWithValues...),
 		TransactionNum: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: namespace,
 			Subsystem: "blockchain",
