@@ -60,7 +60,7 @@ func createSyncer(t *testing.T, blockchain Blockchain, serverCfg *func(c *networ
 		t.Fatalf("Unable to create networking server, %v", createErr)
 	}
 
-	syncer := NewSyncer(hclog.NewNullLogger(), srv, blockchain)
+	syncer := NewSyncer(hclog.NewNullLogger(), srv, blockchain, 6*time.Second)
 	syncer.Start()
 
 	s, ok := syncer.(*noForkSyncer)
