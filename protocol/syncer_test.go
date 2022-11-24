@@ -163,57 +163,6 @@ func TestBroadcast(t *testing.T) {
 	}
 }
 
-func TestBestPeer(t *testing.T) {
-	tests := []struct {
-		name          string
-		chain         Blockchain
-		peersChain    []Blockchain
-		found         bool
-		bestPeerIndex int
-	}{
-		{
-			name:  "should find the peer that has the longest chain",
-			chain: NewRandomChain(t, 100),
-			peersChain: []Blockchain{
-				NewRandomChain(t, 10),
-				NewRandomChain(t, 1000),
-				NewRandomChain(t, 100),
-				NewRandomChain(t, 10),
-			},
-			found:         true,
-			bestPeerIndex: 1,
-		},
-		{
-			name:  "shouldn't find if all peer doesn't have longer chain than syncer's chain",
-			chain: NewRandomChain(t, 1000),
-			peersChain: []Blockchain{
-				NewRandomChain(t, 10),
-				NewRandomChain(t, 10),
-				NewRandomChain(t, 10),
-			},
-			found: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			syncer, peerSyncers := SetupSyncerNetwork(t, tt.chain, tt.peersChain)
-
-			bestPeer := syncer.BestPeer()
-			if tt.found {
-				assert.NotNil(t, bestPeer, "syncer should find best peer, but not found")
-
-				expectedBestPeer := peerSyncers[tt.bestPeerIndex]
-				expectedBestPeerStatus := GetCurrentStatus(expectedBestPeer.blockchain)
-				assert.Equal(t, expectedBestPeer.server.AddrInfo().ID.String(), bestPeer.ID().String())
-				assert.Equal(t, expectedBestPeerStatus, bestPeer.status)
-			} else {
-				assert.Nil(t, bestPeer, "syncer shouldn't find best peer, but found")
-			}
-		})
-	}
-}
-
 func TestWatchSyncWithPeer(t *testing.T) {
 	tests := []*struct {
 		name           string
