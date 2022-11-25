@@ -224,7 +224,7 @@ func (c *CurrentState) MessageTimeout() time.Duration {
 		timeout += time.Duration(int64(math.Pow(2, float64(c.Round())))) * time.Second
 	}
 
-	// add more time for long time block producting
+	// add more time for long time block production
 	return timeout + c.additionalTimeout
 }
 

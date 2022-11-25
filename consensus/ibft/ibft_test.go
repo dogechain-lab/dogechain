@@ -1,6 +1,7 @@
 package ibft
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
@@ -44,6 +45,7 @@ type MockBlockchain struct {
 	WriteBlockHandler           func(*types.Block) error
 	VerifyPotentialBlockHandler func(block *types.Block) error
 	CalculateGasLimitHandler    func(number uint64) (uint64, error)
+	subscription                blockchain.Subscription
 }
 
 func (m *MockBlockchain) Header() *types.Header {
@@ -202,6 +204,10 @@ func (m *MockBlockchain) calculateGasLimit(number uint64) (uint64, error) {
 	return defaultBlockGasLimit, nil
 }
 
+func (m *MockBlockchain) SubscribeEvents() blockchain.Subscription {
+	return m.subscription
+}
+
 // interface check
 var _ blockchainInterface = (*MockBlockchain)(nil)
 
@@ -213,6 +219,7 @@ func NewMockBlockchain(t *testing.T) *MockBlockchain {
 		latestBlockNumber: nil,
 		headers:           make(map[uint64]*types.Header),
 		blocks:            make(map[uint64]*types.Block),
+		subscription:      &blockchain.MockSubscription{},
 	}
 
 	m.HeaderHandler = m.header
@@ -256,7 +263,7 @@ func TestTransition_ValidateState_Prepare(t *testing.T) {
 		i.Close()
 	})
 
-	i.runCycle()
+	i.runCycle(context.Background())
 
 	i.expect(expectResult{
 		sequence:    1,
@@ -307,7 +314,7 @@ func TestTransition_ValidateState_CommitFastTrack(t *testing.T) {
 		Seal: seal,
 	})
 
-	i.runCycle()
+	i.runCycle(context.Background())
 
 	i.expect(expectResult{
 		sequence:   1,
@@ -329,7 +336,7 @@ func TestTransition_AcceptState_Proposer_Locked(t *testing.T) {
 		},
 	})
 
-	i.runCycle()
+	i.runCycle(context.Background())
 
 	i.expect(expectResult{
 		sequence: 1,
@@ -365,7 +372,7 @@ func TestTransition_AcceptState_Validator_VerifyCorrect(t *testing.T) {
 		View: proto.ViewMsg(1, 0),
 	})
 
-	i.runCycle()
+	i.runCycle(context.Background())
 
 	i.expect(expectResult{
 		sequence: 1,
@@ -398,7 +405,7 @@ func TestTransition_AcceptState_Validator_VerifyFails(t *testing.T) {
 		View: proto.ViewMsg(1, 0),
 	})
 
-	i.runCycle()
+	i.runCycle(context.Background())
 
 	i.expect(expectResult{
 		sequence: 1,
@@ -424,7 +431,7 @@ func TestTransition_AcceptState_Validator_ProposerInvalid(t *testing.T) {
 	})
 	i.forceTimeout()
 
-	i.runCycle()
+	i.runCycle(context.Background())
 
 	i.expect(expectResult{
 		sequence: 1,
@@ -459,7 +466,7 @@ func TestTransition_AcceptState_Validator_LockWrong(t *testing.T) {
 		View: proto.ViewMsg(1, 0),
 	})
 
-	i.runCycle()
+	i.runCycle(context.Background())
 
 	i.expect(expectResult{
 		sequence: 1,
@@ -491,7 +498,7 @@ func TestTransition_AcceptState_Validator_LockCorrect(t *testing.T) {
 		View: proto.ViewMsg(1, 0),
 	})
 
-	i.runCycle()
+	i.runCycle(context.Background())
 
 	i.expect(expectResult{
 		sequence: 1,
@@ -543,7 +550,7 @@ func TestTransition_AcceptState_Reject_WrongHeight_Block(t *testing.T) {
 		View: proto.ViewMsg(nextSequence, 0),
 	})
 
-	i.runCycle()
+	i.runCycle(context.Background())
 
 	i.expect(expectResult{
 		sequence: nextSequence,
@@ -580,7 +587,7 @@ func TestTransition_RoundChangeState_CatchupRound(t *testing.T) {
 	// not processed all the messages yet.
 	// After it receives 3 Round change messages higher than his own
 	// round it will change round again and move to accept
-	m.runCycle()
+	m.runCycle(context.Background())
 
 	m.expect(expectResult{
 		sequence: 1,
@@ -601,7 +608,7 @@ func TestTransition_RoundChangeState_Timeout(t *testing.T) {
 	// one RoundChange message.
 	// After the timeout, it increases to round 2 and sends another
 	/// RoundChange message.
-	m.runCycle()
+	m.runCycle(context.Background())
 
 	m.expect(expectResult{
 		sequence: 1,
@@ -634,7 +641,7 @@ func TestTransition_RoundChangeState_WeakCertificate(t *testing.T) {
 	})
 	m.Close()
 
-	m.runCycle()
+	m.runCycle(context.Background())
 
 	m.expect(expectResult{
 		sequence: 1,
@@ -654,7 +661,7 @@ func TestTransition_RoundChangeState_ErrStartNewRound(t *testing.T) {
 	m.state.HandleErr(errBlockVerificationFailed)
 
 	m.setState(currentstate.RoundChangeState)
-	m.runCycle()
+	m.runCycle(context.Background())
 
 	// not enough round change message, so we should be in round change state
 	m.expect(expectResult{
@@ -674,7 +681,7 @@ func TestTransition_RoundChangeState_StartNewRound(t *testing.T) {
 	m.state.SetView(proto.ViewMsg(1, 0))
 
 	m.setState(currentstate.RoundChangeState)
-	m.runCycle()
+	m.runCycle(context.Background())
 
 	// not enough round change message, so we should be in round change state
 	m.expect(expectResult{
@@ -710,7 +717,7 @@ func TestTransition_RoundChangeState_MaxRound(t *testing.T) {
 	})
 
 	m.setState(currentstate.RoundChangeState)
-	m.runCycle()
+	m.runCycle(context.Background())
 
 	m.expect(expectResult{
 		sequence: 1,
@@ -1011,6 +1018,10 @@ func (m *mockIbft) WriteBlock(block *types.Block, source string) error {
 
 func (m *mockIbft) VerifyPotentialBlock(block *types.Block) error {
 	return nil
+}
+
+func (m *mockIbft) SubscribeEvents() blockchain.Subscription {
+	return m.blockchain.SubscribeEvents()
 }
 
 func (m *mockIbft) emitMsg(msg *proto.MessageReq) {
