@@ -16,8 +16,6 @@ import (
 	"github.com/dogechain-lab/dogechain/consensus/ibft/validator"
 	"github.com/dogechain-lab/dogechain/helper/common"
 	"github.com/dogechain-lab/dogechain/helper/hex"
-	"github.com/dogechain-lab/dogechain/helper/progress"
-	"github.com/dogechain-lab/dogechain/protocol"
 	"github.com/dogechain-lab/dogechain/state"
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/hashicorp/go-hclog"
@@ -867,83 +865,6 @@ func TestIBFT_WriteTransactions(t *testing.T) {
 			assert.Equal(t, test.params.expectedDemoteTxnsCount, len(shouldDemoteTxs))
 		})
 	}
-}
-
-type mockSyncer struct {
-	bulkSyncBlocksFromPeer  []*types.Block
-	receivedNewHeadFromPeer *types.Block
-	broadcastedBlock        *types.Block
-	broadcastCalled         bool
-	blockchain              blockchainInterface
-}
-
-func newMockSyncer(
-	bulkSyncBlocksFromPeer []*types.Block,
-	receivedNewHeadFromPeer *types.Block,
-	broadcastedBlock *types.Block,
-	broadcastCalled bool,
-	blockchain blockchainInterface,
-) *mockSyncer {
-	return &mockSyncer{
-		bulkSyncBlocksFromPeer:  bulkSyncBlocksFromPeer,
-		receivedNewHeadFromPeer: receivedNewHeadFromPeer,
-		broadcastedBlock:        broadcastedBlock,
-		broadcastCalled:         broadcastCalled,
-		blockchain:              blockchain,
-	}
-}
-
-func (s *mockSyncer) Start() error { return nil }
-
-func (s *mockSyncer) Close() error { return nil }
-
-func (s *mockSyncer) HasSyncPeer() bool { return true }
-
-func (s *mockSyncer) Sync(func(*types.Block) bool) error {
-	return nil
-}
-
-func (s *mockSyncer) BestPeer() *protocol.SyncPeer {
-	return &protocol.SyncPeer{}
-}
-
-func (s *mockSyncer) BulkSyncWithPeer(p *protocol.SyncPeer, handler func(block *types.Block)) error {
-	for _, block := range s.bulkSyncBlocksFromPeer {
-		if s.blockchain != nil {
-			if err := s.blockchain.WriteBlock(block); err != nil {
-				return err
-			}
-		}
-
-		handler(block)
-	}
-
-	return nil
-}
-
-func (s *mockSyncer) WatchSyncWithPeer(
-	p *protocol.SyncPeer,
-	newBlockHandler func(b *types.Block) bool,
-	blockTimeout time.Duration,
-) {
-	if s.receivedNewHeadFromPeer != nil {
-		if s.blockchain != nil {
-			if err := s.blockchain.WriteBlock(s.receivedNewHeadFromPeer); err != nil {
-				return
-			}
-		}
-
-		newBlockHandler(s.receivedNewHeadFromPeer)
-	}
-}
-
-func (s *mockSyncer) GetSyncProgression() *progress.Progression {
-	return nil
-}
-
-func (s *mockSyncer) Broadcast(b *types.Block) {
-	s.broadcastCalled = true
-	s.broadcastedBlock = b
 }
 
 type mockTxPool struct {

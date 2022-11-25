@@ -50,7 +50,7 @@ func TestNilPointerAttackFromFaultyPeer(t *testing.T) {
 
 			for _, newBlock := range newBlocks {
 				assert.NoError(t, peerSyncer.blockchain.VerifyFinalizedBlock(newBlock))
-				assert.NoError(t, peerSyncer.blockchain.WriteBlock(newBlock))
+				assert.NoError(t, peerSyncer.blockchain.WriteBlock(newBlock, WriteBlockSource))
 			}
 
 			for _, b := range newBlocks {
