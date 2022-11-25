@@ -28,10 +28,9 @@ type Syncer interface {
 	// Sync starts routine to sync blocks
 	Sync(func(*types.Block) bool) error
 
-	// deprecated methods
-	BestPeer() *SyncPeer
-	BulkSyncWithPeer(p *SyncPeer, newBlockHandler func(block *types.Block)) error
-	WatchSyncWithPeer(p *SyncPeer, newBlockHandler func(b *types.Block) bool, blockTimeout time.Duration)
+	// Deprecated methods. Only for backward compatibility
+
+	// Broadcast block to the connected peers
 	Broadcast(b *types.Block)
 }
 

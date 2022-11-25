@@ -9,15 +9,12 @@ import (
 	"github.com/dogechain-lab/dogechain/protocol/proto"
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/libp2p/go-libp2p-core/peer"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
 var (
 	errBlockNotFound         = errors.New("block not found")
 	errInvalidHeadersRequest = errors.New("cannot provide both a number and a hash")
-	errNilRawRequest         = errors.New("notify request raw is nil")
-	errNilStatusRequest      = errors.New("notify request status is nil")
 )
 
 type syncPeerService struct {
@@ -114,36 +111,6 @@ func toProtoBlock(block *types.Block) *proto.Block {
  */
 
 func (s *syncPeerService) Notify(ctx context.Context, req *proto.NotifyReq) (*empty.Empty, error) {
-	if req.Raw == nil || len(req.Raw.Value) == 0 {
-		// malicious node conducted denial of service
-		return nil, errNilRawRequest
-	}
-
-	if req.Status == nil {
-		return nil, errNilStatusRequest
-	}
-
-	var id peer.ID
-
-	if ctx, ok := ctx.(*grpc.Context); ok {
-		id = ctx.PeerID
-	} else {
-		return &empty.Empty{}, nil
-	}
-
-	b := new(types.Block)
-	if err := b.UnmarshalRLP(req.Raw.Value); err != nil {
-		return nil, err
-	}
-
-	status, err := statusFromProto(req.Status)
-	if err != nil {
-		return nil, err
-	}
-
-	s.syncer.enqueueBlock(id, b)
-	s.syncer.updatePeerStatus(id, status)
-
 	return &empty.Empty{}, nil
 }
 
