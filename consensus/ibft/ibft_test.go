@@ -319,24 +319,6 @@ func TestTransition_ValidateState_CommitFastTrack(t *testing.T) {
 	})
 }
 
-func TestTransition_AcceptState_ToSync(t *testing.T) {
-	// we are in AcceptState and we are not in the validators list
-	// means that we have been removed as validator, move to sync state
-	i := newMockIbft(t, []string{"A", "B", "C", "D"}, "")
-	i.setState(currentstate.AcceptState)
-	t.Cleanup(func() {
-		i.Close()
-	})
-
-	// we are the proposer and we need to build a block
-	i.runCycle()
-
-	i.expect(expectResult{
-		sequence: 1,
-		state:    currentstate.SyncState,
-	})
-}
-
 func TestTransition_AcceptState_Proposer_Locked(t *testing.T) {
 	// If we are the proposer and there is a lock value we need to propose it
 	i := newMockIbft(t, []string{"A", "B", "C", "D"}, "A")
@@ -885,108 +867,6 @@ func TestIBFT_WriteTransactions(t *testing.T) {
 			assert.Equal(t, test.params.expectedDemoteTxnsCount, len(shouldDemoteTxs))
 		})
 	}
-}
-
-func TestRunSyncState_NewHeadReceivedFromPeer_CallsTxPoolResetWithHeaders(t *testing.T) {
-	m := newMockIbft(t, []string{"A", "B", "C"}, "A")
-	m.setState(currentstate.SyncState)
-
-	expectedNewBlockToSync := &types.Block{Header: &types.Header{Number: 1}}
-	mockSyncer := newMockSyncer(nil, expectedNewBlockToSync, nil, false, nil)
-	m.syncer = mockSyncer
-	mockTxPool := newMockTxPool(nil)
-	m.txpool = mockTxPool
-
-	// we need to change state from Sync in order to break from the loop inside runSyncState
-	stateChangeDelay := time.NewTimer(100 * time.Millisecond)
-	defer stateChangeDelay.Stop()
-
-	go func() {
-		<-stateChangeDelay.C
-		m.setState(currentstate.AcceptState)
-	}()
-
-	m.runSyncState()
-
-	assert.True(t, mockTxPool.resetWithHeaderCalled)
-	assert.Equal(t, expectedNewBlockToSync.Header, mockTxPool.resetWithHeadersParam[0])
-	assert.True(t, mockSyncer.broadcastCalled)
-	assert.Equal(t, expectedNewBlockToSync, mockSyncer.broadcastedBlock)
-}
-
-func TestRunSyncState_BulkSyncWithPeer_CallsTxPoolResetWithHeaders(t *testing.T) {
-	m := newMockIbft(t, []string{"A", "B", "C"}, "A")
-	m.setState(currentstate.SyncState)
-
-	expectedNewBlocksToSync := []*types.Block{
-		{Header: &types.Header{Number: 1}},
-		{Header: &types.Header{Number: 2}},
-		{Header: &types.Header{Number: 3}},
-	}
-	m.syncer = newMockSyncer(expectedNewBlocksToSync, nil, nil, false, nil)
-	mockTxPool := newMockTxPool(nil)
-	m.txpool = mockTxPool
-
-	// we need to change state from Sync in order to break from the loop inside runSyncState
-	stateChangeDelay := time.NewTimer(100 * time.Millisecond)
-	defer stateChangeDelay.Stop()
-
-	go func() {
-		<-stateChangeDelay.C
-		m.setState(currentstate.AcceptState)
-	}()
-
-	m.runSyncState()
-
-	assert.True(t, mockTxPool.resetWithHeaderCalled)
-	assert.Equal(t,
-		expectedNewBlocksToSync[len(expectedNewBlocksToSync)-1].Header,
-		mockTxPool.resetWithHeadersParam[0],
-	)
-}
-
-// Tests whether validator unlock block if it syncs blocks during sync process
-func TestRunSyncState_Unlock_After_Sync(t *testing.T) {
-	pool := newTesterAccountPool()
-	pool.add("A", "B", "C", "D")
-
-	blockchain := NewMockBlockchain(t)
-	blockchain.SetGenesis(pool.ValidatorSet())
-
-	m := newMockIBFTWithMockBlockchain(t, pool, blockchain, "A")
-	m.sealing = true
-	m.setState(currentstate.SyncState)
-
-	// Locking block #1
-	m.state.Lock()
-
-	// Sync blocks to #3
-	expectedNewBlocksToSync := []*types.Block{
-		{Header: &types.Header{Number: 1}},
-		{Header: &types.Header{Number: 2}},
-		{Header: &types.Header{Number: 3}},
-	}
-
-	m.syncer = newMockSyncer(expectedNewBlocksToSync, nil, nil, false, blockchain)
-	m.txpool = newMockTxPool(nil)
-
-	// we need to change state from Sync in order to break from the loop inside runSyncState
-	stateChangeDelay := time.NewTimer(100 * time.Millisecond)
-	defer stateChangeDelay.Stop()
-
-	go func() {
-		<-stateChangeDelay.C
-		m.setState(currentstate.AcceptState)
-	}()
-
-	m.runSyncState()
-
-	// Validator should start new sequence from the next of the latest block and unlock block in state
-	m.expect(expectResult{
-		sequence: 4,
-		state:    currentstate.AcceptState,
-		locked:   false,
-	})
 }
 
 type mockSyncer struct {

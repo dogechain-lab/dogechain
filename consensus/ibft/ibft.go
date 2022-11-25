@@ -244,12 +244,47 @@ func (i *Ibft) Start() error {
 	}
 
 	// Start the syncer
-	i.syncer.Start()
+	if err := i.syncer.Start(); err != nil {
+		return err
+	}
+
+	// Start syncing blocks from other peers
+	go i.startSyncing()
 
 	// Start the actual IBFT protocol
 	go i.start()
 
 	return nil
+}
+
+// sync runs the syncer in the background to receive blocks from advanced peers
+func (i *Ibft) startSyncing() {
+	logger := i.logger.Named("syncing")
+
+	callInsertBlockHook := func(block *types.Block) bool {
+		blockNumber := block.Number()
+
+		// insert block
+		if hookErr := i.runHook(InsertBlockHook, blockNumber, blockNumber); hookErr != nil {
+			logger.Error(fmt.Sprintf("Unable to run hook %s, %v", InsertBlockHook, hookErr))
+		}
+
+		// update module cache
+		if err := i.updateCurrentModules(blockNumber + 1); err != nil {
+			logger.Error("failed to update sub modules", "height", blockNumber+1, "err", err)
+		}
+
+		// reset headers of txpool
+		i.txpool.ResetWithHeaders(block.Header)
+
+		return false
+	}
+
+	if err := i.syncer.Sync(
+		callInsertBlockHook,
+	); err != nil {
+		logger.Error("watch sync failed", "err", err)
+	}
 }
 
 // GetSyncProgression gets the latest sync progression, if any
@@ -437,9 +472,8 @@ const IbftKeyName = "validator.key"
 
 // start starts the IBFT consensus state machine
 func (i *Ibft) start() {
-	// consensus always starts in SyncState mode in case it needs
-	// to sync with other nodes.
-	i.setState(currentstate.SyncState)
+	// consensus always starts in accept mode for getting new proposal
+	i.setState(currentstate.AcceptState)
 
 	// Grab the latest header
 	header := i.blockchain.Header()
@@ -476,9 +510,6 @@ func (i *Ibft) runCycle() {
 
 	case currentstate.RoundChangeState:
 		i.runRoundChangeState()
-
-	case currentstate.SyncState:
-		i.runSyncState()
 	}
 }
 
@@ -501,111 +532,6 @@ func (i *Ibft) isValidSnapshot() bool {
 	}
 
 	return false
-}
-
-// runSyncState implements the Sync state loop.
-//
-// It fetches fresh data from the blockchain. Checks if the current node is a validator and resolves any pending blocks
-func (i *Ibft) runSyncState() {
-	logger := i.logger.Named("syncState")
-
-	// updateSnapshotCallback keeps the snapshot store in sync with the updated
-	// chain data, by calling the SyncStateHook
-	callInsertBlockHook := func(block *types.Block) {
-		blockNumber := block.Number()
-
-		// insert block
-		if hookErr := i.runHook(InsertBlockHook, blockNumber, blockNumber); hookErr != nil {
-			logger.Error(fmt.Sprintf("Unable to run hook %s, %v", InsertBlockHook, hookErr))
-		}
-
-		// update module cache
-		if err := i.updateCurrentModules(blockNumber + 1); err != nil {
-			logger.Error("failed to update sub modules", "height", blockNumber+1, "err", err)
-		}
-
-		// reset headers of txpool
-		i.txpool.ResetWithHeaders(block.Header)
-	}
-
-	// save current height to check whether new blocks are added or not during syncing
-	beginningHeight := uint64(0)
-	if header := i.blockchain.Header(); header != nil {
-		beginningHeight = header.Number
-	}
-
-	for i.isState(currentstate.SyncState) {
-		// try to sync with the best-suited peer
-		p := i.syncer.BestPeer()
-		if p == nil {
-			// if we do not have any peers, and we have been a validator
-			// we can start now. In case we start on another fork this will be
-			// reverted later
-			if i.isValidSnapshot() {
-				// initialize the round and sequence
-				i.startNewSequence()
-
-				//Set the round metric
-				i.metrics.Rounds.Set(float64(i.state.Round()))
-
-				i.setState(currentstate.AcceptState)
-			} else {
-				time.Sleep(1 * time.Second)
-			}
-
-			continue
-		}
-
-		if err := i.syncer.BulkSyncWithPeer(p, func(newBlock *types.Block) {
-			callInsertBlockHook(newBlock)
-		}); err != nil {
-			logger.Error("failed to bulk sync", "err", err)
-
-			continue
-		}
-
-		// if we are a validator we do not even want to wait here
-		// we can just move ahead
-		if i.isValidSnapshot() {
-			i.startNewSequence()
-			i.setState(currentstate.AcceptState)
-
-			continue
-		}
-
-		// start watch mode
-		var isValidator bool
-
-		i.syncer.WatchSyncWithPeer(p, func(newBlock *types.Block) bool {
-			// After each written block, update the snapshot store for PoS.
-			// The snapshot store is currently updated for PoA inside the ProcessHeadersHook
-			callInsertBlockHook(newBlock)
-
-			i.syncer.Broadcast(newBlock)
-			isValidator = i.isValidSnapshot()
-
-			return isValidator
-		}, i.blockTime)
-
-		if isValidator {
-			// at this point, we are in sync with the latest chain we know of
-			// and we are a validator of that chain so we need to change to AcceptState
-			// so that we can start to do some stuff there
-			i.startNewSequence()
-			i.setState(currentstate.AcceptState)
-		}
-	}
-
-	// new height added during syncing
-	endingHeight := uint64(0)
-	if header := i.blockchain.Header(); header != nil {
-		endingHeight = header.Number
-	}
-
-	// unlock current block if new blocks are added
-	if endingHeight > beginningHeight {
-		i.state.Unlock()
-	}
 }
 
 // shouldWriteSystemTransactions checks whether system contract transaction should write at given height
@@ -1132,7 +1058,7 @@ func (i *Ibft) runAcceptState() { // start new round
 
 	if number != i.state.Sequence() {
 		logger.Error("sequence not correct", "parent", parent.Number, "sequence", i.state.Sequence())
-		i.setState(currentstate.SyncState)
+		time.Sleep(1 * time.Second)
 
 		return
 	}
@@ -1150,7 +1076,7 @@ func (i *Ibft) runAcceptState() { // start new round
 
 	if err != nil {
 		logger.Error("cannot find snapshot", "num", parent.Number)
-		i.setState(currentstate.SyncState)
+		time.Sleep(1 * time.Second)
 
 		return
 	}
@@ -1158,7 +1084,7 @@ func (i *Ibft) runAcceptState() { // start new round
 	if !snap.Set.Includes(i.validatorKeyAddr) {
 		// we are not a validator anymore, move back to sync state
 		logger.Info("we are not a validator anymore")
-		i.setState(currentstate.SyncState)
+		time.Sleep(1 * time.Second)
 
 		return
 	}
@@ -1653,18 +1579,10 @@ func (i *Ibft) runRoundChangeState() {
 
 	checkTimeout := func() {
 		// check if there is any peer that is really advanced and we might need to sync with it first
-		if i.syncer != nil {
-			bestPeer := i.syncer.BestPeer()
-			if bestPeer != nil {
-				lastProposal := i.blockchain.Header()
-				if bestPeer.Number() > lastProposal.Number {
-					logger.Info("it has found a better peer to connect", "local", lastProposal.Number, "remote", bestPeer.Number())
-					// we need to catch up with the last sequence
-					i.setState(currentstate.SyncState)
+		if i.syncer != nil && i.syncer.HasSyncPeer() {
+			i.setState(currentstate.AcceptState)
 
-					return
-				}
-			}
+			return
 		}
 
 		// otherwise, it seems that we are in sync

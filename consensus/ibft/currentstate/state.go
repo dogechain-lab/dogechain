@@ -19,7 +19,6 @@ const (
 	RoundChangeState
 	ValidateState // including prepare, commit, and post commit state stage
 	CommitState
-	SyncState
 )
 
 // String returns the string representation of the passed in state
@@ -36,9 +35,6 @@ func (i IbftState) String() string {
 
 	case CommitState:
 		return "CommitState"
-
-	case SyncState:
-		return "SyncState"
 	}
 
 	panic(fmt.Sprintf("BUG: Ibft state not found %d", i))
