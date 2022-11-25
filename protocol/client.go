@@ -80,6 +80,8 @@ func (client *syncPeerClient) Close() {
 	if client.topic != nil {
 		// close topic when needed
 		client.topic.Close()
+
+		client.topic = nil
 	}
 }
 
