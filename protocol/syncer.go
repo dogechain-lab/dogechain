@@ -23,6 +23,8 @@ const (
 	_syncerName = "syncer"
 	// version not change for backward compatibility
 	_syncerV1 = "/syncer/0.1"
+
+	WriteBlockSource = "syncer"
 )
 
 const (
@@ -381,7 +383,7 @@ func (s *noForkSyncer) bulkSyncWithPeer(
 				return lastReceivedNumber, false, fmt.Errorf("unable to verify block, %w", err)
 			}
 
-			if err := s.blockchain.WriteBlock(block); err != nil {
+			if err := s.blockchain.WriteBlock(block, WriteBlockSource); err != nil {
 				return lastReceivedNumber, false, fmt.Errorf("failed to write block while bulk syncing: %w", err)
 			}
 

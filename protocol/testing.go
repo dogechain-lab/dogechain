@@ -285,7 +285,7 @@ func newSimpleHeaderHandler(num uint64) func() *types.Header {
 	}
 }
 
-func (b *mockBlockchain) WriteBlock(block *types.Block) error {
+func (b *mockBlockchain) WriteBlock(block *types.Block, source string) error {
 	b.blocks = append(b.blocks, block)
 
 	if b.writeBlockHandler != nil {
@@ -305,7 +305,7 @@ func (b *mockBlockchain) VerifyFinalizedBlock(block *types.Block) error {
 
 func (b *mockBlockchain) WriteBlocks(blocks []*types.Block) error {
 	for _, block := range blocks {
-		if writeErr := b.WriteBlock(block); writeErr != nil {
+		if writeErr := b.WriteBlock(block, WriteBlockSource); writeErr != nil {
 			return writeErr
 		}
 	}

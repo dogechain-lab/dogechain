@@ -16,6 +16,10 @@ import (
 	"github.com/klauspost/compress/zstd"
 )
 
+const (
+	WriteBlockSource = "archive"
+)
+
 var zstdMagic = []byte{0x28, 0xb5, 0x2f, 0xfd} // zstd Magic number
 
 type blockchainInterface interface {
@@ -23,7 +27,7 @@ type blockchainInterface interface {
 	Genesis() types.Hash
 	GetBlockByNumber(uint64, bool) (*types.Block, bool)
 	GetHashByNumber(uint64) types.Hash
-	WriteBlock(*types.Block) error
+	WriteBlock(block *types.Block, source string) error
 	VerifyFinalizedBlock(*types.Block) error
 }
 
@@ -106,7 +110,7 @@ func importBlocks(chain blockchainInterface, blockStream *blockStream, progressi
 			return err
 		}
 
-		if err := chain.WriteBlock(nextBlock); err != nil {
+		if err := chain.WriteBlock(nextBlock, WriteBlockSource); err != nil {
 			return err
 		}
 

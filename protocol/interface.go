@@ -50,7 +50,7 @@ type Blockchain interface {
 	CalculateGasLimit(number uint64) (uint64, error)
 
 	// advance chain methods
-	WriteBlock(block *types.Block) error
+	WriteBlock(block *types.Block, source string) error
 	VerifyFinalizedBlock(block *types.Block) error
 
 	// GetBlockByNumber returns block by number

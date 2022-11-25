@@ -35,6 +35,8 @@ const (
 	DefaultEpochSize = 100000
 	// When threshold reached, we mark it as a really annoying contract
 	_annoyingContractThrshold = 3
+
+	WriteBlockSource = "ibft"
 )
 
 var (
@@ -52,7 +54,7 @@ var (
 type blockchainInterface interface {
 	Header() *types.Header
 	GetHeaderByNumber(i uint64) (*types.Header, bool)
-	WriteBlock(block *types.Block) error
+	WriteBlock(block *types.Block, source string) error
 	VerifyPotentialBlock(block *types.Block) error
 	CalculateGasLimit(number uint64) (uint64, error)
 }
@@ -1521,7 +1523,7 @@ func (i *Ibft) insertBlock(block *types.Block) error {
 	}
 
 	// Save the block locally
-	if err := i.blockchain.WriteBlock(block); err != nil {
+	if err := i.blockchain.WriteBlock(block, WriteBlockSource); err != nil {
 		return err
 	}
 

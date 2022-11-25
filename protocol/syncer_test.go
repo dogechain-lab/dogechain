@@ -211,7 +211,7 @@ func (m *mockBlockStore) GetBodyByHash(hash types.Hash) (*types.Body, bool) {
 
 func (m *mockBlockStore) WriteBlocks(blocks []*types.Block) error {
 	for _, block := range blocks {
-		if writeErr := m.WriteBlock(block); writeErr != nil {
+		if writeErr := m.WriteBlock(block, WriteBlockSource); writeErr != nil {
 			return writeErr
 		}
 	}
@@ -219,7 +219,7 @@ func (m *mockBlockStore) WriteBlocks(blocks []*types.Block) error {
 	return nil
 }
 
-func (m *mockBlockStore) WriteBlock(block *types.Block) error {
+func (m *mockBlockStore) WriteBlock(block *types.Block, source string) error {
 	m.td.Add(m.td, big.NewInt(int64(block.Header.Difficulty)))
 	m.blocks = append(m.blocks, block)
 

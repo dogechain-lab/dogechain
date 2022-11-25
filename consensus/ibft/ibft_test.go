@@ -68,7 +68,7 @@ func (m *MockBlockchain) GetHeaderByNumber(i uint64) (*types.Header, bool) {
 	return m.GetHeaderByNumberHandler(i)
 }
 
-func (m *MockBlockchain) WriteBlock(block *types.Block) error {
+func (m *MockBlockchain) WriteBlock(block *types.Block, source string) error {
 	m.t.Helper()
 
 	if m.WriteBlockHandler == nil {
@@ -1084,7 +1084,7 @@ func (m *mockIbft) GetHeaderByNumber(i uint64) (*types.Header, bool) {
 	return m.blockchain.GetHeaderByNumber(i)
 }
 
-func (m *mockIbft) WriteBlock(block *types.Block) error {
+func (m *mockIbft) WriteBlock(block *types.Block, source string) error {
 	return nil
 }
 
