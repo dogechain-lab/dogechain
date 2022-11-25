@@ -236,8 +236,7 @@ func HeaderToStatus(h *types.Header) *Status {
 
 // mockBlockchain is a mock of blockhain for syncer tests
 type mockBlockchain struct {
-	blocks        []*types.Block
-	subscriptions []*mockSubscription
+	blocks []*types.Block
 
 	// fields for new version protocol tests
 
@@ -254,16 +253,12 @@ func (b *mockBlockchain) CalculateGasLimit(number uint64) (uint64, error) {
 
 func NewMockBlockchain(headers []*types.Header) *mockBlockchain {
 	return &mockBlockchain{
-		blocks:        blockchain.HeadersToBlocks(headers),
-		subscriptions: make([]*mockSubscription, 0),
+		blocks: blockchain.HeadersToBlocks(headers),
 	}
 }
 
 func (b *mockBlockchain) SubscribeEvents() blockchain.Subscription {
-	subscription := NewMockSubscription()
-	b.subscriptions = append(b.subscriptions, subscription)
-
-	return subscription
+	return b.subscription
 }
 
 func (b *mockBlockchain) Header() *types.Header {
@@ -354,13 +349,10 @@ func newSimpleHeaderHandler(num uint64) func() *types.Header {
 }
 
 func (b *mockBlockchain) WriteBlock(block *types.Block) error {
+	b.blocks = append(b.blocks, block)
+
 	if b.writeBlockHandler != nil {
 		return b.writeBlockHandler(block)
-	}
-
-	b.blocks = append(b.blocks, block)
-	for _, subscription := range b.subscriptions {
-		subscription.AppendBlock(block)
 	}
 
 	return nil
