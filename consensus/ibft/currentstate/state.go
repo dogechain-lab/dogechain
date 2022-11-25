@@ -94,6 +94,7 @@ func NewState() *CurrentState {
 }
 
 func (c *CurrentState) Clear(height uint64) {
+	c.SetState(AcceptState)
 	c.block = nil
 	c.proposer = types.ZeroAddress
 	c.view = &proto.View{
