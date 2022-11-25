@@ -9,6 +9,8 @@ import (
 )
 
 // msgQueue defines the structure that holds message queues for different IBFT states
+//
+// TODO: the lock is holding too much, use map instead of heap for all round messages and better performance
 type msgQueue struct {
 	// Heap implementation for the round change message queue
 	roundChangeStateQueue msgQueueImpl
@@ -20,6 +22,15 @@ type msgQueue struct {
 	validateStateQueue msgQueueImpl
 
 	queueLock sync.Mutex
+}
+
+func (m *msgQueue) PruneByHeight(height uint64) {
+	m.queueLock.Lock()
+	defer m.queueLock.Unlock()
+
+	m.roundChangeStateQueue.PruneByHeight(height)
+	m.acceptStateQueue.PruneByHeight(height)
+	m.validateStateQueue.PruneByHeight(height)
 }
 
 // pushMessage adds a new message to a message queue
@@ -221,6 +232,12 @@ func (m *msgQueueImpl) Pop() interface{} {
 	*m = old[0 : n-1]
 
 	return item
+}
+
+func (m *msgQueueImpl) PruneByHeight(height uint64) {
+	for m.Len() > 0 && m.head().view.Sequence <= height {
+		m.Pop()
+	}
 }
 
 // cmpView compares two proto views.
