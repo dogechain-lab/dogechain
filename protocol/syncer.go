@@ -1,7 +1,6 @@
 package protocol
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"sort"
@@ -12,13 +11,11 @@ import (
 	"github.com/dogechain-lab/dogechain/helper/progress"
 	"github.com/dogechain-lab/dogechain/network"
 	"github.com/dogechain-lab/dogechain/network/event"
-	"github.com/dogechain-lab/dogechain/protocol/proto"
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/hashicorp/go-hclog"
 	"github.com/libp2p/go-libp2p-core/peer"
 	grpccodes "google.golang.org/grpc/codes"
 	grpcstatus "google.golang.org/grpc/status"
-	anypb "google.golang.org/protobuf/types/known/anypb"
 )
 
 const (
@@ -184,63 +181,6 @@ func (s *noForkSyncer) updateStatus(status *Status) {
 	s.logger.Debug("update syncer status", "status", status)
 
 	s.status = status
-}
-
-// Broadcast broadcasts a block to all peers
-//
-// deprecated, for backward compatibility
-func (s *noForkSyncer) Broadcast(b *types.Block) {
-	sendNotify := func(peerID, peer interface{}, req *proto.NotifyReq) {
-		startTime := time.Now()
-
-		syncPeer, ok := peer.(*SyncPeer)
-		if !ok {
-			return
-		}
-
-		if _, err := syncPeer.client.Notify(context.Background(), req); err != nil {
-			s.logger.Error("failed to notify", "err", err)
-
-			return
-		}
-
-		duration := time.Since(startTime)
-
-		s.logger.Debug(
-			"notifying peer",
-			"id", peerID,
-			"duration", duration.Seconds(),
-		)
-	}
-
-	// Get the chain difficulty associated with block
-	td, ok := s.blockchain.GetTD(b.Hash())
-	if !ok {
-		// not supposed to happen
-		s.logger.Error("total difficulty not found", "block number", b.Number())
-
-		return
-	}
-
-	// broadcast the new block to all the peers
-	req := &proto.NotifyReq{
-		Status: &proto.V1Status{
-			Hash:       b.Hash().String(),
-			Number:     b.Number(),
-			Difficulty: td.String(),
-		},
-		Raw: &anypb.Any{
-			Value: b.MarshalRLP(),
-		},
-	}
-
-	s.logger.Debug("broadcast start")
-	s.peerMap.Range(func(peerID, peer interface{}) bool {
-		go sendNotify(peerID, peer, req)
-
-		return true
-	})
-	s.logger.Debug("broadcast end")
 }
 
 // Start starts the syncer protocol
