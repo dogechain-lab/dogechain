@@ -343,16 +343,3 @@ func (s *mockSubscription) GetEvent() *blockchain.Event {
 func (s *mockSubscription) Close() {
 	close(s.eventCh)
 }
-
-func createMockBlocks(num int) []*types.Block {
-	blocks := make([]*types.Block, num)
-	for i := 0; i < num; i++ {
-		blocks[i] = &types.Block{
-			Header: &types.Header{
-				Number: uint64(i + 1),
-			},
-		}
-	}
-
-	return blocks
-}
