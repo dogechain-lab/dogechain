@@ -16,6 +16,8 @@ import (
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/hashicorp/go-hclog"
 	"github.com/libp2p/go-libp2p-core/peer"
+	grpccodes "google.golang.org/grpc/codes"
+	grpcstatus "google.golang.org/grpc/status"
 	anypb "google.golang.org/protobuf/types/known/anypb"
 )
 
@@ -315,25 +317,23 @@ func (s *noForkSyncer) Sync(callback func(*types.Block) bool) error {
 
 		// if the bestPeer does not have a new block continue
 		if bestPeer.Number <= localLatest {
-			s.logger.Info("wait for the best peer catching up the latest block", "bestPeer", bestPeer.ID)
+			s.logger.Debug("wait for the best peer catching up the latest block", "bestPeer", bestPeer.ID)
 
 			continue
 		}
 
 		// fetch block from the peer
-		lastNumber, shouldTerminate, err := s.bulkSyncWithPeer(bestPeer.ID, callback)
+		result, err := s.bulkSyncWithPeer(bestPeer.ID, callback)
 		if err != nil {
 			s.logger.Warn("failed to complete bulk sync with peer, try to next one", "peer ID", "error", bestPeer.ID, err)
 		}
 
-		if lastNumber < bestPeer.Number {
-			skipList[bestPeer.ID] = true
-
-			// continue to next peer
-			continue
+		// result should never be nil
+		for p := range result.SkipList {
+			skipList[p] = true
 		}
 
-		if shouldTerminate {
+		if result.ShouldTerminate {
 			break
 		}
 	}
@@ -341,17 +341,36 @@ func (s *noForkSyncer) Sync(callback func(*types.Block) bool) error {
 	return nil
 }
 
+type bulkSyncResult struct {
+	SkipList           map[peer.ID]bool
+	LastReceivedNumber uint64
+	ShouldTerminate    bool
+}
+
 // bulkSyncWithPeer syncs block with a given peer
 func (s *noForkSyncer) bulkSyncWithPeer(
 	peerID peer.ID,
 	newBlockCallback func(*types.Block) bool,
-) (uint64, bool, error) {
+) (*bulkSyncResult, error) {
+	result := &bulkSyncResult{
+		SkipList:           make(map[peer.ID]bool),
+		LastReceivedNumber: 0,
+		ShouldTerminate:    false,
+	}
+
 	localLatest := s.blockchain.Header().Number
-	shouldTerminate := false
 
 	blockCh, err := s.syncPeerClient.GetBlocks(peerID, localLatest+1, s.blockTimeout)
 	if err != nil {
-		return 0, false, err
+		if rpcErr, ok := grpcstatus.FromError(err); ok {
+			switch rpcErr.Code() {
+			case grpccodes.OK, grpccodes.Canceled, grpccodes.DataLoss:
+			default: // other errors are not acceptable
+				result.SkipList[peerID] = true
+			}
+		}
+
+		return result, err
 	}
 
 	defer func() {
@@ -360,18 +379,14 @@ func (s *noForkSyncer) bulkSyncWithPeer(
 		}
 	}()
 
-	var (
-		lastReceivedNumber uint64
-		timer              = time.NewTimer(s.blockTimeout)
-	)
-
+	timer := time.NewTimer(s.blockTimeout)
 	defer timer.Stop()
 
 	for {
 		select {
 		case block, ok := <-blockCh:
 			if !ok {
-				return lastReceivedNumber, shouldTerminate, nil
+				return result, nil
 			}
 
 			// safe check
@@ -380,18 +395,21 @@ func (s *noForkSyncer) bulkSyncWithPeer(
 			}
 
 			if err := s.blockchain.VerifyFinalizedBlock(block); err != nil {
-				return lastReceivedNumber, false, fmt.Errorf("unable to verify block, %w", err)
+				// not the same network
+				result.SkipList[peerID] = true
+
+				return result, fmt.Errorf("unable to verify block, %w", err)
 			}
 
 			if err := s.blockchain.WriteBlock(block, WriteBlockSource); err != nil {
-				return lastReceivedNumber, false, fmt.Errorf("failed to write block while bulk syncing: %w", err)
+				return result, fmt.Errorf("failed to write block while bulk syncing: %w", err)
 			}
 
-			shouldTerminate = newBlockCallback(block)
-
-			lastReceivedNumber = block.Number()
+			// NOTE: not use for now, should remove?
+			result.ShouldTerminate = newBlockCallback(block)
+			result.LastReceivedNumber = block.Number()
 		case <-timer.C:
-			return lastReceivedNumber, shouldTerminate, errTimeout
+			return result, errTimeout
 		}
 	}
 }

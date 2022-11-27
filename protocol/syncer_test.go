@@ -795,10 +795,11 @@ func Test_bulkSyncWithPeer(t *testing.T) {
 				)
 			)
 
-			lastSynced, shouldTerminate, err := syncer.bulkSyncWithPeer(peer.ID("X"), nil, test.blockCallback)
+			result, err := syncer.bulkSyncWithPeer(peer.ID("X"), test.blockCallback)
 
-			assert.Equal(t, test.lastSyncedBlockNumber, lastSynced)
-			assert.Equal(t, test.shouldTerminate, shouldTerminate)
+			assert.NotNil(t, result)
+			assert.Equal(t, test.lastSyncedBlockNumber, result.LastReceivedNumber)
+			assert.Equal(t, test.shouldTerminate, result.ShouldTerminate)
 			assert.ErrorIs(t, err, test.err)
 			assert.Equal(t, test.blocks, syncedBlocks)
 		})
