@@ -1213,9 +1213,6 @@ func (i *Ibft) insertBlock(block *types.Block) error {
 		"committed", i.state.NumCommitted(),
 	)
 
-	// broadcast the new block
-	i.syncer.Broadcast(block)
-
 	// after the block has been written we reset the txpool so that
 	// the old transactions are removed
 	i.txpool.ResetWithHeaders(block.Header)
