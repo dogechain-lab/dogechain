@@ -27,11 +27,6 @@ type Syncer interface {
 	HasSyncPeer() bool
 	// Sync starts routine to sync blocks
 	Sync(func(*types.Block) bool) error
-
-	// Deprecated methods. Only for backward compatibility
-
-	// Broadcast block to the connected peers
-	Broadcast(b *types.Block)
 }
 
 // Blockchain is the interface required by the syncer to connect to the blockchain
