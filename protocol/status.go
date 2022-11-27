@@ -32,20 +32,3 @@ func (s *Status) toProto() *proto.V1Status {
 		Difficulty: s.Difficulty.String(),
 	}
 }
-
-// statusFromProto extracts a Status object from a passed in proto.V1Status
-func statusFromProto(p *proto.V1Status) (*Status, error) {
-	s := &Status{
-		Hash:   types.StringToHash(p.Hash),
-		Number: p.Number,
-	}
-
-	diff, ok := new(big.Int).SetString(p.Difficulty, 10)
-	if !ok {
-		return nil, ErrDecodeDifficulty
-	}
-
-	s.Difficulty = diff
-
-	return s, nil
-}
