@@ -16,7 +16,7 @@ var (
 		},
 		{
 			ID:     peer.ID("B"),
-			Number: 20,
+			Number: 30,
 		},
 		{
 			ID:     peer.ID("C"),
