@@ -118,4 +118,9 @@ type SyncPeerClient interface {
 	DisablePublishingPeerStatus()
 	// EnablePublishingPeerStatus enables publishing status in syncer topic
 	EnablePublishingPeerStatus()
+
+	// deprecated methods
+
+	// broadcast block to all its connected peers
+	Broadcast(block *types.Block) error
 }

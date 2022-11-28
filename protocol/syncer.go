@@ -274,8 +274,6 @@ func (s *noForkSyncer) Sync(callback func(*types.Block) bool) error {
 		result, err := s.bulkSyncWithPeer(bestPeer.ID, callback)
 		if err != nil {
 			s.logger.Warn("failed to complete bulk sync with peer, try to next one", "peer ID", "error", bestPeer.ID, err)
-		} else if s.blockBroadcast {
-			s.logger.Debug("broadcast block and status")
 		}
 
 		// stop progression even it might be not done
@@ -288,6 +286,14 @@ func (s *noForkSyncer) Sync(callback func(*types.Block) bool) error {
 
 		if result.ShouldTerminate {
 			break
+		}
+
+		if err == nil && s.blockBroadcast {
+			b, ok := s.blockchain.GetBlockByNumber(result.LastReceivedNumber, true)
+			if ok {
+				s.logger.Info("broadcast block and status", "height", result.LastReceivedNumber)
+				s.syncPeerClient.Broadcast(b)
+			}
 		}
 	}
 

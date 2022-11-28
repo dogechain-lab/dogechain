@@ -15,6 +15,7 @@ import (
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/hashicorp/go-hclog"
 	"github.com/libp2p/go-libp2p-core/peer"
+	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -308,6 +309,65 @@ func (client *syncPeerClient) GetBlocks(
 	}()
 
 	return blockCh, nil
+}
+
+// GetConnectedPeerStatuses fetches the statuses of all connecting peers
+func (client *syncPeerClient) Broadcast(block *types.Block) error {
+	var ps = client.network.Peers()
+
+	// Get the chain difficulty associated with block
+	td, ok := client.blockchain.GetTD(block.Hash())
+	if !ok {
+		// not supposed to happen
+		client.logger.Error("total difficulty not found", "block number", block.Number())
+
+		return errBlockNotFound
+	}
+
+	// broadcast the new block to all the peers
+	req := &proto.NotifyReq{
+		Status: &proto.V1Status{
+			Hash:       block.Hash().String(),
+			Number:     block.Number(),
+			Difficulty: td.String(),
+		},
+		Raw: &anypb.Any{
+			Value: block.MarshalRLP(),
+		},
+	}
+
+	for _, p := range ps {
+		go func(p *network.PeerConnInfo, req *proto.NotifyReq) {
+			begin := time.Now()
+
+			if err := client.broadcastBlockTo(p.Info.ID, req); err != nil {
+				client.logger.Warn("failed to broadcast block to peer", "id", p.Info.ID, "err", err)
+			} else {
+				client.logger.Debug("notify block to peer", "id", p.Info.ID, "duration", time.Since(begin).Seconds())
+			}
+		}(p, req)
+	}
+
+	return nil
+}
+
+// broadcastBlockTo sends block to peer
+func (client *syncPeerClient) broadcastBlockTo(
+	peerID peer.ID,
+	req *proto.NotifyReq,
+) error {
+	// The duration is not easy to evaluate, so don't count it
+	clt, err := client.newSyncPeerClient(peerID)
+	if err != nil {
+		return fmt.Errorf("failed to create sync peer client: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeoutForStatus)
+	defer cancel()
+
+	_, err = clt.Notify(ctx, req)
+
+	return err
 }
 
 // newSyncPeerClient creates gRPC client
