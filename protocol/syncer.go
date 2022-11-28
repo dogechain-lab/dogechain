@@ -329,8 +329,14 @@ func (s *noForkSyncer) bulkSyncWithPeer(
 				return result, nil
 			}
 
+			// stop timer when we receive a block
+			timer.Stop()
+
 			// safe check
 			if block.Number() == 0 {
+				// reset timer
+				timer.Reset(s.blockTimeout)
+
 				continue
 			}
 
@@ -348,6 +354,9 @@ func (s *noForkSyncer) bulkSyncWithPeer(
 			// NOTE: not use for now, should remove?
 			result.ShouldTerminate = newBlockCallback(block)
 			result.LastReceivedNumber = block.Number()
+
+			// reset timer
+			timer.Reset(s.blockTimeout)
 		case <-timer.C:
 			return result, errTimeout
 		}
