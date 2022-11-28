@@ -262,11 +262,18 @@ func (s *noForkSyncer) Sync(callback func(*types.Block) bool) error {
 			continue
 		}
 
+		// use subscription for updating progression
+		s.syncProgression.StartProgression(localLatest, s.blockchain.SubscribeEvents())
+		s.syncProgression.UpdateHighestProgression(bestPeer.Number)
+
 		// fetch block from the peer
 		result, err := s.bulkSyncWithPeer(bestPeer.ID, callback)
 		if err != nil {
 			s.logger.Warn("failed to complete bulk sync with peer, try to next one", "peer ID", "error", bestPeer.ID, err)
 		}
+
+		// stop progression even it might be not done
+		s.syncProgression.StopProgression()
 
 		// result should never be nil
 		for p := range result.SkipList {
@@ -404,6 +411,11 @@ func (s *noForkSyncer) initNewPeerStatus(peerID peer.ID) {
 
 // putToPeerMap puts given status to peer map
 func (s *noForkSyncer) putToPeerMap(status *NoForkPeer) {
+	// update progression if OK
+	if p := s.syncProgression; p != nil && status != nil {
+		p.UpdateHighestProgression(status.Number)
+	}
+
 	s.peerMap.Put(status)
 	s.notifyNewStatusEvent()
 }
@@ -417,6 +429,6 @@ func (s *noForkSyncer) removeFromPeerMap(peerID peer.ID) {
 func (s *noForkSyncer) notifyNewStatusEvent() {
 	select {
 	case s.newStatusCh <- struct{}{}:
-	default:
+	default: // OK to skip event when chan block
 	}
 }

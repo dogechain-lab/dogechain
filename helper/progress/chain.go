@@ -109,6 +109,10 @@ func (pw *ProgressionWrapper) UpdateCurrentProgression(currentBlock uint64) {
 	pw.lock.Lock()
 	defer pw.lock.Unlock()
 
+	if pw.progression == nil {
+		return
+	}
+
 	pw.progression.CurrentBlock = currentBlock
 }
 
@@ -116,6 +120,10 @@ func (pw *ProgressionWrapper) UpdateCurrentProgression(currentBlock uint64) {
 func (pw *ProgressionWrapper) UpdateHighestProgression(highestBlock uint64) {
 	pw.lock.Lock()
 	defer pw.lock.Unlock()
+
+	if pw.progression == nil {
+		return
+	}
 
 	pw.progression.HighestBlock = highestBlock
 }
