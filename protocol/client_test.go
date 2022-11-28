@@ -26,12 +26,8 @@ var (
 func newTestNetwork(t *testing.T) *network.Server {
 	t.Helper()
 
-	logger := hclog.Default()
-	logger.SetLevel(hclog.Debug)
-
 	srv, err := network.CreateServer(&network.CreateServerParams{
 		ConfigCallback: networkConfig,
-		Logger:         logger,
 	})
 
 	assert.NoError(t, err)
