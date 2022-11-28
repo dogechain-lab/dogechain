@@ -50,6 +50,7 @@ const (
 	jsonRPCBlockRangeLimitFlag   = "json-rpc-block-range-limit"
 	jsonrpcNamespaceFlag         = "json-rpc-namespace"
 	enableWSFlag                 = "enable-ws"
+	blockBroadcastFlag           = "block-broadcast"
 )
 
 const (
@@ -227,10 +228,11 @@ func (p *serverParams) generateConfig() *server.Config {
 			CompactionTotalSize: p.leveldbTotalTableSize,
 			NoSync:              p.leveldbNoSync,
 		},
-		BlockTime:    p.rawConfig.BlockTime,
-		LogLevel:     hclog.LevelFromString(p.rawConfig.LogLevel),
-		LogFilePath:  p.logFileLocation,
-		Daemon:       p.isDaemon,
-		ValidatorKey: p.validatorKey,
+		BlockTime:      p.rawConfig.BlockTime,
+		LogLevel:       hclog.LevelFromString(p.rawConfig.LogLevel),
+		LogFilePath:    p.logFileLocation,
+		Daemon:         p.isDaemon,
+		ValidatorKey:   p.validatorKey,
+		BlockBroadcast: p.rawConfig.BlockBroadcast,
 	}
 }

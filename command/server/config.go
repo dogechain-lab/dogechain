@@ -36,6 +36,7 @@ type Config struct {
 	JSONNamespace            string     `json:"json_namespace" yaml:"json_namespace"`
 	EnableWS                 bool       `json:"enable_ws" yaml:"enable_ws"`
 	EnablePprof              bool       `json:"enable_pprof" yaml:"enable_pprof"`
+	BlockBroadcast           bool       `json:"enable_block_broadcast" yaml:"enable_block_broadcast"`
 }
 
 // Telemetry holds the config details for metric services.

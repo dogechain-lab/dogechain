@@ -215,6 +215,7 @@ func Factory(
 		params.Network,
 		params.Blockchain,
 		3*p.blockTime,
+		params.BlockBroadcast,
 	)
 
 	return p, nil

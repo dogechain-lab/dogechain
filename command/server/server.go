@@ -81,6 +81,12 @@ func setFlags(cmd *cobra.Command) {
 			defaultConfig.BlockTime,
 			"minimum block time in seconds (at least 1s)",
 		)
+		cmd.Flags().BoolVar(
+			&params.rawConfig.BlockBroadcast,
+			blockBroadcastFlag,
+			false,
+			"(deprecated) enable block broadcast when syncing",
+		)
 	}
 
 	// endpoint flags

@@ -47,6 +47,8 @@ type Config struct {
 
 	Daemon       bool
 	ValidatorKey string
+
+	BlockBroadcast bool
 }
 
 // LeveldbOptions holds the leveldb options

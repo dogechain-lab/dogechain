@@ -91,6 +91,8 @@ type noForkSyncer struct {
 	statusLock sync.Mutex
 	// network server
 	server *network.Server
+	// broadcasting block flag for backward compatible nodes
+	blockBroadcast bool
 }
 
 // NewSyncer creates a new Syncer instance
@@ -99,6 +101,7 @@ func NewSyncer(
 	server *network.Server,
 	blockchain Blockchain,
 	blockTimeout time.Duration,
+	enableBlockBroadcast bool,
 ) Syncer {
 	s := &noForkSyncer{
 		logger:          logger.Named(_syncerName),
@@ -111,6 +114,7 @@ func NewSyncer(
 		newStatusCh:     make(chan struct{}),
 		stopCh:          make(chan struct{}),
 		server:          server,
+		blockBroadcast:  enableBlockBroadcast,
 	}
 
 	// set reference instance
@@ -270,6 +274,8 @@ func (s *noForkSyncer) Sync(callback func(*types.Block) bool) error {
 		result, err := s.bulkSyncWithPeer(bestPeer.ID, callback)
 		if err != nil {
 			s.logger.Warn("failed to complete bulk sync with peer, try to next one", "peer ID", "error", bestPeer.ID, err)
+		} else if s.blockBroadcast {
+			s.logger.Debug("broadcast block and status")
 		}
 
 		// stop progression even it might be not done
