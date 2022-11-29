@@ -26,11 +26,6 @@ const (
 	WriteBlockSource = "syncer"
 )
 
-const (
-	maxEnqueueSize = 50
-	popTimeout     = 10 * time.Second
-)
-
 var (
 	ErrLoadLocalGenesisFailed = errors.New("failed to read local genesis")
 	ErrMismatchGenesis        = errors.New("genesis does not match")
