@@ -4,7 +4,7 @@ const (
 	ConsensusFlag  = "consensus"
 	NoDiscoverFlag = "no-discover"
 
-	DiscoverIgnoreCIDRFlag = "discover-ignore-cidr"
+	IgnoreDiscoverCIDRFlag = "ignore-discover-cidr"
 
 	BootnodeFlag = "bootnode"
 	LogLevelFlag = "log-level"

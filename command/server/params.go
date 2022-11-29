@@ -179,7 +179,7 @@ func (p *serverParams) generateConfig() *server.Config {
 	ns := strings.Split(p.rawConfig.JSONNamespace, ",")
 
 	// ignore cidr
-	cidrList := strings.Split(p.rawConfig.Network.DiscoverIgnoreCIDR, ",")
+	cidrList := strings.Split(p.rawConfig.Network.IgnoreDiscoverCIDR, ",")
 	ingoreCIDRs := []*net.IPNet{}
 
 	for _, s := range cidrList {
