@@ -92,6 +92,10 @@ func (m *mockSyncPeerClient) CloseStream(peerID peer.ID) error {
 	return nil
 }
 
+func (m *mockSyncPeerClient) Broadcast(block *types.Block) error {
+	return nil
+}
+
 func GetAllElementsFromPeerMap(t *testing.T, p *PeerMap) []*NoForkPeer {
 	t.Helper()
 
