@@ -287,14 +287,6 @@ func (s *noForkSyncer) Sync(callback func(*types.Block) bool) error {
 		if result.ShouldTerminate {
 			break
 		}
-
-		if err == nil && s.blockBroadcast {
-			b, ok := s.blockchain.GetBlockByNumber(result.LastReceivedNumber, true)
-			if ok {
-				s.logger.Info("broadcast block and status", "height", result.LastReceivedNumber)
-				s.syncPeerClient.Broadcast(b)
-			}
-		}
 	}
 
 	return nil
@@ -317,8 +309,9 @@ func (s *noForkSyncer) bulkSyncWithPeer(
 			LastReceivedNumber: 0,
 			ShouldTerminate:    false,
 		}
-		from   = s.blockchain.Header().Number + 1
-		target = p.Number
+		from              = s.blockchain.Header().Number + 1
+		target            = p.Number
+		startBroadcasting bool
 	)
 
 	if from > target {
@@ -377,6 +370,17 @@ func (s *noForkSyncer) bulkSyncWithPeer(
 			// NOTE: not use for now, should remove?
 			result.ShouldTerminate = newBlockCallback(block)
 			result.LastReceivedNumber = block.Number()
+
+			// broadcast latest block to the network
+			if s.blockBroadcast && blockNearEnough(block.Number(), target) {
+				startBroadcasting = true // upgrade broadcasting flag
+			}
+
+			// After switching to broadcast, we don't close it until it catches up or returns an error
+			if startBroadcasting {
+				s.logger.Info("broadcast block and status", "height", result.LastReceivedNumber)
+				s.syncPeerClient.Broadcast(block)
+			}
 		}
 
 		// update range
@@ -399,6 +403,17 @@ func (s *noForkSyncer) bulkSyncWithPeer(
 	}
 
 	return result, nil
+}
+
+func blockNearEnough(a, b uint64) bool {
+	const nearBlockHeight = 1
+
+	switch a >= b {
+	case true:
+		return a-b <= nearBlockHeight
+	default:
+		return b-a <= nearBlockHeight
+	}
 }
 
 // initializePeerMap fetches peer statuses and initializes map
