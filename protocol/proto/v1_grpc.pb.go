@@ -23,8 +23,8 @@ type V1Client interface {
 	GetObjectsByHash(ctx context.Context, in *HashRequest, opts ...grpc.CallOption) (*Response, error)
 	GetHeaders(ctx context.Context, in *GetHeadersRequest, opts ...grpc.CallOption) (*Response, error)
 	Notify(ctx context.Context, in *NotifyReq, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	// Returns stream of blocks beginning specified from
-	GetBlocks(ctx context.Context, in *GetBlocksRequest, opts ...grpc.CallOption) (V1_GetBlocksClient, error)
+	// Returns blocks from begin to end (which is determined by server)
+	GetBlocks(ctx context.Context, in *GetBlocksRequest, opts ...grpc.CallOption) (*GetBlocksResponse, error)
 	// Returns server's status
 	GetStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*SyncPeerStatus, error)
 }
@@ -73,36 +73,13 @@ func (c *v1Client) Notify(ctx context.Context, in *NotifyReq, opts ...grpc.CallO
 	return out, nil
 }
 
-func (c *v1Client) GetBlocks(ctx context.Context, in *GetBlocksRequest, opts ...grpc.CallOption) (V1_GetBlocksClient, error) {
-	stream, err := c.cc.NewStream(ctx, &V1_ServiceDesc.Streams[0], "/v1.V1/GetBlocks", opts...)
+func (c *v1Client) GetBlocks(ctx context.Context, in *GetBlocksRequest, opts ...grpc.CallOption) (*GetBlocksResponse, error) {
+	out := new(GetBlocksResponse)
+	err := c.cc.Invoke(ctx, "/v1.V1/GetBlocks", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &v1GetBlocksClient{stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	return x, nil
-}
-
-type V1_GetBlocksClient interface {
-	Recv() (*Block, error)
-	grpc.ClientStream
-}
-
-type v1GetBlocksClient struct {
-	grpc.ClientStream
-}
-
-func (x *v1GetBlocksClient) Recv() (*Block, error) {
-	m := new(Block)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
+	return out, nil
 }
 
 func (c *v1Client) GetStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*SyncPeerStatus, error) {
@@ -122,8 +99,8 @@ type V1Server interface {
 	GetObjectsByHash(context.Context, *HashRequest) (*Response, error)
 	GetHeaders(context.Context, *GetHeadersRequest) (*Response, error)
 	Notify(context.Context, *NotifyReq) (*emptypb.Empty, error)
-	// Returns stream of blocks beginning specified from
-	GetBlocks(*GetBlocksRequest, V1_GetBlocksServer) error
+	// Returns blocks from begin to end (which is determined by server)
+	GetBlocks(context.Context, *GetBlocksRequest) (*GetBlocksResponse, error)
 	// Returns server's status
 	GetStatus(context.Context, *emptypb.Empty) (*SyncPeerStatus, error)
 	mustEmbedUnimplementedV1Server()
@@ -145,8 +122,8 @@ func (UnimplementedV1Server) GetHeaders(context.Context, *GetHeadersRequest) (*R
 func (UnimplementedV1Server) Notify(context.Context, *NotifyReq) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Notify not implemented")
 }
-func (UnimplementedV1Server) GetBlocks(*GetBlocksRequest, V1_GetBlocksServer) error {
-	return status.Errorf(codes.Unimplemented, "method GetBlocks not implemented")
+func (UnimplementedV1Server) GetBlocks(context.Context, *GetBlocksRequest) (*GetBlocksResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetBlocks not implemented")
 }
 func (UnimplementedV1Server) GetStatus(context.Context, *emptypb.Empty) (*SyncPeerStatus, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetStatus not implemented")
@@ -236,25 +213,22 @@ func _V1_Notify_Handler(srv interface{}, ctx context.Context, dec func(interface
 	return interceptor(ctx, in, info, handler)
 }
 
-func _V1_GetBlocks_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(GetBlocksRequest)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
+func _V1_GetBlocks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetBlocksRequest)
+	if err := dec(in); err != nil {
+		return nil, err
 	}
-	return srv.(V1Server).GetBlocks(m, &v1GetBlocksServer{stream})
-}
-
-type V1_GetBlocksServer interface {
-	Send(*Block) error
-	grpc.ServerStream
-}
-
-type v1GetBlocksServer struct {
-	grpc.ServerStream
-}
-
-func (x *v1GetBlocksServer) Send(m *Block) error {
-	return x.ServerStream.SendMsg(m)
+	if interceptor == nil {
+		return srv.(V1Server).GetBlocks(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/v1.V1/GetBlocks",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(V1Server).GetBlocks(ctx, req.(*GetBlocksRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _V1_GetStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -299,16 +273,14 @@ var V1_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _V1_Notify_Handler,
 		},
 		{
+			MethodName: "GetBlocks",
+			Handler:    _V1_GetBlocks_Handler,
+		},
+		{
 			MethodName: "GetStatus",
 			Handler:    _V1_GetStatus_Handler,
 		},
 	},
-	Streams: []grpc.StreamDesc{
-		{
-			StreamName:    "GetBlocks",
-			Handler:       _V1_GetBlocks_Handler,
-			ServerStreams: true,
-		},
-	},
+	Streams:  []grpc.StreamDesc{},
 	Metadata: "protocol/proto/v1.proto",
 }

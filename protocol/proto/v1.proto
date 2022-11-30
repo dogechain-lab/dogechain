@@ -17,8 +17,8 @@ service V1 {
 
     // new service for better syncing performance
 
-    // Returns stream of blocks beginning specified from
-    rpc GetBlocks(GetBlocksRequest) returns (stream Block);
+    // Returns blocks from begin to end (which is determined by server)
+    rpc GetBlocks(GetBlocksRequest) returns (GetBlocksResponse);
     // Returns server's status
     rpc GetStatus(google.protobuf.Empty) returns (SyncPeerStatus);
 }
@@ -72,14 +72,19 @@ message NotifyReq {
 
 // GetBlocksRequest is a request for GetBlocks
 message GetBlocksRequest {
-  // The height of beginning block to sync
-  uint64 from = 1;
+    // The height of beginning block to sync
+    uint64 from = 1;
+    // The height of ending block to sync
+    uint64 to = 2;
 }
 
-// Block contains a block data
-message Block {
-  // RLP Encoded Block Data
-  bytes block = 1;
+message GetBlocksResponse {
+    // The height of beginning block
+    uint64 from = 1;
+    // The height of ending block 
+    uint64 to = 2;
+    // RLP encoded block data
+    repeated bytes blocks = 3;
 }
 
 // SyncPeerStatus contains peer status
