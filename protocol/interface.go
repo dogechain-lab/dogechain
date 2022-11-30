@@ -3,7 +3,6 @@ package protocol
 import (
 	"context"
 	"math/big"
-	"time"
 
 	"github.com/dogechain-lab/dogechain/blockchain"
 	"github.com/dogechain-lab/dogechain/helper/progress"
@@ -107,7 +106,7 @@ type SyncPeerClient interface {
 	// GetConnectedPeerStatuses fetches the statuses of all connecting peers
 	GetConnectedPeerStatuses() []*NoForkPeer
 	// GetBlocks returns a stream of blocks from given height to peer's latest
-	GetBlocks(peer.ID, uint64, time.Duration) (<-chan *types.Block, error)
+	GetBlocks(ctx context.Context, peerID peer.ID, from uint64, to uint64) ([]*types.Block, error)
 	// GetPeerStatusUpdateCh returns a channel of peer's status update
 	GetPeerStatusUpdateCh() <-chan *NoForkPeer
 	// GetPeerConnectionUpdateEventCh returns peer's connection change event

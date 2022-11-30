@@ -15,6 +15,7 @@ import (
 var (
 	errBlockNotFound         = errors.New("block not found")
 	errInvalidHeadersRequest = errors.New("cannot provide both a number and a hash")
+	errInvalidRange          = errors.New("from to range not valid")
 )
 
 type syncPeerService struct {
@@ -61,27 +62,52 @@ func (s *syncPeerService) setupGRPCServer() {
 	s.network.RegisterProtocol(_syncerV1, s.stream)
 }
 
-// GetBlocks is a gRPC endpoint to return blocks from the specific height via stream
-func (s *syncPeerService) GetBlocks(
-	req *proto.GetBlocksRequest,
-	stream proto.V1_GetBlocksServer,
-) error {
-	// from to latest
-	for i := req.From; i <= s.blockchain.Header().Number; i++ {
-		block, ok := s.blockchain.GetBlockByNumber(i, true)
-		if !ok {
-			return errBlockNotFound
-		}
+const (
+	// _minCompressSize = 4 * 1024        // 4k
+	_maxSendingSize = 8 * 1024 * 1024 // = 8M => 2-4M after compression, which is reasonable
+)
 
-		resp := toProtoBlock(block)
-
-		// if client closes stream, context.Canceled is given
-		if err := stream.Send(resp); err != nil {
-			break
-		}
+// GetBlocks is a gRPC endpoint to return blocks from the specific height
+//
+// It is designed forward and backward competible.
+// With accpetAlgos, client and server side can iterate their own side
+func (s *syncPeerService) GetBlocks(ctx context.Context, req *proto.GetBlocksRequest) (*proto.GetBlocksResponse, error) {
+	if req.From < req.To {
+		return nil, errInvalidRange
 	}
 
-	return nil
+	var (
+		rsp = &proto.GetBlocksResponse{
+			From: req.From,
+		}
+		blocks = make([][]byte, 0, req.To-req.From+1)
+		size   = 0
+	)
+
+	for to := req.From; to <= req.To; to++ {
+		block, ok := s.blockchain.GetBlockByNumber(to, true)
+		if !ok {
+			return nil, errBlockNotFound
+		}
+
+		// rlp marshal
+		b := block.MarshalRLP()
+
+		// check whether compress
+		size += len(b)
+		if size > _maxSendingSize {
+			// no more data
+			break
+		}
+
+		// update response
+		blocks = append(blocks, b)
+		rsp.To = to
+	}
+
+	rsp.Blocks = blocks
+
+	return rsp, nil
 }
 
 // GetStatus is a gRPC endpoint to return the latest block number as a node status
@@ -97,13 +123,6 @@ func (s *syncPeerService) GetStatus(
 	return &proto.SyncPeerStatus{
 		Number: number,
 	}, nil
-}
-
-// toProtoBlock converts type.Block -> proto.Block
-func toProtoBlock(block *types.Block) *proto.Block {
-	return &proto.Block{
-		Block: block.MarshalRLP(),
-	}
 }
 
 /*

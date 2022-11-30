@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sort"
@@ -24,6 +25,10 @@ const (
 	_syncerV1 = "/syncer/0.1"
 
 	WriteBlockSource = "syncer"
+
+	// One step query blocks.
+	// Median rlp block size is around 20 - 50 KB, then 2 - 4 MB is suitable for one query.
+	_blockSyncStep = 100
 )
 
 var (
@@ -266,7 +271,7 @@ func (s *noForkSyncer) Sync(callback func(*types.Block) bool) error {
 		s.syncProgression.UpdateHighestProgression(bestPeer.Number)
 
 		// fetch block from the peer
-		result, err := s.bulkSyncWithPeer(bestPeer.ID, callback)
+		result, err := s.bulkSyncWithPeer(bestPeer, callback)
 		if err != nil {
 			s.logger.Warn("failed to complete bulk sync with peer, try to next one", "peer ID", "error", bestPeer.ID, err)
 		}
@@ -303,60 +308,64 @@ type bulkSyncResult struct {
 
 // bulkSyncWithPeer syncs block with a given peer
 func (s *noForkSyncer) bulkSyncWithPeer(
-	peerID peer.ID,
+	p *NoForkPeer,
 	newBlockCallback func(*types.Block) bool,
 ) (*bulkSyncResult, error) {
-	result := &bulkSyncResult{
-		SkipList:           make(map[peer.ID]bool),
-		LastReceivedNumber: 0,
-		ShouldTerminate:    false,
+	var (
+		result = &bulkSyncResult{
+			SkipList:           make(map[peer.ID]bool),
+			LastReceivedNumber: 0,
+			ShouldTerminate:    false,
+		}
+		from   = s.blockchain.Header().Number + 1
+		target = p.Number
+	)
+
+	if from > target {
+		// it should not be
+		return result, nil
 	}
 
-	localLatest := s.blockchain.Header().Number
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	blockCh, err := s.syncPeerClient.GetBlocks(peerID, localLatest+1, s.blockTimeout)
-	if err != nil {
-		if rpcErr, ok := grpcstatus.FromError(err); ok {
-			switch rpcErr.Code() {
-			case grpccodes.OK, grpccodes.Canceled, grpccodes.DataLoss:
-			default: // other errors are not acceptable
-				result.SkipList[peerID] = true
-			}
-		}
-
-		return result, err
-	}
-
-	defer func() {
-		if err := s.syncPeerClient.CloseStream(peerID); err != nil {
-			s.logger.Error("Failed to close stream: ", err)
-		}
-	}()
-
-	timer := time.NewTimer(s.blockTimeout)
-	defer timer.Stop()
-
+	// sync up to the current known header
 	for {
-		select {
-		case block, ok := <-blockCh:
-			if !ok {
-				return result, nil
+		// set to
+		to := from + _blockSyncStep - 1
+		if to > target {
+			// adjust to
+			to = target
+		}
+
+		s.logger.Info("sync up to block", "peer", p.ID, "from", from, "to", to)
+
+		blocks, err := s.syncPeerClient.GetBlocks(ctx, p.ID, from, to)
+		if err != nil {
+			if rpcErr, ok := grpcstatus.FromError(err); ok {
+				switch rpcErr.Code() {
+				case grpccodes.OK, grpccodes.Canceled, grpccodes.DataLoss:
+				default: // other errors are not acceptable
+					result.SkipList[p.ID] = true
+				}
 			}
 
-			// stop timer when we receive a block
-			timer.Stop()
+			return result, err
+		}
 
-			// safe check
-			if block.Number() == 0 {
-				// reset timer
-				timer.Reset(s.blockTimeout)
+		if len(blocks) > 0 {
+			s.logger.Info(
+				"get all blocks",
+				"peer", p.ID,
+				"from", blocks[0].Number(),
+				"to", blocks[len(blocks)-1].Number())
+		}
 
-				continue
-			}
-
+		// write block
+		for _, block := range blocks {
 			if err := s.blockchain.VerifyFinalizedBlock(block); err != nil {
 				// not the same network
-				result.SkipList[peerID] = true
+				result.SkipList[p.ID] = true
 
 				return result, fmt.Errorf("unable to verify block, %w", err)
 			}
@@ -368,13 +377,28 @@ func (s *noForkSyncer) bulkSyncWithPeer(
 			// NOTE: not use for now, should remove?
 			result.ShouldTerminate = newBlockCallback(block)
 			result.LastReceivedNumber = block.Number()
+		}
 
-			// reset timer
-			timer.Reset(s.blockTimeout)
-		case <-timer.C:
-			return result, errTimeout
+		// update range
+		from = result.LastReceivedNumber + 1
+
+		// Update the target. This entire outer loop is there in order to make sure
+		// bulk syncing is entirely done as the peer's status can change over time
+		// if block writes have a significant time impact on the node in question
+		progression := s.syncProgression.GetProgression()
+		if progression != nil && progression.HighestBlock > target {
+			target = progression.HighestBlock
+			s.logger.Debug("update syncing target", "target", target)
+		}
+
+		if from > target {
+			s.logger.Debug("sync target reached", "target", target)
+
+			break
 		}
 	}
+
+	return result, nil
 }
 
 // initializePeerMap fetches peer statuses and initializes map

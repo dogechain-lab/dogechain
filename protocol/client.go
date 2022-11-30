@@ -2,9 +2,7 @@ package protocol
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io"
 	"sync"
 	"time"
 
@@ -252,63 +250,39 @@ func (client *syncPeerClient) CloseStream(peerID peer.ID) error {
 
 // GetBlocks returns a stream of blocks from given height to peer's latest
 func (client *syncPeerClient) GetBlocks(
+	ctx context.Context,
 	peerID peer.ID,
 	from uint64,
-	timeoutPerBlock time.Duration,
-) (<-chan *types.Block, error) {
+	to uint64,
+) ([]*types.Block, error) {
 	clt, err := client.newSyncPeerClient(peerID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create sync peer client: %w", err)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(ctx, defaultTimeoutForStatus)
+	defer cancel()
 
-	stream, err := clt.GetBlocks(ctx, &proto.GetBlocksRequest{
+	rsp, err := clt.GetBlocks(ctx, &proto.GetBlocksRequest{
 		From: from,
+		To:   to,
 	})
 	if err != nil {
-		cancel()
-
-		return nil, fmt.Errorf("failed to open GetBlocks stream: %w", err)
+		return nil, err
 	}
 
-	// input channel
-	streamBlockCh, streamErrorCh := blockStreamToChannel(stream)
+	blocks := make([]*types.Block, len(rsp.Blocks))
+	for i, b := range rsp.Blocks {
+		block := new(types.Block)
 
-	// output channel
-	blockCh := make(chan *types.Block, 1)
-
-	go func() {
-		defer func() {
-			close(blockCh)
-			cancel()
-		}()
-
-		for {
-			select {
-			case block, ok := <-streamBlockCh:
-				if !ok {
-					return
-				}
-
-				blockCh <- block
-			case err, ok := <-streamErrorCh:
-				if !ok {
-					return
-				}
-
-				client.logger.Error("failed to get block from gRPC stream", "peer", peerID, "err", err)
-
-				return
-			case <-time.After(timeoutPerBlock):
-				client.logger.Warn("block doesn't reach within timeout", "timeout", timeoutPerBlock)
-
-				return
-			}
+		if err := block.UnmarshalRLP(b); err != nil {
+			return nil, fmt.Errorf("failed to UnmarshalRLP: %w", err)
 		}
-	}()
 
-	return blockCh, nil
+		blocks[i] = block
+	}
+
+	return blocks, err
 }
 
 // GetConnectedPeerStatuses fetches the statuses of all connecting peers
@@ -380,50 +354,4 @@ func (client *syncPeerClient) newSyncPeerClient(peerID peer.ID) (proto.V1Client,
 	client.network.SaveProtocolStream(_syncerV1, conn, peerID)
 
 	return proto.NewV1Client(conn), nil
-}
-
-// fromProto gets block from gRPC response data
-func fromProto(protoBlock *proto.Block) (*types.Block, error) {
-	block := &types.Block{}
-	if err := block.UnmarshalRLP(protoBlock.Block); err != nil {
-		return nil, err
-	}
-
-	return block, nil
-}
-
-func blockStreamToChannel(stream proto.V1_GetBlocksClient) (<-chan *types.Block, <-chan error) {
-	blockCh := make(chan *types.Block)
-	errorCh := make(chan error)
-
-	go func() {
-		defer func() {
-			close(errorCh)
-			close(blockCh)
-		}()
-
-		for {
-			protoBlock, err := stream.Recv()
-			if errors.Is(err, io.EOF) {
-				break
-			}
-
-			if err != nil {
-				errorCh <- err
-
-				break
-			}
-
-			block, err := fromProto(protoBlock)
-			if err != nil {
-				errorCh <- err
-
-				break
-			}
-
-			blockCh <- block
-		}
-	}()
-
-	return blockCh, errorCh
 }
