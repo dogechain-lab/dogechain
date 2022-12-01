@@ -286,13 +286,10 @@ func (s *noForkSyncer) syncWithSkipList(
 	if bestPeer == nil {
 		s.logger.Info("empty skip list for not getting a best peer")
 
-		skipList.Range(func(key, value interface{}) bool {
-			skipList.LoadAndDelete(key)
-
-			return true
-		})
-
-		skipList = new(sync.Map)
+		if skipList != nil {
+			// renew maps
+			skipList = new(sync.Map)
+		}
 
 		return
 	}
@@ -402,8 +399,10 @@ func (s *noForkSyncer) bulkSyncWithPeer(
 				return result, fmt.Errorf("failed to write block while bulk syncing: %w", err)
 			}
 
-			// NOTE: not use for now, should remove?
-			result.ShouldTerminate = newBlockCallback(block)
+			if newBlockCallback != nil {
+				// NOTE: result not use for now, should remove?
+				result.ShouldTerminate = newBlockCallback(block)
+			}
 			result.LastReceivedNumber = block.Number()
 
 			// broadcast latest block to the network
