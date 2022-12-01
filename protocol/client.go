@@ -273,6 +273,7 @@ func (client *syncPeerClient) GetBlocks(
 	}
 
 	blocks := make([]*types.Block, len(rsp.Blocks))
+
 	for i, b := range rsp.Blocks {
 		block := new(types.Block)
 
