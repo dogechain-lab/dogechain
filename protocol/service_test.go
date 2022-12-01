@@ -2,7 +2,6 @@ package protocol
 
 import (
 	"context"
-	"io"
 	"log"
 	"net"
 	"testing"
@@ -60,6 +59,7 @@ func Test_syncPeerService_GetBlocks(t *testing.T) {
 	tests := []struct {
 		name           string
 		from           uint64
+		to             uint64
 		latest         uint64
 		blocks         []*types.Block
 		receivedBlocks []*types.Block
@@ -68,14 +68,16 @@ func Test_syncPeerService_GetBlocks(t *testing.T) {
 		{
 			name:           "should send the blocks to the latest",
 			from:           5,
+			to:             10,
 			latest:         10,
 			blocks:         blocks,
 			receivedBlocks: blocks[4:], // from 5
-			err:            io.EOF,
+			err:            nil,
 		},
 		{
-			name:           "should return errBlockNotFound",
+			name:           "should return error",
 			from:           5,
+			to:             10,
 			latest:         10,
 			blocks:         blocks[:8],
 			receivedBlocks: blocks[4:8], // from 5
@@ -109,27 +111,23 @@ func Test_syncPeerService_GetBlocks(t *testing.T) {
 
 			client := newMockGrpcClient(t, service)
 
-			stream, err := client.GetBlocks(context.Background(), &proto.GetBlocksRequest{
+			rsp, err := client.GetBlocks(context.Background(), &proto.GetBlocksRequest{
 				From: test.from,
+				To:   test.latest,
 			})
 
-			assert.NoError(t, err)
+			if err == nil {
+				count := 0
 
-			count := 0
+				for _, block := range rsp.Blocks {
+					expected := test.receivedBlocks[count].MarshalRLP()
 
-			for {
-				protoBlock, err := stream.Recv()
-				if err != nil {
-					assert.Contains(t, err.Error(), test.err.Error())
+					assert.Equal(t, expected, block)
 
-					break
+					count++
 				}
-
-				expected := test.receivedBlocks[count].MarshalRLP()
-
-				assert.Equal(t, expected, protoBlock.Block)
-
-				count++
+			} else {
+				assert.Contains(t, err.Error(), test.err.Error())
 			}
 		})
 	}
