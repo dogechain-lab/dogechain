@@ -436,7 +436,7 @@ func (s *noForkSyncer) bulkSyncWithPeer(
 		}
 
 		if from > target {
-			s.logger.Debug("sync target reached", "target", target)
+			s.logger.Debug("sync target reached", "next block", from, "target", target)
 
 			break
 		}
