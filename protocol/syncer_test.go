@@ -127,7 +127,6 @@ func sortPeerStatuses(peerStatuses []*NoForkPeer) []*NoForkPeer {
 func NewTestSyncer(
 	network Network,
 	blockchain Blockchain,
-	blockTimeout time.Duration,
 	mockSyncPeerClient *mockSyncPeerClient,
 	mockProgression Progression,
 ) *noForkSyncer {
@@ -137,7 +136,6 @@ func NewTestSyncer(
 		syncProgression: mockProgression,
 		syncPeerService: &mockSyncPeerService{},
 		syncPeerClient:  mockSyncPeerClient,
-		blockTimeout:    blockTimeout,
 		newStatusCh:     make(chan struct{}),
 		peerMap:         new(PeerMap),
 		syncing:         atomic.NewBool(false),
@@ -167,7 +165,6 @@ func Test_initializePeerMap(t *testing.T) {
 	syncer := NewTestSyncer(
 		nil,
 		nil,
-		0,
 		&mockSyncPeerClient{
 			getConnectedPeerStatusesHandler: func() []*NoForkPeer {
 				return peerStatuses
@@ -194,7 +191,6 @@ func Test_startPeerStatusUpdateProcess(t *testing.T) {
 	syncer := NewTestSyncer(
 		nil,
 		nil,
-		0,
 		&mockSyncPeerClient{
 			getConnectedPeerStatusesHandler: func() []*NoForkPeer {
 				return nil
@@ -315,7 +311,6 @@ func Test_startPeerDisconnectEventProcess(t *testing.T) {
 			syncer := NewTestSyncer(
 				nil,
 				nil,
-				0,
 				&mockSyncPeerClient{
 					getPeerConnectionUpdateEventChHandler: func() <-chan *event.PeerEvent {
 						ch := make(chan *event.PeerEvent, len(test.events))
@@ -408,7 +403,6 @@ func TestHasSyncPeer(t *testing.T) {
 				&mockBlockchain{
 					headerHandler: newSimpleHeaderHandler(test.localLatest),
 				},
-				0,
 				&mockSyncPeerClient{},
 				&mockProgression{},
 			)
@@ -484,10 +478,9 @@ func TestSync(t *testing.T) {
 					return nil
 				}
 			},
-			blocks: blocks[:10],
-			// TODO: need to fix implementation?
+			blocks:             blocks[:10],
 			progressionStart:   0,
-			progressionHighest: 0,
+			progressionHighest: 10,
 			err:                nil,
 		},
 		{
@@ -528,10 +521,9 @@ func TestSync(t *testing.T) {
 					return nil
 				}
 			},
-			blocks: blocks[:10],
-			// TODO: need to fix implementation?
+			blocks:             blocks[:10],
 			progressionStart:   0,
-			progressionHighest: 0,
+			progressionHighest: 10,
 			err:                nil,
 		},
 	}
@@ -559,7 +551,6 @@ func TestSync(t *testing.T) {
 							return nil
 						},
 					},
-					time.Second,
 					&mockSyncPeerClient{
 						getBlocksHandler: func(ctx context.Context, peerID peer.ID, start, end uint64) ([]*types.Block, error) {
 							// should not panic
@@ -621,9 +612,9 @@ func Test_bulkSyncWithPeer(t *testing.T) {
 		name string
 
 		// local
-		beginningHeight uint64
-		blockTimeout    time.Duration
-		blockCallback   func(*types.Block) bool
+		beginningHeight  uint64
+		nodeStatusHeight uint64
+		blockCallback    func(*types.Block) bool
 
 		// peers
 		getBlocksHandler func(ctx context.Context, id peer.ID, start, end uint64) ([]*types.Block, error)
@@ -639,9 +630,9 @@ func Test_bulkSyncWithPeer(t *testing.T) {
 		err                   error
 	}{
 		{
-			name:            "should sync blocks to the latest successfully",
-			beginningHeight: 0,
-			blockTimeout:    time.Second,
+			name:             "should sync blocks to the latest successfully",
+			beginningHeight:  0,
+			nodeStatusHeight: 10,
 			blockCallback: func(b *types.Block) bool {
 				return false
 			},
@@ -660,9 +651,9 @@ func Test_bulkSyncWithPeer(t *testing.T) {
 			err:                   nil,
 		},
 		{
-			name:            "should return error if GetBlocks returns error",
-			beginningHeight: 0,
-			blockTimeout:    time.Second,
+			name:             "should return error if GetBlocks returns error",
+			beginningHeight:  0,
+			nodeStatusHeight: uint64(blockNum),
 			blockCallback: func(b *types.Block) bool {
 				return false
 			},
@@ -681,9 +672,9 @@ func Test_bulkSyncWithPeer(t *testing.T) {
 			err:                   errPeerNoResponse,
 		},
 		{
-			name:            "should return error if verification is failed",
-			beginningHeight: 0,
-			blockTimeout:    time.Second,
+			name:             "should return error if verification is failed",
+			beginningHeight:  0,
+			nodeStatusHeight: 10,
 			blockCallback: func(b *types.Block) bool {
 				return false
 			},
@@ -706,9 +697,9 @@ func Test_bulkSyncWithPeer(t *testing.T) {
 			err:                   errInvalidBlock,
 		},
 		{
-			name:            "should return error if block insertion is failed",
-			beginningHeight: 0,
-			blockTimeout:    time.Second,
+			name:             "should return error if block insertion is failed",
+			beginningHeight:  0,
+			nodeStatusHeight: 10,
 			blockCallback: func(b *types.Block) bool {
 				return false
 			},
@@ -731,14 +722,16 @@ func Test_bulkSyncWithPeer(t *testing.T) {
 			err:                   errBlockInsertionFailed,
 		},
 		{
-			name:            "should return error in case of timeout",
-			beginningHeight: 0,
-			blockTimeout:    500 * time.Millisecond,
+			name:             "should return error in case of timeout",
+			beginningHeight:  0,
+			nodeStatusHeight: 10,
 			blockCallback: func(b *types.Block) bool {
 				return false
 			},
 			getBlocksHandler: func(ctx context.Context, id peer.ID, start, end uint64) ([]*types.Block, error) {
-				return blocks[:10], nil
+				<-time.After(500 * time.Millisecond)
+
+				return nil, errTimeout
 			},
 			verifyFinalizedBlockHandler: func(b *types.Block) error {
 				return nil
@@ -777,7 +770,6 @@ func Test_bulkSyncWithPeer(t *testing.T) {
 							return nil
 						},
 					},
-					test.blockTimeout,
 					&mockSyncPeerClient{
 						getBlocksHandler: test.getBlocksHandler,
 					},
@@ -787,7 +779,7 @@ func Test_bulkSyncWithPeer(t *testing.T) {
 
 			result, err := syncer.bulkSyncWithPeer(&NoForkPeer{
 				ID:     peer.ID("X"),
-				Number: 0,
+				Number: test.nodeStatusHeight,
 			}, test.blockCallback)
 
 			assert.NotNil(t, result)
