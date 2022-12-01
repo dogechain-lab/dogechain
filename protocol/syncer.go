@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"sort"
 	"sync"
-	"time"
 
 	"github.com/dogechain-lab/dogechain/blockchain"
 	"github.com/dogechain-lab/dogechain/helper/progress"
@@ -77,8 +76,6 @@ type noForkSyncer struct {
 	syncPeerService SyncPeerService
 	syncPeerClient  SyncPeerClient
 
-	blockTimeout time.Duration
-
 	// Channel to notify Sync that a new status arrived
 	newStatusCh chan struct{}
 	syncing     *atomic.Bool
@@ -102,7 +99,6 @@ func NewSyncer(
 	logger hclog.Logger,
 	server *network.Server,
 	blockchain Blockchain,
-	blockTimeout time.Duration,
 	enableBlockBroadcast bool,
 ) Syncer {
 	s := &noForkSyncer{
@@ -112,7 +108,6 @@ func NewSyncer(
 		peerMap:         new(PeerMap),
 		syncPeerService: NewSyncPeerService(server, blockchain),
 		syncPeerClient:  NewSyncPeerClient(logger, server, blockchain),
-		blockTimeout:    blockTimeout,
 		newStatusCh:     make(chan struct{}),
 		syncing:         atomic.NewBool(false),
 		stopCh:          make(chan struct{}),

@@ -214,7 +214,6 @@ func Factory(
 		params.Logger,
 		params.Network,
 		params.Blockchain,
-		3*p.blockTime,
 		params.BlockBroadcast,
 	)
 
