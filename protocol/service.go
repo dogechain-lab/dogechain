@@ -72,7 +72,7 @@ const (
 // It is designed forward and backward competible.
 // With accpetAlgos, client and server side can iterate their own side
 func (s *syncPeerService) GetBlocks(ctx context.Context, req *proto.GetBlocksRequest) (*proto.GetBlocksResponse, error) {
-	if req.From < req.To {
+	if req.From > req.To {
 		return nil, errInvalidRange
 	}
 
