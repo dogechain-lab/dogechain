@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"sort"
+	"sync"
 	"testing"
 
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -109,9 +110,12 @@ func TestPutPeer(t *testing.T) {
 func TestBestPeer(t *testing.T) {
 	t.Parallel()
 
+	skipList := new(sync.Map)
+	skipList.Store(peer.ID("C"), true)
+
 	tests := []struct {
 		name     string
-		skipList map[peer.ID]bool
+		skipList *sync.Map
 		peers    []*NoForkPeer
 		result   *NoForkPeer
 	}{
@@ -128,12 +132,10 @@ func TestBestPeer(t *testing.T) {
 			result:   nil,
 		},
 		{
-			name: "should return the 2nd best peer if the best peer is in skip list",
-			skipList: map[peer.ID]bool{
-				peer.ID("C"): true,
-			},
-			peers:  peers,
-			result: peers[1],
+			name:     "should return the 2nd best peer if the best peer is in skip list",
+			skipList: skipList,
+			peers:    peers,
+			result:   peers[1],
 		},
 	}
 

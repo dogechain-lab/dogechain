@@ -15,6 +15,7 @@ import (
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/hashicorp/go-hclog"
 	"github.com/libp2p/go-libp2p-core/peer"
+	"go.uber.org/atomic"
 	grpccodes "google.golang.org/grpc/codes"
 	grpcstatus "google.golang.org/grpc/status"
 )
@@ -80,6 +81,7 @@ type noForkSyncer struct {
 
 	// Channel to notify Sync that a new status arrived
 	newStatusCh chan struct{}
+	syncing     *atomic.Bool
 
 	// stop chan
 	stopCh chan struct{}
@@ -112,6 +114,7 @@ func NewSyncer(
 		syncPeerClient:  NewSyncPeerClient(logger, server, blockchain),
 		blockTimeout:    blockTimeout,
 		newStatusCh:     make(chan struct{}),
+		syncing:         atomic.NewBool(false),
 		stopCh:          make(chan struct{}),
 		server:          server,
 		blockBroadcast:  enableBlockBroadcast,
@@ -121,6 +124,14 @@ func NewSyncer(
 	s.syncPeerService.SetSyncer(s)
 
 	return s
+}
+
+func (s *noForkSyncer) isSyncing() bool {
+	return s.syncing.Load()
+}
+
+func (s *noForkSyncer) setSyncing(syncing bool) (oldStatus bool) {
+	return s.syncing.Swap(syncing)
 }
 
 // GetSyncProgression returns the latest sync progression, if any
@@ -230,9 +241,8 @@ func (s *noForkSyncer) HasSyncPeer() bool {
 
 // Sync syncs block with the best peer until callback returns true
 func (s *noForkSyncer) Sync(callback func(*types.Block) bool) error {
-	localLatest := s.blockchain.Header().Number
 	// skip out peers who do not support new version protocol, or IP who could not reach via NAT.
-	skipList := make(map[peer.ID]bool)
+	skipList := new(sync.Map)
 
 	for {
 		// Wait for a new event to arrive
@@ -241,55 +251,83 @@ func (s *noForkSyncer) Sync(callback func(*types.Block) bool) error {
 			s.logger.Info("stop syncing")
 
 			return nil
-		case <-s.newStatusCh:
+		case _, ok := <-s.newStatusCh:
+			// close
+			if !ok {
+				return nil
+			}
+
+			// The channel should not be blocked, otherwise it will hang when an error occurs
+			if s.isSyncing() {
+				continue
+			}
 		}
 
-		// fetch local latest block
-		if header := s.blockchain.Header(); header != nil {
-			localLatest = header.Number
-		}
-
-		// pick one best peer
-		bestPeer := s.peerMap.BestPeer(skipList)
-		if bestPeer == nil {
-			s.logger.Info("empty skip list for not getting a best peer")
-
-			skipList = make(map[peer.ID]bool)
-
-			continue
-		}
-
-		// if the bestPeer does not have a new block continue
-		if bestPeer.Number <= localLatest {
-			s.logger.Debug("wait for the best peer catching up the latest block", "bestPeer", bestPeer.ID)
-
-			continue
-		}
-
-		// use subscription for updating progression
-		s.syncProgression.StartProgression(localLatest, s.blockchain.SubscribeEvents())
-		s.syncProgression.UpdateHighestProgression(bestPeer.Number)
-
-		// fetch block from the peer
-		result, err := s.bulkSyncWithPeer(bestPeer, callback)
-		if err != nil {
-			s.logger.Warn("failed to complete bulk sync with peer, try to next one", "peer ID", "error", bestPeer.ID, err)
-		}
-
-		// stop progression even it might be not done
-		s.syncProgression.StopProgression()
-
-		// result should never be nil
-		for p := range result.SkipList {
-			skipList[p] = true
-		}
-
-		if result.ShouldTerminate {
+		if shouldTerminate := s.syncWithSkipList(skipList, callback); shouldTerminate {
 			break
 		}
 	}
 
 	return nil
+}
+
+func (s *noForkSyncer) syncWithSkipList(
+	skipList *sync.Map,
+	callback func(*types.Block) bool,
+) (shouldTerminate bool) {
+	// switch syncing status
+	s.setSyncing(true)
+	defer s.setSyncing(false)
+
+	var localLatest uint64
+
+	// fetch local latest block
+	if header := s.blockchain.Header(); header != nil {
+		localLatest = header.Number
+	}
+
+	// pick one best peer
+	bestPeer := s.peerMap.BestPeer(skipList)
+	if bestPeer == nil {
+		s.logger.Info("empty skip list for not getting a best peer")
+
+		skipList.Range(func(key, value interface{}) bool {
+			skipList.LoadAndDelete(key)
+
+			return true
+		})
+
+		skipList = new(sync.Map)
+
+		return
+	}
+
+	// if the bestPeer does not have a new block continue
+	if bestPeer.Number <= localLatest {
+		s.logger.Debug("wait for the best peer catching up the latest block", "bestPeer", bestPeer.ID)
+
+		return
+	}
+
+	// use subscription for updating progression
+	s.syncProgression.StartProgression(localLatest, s.blockchain.SubscribeEvents())
+	s.syncProgression.UpdateHighestProgression(bestPeer.Number)
+
+	// fetch block from the peer
+	result, err := s.bulkSyncWithPeer(bestPeer, callback)
+	if err != nil {
+		s.logger.Warn("failed to complete bulk sync with peer, try to next one", "peer ID", "error", bestPeer.ID, err)
+	}
+
+	// stop progression even it might be not done
+	s.syncProgression.StopProgression()
+
+	// result should never be nil
+	for p := range result.SkipList {
+		skipList.Store(p, true)
+	}
+
+	return result.ShouldTerminate
 }
 
 type bulkSyncResult struct {
@@ -339,6 +377,8 @@ func (s *noForkSyncer) bulkSyncWithPeer(
 				switch rpcErr.Code() {
 				case grpccodes.OK, grpccodes.Canceled, grpccodes.DataLoss:
 				default: // other errors are not acceptable
+					s.logger.Info("skip peer due to error", "id", p.ID)
+
 					result.SkipList[p.ID] = true
 				}
 			}
@@ -473,8 +513,5 @@ func (s *noForkSyncer) removeFromPeerMap(peerID peer.ID) {
 
 // notifyNewStatusEvent emits signal to newStatusCh
 func (s *noForkSyncer) notifyNewStatusEvent() {
-	select {
-	case s.newStatusCh <- struct{}{}:
-	default: // OK to skip event when chan block
-	}
+	s.newStatusCh <- struct{}{}
 }

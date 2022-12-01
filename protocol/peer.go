@@ -45,13 +45,28 @@ func (m *PeerMap) Remove(peerID peer.ID) {
 }
 
 // BestPeer returns the top of heap
-func (m *PeerMap) BestPeer(skipMap map[peer.ID]bool) *NoForkPeer {
+func (m *PeerMap) BestPeer(skipMap *sync.Map) *NoForkPeer {
 	var bestPeer *NoForkPeer
+
+	needSkipPeer := func(skipMap *sync.Map, id peer.ID) bool {
+		if skipMap == nil {
+			return false
+		}
+
+		v, exists := skipMap.Load(id)
+		if !exists {
+			return false
+		}
+
+		skip, ok := v.(bool)
+
+		return ok && skip
+	}
 
 	m.Range(func(key, value interface{}) bool {
 		peer, _ := value.(*NoForkPeer)
 
-		if skipMap != nil && skipMap[peer.ID] {
+		if needSkipPeer(skipMap, peer.ID) {
 			return true
 		}
 
