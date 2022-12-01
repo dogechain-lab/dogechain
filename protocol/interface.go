@@ -64,6 +64,9 @@ type Network interface {
 	NewTopic(protoID string, obj proto.Message) (*network.Topic, error)
 	// RegisterProtocol registers gRPC service
 	RegisterProtocol(string, network.Protocol)
+	// GetProtoStream returns an active protocol stream if present, otherwise
+	// it returns nil
+	GetProtoStream(protocol string, peerID peer.ID) *rawGrpc.ClientConn
 	// NewProtoConnection opens up a new stream on the set protocol to the peer,
 	// and returns a reference to the connection
 	NewProtoConnection(protocol string, peerID peer.ID) (*rawGrpc.ClientConn, error)

@@ -26,6 +26,7 @@ const (
 type syncPeerClient struct {
 	logger     hclog.Logger // logger used for console logging
 	network    Network      // reference to the network module
+	connLock   sync.Mutex   // mutext for getting client connection
 	blockchain Blockchain   // reference to the blockchain module
 
 	subscription           blockchain.Subscription // reference to the blockchain subscription
@@ -344,14 +345,24 @@ func (client *syncPeerClient) broadcastBlockTo(
 	return err
 }
 
-// newSyncPeerClient creates gRPC client
+// newSyncPeerClient creates gRPC client [thread safe]
 func (client *syncPeerClient) newSyncPeerClient(peerID peer.ID) (proto.V1Client, error) {
-	conn, err := client.network.NewProtoConnection(_syncerV1, peerID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open a stream, err %w", err)
-	}
+	client.connLock.Lock()
+	defer client.connLock.Unlock()
 
-	client.network.SaveProtocolStream(_syncerV1, conn, peerID)
+	var err error
+
+	conn := client.network.GetProtoStream(_syncerV1, peerID)
+	if conn == nil {
+		// create new connection
+		conn, err = client.network.NewProtoConnection(_syncerV1, peerID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open a stream, err %w", err)
+		}
+
+		// save protocol stream
+		client.network.SaveProtocolStream(_syncerV1, conn, peerID)
+	}
 
 	return proto.NewV1Client(conn), nil
 }

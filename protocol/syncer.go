@@ -509,6 +509,8 @@ func (s *noForkSyncer) putToPeerMap(status *NoForkPeer) {
 // removeFromPeerMap removes the peer from peer map
 func (s *noForkSyncer) removeFromPeerMap(peerID peer.ID) {
 	s.peerMap.Remove(peerID)
+	// remove its stream
+	s.syncPeerClient.CloseStream(peerID)
 }
 
 // notifyNewStatusEvent emits signal to newStatusCh
