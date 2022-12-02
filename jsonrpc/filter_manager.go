@@ -121,7 +121,7 @@ type blockFilter struct {
 }
 
 // takeBlockUpdates advances blocks from head to latest and returns header array
-func (f *blockFilter) takeBlockUpdates() []*types.Header {
+func (f *blockFilter) takeBlockUpdates() []*jsonHeader {
 	updates, newHead := f.block.getUpdates()
 
 	f.Lock()
@@ -851,7 +851,7 @@ func (b *blockStream) push(header *types.Header) {
 	defer b.lock.Unlock()
 
 	newHead := &headElem{
-		header: header.Copy(),
+		header: toJSONHeader(header),
 	}
 
 	if b.head != nil {
@@ -862,12 +862,12 @@ func (b *blockStream) push(header *types.Header) {
 }
 
 type headElem struct {
-	header *types.Header
+	header *jsonHeader
 	next   *headElem
 }
 
-func (h *headElem) getUpdates() ([]*types.Header, *headElem) {
-	res := make([]*types.Header, 0)
+func (h *headElem) getUpdates() ([]*jsonHeader, *headElem) {
+	res := make([]*jsonHeader, 0)
 
 	cur := h
 
