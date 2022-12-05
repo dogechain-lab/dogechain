@@ -182,12 +182,13 @@ func (p *serverParams) generateConfig() *server.Config {
 	cidrList := strings.Split(p.rawConfig.Network.IgnoreDiscoverCIDR, ",")
 	ingoreCIDRs := []*net.IPNet{}
 
-	for _, s := range cidrList {
-		if s == "" {
+	for _, cidrStr := range cidrList {
+		cidrStr = strings.TrimSpace(cidrStr)
+		if cidrStr == "" {
 			continue
 		}
 
-		_, ipnet, err := net.ParseCIDR(s)
+		_, ipnet, err := net.ParseCIDR(cidrStr)
 		if err != nil {
 			log.Printf("CIDR formart error: %s \n", err)
 
