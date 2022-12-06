@@ -283,7 +283,7 @@ func (i *Ibft) startSyncing() {
 
 		// insert block
 		if hookErr := i.runHook(InsertBlockHook, blockNumber, blockNumber); hookErr != nil {
-			logger.Error(fmt.Sprintf("Unable to run hook %s, %v", InsertBlockHook, hookErr))
+			logger.Error("unable to run hook", "hook", InsertBlockHook, "err", hookErr)
 		}
 
 		// update module cache
@@ -632,7 +632,7 @@ func (i *Ibft) buildBlock(snap *Snapshot, parent *types.Header) (*types.Block, e
 		header: header,
 		snap:   snap,
 	}); hookErr != nil {
-		i.logger.Error(fmt.Sprintf("Unable to run hook %s, %v", CandidateVoteHook, hookErr))
+		i.logger.Error("unable to run hook when building block", "hook", CandidateVoteHook, "err", hookErr)
 	}
 
 	// set the brocasting timestamp if possible
