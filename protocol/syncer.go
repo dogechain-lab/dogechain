@@ -254,9 +254,13 @@ func (s *noForkSyncer) Sync(callback func(*types.Block) bool) error {
 
 			// The channel should not be blocked, otherwise it will hang when an error occurs
 			if s.isSyncing() {
+				s.logger.Debug("skip new status event due to not done syncing")
+
 				continue
 			}
 		}
+
+		s.logger.Debug("got new status event")
 
 		if shouldTerminate := s.syncWithSkipList(skipList, callback); shouldTerminate {
 			break
@@ -312,7 +316,7 @@ func (s *noForkSyncer) syncWithSkipList(
 	// fetch block from the peer
 	result, err := s.bulkSyncWithPeer(bestPeer, callback)
 	if err != nil {
-		s.logger.Warn("failed to complete bulk sync with peer, try to next one", "peer ID", "error", bestPeer.ID, err)
+		s.logger.Warn("failed to complete bulk sync with peer", "peer ID", bestPeer.ID, "error", err)
 	}
 
 	// stop progression even it might be not done
@@ -349,6 +353,7 @@ func (s *noForkSyncer) bulkSyncWithPeer(
 	)
 
 	if from > target {
+		s.logger.Warn("local header is higher than remote target", "local", from, "remote", target)
 		// it should not be
 		return result, nil
 	}
@@ -372,8 +377,9 @@ func (s *noForkSyncer) bulkSyncWithPeer(
 			if rpcErr, ok := grpcstatus.FromError(err); ok {
 				switch rpcErr.Code() {
 				case grpccodes.OK, grpccodes.Canceled, grpccodes.DataLoss:
+					s.logger.Debug("peer return recoverable error", "id", p.ID, "err", err)
 				default: // other errors are not acceptable
-					s.logger.Info("skip peer due to error", "id", p.ID)
+					s.logger.Info("skip peer due to error", "id", p.ID, "err", err)
 
 					result.SkipList[p.ID] = true
 				}
@@ -435,7 +441,7 @@ func (s *noForkSyncer) bulkSyncWithPeer(
 		}
 
 		if from > target {
-			s.logger.Debug("sync target reached", "next block", from, "target", target)
+			s.logger.Info("sync target reached", "target", target)
 
 			break
 		}
@@ -501,12 +507,22 @@ func (s *noForkSyncer) putToPeerMap(status *NoForkPeer) {
 		p.UpdateHighestProgression(status.Number)
 	}
 
+	if status != nil {
+		if _, exists := s.peerMap.Load(status.ID); !exists {
+			s.logger.Info("new connected peer", "id", status.ID, "number", status.Number)
+		} else {
+			s.logger.Debug("connected peer update status", "id", status.ID, "number", status.Number)
+		}
+	}
+
 	s.peerMap.Put(status)
 	s.notifyNewStatusEvent()
 }
 
 // removeFromPeerMap removes the peer from peer map
 func (s *noForkSyncer) removeFromPeerMap(peerID peer.ID) {
+	s.logger.Info("remove from peer map", "id", peerID)
+
 	s.peerMap.Remove(peerID)
 	// remove its stream
 	s.syncPeerClient.CloseStream(peerID)
