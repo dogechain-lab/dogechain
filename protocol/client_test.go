@@ -520,3 +520,63 @@ func Test_syncPeerClient_GetBlocks(t *testing.T) {
 
 	assert.Equal(t, expected, syncedBlocks)
 }
+
+// setupIncompatibleGRPCServer setups an incompatible protocol GRPC server
+func (s *syncPeerService) setupIncompatibleGRPCServer() {
+	s.stream = grpc.NewGrpcStream()
+
+	proto.RegisterV1Server(s.stream.GrpcServer(), s)
+	s.stream.Serve()
+	s.network.RegisterProtocol("/fake-syncer/1.0", s.stream)
+}
+
+func createNonSyncerService(t *testing.T, chain Blockchain) (*syncPeerService, *network.Server) {
+	t.Helper()
+
+	srv := newTestNetwork(t)
+
+	service := &syncPeerService{
+		blockchain: chain,
+		network:    srv,
+	}
+
+	service.setupIncompatibleGRPCServer()
+
+	return service, srv
+}
+
+func Test_newSyncPeerClient_forgetNonProtocolPeer(t *testing.T) {
+	t.Parallel()
+
+	clientSrv := newTestNetwork(t)
+	client := newTestSyncPeerClient(clientSrv, nil)
+
+	_, peerSrv := createNonSyncerService(t, &mockBlockchain{
+		headerHandler: newSimpleHeaderHandler(10),
+	})
+	srvID := peerSrv.AddrInfo().ID
+
+	t.Cleanup(func() {
+		client.CloseStream(srvID)
+		client.Close()
+		peerSrv.Close()
+	})
+
+	err := network.JoinAndWait(
+		clientSrv,
+		peerSrv,
+		network.DefaultBufferTimeout,
+		network.DefaultJoinTimeout,
+	)
+
+	assert.NoError(t, err)
+
+	_, err = client.GetPeerStatus(srvID)
+	assert.Error(t, err)
+
+	// client should disconnect with peer do not support syncer protocol
+	assert.False(t, client.network.IsConnected(srvID))
+	// client should be forget
+	peers := client.network.Peers()
+	assert.Equal(t, 0, len(peers))
+}
