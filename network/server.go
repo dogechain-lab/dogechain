@@ -550,14 +550,40 @@ func (s *Server) updateBootnodeConnCount(peerID peer.ID, delta int64) {
 	s.bootnodes.increaseBootnodeConnCount(delta)
 }
 
+// ForgetPeer disconnects, remove and forget peer to prevent broadcast discovery to other peers
+//
+// Cauction: take care of using this to ignore peer from store, which may break peer discovery
+func (s *Server) ForgetPeer(peer peer.ID, reason string) {
+	s.logger.Warn("forget peer", "id", peer, "reason", reason)
+
+	s.DisconnectFromPeer(peer, reason)
+	s.removePeer(peer)
+	s.forgetPeer(peer)
+}
+
+func (s *Server) forgetPeer(peer peer.ID) {
+	p := s.GetPeerInfo(peer)
+	if p == nil || len(p.Addrs) == 0 { // already removed?
+		s.logger.Info("peer already removed from store", "id", peer)
+
+		return
+	}
+
+	s.logger.Info("remove peer from store", "id", peer)
+
+	s.RemoveFromPeerStore(p)
+}
+
 // DisconnectFromPeer disconnects the networking server from the specified peer
 func (s *Server) DisconnectFromPeer(peer peer.ID, reason string) {
-	if s.host.Network().Connectedness(peer) == network.Connected {
-		s.logger.Info(fmt.Sprintf("Closing connection to peer [%s] for reason [%s]", peer.String(), reason))
+	if !s.IsConnected(peer) {
+		return
+	}
 
-		if closeErr := s.host.Network().ClosePeer(peer); closeErr != nil {
-			s.logger.Error(fmt.Sprintf("Unable to gracefully close peer connection, %v", closeErr))
-		}
+	s.logger.Info("closing connection to peer", "id", peer, "reason", reason)
+
+	if closeErr := s.host.Network().ClosePeer(peer); closeErr != nil {
+		s.logger.Error("unable to gracefully close peer connection", "err", closeErr)
 	}
 }
 

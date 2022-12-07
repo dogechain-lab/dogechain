@@ -74,6 +74,8 @@ type Network interface {
 	SaveProtocolStream(protocol string, stream *rawGrpc.ClientConn, peerID peer.ID)
 	// CloseProtocolStream closes stream
 	CloseProtocolStream(protocol string, peerID peer.ID) error
+	// ForgetPeer disconnects, remove and forget peer to prevent broadcast discovery to other peers
+	ForgetPeer(peer peer.ID, reason string)
 }
 
 type Progression interface {

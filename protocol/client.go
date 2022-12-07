@@ -358,6 +358,8 @@ func (client *syncPeerClient) newSyncPeerClient(peerID peer.ID) (proto.V1Client,
 		// create new connection
 		conn, err = client.network.NewProtoConnection(_syncerV1, peerID)
 		if err != nil {
+			client.network.ForgetPeer(peerID, "not support syncer v1 protocol")
+
 			return nil, fmt.Errorf("failed to open a stream, err %w", err)
 		}
 
