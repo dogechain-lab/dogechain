@@ -298,28 +298,14 @@ func lookup(storage StorageReader, node interface{}, key []byte) (Node, []byte) 
 	}
 }
 
-func (t *Txn) writeNode(n *FullNode) *FullNode {
-	if t.epoch == n.epoch {
-		return n
-	}
-
-	nc := &FullNode{
-		epoch: t.epoch,
-		value: n.value,
-	}
-	copy(nc.children[:], n.children[:])
-
-	return nc
-}
-
 func (t *Txn) Insert(state State, key, value []byte) {
-	root := t.insert(state, t.root, bytesToHexNibbles(key), value)
+	root := insert(state, t.epoch, t.root, bytesToHexNibbles(key), value)
 	if root != nil {
 		t.root = root
 	}
 }
 
-func (t *Txn) insert(storage StorageReader, node Node, search, value []byte) Node {
+func insert(storage StorageReader, epoch uint32, node Node, search, value []byte) Node {
 	switch n := node.(type) {
 	case nil:
 		// NOTE, this only happens with the full node
@@ -332,7 +318,7 @@ func (t *Txn) insert(storage StorageReader, node Node, search, value []byte) Nod
 		} else {
 			return &ShortNode{
 				key:   search,
-				child: t.insert(storage, nil, nil, value),
+				child: insert(storage, epoch, nil, nil, value),
 			}
 		}
 
@@ -349,7 +335,7 @@ func (t *Txn) insert(storage StorageReader, node Node, search, value []byte) Nod
 
 			node = nc
 
-			return t.insert(storage, node, search, value)
+			return insert(storage, epoch, node, search, value)
 		}
 
 		if len(search) == 0 {
@@ -359,7 +345,7 @@ func (t *Txn) insert(storage StorageReader, node Node, search, value []byte) Nod
 
 			return v
 		} else {
-			b := t.insert(storage, &FullNode{epoch: t.epoch, value: n}, search, value)
+			b := insert(storage, epoch, &FullNode{epoch: epoch, value: n}, search, value)
 
 			return b
 		}
@@ -368,19 +354,19 @@ func (t *Txn) insert(storage StorageReader, node Node, search, value []byte) Nod
 		plen := prefixLen(search, n.key)
 		if plen == len(n.key) {
 			// Keep this node as is and insert to child
-			child := t.insert(storage, n.child, search[plen:], value)
+			child := insert(storage, epoch, n.child, search[plen:], value)
 
 			return &ShortNode{key: n.key, child: child}
 		} else {
 			// Introduce a new branch
-			b := FullNode{epoch: t.epoch}
+			b := FullNode{epoch: epoch}
 			if len(n.key) > plen+1 {
 				b.setEdge(n.key[plen], &ShortNode{key: n.key[plen+1:], child: n.child})
 			} else {
 				b.setEdge(n.key[plen], n.child)
 			}
 
-			child := t.insert(storage, &b, search[plen:], value)
+			child := insert(storage, epoch, &b, search[plen:], value)
 
 			if plen == 0 {
 				return child
@@ -390,23 +376,31 @@ func (t *Txn) insert(storage StorageReader, node Node, search, value []byte) Nod
 		}
 
 	case *FullNode:
-		b := t.writeNode(n)
+		// b := t.writeNode(n)
+		nc := n
+		if epoch != n.epoch {
+			nc = &FullNode{
+				epoch: epoch,
+				value: n.value,
+			}
+			copy(nc.children[:], n.children[:])
+		}
 
 		if len(search) == 0 {
-			b.value = t.insert(storage, b.value, nil, value)
+			nc.value = insert(storage, epoch, nc.value, nil, value)
 
-			return b
+			return nc
 		} else {
 			k := search[0]
 			child := n.getEdge(k)
-			newChild := t.insert(storage, child, search[1:], value)
+			newChild := insert(storage, epoch, child, search[1:], value)
 			if child == nil {
-				b.setEdge(k, newChild)
+				nc.setEdge(k, newChild)
 			} else {
-				b.setEdge(k, newChild)
+				nc.setEdge(k, newChild)
 			}
 
-			return b
+			return nc
 		}
 
 	default:
