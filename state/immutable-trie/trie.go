@@ -168,7 +168,7 @@ func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte) {
 						}
 					}
 
-					accountStateRoot, _ := localTxn.Hash()
+					accountStateRoot, _ := localTxn.Hash(t.state)
 					account.Root = types.BytesToHash(accountStateRoot)
 				}
 
@@ -185,7 +185,7 @@ func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte) {
 			}
 		}
 
-		root, _ = tt.Hash()
+		root, _ = tt.Hash(t.state)
 
 		nTrie = tt.Commit()
 		nTrie.state = t.state

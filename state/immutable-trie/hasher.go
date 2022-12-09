@@ -85,7 +85,7 @@ func (h *hasher) Hash(data []byte) []byte {
 	return h.tmp[:]
 }
 
-func (t *Txn) Hash() ([]byte, error) {
+func (t *Txn) Hash(storage StorageWriter) ([]byte, error) {
 	if t.root == nil {
 		return emptyRoot, nil
 	}
@@ -98,7 +98,7 @@ func (t *Txn) Hash() ([]byte, error) {
 	var root []byte
 
 	arena, _ := h.AcquireArena()
-	val := t.hash(t.root, h, arena, 0)
+	val := t.hash(t.root, h, arena, 0, storage)
 
 	// REDO
 	if val.Type() == fastrlp.TypeBytes {
@@ -108,8 +108,8 @@ func (t *Txn) Hash() ([]byte, error) {
 
 			root = h.hash.Sum(nil)
 
-			if t.state != nil && t.state.ExistTransaction() {
-				t.state.Set(root, val.Raw())
+			if storage != nil {
+				storage.Set(root, val.Raw())
 			}
 		} else {
 			root = make([]byte, 32)
@@ -122,8 +122,8 @@ func (t *Txn) Hash() ([]byte, error) {
 
 		root = h.hash.Sum(nil)
 
-		if t.state != nil && t.state.ExistTransaction() {
-			t.state.Set(root, tmp)
+		if storage != nil {
+			storage.Set(root, tmp)
 		}
 	}
 
@@ -133,7 +133,7 @@ func (t *Txn) Hash() ([]byte, error) {
 	return root, nil
 }
 
-func (t *Txn) hash(node Node, h *hasher, a *fastrlp.Arena, d int) *fastrlp.Value {
+func (t *Txn) hash(node Node, h *hasher, a *fastrlp.Arena, d int, storage StorageWriter) *fastrlp.Value {
 	var val *fastrlp.Value
 
 	var aa *fastrlp.Arena
@@ -149,7 +149,7 @@ func (t *Txn) hash(node Node, h *hasher, a *fastrlp.Arena, d int) *fastrlp.Value
 		return a.NewCopyBytes(n.buf)
 
 	case *ShortNode:
-		child := t.hash(n.child, h, a, d+1)
+		child := t.hash(n.child, h, a, d+1, storage)
 
 		val = a.NewArray()
 		val.Set(a.NewBytes(encodeCompact(n.key)))
@@ -164,7 +164,7 @@ func (t *Txn) hash(node Node, h *hasher, a *fastrlp.Arena, d int) *fastrlp.Value
 			if i == nil {
 				val.Set(a.NewNull())
 			} else {
-				val.Set(t.hash(i, h, aa, d+1))
+				val.Set(t.hash(i, h, aa, d+1, storage))
 			}
 		}
 
@@ -172,7 +172,7 @@ func (t *Txn) hash(node Node, h *hasher, a *fastrlp.Arena, d int) *fastrlp.Value
 		if n.value == nil {
 			val.Set(a.NewNull())
 		} else {
-			val.Set(t.hash(n.value, h, a, d+1))
+			val.Set(t.hash(n.value, h, a, d+1, storage))
 		}
 
 	default:
@@ -194,8 +194,8 @@ func (t *Txn) hash(node Node, h *hasher, a *fastrlp.Arena, d int) *fastrlp.Value
 	hh := node.SetHash(tmp)
 
 	// Write data
-	if t.state != nil && t.state.ExistTransaction() {
-		t.state.Set(tmp, h.buf)
+	if storage != nil {
+		storage.Set(tmp, h.buf)
 	}
 
 	return a.NewCopyBytes(hh)
