@@ -80,7 +80,7 @@ type Network interface {
 
 type Progression interface {
 	// StartProgression starts progression
-	StartProgression(startingBlock uint64, subscription blockchain.Subscription)
+	StartProgression(syncingPeer string, startingBlock uint64, subscription blockchain.Subscription)
 	// UpdateHighestProgression updates highest block number
 	UpdateHighestProgression(highestBlock uint64)
 	// GetProgression returns Progression

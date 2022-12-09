@@ -96,7 +96,7 @@ func importBlocks(chain blockchainInterface, blockStream *blockStream, progressi
 	}
 
 	// Create a blockchain subscription for the sync progression and start tracking
-	progression.StartProgression(firstBlock.Number(), chain.SubscribeEvents())
+	progression.StartProgression("", firstBlock.Number(), chain.SubscribeEvents())
 	// Stop monitoring the sync progression upon exit
 	defer progression.StopProgression()
 

@@ -23,7 +23,7 @@ type mockProgression struct {
 	highestBlock  uint64
 }
 
-func (m *mockProgression) StartProgression(startingBlock uint64, subscription blockchain.Subscription) {
+func (m *mockProgression) StartProgression(syncingPeer string, startingBlock uint64, subscription blockchain.Subscription) {
 	m.startingBlock = startingBlock
 }
 

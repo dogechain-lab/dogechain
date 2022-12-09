@@ -315,7 +315,7 @@ func (s *noForkSyncer) syncWithSkipList(
 	s.syncingPeer = bestPeer.ID.String()
 
 	// use subscription for updating progression
-	s.syncProgression.StartProgression(localLatest, s.blockchain.SubscribeEvents())
+	s.syncProgression.StartProgression(s.syncingPeer, localLatest, s.blockchain.SubscribeEvents())
 	s.syncProgression.UpdateHighestProgression(bestPeer.Number)
 
 	// fetch block from the peer

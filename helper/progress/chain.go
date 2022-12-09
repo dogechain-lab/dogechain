@@ -19,6 +19,9 @@ type Progression struct {
 	// SyncType is indicating the sync method
 	SyncType ChainSyncType
 
+	// SyncingPeer is current syncing peer id
+	SyncingPeer string
+
 	// StartingBlock is the initial block that the node is starting
 	// the sync from. It is reset after every sync batch
 	StartingBlock uint64
@@ -54,15 +57,25 @@ func NewProgressionWrapper(syncType ChainSyncType) *ProgressionWrapper {
 
 // startProgression initializes the progression tracking
 func (pw *ProgressionWrapper) StartProgression(
+	syncingPeer string,
 	startingBlock uint64,
 	subscription blockchain.Subscription,
 ) {
 	pw.lock.Lock()
 	defer pw.lock.Unlock()
 
+	// set current block
+	var current uint64
+
+	if startingBlock > 0 {
+		current = startingBlock - 1
+	}
+
 	pw.progression = &Progression{
 		SyncType:      pw.syncType,
+		SyncingPeer:   syncingPeer,
 		StartingBlock: startingBlock,
+		CurrentBlock:  current,
 	}
 
 	go pw.RunUpdateLoop(subscription)
