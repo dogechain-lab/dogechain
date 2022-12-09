@@ -495,21 +495,14 @@ func (s *noForkSyncer) startPeerConnectionEventProcess() {
 
 // initNewPeerStatus fetches status of the peer and put to peer map
 func (s *noForkSyncer) initNewPeerStatus(peerID peer.ID) {
-	if s.peerMap.Exists(peerID) {
-		s.logger.Info("peer already connected, no need to reinit it again", "id", peerID)
-
-		return
-	}
-
-	// save it without re-init
-	s.peerMap.Put(&NoForkPeer{ID: peerID})
 	s.logger.Info("peer connected", "id", peerID)
 
 	status, err := s.syncPeerClient.GetPeerStatus(peerID)
 	if err != nil {
 		s.logger.Warn("failed to get peer status, skip", "id", peerID, "err", err)
-
-		return
+		status = &NoForkPeer{
+			ID: peerID,
+		}
 	}
 
 	// update its status
@@ -518,7 +511,7 @@ func (s *noForkSyncer) initNewPeerStatus(peerID peer.ID) {
 
 // putToPeerMap puts given status to peer map
 func (s *noForkSyncer) putToPeerMap(status *NoForkPeer) {
-	if status != nil {
+	if status == nil {
 		// it should not be
 		return
 	}
