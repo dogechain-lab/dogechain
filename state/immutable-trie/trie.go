@@ -101,7 +101,7 @@ func NewTrie() *Trie {
 
 func (t *Trie) Get(k []byte) ([]byte, bool) {
 	txn := t.Txn()
-	res := txn.Lookup(k)
+	res := txn.Lookup(t.state, k)
 
 	return res, res != nil
 }
@@ -136,7 +136,7 @@ func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte) {
 
 		for _, obj := range objs {
 			if obj.Deleted {
-				tt.Delete(hashit(obj.Address.Bytes()))
+				tt.Delete(t.state, hashit(obj.Address.Bytes()))
 			} else {
 				account := state.Account{
 					Balance:  obj.Balance,
@@ -161,10 +161,10 @@ func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte) {
 					for _, entry := range obj.Storage {
 						k := hashit(entry.Key)
 						if entry.Deleted {
-							localTxn.Delete(k)
+							localTxn.Delete(t.state, k)
 						} else {
 							vv := ar1.NewBytes(bytes.TrimLeft(entry.Val, "\x00"))
-							localTxn.Insert(k, vv.MarshalTo(nil))
+							localTxn.Insert(t.state, k, vv.MarshalTo(nil))
 						}
 					}
 
@@ -180,7 +180,7 @@ func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte) {
 				vv := account.MarshalWith(arena)
 				data := vv.MarshalTo(nil)
 
-				tt.Insert(hashit(obj.Address.Bytes()), data)
+				tt.Insert(t.state, hashit(obj.Address.Bytes()), data)
 				arena.Reset()
 			}
 		}
@@ -214,25 +214,6 @@ func (t *Trie) Hash() types.Hash {
 	return types.BytesToHash(hash)
 }
 
-func (t *Trie) TryUpdate(key, value []byte) error {
-	k := bytesToHexNibbles(key)
-
-	if len(value) != 0 {
-		tt := t.Txn()
-		n := tt.insert(t.root, k, value)
-		t.root = n
-	} else {
-		tt := t.Txn()
-		n, ok := tt.delete(t.root, k)
-		if !ok {
-			return fmt.Errorf("missing node")
-		}
-		t.root = n
-	}
-
-	return nil
-}
-
 func (t *Trie) hashRoot() ([]byte, Node, error) {
 	hash, _ := t.root.Hash()
 
@@ -240,33 +221,32 @@ func (t *Trie) hashRoot() ([]byte, Node, error) {
 }
 
 func (t *Trie) Txn() *Txn {
-	return &Txn{root: t.root, epoch: t.epoch + 1, state: t.state}
+	return &Txn{root: t.root, epoch: t.epoch + 1}
 }
 
 type Txn struct {
 	root  Node
 	epoch uint32
-	state State
 }
 
 func (t *Txn) Commit() *Trie {
-	return &Trie{epoch: t.epoch, root: t.root, state: t.state}
+	return &Trie{epoch: t.epoch, root: t.root}
 }
 
-func (t *Txn) Lookup(key []byte) []byte {
-	_, res := t.lookup(t.root, bytesToHexNibbles(key))
+func (t *Txn) Lookup(state State, key []byte) []byte {
+	_, res := t.lookup(state, t.root, bytesToHexNibbles(key))
 
 	return res
 }
 
-func (t *Txn) lookup(node interface{}, key []byte) (Node, []byte) {
+func (t *Txn) lookup(storage StorageReader, node interface{}, key []byte) (Node, []byte) {
 	switch n := node.(type) {
 	case nil:
 		return nil, nil
 
 	case *ValueNode:
 		if n.hash {
-			nc, ok, err := GetNode(n.buf, t.state)
+			nc, ok, err := GetNode(n.buf, storage)
 			if err != nil {
 				panic(err)
 			}
@@ -275,7 +255,7 @@ func (t *Txn) lookup(node interface{}, key []byte) (Node, []byte) {
 				return nil, nil
 			}
 
-			_, res := t.lookup(nc, key)
+			_, res := t.lookup(storage, nc, key)
 
 			return nc, res
 		}
@@ -292,7 +272,7 @@ func (t *Txn) lookup(node interface{}, key []byte) (Node, []byte) {
 			return nil, nil
 		}
 
-		child, res := t.lookup(n.child, key[plen:])
+		child, res := t.lookup(storage, n.child, key[plen:])
 
 		if child != nil {
 			n.child = child
@@ -302,10 +282,10 @@ func (t *Txn) lookup(node interface{}, key []byte) (Node, []byte) {
 
 	case *FullNode:
 		if len(key) == 0 {
-			return t.lookup(n.value, key)
+			return t.lookup(storage, n.value, key)
 		}
 
-		child, res := t.lookup(n.getEdge(key[0]), key[1:])
+		child, res := t.lookup(storage, n.getEdge(key[0]), key[1:])
 
 		if child != nil {
 			n.children[key[0]] = child
@@ -332,14 +312,14 @@ func (t *Txn) writeNode(n *FullNode) *FullNode {
 	return nc
 }
 
-func (t *Txn) Insert(key, value []byte) {
-	root := t.insert(t.root, bytesToHexNibbles(key), value)
+func (t *Txn) Insert(state State, key, value []byte) {
+	root := t.insert(state, t.root, bytesToHexNibbles(key), value)
 	if root != nil {
 		t.root = root
 	}
 }
 
-func (t *Txn) insert(node Node, search, value []byte) Node {
+func (t *Txn) insert(storage StorageReader, node Node, search, value []byte) Node {
 	switch n := node.(type) {
 	case nil:
 		// NOTE, this only happens with the full node
@@ -352,13 +332,13 @@ func (t *Txn) insert(node Node, search, value []byte) Node {
 		} else {
 			return &ShortNode{
 				key:   search,
-				child: t.insert(nil, nil, value),
+				child: t.insert(storage, nil, nil, value),
 			}
 		}
 
 	case *ValueNode:
 		if n.hash {
-			nc, ok, err := GetNode(n.buf, t.state)
+			nc, ok, err := GetNode(n.buf, storage)
 			if err != nil {
 				panic(err)
 			}
@@ -369,7 +349,7 @@ func (t *Txn) insert(node Node, search, value []byte) Node {
 
 			node = nc
 
-			return t.insert(node, search, value)
+			return t.insert(storage, node, search, value)
 		}
 
 		if len(search) == 0 {
@@ -379,7 +359,7 @@ func (t *Txn) insert(node Node, search, value []byte) Node {
 
 			return v
 		} else {
-			b := t.insert(&FullNode{epoch: t.epoch, value: n}, search, value)
+			b := t.insert(storage, &FullNode{epoch: t.epoch, value: n}, search, value)
 
 			return b
 		}
@@ -388,7 +368,7 @@ func (t *Txn) insert(node Node, search, value []byte) Node {
 		plen := prefixLen(search, n.key)
 		if plen == len(n.key) {
 			// Keep this node as is and insert to child
-			child := t.insert(n.child, search[plen:], value)
+			child := t.insert(storage, n.child, search[plen:], value)
 
 			return &ShortNode{key: n.key, child: child}
 		} else {
@@ -400,7 +380,7 @@ func (t *Txn) insert(node Node, search, value []byte) Node {
 				b.setEdge(n.key[plen], n.child)
 			}
 
-			child := t.insert(&b, search[plen:], value)
+			child := t.insert(storage, &b, search[plen:], value)
 
 			if plen == 0 {
 				return child
@@ -413,13 +393,13 @@ func (t *Txn) insert(node Node, search, value []byte) Node {
 		b := t.writeNode(n)
 
 		if len(search) == 0 {
-			b.value = t.insert(b.value, nil, value)
+			b.value = t.insert(storage, b.value, nil, value)
 
 			return b
 		} else {
 			k := search[0]
 			child := n.getEdge(k)
-			newChild := t.insert(child, search[1:], value)
+			newChild := t.insert(storage, child, search[1:], value)
 			if child == nil {
 				b.setEdge(k, newChild)
 			} else {
@@ -434,14 +414,14 @@ func (t *Txn) insert(node Node, search, value []byte) Node {
 	}
 }
 
-func (t *Txn) Delete(key []byte) {
-	root, ok := t.delete(t.root, bytesToHexNibbles(key))
+func (t *Txn) Delete(state State, key []byte) {
+	root, ok := t.delete(state, t.root, bytesToHexNibbles(key))
 	if ok {
 		t.root = root
 	}
 }
 
-func (t *Txn) delete(node Node, search []byte) (Node, bool) {
+func (t *Txn) delete(storage StorageReader, node Node, search []byte) (Node, bool) {
 	switch n := node.(type) {
 	case nil:
 		return nil, false
@@ -458,7 +438,7 @@ func (t *Txn) delete(node Node, search []byte) (Node, bool) {
 			return nil, false
 		}
 
-		child, ok := t.delete(n.child, search[plen:])
+		child, ok := t.delete(storage, n.child, search[plen:])
 		if !ok {
 			return nil, false
 		}
@@ -477,7 +457,7 @@ func (t *Txn) delete(node Node, search []byte) (Node, bool) {
 
 	case *ValueNode:
 		if n.hash {
-			nc, ok, err := GetNode(n.buf, t.state)
+			nc, ok, err := GetNode(n.buf, storage)
 			if err != nil {
 				panic(err)
 			}
@@ -486,7 +466,7 @@ func (t *Txn) delete(node Node, search []byte) (Node, bool) {
 				return nil, false
 			}
 
-			return t.delete(nc, search)
+			return t.delete(storage, nc, search)
 		}
 
 		if len(search) != 0 {
@@ -500,7 +480,7 @@ func (t *Txn) delete(node Node, search []byte) (Node, bool) {
 		n.hash = n.hash[:0]
 
 		key := search[0]
-		newChild, ok := t.delete(n.getEdge(key), search[1:])
+		newChild, ok := t.delete(storage, n.getEdge(key), search[1:])
 
 		if !ok {
 			return nil, false
@@ -550,7 +530,7 @@ func (t *Txn) delete(node Node, search []byte) (Node, bool) {
 		if vv, ok := nc.(*ValueNode); ok && vv.hash {
 			// If the value is a hash, we have to resolve it first.
 			// This needs better testing
-			aux, ok, err := GetNode(vv.buf, t.state)
+			aux, ok, err := GetNode(vv.buf, storage)
 			if err != nil {
 				panic(err)
 			}
