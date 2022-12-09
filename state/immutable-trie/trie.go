@@ -409,13 +409,13 @@ func insert(storage StorageReader, epoch uint32, node Node, search, value []byte
 }
 
 func (t *Txn) Delete(state State, key []byte) {
-	root, ok := t.delete(state, t.root, bytesToHexNibbles(key))
+	root, ok := delete(state, t.root, bytesToHexNibbles(key))
 	if ok {
 		t.root = root
 	}
 }
 
-func (t *Txn) delete(storage StorageReader, node Node, search []byte) (Node, bool) {
+func delete(storage StorageReader, node Node, search []byte) (Node, bool) {
 	switch n := node.(type) {
 	case nil:
 		return nil, false
@@ -432,7 +432,7 @@ func (t *Txn) delete(storage StorageReader, node Node, search []byte) (Node, boo
 			return nil, false
 		}
 
-		child, ok := t.delete(storage, n.child, search[plen:])
+		child, ok := delete(storage, n.child, search[plen:])
 		if !ok {
 			return nil, false
 		}
@@ -460,7 +460,7 @@ func (t *Txn) delete(storage StorageReader, node Node, search []byte) (Node, boo
 				return nil, false
 			}
 
-			return t.delete(storage, nc, search)
+			return delete(storage, nc, search)
 		}
 
 		if len(search) != 0 {
@@ -474,7 +474,7 @@ func (t *Txn) delete(storage StorageReader, node Node, search []byte) (Node, boo
 		n.hash = n.hash[:0]
 
 		key := search[0]
-		newChild, ok := t.delete(storage, n.getEdge(key), search[1:])
+		newChild, ok := delete(storage, n.getEdge(key), search[1:])
 
 		if !ok {
 			return nil, false
