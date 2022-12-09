@@ -502,11 +502,6 @@ func (s *noForkSyncer) initNewPeerStatus(peerID peer.ID) {
 
 // putToPeerMap puts given status to peer map
 func (s *noForkSyncer) putToPeerMap(status *NoForkPeer) {
-	// update progression if OK
-	if p := s.syncProgression; p != nil && status != nil {
-		p.UpdateHighestProgression(status.Number)
-	}
-
 	if status != nil {
 		if _, exists := s.peerMap.Load(status.ID); !exists {
 			s.logger.Info("new connected peer", "id", status.ID, "number", status.Number)
