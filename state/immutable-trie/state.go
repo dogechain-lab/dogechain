@@ -35,7 +35,6 @@ type State interface {
 	NewSnapshotAt(types.Hash) (state.Snapshot, error)
 
 	ExclusiveTransaction(execute func(st StateTransaction))
-	ExistTransaction() bool
 }
 
 type txnKey string
@@ -46,7 +45,7 @@ type txnPair struct {
 
 type stateExTxn struct {
 	db    map[txnKey]*txnPair
-	dbMux *sync.Mutex
+	dbMux sync.Mutex
 
 	storage Storage
 	cancel  *atomic.Bool
@@ -128,52 +127,34 @@ type stateImpl struct {
 
 	storage Storage
 
-	txnMux        *sync.Mutex
+	txnMux        sync.Mutex
 	isTransaction *atomic.Bool
 
-	stateExTxnMux *sync.Mutex
 	stateExTxnRef *stateExTxn
 }
 
 func NewState(storage Storage, logger hclog.Logger) State {
 	return &stateImpl{
-		logger: logger.Named("state"),
-
-		storage: storage,
-
-		txnMux:        &sync.Mutex{},
+		logger:        logger.Named("state"),
+		storage:       storage,
 		isTransaction: atomic.NewBool(false),
-
-		stateExTxnMux: &sync.Mutex{},
 		stateExTxnRef: nil,
 	}
 }
 
 func (s *stateImpl) Set(k, v []byte) error {
-	if s.isTransaction.Load() {
-		s.stateExTxnMux.Lock()
-		defer s.stateExTxnMux.Unlock()
-
-		if s.stateExTxnRef != nil {
-			_ = s.stateExTxnRef.Set(k, v)
-
-			return nil
-		}
+	if s.isTransaction.Load() && s.stateExTxnRef != nil {
+		return s.stateExTxnRef.Set(k, v)
 	}
 
 	return s.storage.Set(k, v)
 }
 
 func (s *stateImpl) Get(k []byte) ([]byte, bool, error) {
-	if s.isTransaction.Load() {
-		s.stateExTxnMux.Lock()
-		defer s.stateExTxnMux.Unlock()
-
-		if s.stateExTxnRef != nil {
-			v, ok, _ := s.stateExTxnRef.Get(k)
-			if ok {
-				return v, true, nil
-			}
+	if s.isTransaction.Load() && s.stateExTxnRef != nil {
+		v, ok, _ := s.stateExTxnRef.Get(k)
+		if ok {
+			return v, true, nil
 		}
 	}
 
@@ -181,30 +162,18 @@ func (s *stateImpl) Get(k []byte) ([]byte, bool, error) {
 }
 
 func (s *stateImpl) SetCode(hash types.Hash, code []byte) error {
-	if s.isTransaction.Load() {
-		s.stateExTxnMux.Lock()
-		defer s.stateExTxnMux.Unlock()
-
-		if s.stateExTxnRef != nil {
-			_ = s.stateExTxnRef.Set(append(codePrefix, hash.Bytes()...), code)
-
-			return nil
-		}
+	if s.isTransaction.Load() && s.stateExTxnRef != nil {
+		return s.stateExTxnRef.Set(append(codePrefix, hash.Bytes()...), code)
 	}
 
 	return s.storage.Set(append(codePrefix, hash.Bytes()...), code)
 }
 
 func (s *stateImpl) GetCode(hash types.Hash) ([]byte, bool) {
-	if s.isTransaction.Load() {
-		s.stateExTxnMux.Lock()
-		defer s.stateExTxnMux.Unlock()
-
-		if s.stateExTxnRef != nil {
-			v, ok, _ := s.stateExTxnRef.Get(append(codePrefix, hash.Bytes()...))
-			if ok {
-				return v, true
-			}
+	if s.isTransaction.Load() && s.stateExTxnRef != nil {
+		v, ok, _ := s.stateExTxnRef.Get(append(codePrefix, hash.Bytes()...))
+		if ok {
+			return v, true
 		}
 	}
 
@@ -254,12 +223,9 @@ func (s *stateImpl) NewSnapshotAt(root types.Hash) (state.Snapshot, error) {
 func (s *stateImpl) ExclusiveTransaction(execute func(StateTransaction)) {
 	s.txnMux.Lock()
 	defer s.txnMux.Unlock()
-	s.isTransaction.Store(true)
 
 	s.stateExTxnRef = &stateExTxn{
-		db:    make(map[txnKey]*txnPair),
-		dbMux: &sync.Mutex{},
-
+		db:      make(map[txnKey]*txnPair),
 		storage: s.storage,
 		cancel:  atomic.NewBool(false),
 	}
@@ -270,8 +236,4 @@ func (s *stateImpl) ExclusiveTransaction(execute func(StateTransaction)) {
 	execute(s.stateExTxnRef)
 
 	s.stateExTxnRef = nil
-}
-
-func (s *stateImpl) ExistTransaction() bool {
-	return s.isTransaction.Load()
 }
