@@ -33,6 +33,12 @@ func NewPeerMap(peers []*NoForkPeer) *PeerMap {
 	return peerMap
 }
 
+func (m *PeerMap) Exists(peerID peer.ID) bool {
+	_, exists := m.Load(peerID.String())
+
+	return exists
+}
+
 func (m *PeerMap) Put(peers ...*NoForkPeer) {
 	for _, peer := range peers {
 		m.Store(peer.ID.String(), peer)

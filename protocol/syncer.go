@@ -490,7 +490,7 @@ func (s *noForkSyncer) startPeerConnectionEventProcess() {
 
 // initNewPeerStatus fetches status of the peer and put to peer map
 func (s *noForkSyncer) initNewPeerStatus(peerID peer.ID) {
-	if _, exists := s.peerMap.Load(peerID); exists {
+	if s.peerMap.Exists(peerID) {
 		s.logger.Info("peer already connected, no need to reinit it again", "id", peerID)
 
 		return
@@ -514,7 +514,7 @@ func (s *noForkSyncer) initNewPeerStatus(peerID peer.ID) {
 // putToPeerMap puts given status to peer map
 func (s *noForkSyncer) putToPeerMap(status *NoForkPeer) {
 	if status != nil {
-		if _, exists := s.peerMap.Load(status.ID); !exists {
+		if !s.peerMap.Exists(status.ID) {
 			s.logger.Info("new connected peer", "id", status.ID, "number", status.Number)
 		} else {
 			s.logger.Debug("connected peer update status", "id", status.ID, "number", status.Number)
