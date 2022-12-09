@@ -497,7 +497,7 @@ func (s *noForkSyncer) initNewPeerStatus(peerID peer.ID) {
 	}
 
 	// save it without re-init
-	s.putToPeerMap(&NoForkPeer{ID: peerID})
+	s.peerMap.Put(&NoForkPeer{ID: peerID})
 	s.logger.Info("peer connected", "id", peerID)
 
 	status, err := s.syncPeerClient.GetPeerStatus(peerID)
