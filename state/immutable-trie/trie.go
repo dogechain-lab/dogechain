@@ -234,12 +234,12 @@ func (t *Txn) Commit() *Trie {
 }
 
 func (t *Txn) Lookup(state State, key []byte) []byte {
-	_, res := t.lookup(state, t.root, bytesToHexNibbles(key))
+	_, res := lookup(state, t.root, bytesToHexNibbles(key))
 
 	return res
 }
 
-func (t *Txn) lookup(storage StorageReader, node interface{}, key []byte) (Node, []byte) {
+func lookup(storage StorageReader, node interface{}, key []byte) (Node, []byte) {
 	switch n := node.(type) {
 	case nil:
 		return nil, nil
@@ -255,7 +255,7 @@ func (t *Txn) lookup(storage StorageReader, node interface{}, key []byte) (Node,
 				return nil, nil
 			}
 
-			_, res := t.lookup(storage, nc, key)
+			_, res := lookup(storage, nc, key)
 
 			return nc, res
 		}
@@ -272,7 +272,7 @@ func (t *Txn) lookup(storage StorageReader, node interface{}, key []byte) (Node,
 			return nil, nil
 		}
 
-		child, res := t.lookup(storage, n.child, key[plen:])
+		child, res := lookup(storage, n.child, key[plen:])
 
 		if child != nil {
 			n.child = child
@@ -282,10 +282,10 @@ func (t *Txn) lookup(storage StorageReader, node interface{}, key []byte) (Node,
 
 	case *FullNode:
 		if len(key) == 0 {
-			return t.lookup(storage, n.value, key)
+			return lookup(storage, n.value, key)
 		}
 
-		child, res := t.lookup(storage, n.getEdge(key[0]), key[1:])
+		child, res := lookup(storage, n.getEdge(key[0]), key[1:])
 
 		if child != nil {
 			n.children[key[0]] = child
