@@ -78,7 +78,9 @@ type noForkSyncer struct {
 
 	// Channel to notify Sync that a new status arrived
 	newStatusCh chan struct{}
+	// syncing state
 	syncing     *atomic.Bool
+	syncingPeer peer.ID
 
 	// stop chan
 	stopCh chan struct{}
@@ -309,6 +311,9 @@ func (s *noForkSyncer) syncWithSkipList(
 		return
 	}
 
+	// set up a peer to receive its status updates for progress updates
+	s.syncingPeer = bestPeer.ID
+
 	// use subscription for updating progression
 	s.syncProgression.StartProgression(localLatest, s.blockchain.SubscribeEvents())
 	s.syncProgression.UpdateHighestProgression(bestPeer.Number)
@@ -514,11 +519,19 @@ func (s *noForkSyncer) initNewPeerStatus(peerID peer.ID) {
 // putToPeerMap puts given status to peer map
 func (s *noForkSyncer) putToPeerMap(status *NoForkPeer) {
 	if status != nil {
-		if !s.peerMap.Exists(status.ID) {
-			s.logger.Info("new connected peer", "id", status.ID, "number", status.Number)
-		} else {
-			s.logger.Debug("connected peer update status", "id", status.ID, "number", status.Number)
-		}
+		// it should not be
+		return
+	}
+
+	if !s.peerMap.Exists(status.ID) {
+		s.logger.Info("new connected peer", "id", status.ID, "number", status.Number)
+	} else {
+		s.logger.Debug("connected peer update status", "id", status.ID, "number", status.Number)
+	}
+
+	// update progression if needed
+	if status.ID == s.syncingPeer && status.Number > 0 {
+		s.syncProgression.UpdateHighestProgression(status.Number)
 	}
 
 	s.peerMap.Put(status)
