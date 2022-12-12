@@ -537,6 +537,16 @@ func (b *Blockchain) advanceHead(newHeader *types.Header) (*big.Int, error) {
 	return newTD, nil
 }
 
+// GetHeaderHash returns the current header hash
+func (b *Blockchain) GetHeaderHash() (types.Hash, bool) {
+	return b.db.ReadHeadHash()
+}
+
+// GetHeaderNumber returns the current header number
+func (b *Blockchain) GetHeaderNumber() (uint64, bool) {
+	return b.db.ReadHeadNumber()
+}
+
 // GetReceiptsByHash returns the receipts by their hash
 func (b *Blockchain) GetReceiptsByHash(hash types.Hash) ([]*types.Receipt, error) {
 	return b.db.ReadReceipts(hash)

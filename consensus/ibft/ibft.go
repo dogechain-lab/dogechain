@@ -210,12 +210,14 @@ func Factory(
 	// Istanbul requires a different header hash function
 	types.HeaderHash = istanbulHeaderHash
 
-	p.syncer = protocol.NewSyncer(
-		params.Logger,
-		params.Network,
-		params.Blockchain,
-		params.BlockBroadcast,
-	)
+	if params.Network != nil {
+		p.syncer = protocol.NewSyncer(
+			params.Logger,
+			params.Network,
+			params.Blockchain,
+			params.BlockBroadcast,
+		)
+	}
 
 	return p, nil
 }
@@ -260,13 +262,16 @@ func (i *Ibft) Initialize() error {
 
 // Start starts the IBFT consensus
 func (i *Ibft) Start() error {
-	// Start the syncer
-	if err := i.syncer.Start(); err != nil {
-		return err
-	}
+	// Start the syncer if it's present
+	if i.syncer != nil {
+		// Start the syncer
+		if err := i.syncer.Start(); err != nil {
+			return err
+		}
 
-	// Start syncing blocks from other peers
-	go i.startSyncing()
+		// Start syncing blocks from other peers
+		go i.startSyncing()
+	}
 
 	// Start the actual IBFT protocol
 	go i.startConsensus()
@@ -393,6 +398,11 @@ func (i *Ibft) setupMechanism() error {
 
 // setupTransport sets up the gossip transport protocol
 func (i *Ibft) setupTransport() error {
+	// disable transport if we're not networked
+	if i.network == nil {
+		return nil
+	}
+
 	// Define a new topic
 	topic, err := i.network.NewTopic(ibftProto, &proto.MessageReq{})
 	if err != nil {
@@ -1485,7 +1495,11 @@ func (i *Ibft) Close() error {
 		}
 	}
 
-	i.transport.Close()
+	if i.transport != nil {
+		i.transport.Close()
+	}
+
+	i.transport = nil
 
 	return nil
 }

@@ -38,3 +38,15 @@ func ConsensusSupported(value string) bool {
 
 	return ok
 }
+
+func GetConsensusBackend(value string) (consensus.Factory, bool) {
+	consensus, ok := consensusBackends[ConsensusType(value)]
+
+	return consensus, ok
+}
+
+func GetSecretsManager(secretType secrets.SecretsManagerType) (secrets.SecretsManagerFactory, bool) {
+	secretManager, ok := secretsManagerBackends[secretType]
+
+	return secretManager, ok
+}

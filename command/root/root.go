@@ -16,6 +16,7 @@ import (
 	"github.com/dogechain-lab/dogechain/command/server"
 	"github.com/dogechain-lab/dogechain/command/status"
 	"github.com/dogechain-lab/dogechain/command/txpool"
+	"github.com/dogechain-lab/dogechain/command/verify"
 	"github.com/dogechain-lab/dogechain/command/version"
 	"github.com/spf13/cobra"
 )
@@ -45,6 +46,7 @@ func (rc *RootCommand) registerSubCommands() {
 		status.GetCommand(),
 		secrets.GetCommand(),
 		peers.GetCommand(),
+		verify.GetCommand(),
 		monitor.GetCommand(),
 		loadbot.GetCommand(),
 		ibft.GetCommand(),
