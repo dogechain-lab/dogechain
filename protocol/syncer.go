@@ -500,6 +500,7 @@ func (s *noForkSyncer) initNewPeerStatus(peerID peer.ID) {
 	status, err := s.syncPeerClient.GetPeerStatus(peerID)
 	if err != nil {
 		s.logger.Warn("failed to get peer status, skip", "id", peerID, "err", err)
+
 		status = &NoForkPeer{
 			ID: peerID,
 		}
