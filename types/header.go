@@ -77,6 +77,11 @@ func (n Nonce) MarshalText() ([]byte, error) {
 	return []byte(n.String()), nil
 }
 
+// UnmarshalText implements encoding.Unmarshaler
+func (n *Nonce) UnmarshalJSON(input []byte) error {
+	return n.Scan(StringToBytes(string(input)))
+}
+
 func (h *Header) Copy() *Header {
 	newHeader := &Header{
 		ParentHash:   h.ParentHash,

@@ -151,7 +151,7 @@ func Test_toJSONHeader(t *testing.T) {
 
 	assert.NoError(t, err)
 
-	expectedHeader := &jsonHeader{
+	expectedHeader := jsonHeader{
 		ParentHash:   types.StringToHash("0x5b1840d0a559112b42208b074284c92d32ddc876ab36d3a40a6ef109c3230899"),
 		Sha3Uncles:   types.StringToHash("0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347"),
 		Miner:        types.StringToAddress("0x32fC6Db2B0500fF103A810B46Daa26d35CE5172f"),
@@ -170,14 +170,9 @@ func Test_toJSONHeader(t *testing.T) {
 		Hash:         types.StringToHash("0x85492e41d07c4886706650c1d0754856dc7c92d1dd311fb18f6d425c2dd1f897"),
 	}
 
-	raw, err := json.Marshal(rawHeaderStr)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	jh := jsonHeader{}
 
-	jh := &jsonHeader{}
-
-	err = json.Unmarshal(raw, &jh)
+	err = json.Unmarshal([]byte(rawHeaderStr), &jh)
 	if !assert.NoError(t, err) {
 		t.FailNow()
 	}
