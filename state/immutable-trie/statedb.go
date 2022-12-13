@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/VictoriaMetrics/fastcache"
 	"github.com/dogechain-lab/dogechain/helper/hex"
 	"github.com/dogechain-lab/dogechain/state"
 	"github.com/dogechain-lab/dogechain/types"
@@ -19,12 +20,12 @@ var (
 	ErrStateTransactionIsCancel = errors.New("transaction is cancel")
 )
 
-type StateTransaction interface {
+type StateDBTransaction interface {
 	Commit() error
 	Rollback()
 }
 
-type State interface {
+type StateDB interface {
 	StorageReader
 	StorageWriter
 
@@ -34,7 +35,7 @@ type State interface {
 	NewSnapshot() state.Snapshot
 	NewSnapshotAt(types.Hash) (state.Snapshot, error)
 
-	ExclusiveTransaction(execute func(st StateTransaction))
+	ExclusiveTransaction(execute func(st StateDBTransaction))
 }
 
 type txnKey string
@@ -48,7 +49,8 @@ type stateExTxn struct {
 	dbMux sync.Mutex
 
 	storage Storage
-	cancel  *atomic.Bool
+
+	cancel *atomic.Bool
 }
 
 func (s *stateExTxn) Commit() error {
@@ -122,10 +124,12 @@ func (s *stateExTxn) Get(k []byte) ([]byte, bool, error) {
 	return bufValue, true, nil
 }
 
-type stateImpl struct {
+type stateDBImpl struct {
 	logger hclog.Logger
 
 	storage Storage
+
+	cached *fastcache.Cache
 
 	txnMux        sync.Mutex
 	isTransaction *atomic.Bool
@@ -133,53 +137,104 @@ type stateImpl struct {
 	stateExTxnRef *stateExTxn
 }
 
-func NewState(storage Storage, logger hclog.Logger) State {
-	return &stateImpl{
+func NewStateDB(storage Storage, logger hclog.Logger) StateDB {
+	return &stateDBImpl{
 		logger:        logger.Named("state"),
 		storage:       storage,
+		cached:        fastcache.New(32 * 1024 * 1024),
 		isTransaction: atomic.NewBool(false),
 		stateExTxnRef: nil,
 	}
 }
 
-func (s *stateImpl) Set(k, v []byte) error {
-	if s.isTransaction.Load() && s.stateExTxnRef != nil {
-		return s.stateExTxnRef.Set(k, v)
+func (db *stateDBImpl) Set(k, v []byte) error {
+	if db.isTransaction.Load() && db.stateExTxnRef != nil {
+		return db.stateExTxnRef.Set(k, v)
 	}
 
-	return s.storage.Set(k, v)
+	err := db.storage.Set(k, v)
+	if err != nil {
+		return err
+	}
+
+	// update cache
+	if db.cached != nil {
+		db.cached.Set(k, v)
+	}
+
+	return nil
 }
 
-func (s *stateImpl) Get(k []byte) ([]byte, bool, error) {
-	if s.isTransaction.Load() && s.stateExTxnRef != nil {
-		v, ok, _ := s.stateExTxnRef.Get(k)
+func (db *stateDBImpl) Get(k []byte) ([]byte, bool, error) {
+	if db.isTransaction.Load() && db.stateExTxnRef != nil {
+		v, ok, _ := db.stateExTxnRef.Get(k)
 		if ok {
 			return v, true, nil
 		}
 	}
 
-	return s.storage.Get(k)
-}
-
-func (s *stateImpl) SetCode(hash types.Hash, code []byte) error {
-	if s.isTransaction.Load() && s.stateExTxnRef != nil {
-		return s.stateExTxnRef.Set(append(codePrefix, hash.Bytes()...), code)
+	if db.cached != nil {
+		if enc := db.cached.Get(nil, k); enc != nil {
+			return enc, true, nil
+		}
 	}
 
-	return s.storage.Set(append(codePrefix, hash.Bytes()...), code)
+	v, ok, err := db.storage.Get(k)
+	if err != nil {
+		db.logger.Error("get", "err", err)
+	}
+
+	// write-back cache
+	if err == nil && ok && db.cached != nil {
+		db.cached.Set(k, v)
+	}
+
+	return v, ok, err
 }
 
-func (s *stateImpl) GetCode(hash types.Hash) ([]byte, bool) {
-	if s.isTransaction.Load() && s.stateExTxnRef != nil {
-		v, ok, _ := s.stateExTxnRef.Get(append(codePrefix, hash.Bytes()...))
+func (db *stateDBImpl) SetCode(hash types.Hash, code []byte) error {
+	if db.isTransaction.Load() && db.stateExTxnRef != nil {
+		return db.stateExTxnRef.Set(append(codePrefix, hash.Bytes()...), code)
+	}
+
+	perfix := append(codePrefix, hash.Bytes()...)
+
+	err := db.storage.Set(perfix, code)
+	if err != nil {
+		return nil
+	}
+
+	// update cache
+	if db.cached != nil {
+		db.cached.Set(perfix, code)
+	}
+
+	return nil
+}
+
+func (db *stateDBImpl) GetCode(hash types.Hash) ([]byte, bool) {
+	if db.isTransaction.Load() && db.stateExTxnRef != nil {
+		v, ok, _ := db.stateExTxnRef.Get(append(codePrefix, hash.Bytes()...))
 		if ok {
 			return v, true
 		}
 	}
 
-	v, ok, err := s.storage.Get(append(codePrefix, hash.Bytes()...))
+	perfix := append(codePrefix, hash.Bytes()...)
+	if db.cached != nil {
+		if enc := db.cached.Get(nil, perfix); enc != nil {
+			return enc, true
+		}
+	}
+
+	v, ok, err := db.storage.Get(perfix)
 	if err != nil {
-		s.logger.Error("get code", "err", err)
+		db.logger.Error("get code", "err", err)
+	}
+
+	// write-back cache
+	if err == nil && ok && db.cached != nil {
+		db.cached.Set(perfix, v)
 	}
 
 	if !ok {
@@ -189,20 +244,20 @@ func (s *stateImpl) GetCode(hash types.Hash) ([]byte, bool) {
 	return v, true
 }
 
-func (s *stateImpl) NewSnapshot() state.Snapshot {
+func (db *stateDBImpl) NewSnapshot() state.Snapshot {
 	t := NewTrie()
-	t.state = s
+	t.stateDB = db
 
 	return t
 }
 
-func (s *stateImpl) NewSnapshotAt(root types.Hash) (state.Snapshot, error) {
+func (db *stateDBImpl) NewSnapshotAt(root types.Hash) (state.Snapshot, error) {
 	if root == types.EmptyRootHash {
 		// empty state
-		return s.NewSnapshot(), nil
+		return db.NewSnapshot(), nil
 	}
 
-	n, ok, err := GetNode(root.Bytes(), s)
+	n, ok, err := GetNode(root.Bytes(), db)
 
 	if err != nil {
 		return nil, err
@@ -213,27 +268,33 @@ func (s *stateImpl) NewSnapshotAt(root types.Hash) (state.Snapshot, error) {
 	}
 
 	t := &Trie{
-		root:  n,
-		state: s,
+		root:    n,
+		stateDB: db,
 	}
 
 	return t, nil
 }
 
-func (s *stateImpl) ExclusiveTransaction(execute func(StateTransaction)) {
-	s.txnMux.Lock()
-	defer s.txnMux.Unlock()
+func (db *stateDBImpl) ExclusiveTransaction(execute func(StateDBTransaction)) {
+	db.txnMux.Lock()
+	defer db.txnMux.Unlock()
 
-	s.stateExTxnRef = &stateExTxn{
+	stateExTxnRef := &stateExTxn{
 		db:      make(map[txnKey]*txnPair),
-		storage: s.storage,
+		storage: db.storage,
 		cancel:  atomic.NewBool(false),
 	}
+	db.stateExTxnRef = stateExTxnRef
 
-	s.isTransaction.Store(true)
-	defer s.isTransaction.Store(false)
+	db.isTransaction.Store(true)
+	defer db.isTransaction.Store(false)
 
-	execute(s.stateExTxnRef)
+	execute(db.stateExTxnRef)
 
-	s.stateExTxnRef = nil
+	db.stateExTxnRef = nil
+
+	// update cache
+	for _, pair := range stateExTxnRef.db {
+		db.cached.Set(pair.key, pair.value)
+	}
 }

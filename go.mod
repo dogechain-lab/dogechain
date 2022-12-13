@@ -66,6 +66,7 @@ require (
 require go.uber.org/atomic v1.9.0
 
 require (
+	github.com/VictoriaMetrics/fastcache v1.6.0
 	github.com/armon/go-radix v1.0.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v3 v3.0.0 // indirect

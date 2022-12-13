@@ -13,7 +13,7 @@ func TestState(t *testing.T) {
 
 func buildPreState(pre state.PreStates) (state.State, state.Snapshot) {
 	storage := NewMemoryStorage()
-	st := NewState(storage, hclog.NewNullLogger())
+	st := NewStateDB(storage, hclog.NewNullLogger())
 	snap := st.NewSnapshot()
 
 	return st, snap

@@ -10,9 +10,9 @@ import (
 )
 
 type Trie struct {
-	state State
-	root  Node
-	epoch uint32
+	stateDB StateDB
+	root    Node
+	epoch   uint32
 }
 
 func NewTrie() *Trie {
@@ -21,7 +21,7 @@ func NewTrie() *Trie {
 
 func (t *Trie) Get(k []byte) ([]byte, bool) {
 	txn := t.Txn()
-	res := txn.Lookup(t.state, k)
+	res := txn.Lookup(t.stateDB, k)
 
 	return res, res != nil
 }
@@ -43,7 +43,7 @@ func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte) {
 	var nTrie *Trie = nil
 
 	// Create an insertion batch for all the entries
-	t.state.ExclusiveTransaction(func(st StateTransaction) {
+	t.stateDB.ExclusiveTransaction(func(st StateDBTransaction) {
 		defer st.Rollback()
 
 		tt := t.Txn()
@@ -56,7 +56,7 @@ func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte) {
 
 		for _, obj := range objs {
 			if obj.Deleted {
-				tt.Delete(t.state, hashit(obj.Address.Bytes()))
+				tt.Delete(t.stateDB, hashit(obj.Address.Bytes()))
 			} else {
 				account := state.Account{
 					Balance:  obj.Balance,
@@ -66,7 +66,7 @@ func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte) {
 				}
 
 				if len(obj.Storage) != 0 {
-					localSnapshot, err := t.state.NewSnapshotAt(obj.Root)
+					localSnapshot, err := t.stateDB.NewSnapshotAt(obj.Root)
 					if err != nil {
 						panic(err)
 					}
@@ -81,34 +81,34 @@ func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte) {
 					for _, entry := range obj.Storage {
 						k := hashit(entry.Key)
 						if entry.Deleted {
-							localTxn.Delete(t.state, k)
+							localTxn.Delete(t.stateDB, k)
 						} else {
 							vv := ar1.NewBytes(bytes.TrimLeft(entry.Val, "\x00"))
-							localTxn.Insert(t.state, k, vv.MarshalTo(nil))
+							localTxn.Insert(t.stateDB, k, vv.MarshalTo(nil))
 						}
 					}
 
-					accountStateRoot, _ := localTxn.Hash(t.state)
+					accountStateRoot, _ := localTxn.Hash(t.stateDB)
 					account.Root = types.BytesToHash(accountStateRoot)
 				}
 
 				if obj.DirtyCode {
 					// TODO, we need to handle error here
-					_ = t.state.SetCode(obj.CodeHash, obj.Code)
+					_ = t.stateDB.SetCode(obj.CodeHash, obj.Code)
 				}
 
 				vv := account.MarshalWith(arena)
 				data := vv.MarshalTo(nil)
 
-				tt.Insert(t.state, hashit(obj.Address.Bytes()), data)
+				tt.Insert(t.stateDB, hashit(obj.Address.Bytes()), data)
 				arena.Reset()
 			}
 		}
 
-		root, _ = tt.Hash(t.state)
+		root, _ = tt.Hash(t.stateDB)
 
 		nTrie = tt.Commit()
-		nTrie.state = t.state
+		nTrie.stateDB = t.stateDB
 
 		// Commit all the entries to db
 		// TODO, need to handle error
