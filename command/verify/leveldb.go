@@ -10,7 +10,6 @@ func newLevelDBBuilder(log hclog.Logger, path string) kvdb.LevelDBBuilder {
 		log,
 		path,
 	)
-	leveldbBuilder.SetNoSync(true)
 
 	return leveldbBuilder
 }

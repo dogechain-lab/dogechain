@@ -115,7 +115,10 @@ func createBlockchain(
 	chain, err := blockchain.NewBlockchain(
 		logger,
 		genesis,
-		kvstorage.NewLevelDBStorageBuilder(logger, newLevelDBBuilder(logger, dataDir)),
+		kvstorage.NewLevelDBStorageBuilder(
+			logger,
+			newLevelDBBuilder(logger, filepath.Join(dataDir, "blockchain")),
+		),
 		nil,
 		executor,
 		nil,

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/dogechain-lab/dogechain/command"
 	"github.com/dogechain-lab/dogechain/command/helper"
 	"github.com/hashicorp/go-hclog"
 	"github.com/spf13/cobra"
@@ -14,13 +15,15 @@ import (
 func GetCommand() *cobra.Command {
 	verifyCmd := &cobra.Command{
 		Use:     "verify",
-		Short:   "verify block data",
+		Short:   "Verify block data",
 		PreRunE: runPreRun,
 		Run:     runCommand,
 	}
 
-	setFlags(verifyCmd)
+	helper.RegisterPprofFlag(verifyCmd)
 	helper.SetRequiredFlags(verifyCmd, params.getRequiredFlags())
+
+	setFlags(verifyCmd)
 
 	return verifyCmd
 }
@@ -53,6 +56,8 @@ func runPreRun(cmd *cobra.Command, args []string) error {
 }
 
 func runCommand(cmd *cobra.Command, _ []string) {
+	command.InitializePprofServer(cmd)
+
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:  "verify",
 		Level: hclog.Info,
@@ -85,7 +90,7 @@ func runCommand(cmd *cobra.Command, _ []string) {
 		logger,
 		chain,
 		itrie.NewState(stateStorage, nil),
-		filepath.Join(params.DataDir, "blockchain"),
+		params.DataDir,
 	)
 	if err != nil {
 		logger.Error("failed to create blockchain", "err", err)
@@ -125,6 +130,8 @@ func runCommand(cmd *cobra.Command, _ []string) {
 
 			return
 		}
+
+		logger.Info("verify block success", "height", i, "hash", haeder.Hash, "txs", len(block.Transactions))
 	}
 
 	logger.Info(fmt.Sprintf("verify height from %d to %d \n", params.startHeight, currentHeight))
