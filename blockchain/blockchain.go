@@ -957,7 +957,10 @@ func (b *Blockchain) executeBlockTransactions(block *types.Block) (*BlockResult,
 		return nil, ErrClosed
 	}
 
-	_, root := txn.Commit()
+	_, root, err := txn.Commit()
+	if err != nil {
+		return nil, err
+	}
 
 	// Append the receipts to the receipts cache
 	b.receiptsCache.Add(header.Hash, txn.Receipts())

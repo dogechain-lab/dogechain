@@ -45,7 +45,7 @@ func (m *mockSnapshot) Get(k []byte) ([]byte, bool) {
 	return v, ok
 }
 
-func (m *mockSnapshot) Commit(objs []*Object) (Snapshot, []byte) {
+func (m *mockSnapshot) Commit(objs []*Object) (Snapshot, []byte, error) {
 	panic("Not implemented in tests")
 }
 

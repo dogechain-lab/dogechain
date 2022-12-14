@@ -2,6 +2,7 @@ package itrie
 
 import (
 	"bytes"
+	"errors"
 
 	"github.com/dogechain-lab/dogechain/state"
 	"github.com/dogechain-lab/dogechain/types"
@@ -38,13 +39,13 @@ var accountArenaPool fastrlp.ArenaPool
 
 var stateArenaPool fastrlp.ArenaPool // TODO, Remove once we do update in fastrlp
 
-func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte) {
+func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte, error) {
 	var root []byte = nil
 
 	var nTrie *Trie = nil
 
 	// Create an insertion batch for all the entries
-	t.stateDB.Transaction(func(st StateDBTransaction) {
+	err := t.stateDB.Transaction(func(st StateDBTransaction) error {
 		defer st.Rollback()
 
 		tt := t.Txn()
@@ -75,7 +76,7 @@ func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte) {
 
 					trie, ok := localSnapshot.(*Trie)
 					if !ok {
-						panic("invalid type assertion")
+						return errors.New("invalid type assertion")
 					}
 
 					localTxn := trie.Txn()
@@ -96,10 +97,10 @@ func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte) {
 
 				if obj.DirtyCode {
 					// write code to memory object, never failed
-					// if failed, memory can't alloc, it will panic
+					// if failed, can't alloc memory, it will panic
 					err := st.SetCode(obj.CodeHash, obj.Code)
 					if err != nil {
-						panic(err)
+						return err
 					}
 				}
 
@@ -111,7 +112,12 @@ func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte) {
 			}
 		}
 
-		root, _ = tt.Hash(st)
+		var err error
+
+		root, err = tt.Hash(st)
+		if err != nil {
+			return err
+		}
 
 		// dont use st here, we need to use the original stateDB
 		nTrie = &Trie{
@@ -122,14 +128,10 @@ func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte) {
 		nTrie.stateDB = t.stateDB
 
 		// Commit all the entries to db
-		// TODO, need to handle error
-		err := st.Commit()
-		if err != nil {
-			panic(err)
-		}
+		return st.Commit()
 	})
 
-	return nTrie, root
+	return nTrie, root, err
 }
 
 // Hash returns the root hash of the trie. It does not write to the

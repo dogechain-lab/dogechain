@@ -54,7 +54,7 @@ func NewExecutor(config *chain.Params, s State, logger hclog.Logger) *Executor {
 	}
 }
 
-func (e *Executor) WriteGenesis(alloc map[types.Address]*chain.GenesisAccount) types.Hash {
+func (e *Executor) WriteGenesis(alloc map[types.Address]*chain.GenesisAccount) (types.Hash, error) {
 	snap := e.state.NewSnapshot()
 	txn := NewTxn(e.state, snap)
 
@@ -77,9 +77,12 @@ func (e *Executor) WriteGenesis(alloc map[types.Address]*chain.GenesisAccount) t
 	}
 
 	objs := txn.Commit(false)
-	_, root := snap.Commit(objs)
+	_, root, err := snap.Commit(objs)
+	if err != nil {
+		return types.ZeroHash, nil
+	}
 
-	return types.BytesToHash(root)
+	return types.BytesToHash(root), nil
 }
 
 // SetRuntime adds a runtime to the runtime set
@@ -360,7 +363,11 @@ func (t *Transition) Write(txn *types.Transaction) error {
 		}
 	} else {
 		objs := t.txn.Commit(t.config.EIP155)
-		ss, aux := t.txn.snapshot.Commit(objs)
+		ss, aux, err := t.txn.snapshot.Commit(objs)
+		if err != nil {
+			return err
+		}
+
 		t.txn = NewTxn(t.auxState, ss)
 		root = aux
 		receipt.Root = types.BytesToHash(root)
@@ -437,11 +444,14 @@ func (t *Transition) handleBridgeLogs(msg *types.Transaction, logs []*types.Log)
 }
 
 // Commit commits the final result
-func (t *Transition) Commit() (Snapshot, types.Hash) {
+func (t *Transition) Commit() (Snapshot, types.Hash, error) {
 	objs := t.txn.Commit(t.config.EIP155)
-	s2, root := t.txn.snapshot.Commit(objs)
+	s2, root, err := t.txn.snapshot.Commit(objs)
+	if err != nil {
+		return nil, types.ZeroHash, err
+	}
 
-	return s2, types.BytesToHash(root)
+	return s2, types.BytesToHash(root), nil
 }
 
 func (t *Transition) subGasPool(amount uint64) error {

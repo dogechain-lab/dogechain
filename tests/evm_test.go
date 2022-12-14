@@ -17,6 +17,7 @@ import (
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/dogechain-lab/fastrlp"
 	"github.com/hashicorp/go-hclog"
+	"github.com/stretchr/testify/assert"
 )
 
 var mainnetChainConfig = chain.Params{
@@ -50,7 +51,8 @@ func testVMCase(t *testing.T, name string, c *VMCase) {
 	env.GasPrice = types.BytesToHash(c.Exec.GasPrice.Bytes())
 	env.Origin = c.Exec.Origin
 
-	s, _, root := buildState(c.Pre)
+	s, _, root, err := buildState(c.Pre)
+	assert.NoError(t, err)
 
 	config := mainnetChainConfig.Forks.At(uint64(env.Number))
 

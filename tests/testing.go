@@ -224,7 +224,7 @@ func (e *exec) UnmarshalJSON(input []byte) error {
 
 func buildState(
 	allocs map[types.Address]*chain.GenesisAccount,
-) (state.State, state.Snapshot, types.Hash) {
+) (state.State, state.Snapshot, types.Hash, error) {
 	s := itrie.NewStateDB(itrie.NewMemoryStorage(), hclog.NewNullLogger())
 	snap := s.NewSnapshot()
 
@@ -245,9 +245,12 @@ func buildState(
 	}
 
 	objs := txn.Commit(false)
-	snap, root := snap.Commit(objs)
+	snap, root, err := snap.Commit(objs)
+	if err != nil {
+		return nil, nil, types.ZeroHash, err
+	}
 
-	return s, snap, types.BytesToHash(root)
+	return s, snap, types.BytesToHash(root), nil
 }
 
 type indexes struct {

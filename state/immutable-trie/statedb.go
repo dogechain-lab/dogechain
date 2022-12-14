@@ -31,7 +31,7 @@ type StateDBReader interface {
 type StateDB interface {
 	StateDBReader
 
-	Transaction(execute func(st StateDBTransaction))
+	Transaction(execute func(st StateDBTransaction) error) error
 }
 
 type stateDBImpl struct {
@@ -137,7 +137,7 @@ var stateTxnPool = sync.Pool{
 	},
 }
 
-func (db *stateDBImpl) Transaction(execute func(StateDBTransaction)) {
+func (db *stateDBImpl) Transaction(execute func(StateDBTransaction) error) error {
 	db.txnMux.Lock()
 	defer db.txnMux.Unlock()
 
@@ -154,10 +154,14 @@ func (db *stateDBImpl) Transaction(execute func(StateDBTransaction)) {
 	defer stateDBTxnRef.Reset()
 
 	// execute transaction
-	execute(stateDBTxnRef)
+	err := execute(stateDBTxnRef)
 
 	// update cache
-	for _, pair := range stateDBTxnRef.db {
-		db.cached.Set(pair.key, pair.value)
+	if err == nil {
+		for _, pair := range stateDBTxnRef.db {
+			db.cached.Set(pair.key, pair.value)
+		}
 	}
+
+	return err
 }

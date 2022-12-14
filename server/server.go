@@ -229,7 +229,11 @@ func NewServer(config *Config) (*Server, error) {
 	m.executor.SetRuntime(evm.NewEVM())
 
 	// compute the genesis root state
-	genesisRoot := m.executor.WriteGenesis(config.Chain.Genesis.Alloc)
+	genesisRoot, err := m.executor.WriteGenesis(config.Chain.Genesis.Alloc)
+	if err != nil {
+		return nil, err
+	}
+
 	config.Chain.Genesis.StateRoot = genesisRoot
 
 	// create leveldb storageBuilder

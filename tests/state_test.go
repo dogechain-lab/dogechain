@@ -15,6 +15,7 @@ import (
 	"github.com/dogechain-lab/dogechain/state/runtime/precompiled"
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/hashicorp/go-hclog"
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -47,7 +48,9 @@ func RunSpecificTest(t *testing.T, file string, c stateCase, name, fork string, 
 		t.Fatal(err)
 	}
 
-	s, snapshot, pastRoot := buildState(c.Pre)
+	s, snapshot, pastRoot, err := buildState(c.Pre)
+	assert.NoError(t, err)
+
 	forks := config.At(uint64(env.Number))
 
 	xxx := state.NewExecutor(&chain.Params{Forks: config, ChainID: 1}, s, hclog.NewNullLogger())
@@ -75,7 +78,8 @@ func RunSpecificTest(t *testing.T, file string, c stateCase, name, fork string, 
 	txn.AddSealingReward(env.Coinbase, big.NewInt(0))
 
 	objs := txn.Commit(forks.EIP155)
-	_, root := snapshot.Commit(objs)
+	_, root, err := snapshot.Commit(objs)
+	assert.NoError(t, err)
 
 	if !bytes.Equal(root, p.Root.Bytes()) {
 		t.Fatalf(

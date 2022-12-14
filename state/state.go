@@ -20,7 +20,7 @@ type State interface {
 
 type Snapshot interface {
 	Get(k []byte) ([]byte, bool)
-	Commit(objs []*Object) (Snapshot, []byte)
+	Commit(objs []*Object) (Snapshot, []byte, error)
 }
 
 // account trie

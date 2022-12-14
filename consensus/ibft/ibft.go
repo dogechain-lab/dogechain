@@ -693,7 +693,11 @@ func (i *Ibft) buildBlock(snap *Snapshot, parent *types.Header) (*types.Block, e
 		return nil, err
 	}
 
-	_, root := transition.Commit()
+	_, root, err := transition.Commit()
+	if err != nil {
+		return nil, err
+	}
+
 	header.StateRoot = root
 	header.GasUsed = transition.TotalGas()
 
