@@ -1,6 +1,8 @@
 package itrie
 
 import (
+	"time"
+
 	"github.com/go-kit/kit/metrics"
 	"github.com/go-kit/kit/metrics/discard"
 
@@ -8,91 +10,162 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 )
 
+type MetricsTimeendRecord func()
+
+type Metrics interface {
+	CodeCacheHitInc()
+	CodeCacheMissInc()
+
+	AccountCacheHitInc()
+	AccountCacheMissInc()
+
+	CodeDiskReadSecondsObserve() MetricsTimeendRecord
+	AccountDiskReadSecondsObserve() MetricsTimeendRecord
+
+	StateCommitSecondsObserve() MetricsTimeendRecord
+}
+
 // Metrics represents the itrie metrics
-type Metrics struct {
-	CodeLruCacheHit   metrics.Counter
-	CodeLruCacheMiss  metrics.Counter
-	CodeLruCacheRead  metrics.Counter
-	CodeLruCacheWrite metrics.Counter
+type stateDBMetrics struct {
+	trackingIOTimer bool
 
-	AccountStateLruCacheHit metrics.Counter
-	TrieStateLruCacheHit    metrics.Counter
+	codeCacheHit  metrics.Counter
+	codeCacheMiss metrics.Counter
 
-	StateLruCacheMiss metrics.Counter
+	accountCacheHit  metrics.Counter
+	accountCacheMiss metrics.Counter
+
+	codeDiskReadSeconds    metrics.Histogram
+	accountDiskReadSeconds metrics.Histogram
+
+	stateCommitSeconds metrics.Histogram
+}
+
+func (m *stateDBMetrics) CodeCacheHitInc() {
+	m.codeCacheHit.Add(1)
+}
+
+func (m *stateDBMetrics) CodeCacheMissInc() {
+	m.codeCacheMiss.Add(1)
+}
+
+func (m *stateDBMetrics) AccountCacheHitInc() {
+	m.accountCacheHit.Add(1)
+}
+
+func (m *stateDBMetrics) AccountCacheMissInc() {
+	m.accountCacheMiss.Add(1)
+}
+
+func (m *stateDBMetrics) CodeDiskReadSecondsObserve() MetricsTimeendRecord {
+	if !m.trackingIOTimer {
+		return func() {}
+	}
+
+	begin := time.Now()
+	return func() {
+		m.codeDiskReadSeconds.Observe(time.Since(begin).Seconds())
+	}
+}
+
+func (m *stateDBMetrics) AccountDiskReadSecondsObserve() MetricsTimeendRecord {
+	if !m.trackingIOTimer {
+		return func() {}
+	}
+
+	begin := time.Now()
+	return func() {
+		m.accountDiskReadSeconds.Observe(time.Since(begin).Seconds())
+	}
+}
+
+func (m *stateDBMetrics) StateCommitSecondsObserve() MetricsTimeendRecord {
+	if !m.trackingIOTimer {
+		return func() {}
+	}
+
+	begin := time.Now()
+	return func() {
+		m.stateCommitSeconds.Observe(time.Since(begin).Seconds())
+	}
 }
 
 // GetPrometheusMetrics return the blockchain metrics instance
-func GetPrometheusMetrics(namespace string, labelsWithValues ...string) *Metrics {
+func GetPrometheusMetrics(namespace string, trackingIOTimer bool, labelsWithValues ...string) Metrics {
 	labels := []string{}
 
 	for i := 0; i < len(labelsWithValues); i += 2 {
 		labels = append(labels, labelsWithValues[i])
 	}
 
-	return &Metrics{
-		CodeLruCacheHit: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+	return &stateDBMetrics{
+		trackingIOTimer: trackingIOTimer,
+
+		codeCacheHit: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: "itrie",
-			Name:      "state_code_lrucache_hit",
+			Name:      "state_code_cache_hit",
 			Help:      "state code cache hit count",
 		}, labels).With(labelsWithValues...),
-		CodeLruCacheMiss: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+		codeCacheMiss: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: "itrie",
-			Name:      "state_code_lrucache_miss",
+			Name:      "state_code_cache_miss",
 			Help:      "state code cache miss count",
 		}, labels).With(labelsWithValues...),
-		CodeLruCacheRead: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+		accountCacheHit: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: "itrie",
-			Name:      "state_code_lrucache_read",
-			Help:      "state code cache read count",
+			Name:      "state_account_cache_hit",
+			Help:      "state account cache hit count",
 		}, labels).With(labelsWithValues...),
-		CodeLruCacheWrite: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+		accountCacheMiss: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: "itrie",
-			Name:      "state_code_lrucache_write",
-			Help:      "state code cache write count",
+			Name:      "state_account_cache_miss",
+			Help:      "state account cache miss count",
 		}, labels).With(labelsWithValues...),
-		AccountStateLruCacheHit: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+		codeDiskReadSeconds: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: namespace,
 			Subsystem: "itrie",
-			Name:      "account_state_snapshot_lrucache_hit",
-			Help:      "account state snapshot cache hit count",
+			Name:      "state_code_disk_read_seconds",
+			Help:      "state code disk read seconds",
 		}, labels).With(labelsWithValues...),
-		TrieStateLruCacheHit: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+		accountDiskReadSeconds: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: namespace,
 			Subsystem: "itrie",
-			Name:      "trie_state_snapshot_lrucache_hit",
-			Help:      "trie state snapshot cache hit count",
+			Name:      "state_account_disk_read_seconds",
+			Help:      "state account disk read seconds",
 		}, labels).With(labelsWithValues...),
-		StateLruCacheMiss: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+		stateCommitSeconds: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: namespace,
 			Subsystem: "itrie",
-			Name:      "state_snapshot_lrucache_miss",
-			Help:      "trie state snapshot cache miss count",
+			Name:      "state_commit_seconds",
+			Help:      "state commit seconds",
 		}, labels).With(labelsWithValues...),
 	}
 }
 
 // NilMetrics will return the non operational blockchain metrics
-func NilMetrics() *Metrics {
-	return &Metrics{
-		CodeLruCacheHit:   discard.NewCounter(),
-		CodeLruCacheMiss:  discard.NewCounter(),
-		CodeLruCacheRead:  discard.NewCounter(),
-		CodeLruCacheWrite: discard.NewCounter(),
+func NilMetrics() Metrics {
+	return &stateDBMetrics{
+		trackingIOTimer: false,
 
-		AccountStateLruCacheHit: discard.NewCounter(),
-		TrieStateLruCacheHit:    discard.NewCounter(),
+		codeCacheHit:     discard.NewCounter(),
+		codeCacheMiss:    discard.NewCounter(),
+		accountCacheHit:  discard.NewCounter(),
+		accountCacheMiss: discard.NewCounter(),
 
-		StateLruCacheMiss: discard.NewCounter(),
+		codeDiskReadSeconds:    discard.NewHistogram(),
+		accountDiskReadSeconds: discard.NewHistogram(),
+
+		stateCommitSeconds: discard.NewHistogram(),
 	}
 }
 
 // NewDummyMetrics will return the no nil blockchain metrics
 // TODO: use generic replace this in golang 1.18
-func NewDummyMetrics(metrics *Metrics) *Metrics {
+func newDummyMetrics(metrics Metrics) Metrics {
 	if metrics != nil {
 		return metrics
 	}

@@ -297,6 +297,13 @@ func setFlags(cmd *cobra.Command) {
 			"the address and port for the prometheus instrumentation service (address:port). "+
 				"If only port is defined (:port) it will bind to 0.0.0.0:port",
 		)
+
+		cmd.Flags().BoolVar(
+			&params.rawConfig.Telemetry.EnableIOTimer,
+			enableIOTimerFlag,
+			false,
+			"enable IO timer metrics",
+		)
 	}
 
 	// txpool flags

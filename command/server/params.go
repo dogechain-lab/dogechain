@@ -26,6 +26,7 @@ const (
 	leveldbNoSyncFlag            = "leveldb.nosync"
 	libp2pAddressFlag            = "libp2p"
 	prometheusAddressFlag        = "prometheus"
+	enableIOTimerFlag            = "prometheus-io-timer"
 	natFlag                      = "nat"
 	dnsFlag                      = "dns"
 	sealFlag                     = "seal"
@@ -83,13 +84,16 @@ type serverParams struct {
 	leveldbTotalTableSize int
 	leveldbNoSync         bool
 
-	libp2pAddress     *net.TCPAddr
-	prometheusAddress *net.TCPAddr
-	natAddress        *net.TCPAddr
-	dnsAddress        multiaddr.Multiaddr
-	grpcAddress       *net.TCPAddr
-	jsonRPCAddress    *net.TCPAddr
-	graphqlAddress    *net.TCPAddr
+	libp2pAddress *net.TCPAddr
+
+	prometheusAddress   *net.TCPAddr
+	prometheusIOMetrics bool
+
+	natAddress     *net.TCPAddr
+	dnsAddress     multiaddr.Multiaddr
+	grpcAddress    *net.TCPAddr
+	jsonRPCAddress *net.TCPAddr
+	graphqlAddress *net.TCPAddr
 
 	blockGasTarget uint64
 	devInterval    uint64
@@ -199,7 +203,8 @@ func (p *serverParams) generateConfig() *server.Config {
 		GRPCAddr:   p.grpcAddress,
 		LibP2PAddr: p.libp2pAddress,
 		Telemetry: &server.Telemetry{
-			PrometheusAddr: p.prometheusAddress,
+			PrometheusAddr:  p.prometheusAddress,
+			EnableIOMetrics: p.prometheusIOMetrics,
 		},
 		Network: &network.Config{
 			NoDiscover:       p.rawConfig.Network.NoDiscover,

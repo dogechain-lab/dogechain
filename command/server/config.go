@@ -42,6 +42,7 @@ type Config struct {
 // Telemetry holds the config details for metric services.
 type Telemetry struct {
 	PrometheusAddr string `json:"prometheus_addr"`
+	EnableIOTimer  bool   `json:"prometheus_enable_disk_io_timer"`
 }
 
 // Network defines the network configuration params
@@ -85,7 +86,9 @@ func DefaultConfig() *Config {
 			MaxOutboundPeers: defaultNetworkConfig.MaxOutboundPeers,
 			MaxInboundPeers:  defaultNetworkConfig.MaxInboundPeers,
 		},
-		Telemetry:  &Telemetry{},
+		Telemetry: &Telemetry{
+			EnableIOTimer: false,
+		},
 		ShouldSeal: false,
 		TxPool: &TxPool{
 			PriceLimit:            0,

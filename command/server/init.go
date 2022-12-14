@@ -244,6 +244,8 @@ func (p *serverParams) initPrometheusAddress() error {
 		return parseErr
 	}
 
+	p.prometheusIOMetrics = p.rawConfig.Telemetry.EnableIOTimer
+
 	return nil
 }
 

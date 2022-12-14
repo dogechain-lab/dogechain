@@ -17,11 +17,11 @@ type serverMetrics struct {
 	network    *network.Metrics
 	txpool     *txpool.Metrics
 	jsonrpc    *jsonrpc.Metrics
-	trie       *itrie.Metrics
+	trie       itrie.Metrics
 }
 
 // metricProvider serverMetric instance for the given ChainID and nameSpace
-func metricProvider(nameSpace string, chainID string, metricsRequired bool) *serverMetrics {
+func metricProvider(nameSpace string, chainID string, metricsRequired bool, trackingIOTimer bool) *serverMetrics {
 	if metricsRequired {
 		return &serverMetrics{
 			blockchain: blockchain.GetPrometheusMetrics(nameSpace, "chain_id", chainID),
@@ -29,7 +29,7 @@ func metricProvider(nameSpace string, chainID string, metricsRequired bool) *ser
 			network:    network.GetPrometheusMetrics(nameSpace, "chain_id", chainID),
 			txpool:     txpool.GetPrometheusMetrics(nameSpace, "chain_id", chainID),
 			jsonrpc:    jsonrpc.GetPrometheusMetrics(nameSpace, "chain_id", chainID),
-			trie:       itrie.GetPrometheusMetrics(nameSpace, "chain_id", chainID),
+			trie:       itrie.GetPrometheusMetrics(nameSpace, trackingIOTimer, "chain_id", chainID),
 		}
 	}
 

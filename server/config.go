@@ -63,7 +63,8 @@ type LeveldbOptions struct {
 
 // Telemetry holds the config details for metric services
 type Telemetry struct {
-	PrometheusAddr *net.TCPAddr
+	PrometheusAddr  *net.TCPAddr
+	EnableIOMetrics bool
 }
 
 // JSONRPC holds the config details for the JSON-RPC server

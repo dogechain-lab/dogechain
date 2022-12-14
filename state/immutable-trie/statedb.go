@@ -35,37 +35,50 @@ type StateDB interface {
 }
 
 type stateDBImpl struct {
-	logger hclog.Logger
+	logger  hclog.Logger
+	metrics Metrics
 
 	storage Storage
-
-	cached *fastcache.Cache
+	cached  *fastcache.Cache
 
 	txnMux sync.Mutex
 }
 
-func NewStateDB(storage Storage, logger hclog.Logger) StateDB {
+func NewStateDB(storage Storage, logger hclog.Logger, metrics Metrics) StateDB {
 	return &stateDBImpl{
 		logger:  logger.Named("state"),
 		storage: storage,
 		cached:  fastcache.New(32 * 1024 * 1024),
+		metrics: newDummyMetrics(metrics),
 	}
 }
 
 func (db *stateDBImpl) Get(k []byte) ([]byte, bool, error) {
 	if db.cached != nil {
 		if enc := db.cached.Get(nil, k); enc != nil {
+			db.metrics.AccountCacheHitInc()
+
 			return enc, true, nil
 		}
 	}
+
+	db.metrics.AccountCacheMissInc()
+
+	// start observe disk read time
+	observe := db.metrics.AccountDiskReadSecondsObserve()
 
 	v, ok, err := db.storage.Get(k)
 	if err != nil {
 		db.logger.Error("get", "err", err)
 	}
 
+	// end observe disk read time, if err != nil, observe will be a no-op
+	if err == nil {
+		observe()
+	}
+
 	// write-back cache
-	if err == nil && ok && db.cached != nil {
+	if err == nil && ok {
 		db.cached.Set(k, v)
 	}
 
@@ -76,17 +89,29 @@ func (db *stateDBImpl) GetCode(hash types.Hash) ([]byte, bool) {
 	perfix := append(codePrefix, hash.Bytes()...)
 	if db.cached != nil {
 		if enc := db.cached.Get(nil, perfix); enc != nil {
+			db.metrics.CodeCacheHitInc()
+
 			return enc, true
 		}
 	}
+
+	db.metrics.CodeCacheMissInc()
+
+	// start observe disk read time
+	observe := db.metrics.CodeDiskReadSecondsObserve()
 
 	v, ok, err := db.storage.Get(perfix)
 	if err != nil {
 		db.logger.Error("get code", "err", err)
 	}
 
+	// end observe disk read time, if err != nil, observe will be a no-op
+	if err == nil {
+		observe()
+	}
+
 	// write-back cache
-	if err == nil && ok && db.cached != nil {
+	if err == nil && ok {
 		db.cached.Set(perfix, v)
 	}
 
@@ -157,11 +182,16 @@ func (db *stateDBImpl) Transaction(execute func(StateDBTransaction) error) error
 	// clean up
 	defer stateDBTxnRef.Reset()
 
+	observer := db.metrics.StateCommitSecondsObserve()
+
 	// execute transaction
 	err := execute(stateDBTxnRef)
 
 	// update cache
 	if err == nil {
+		// end observe disk write time, if err != nil, observe will be a no-op
+		observer()
+
 		for _, pair := range stateDBTxnRef.db {
 			db.cached.Set(pair.key, pair.value)
 		}
