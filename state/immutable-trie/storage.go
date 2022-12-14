@@ -30,22 +30,22 @@ type Storage interface {
 	StorageReader
 	StorageWriter
 
-	Batch() Batch
+	NewBatch() Batch
 	Close() error
 }
 
 type kvStorageBatch struct {
-	bc kvdb.KVBatch
+	batch kvdb.KVBatch
 }
 
-func (batch *kvStorageBatch) Set(k, v []byte) error {
-	batch.bc.Set(k, v)
+func (kvBatch *kvStorageBatch) Set(k, v []byte) error {
+	kvBatch.batch.Set(k, v)
 
 	return nil
 }
 
-func (batch *kvStorageBatch) Commit() error {
-	batch.bc.Write()
+func (kvBatch *kvStorageBatch) Commit() error {
+	kvBatch.batch.Write()
 
 	return nil
 }
@@ -63,9 +63,9 @@ func (kv *kvStorage) Set(k, v []byte) error {
 	return kv.db.Set(k, v)
 }
 
-func (kv *kvStorage) Batch() Batch {
+func (kv *kvStorage) NewBatch() Batch {
 	return &kvStorageBatch{
-		bc: kv.db.Batch(),
+		batch: kv.db.Batch(),
 	}
 }
 
@@ -112,7 +112,7 @@ func (m *memStorage) Get(p []byte) ([]byte, bool, error) {
 	return v, true, nil
 }
 
-func (m *memStorage) Batch() Batch {
+func (m *memStorage) NewBatch() Batch {
 	return &memBatch{db: &m.db}
 }
 

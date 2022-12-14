@@ -142,7 +142,11 @@ func (db *stateDBImpl) Transaction(execute func(StateDBTransaction) error) error
 	defer db.txnMux.Unlock()
 
 	// get exclusive transaction reference from pool
-	stateDBTxnRef := stateTxnPool.Get().(*stateDBTxn)
+	stateDBTxnRef, ok := stateTxnPool.Get().(*stateDBTxn)
+	if !ok {
+		return errors.New("invalid type assertion")
+	}
+
 	// return exclusive transaction reference to pool
 	defer stateTxnPool.Put(stateDBTxnRef)
 

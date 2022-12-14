@@ -77,6 +77,7 @@ func (e *Executor) WriteGenesis(alloc map[types.Address]*chain.GenesisAccount) (
 	}
 
 	objs := txn.Commit(false)
+
 	_, root, err := snap.Commit(objs)
 	if err != nil {
 		return types.ZeroHash, nil
@@ -446,6 +447,7 @@ func (t *Transition) handleBridgeLogs(msg *types.Transaction, logs []*types.Log)
 // Commit commits the final result
 func (t *Transition) Commit() (Snapshot, types.Hash, error) {
 	objs := t.txn.Commit(t.config.EIP155)
+
 	s2, root, err := t.txn.snapshot.Commit(objs)
 	if err != nil {
 		return nil, types.ZeroHash, err

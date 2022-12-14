@@ -245,6 +245,7 @@ func buildState(
 	}
 
 	objs := txn.Commit(false)
+
 	snap, root, err := snap.Commit(objs)
 	if err != nil {
 		return nil, nil, types.ZeroHash, err

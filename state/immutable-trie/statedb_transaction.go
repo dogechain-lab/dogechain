@@ -2,6 +2,7 @@ package itrie
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -55,7 +56,11 @@ func (tx *stateDBTxn) Set(k []byte, v []byte) error {
 	tx.lock.Lock()
 	defer tx.lock.Unlock()
 
-	pair := txnPairPool.Get().(*txnPair)
+	pair, ok := txnPairPool.Get().(*txnPair)
+	if !ok {
+		return errors.New("invalid type assertion")
+	}
+
 	pair.key = append(pair.key[:], k...)
 	pair.value = append(pair.value[:], v...)
 
@@ -85,7 +90,11 @@ func (tx *stateDBTxn) SetCode(hash types.Hash, v []byte) error {
 
 	perfix := append(codePrefix, hash.Bytes()...)
 
-	pair := txnPairPool.Get().(*txnPair)
+	pair, ok := txnPairPool.Get().(*txnPair)
+	if !ok {
+		return errors.New("invalid type assertion")
+	}
+
 	pair.key = append(pair.key[:], perfix...)
 	pair.value = append(pair.value[:], v...)
 
@@ -155,7 +164,7 @@ func (tx *stateDBTxn) Commit() error {
 		return ErrStateTransactionIsCancel
 	}
 
-	batch := tx.storage.Batch()
+	batch := tx.storage.NewBatch()
 
 	for _, pair := range tx.db {
 		err := batch.Set(pair.key, pair.value)
