@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/fastcache"
-	"github.com/dogechain-lab/dogechain/helper/hex"
 	"github.com/dogechain-lab/dogechain/state"
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/hashicorp/go-hclog"
@@ -20,108 +19,19 @@ var (
 	ErrStateTransactionIsCancel = errors.New("transaction is cancel")
 )
 
-type StateDBTransaction interface {
-	Commit() error
-	Rollback()
-}
-
-type StateDB interface {
+type StateDBReader interface {
 	StorageReader
-	StorageWriter
 
-	SetCode(hash types.Hash, code []byte) error
 	GetCode(hash types.Hash) ([]byte, bool)
 
 	NewSnapshot() state.Snapshot
 	NewSnapshotAt(types.Hash) (state.Snapshot, error)
-
-	ExclusiveTransaction(execute func(st StateDBTransaction))
 }
 
-type txnKey string
-type txnPair struct {
-	key   []byte
-	value []byte
-}
+type StateDB interface {
+	StateDBReader
 
-type stateExTxn struct {
-	db    map[txnKey]*txnPair
-	dbMux sync.Mutex
-
-	storage Storage
-
-	cancel *atomic.Bool
-}
-
-func (s *stateExTxn) Commit() error {
-	if s.cancel.Load() {
-		return ErrStateTransactionIsCancel
-	}
-
-	s.dbMux.Lock()
-	defer s.dbMux.Unlock()
-
-	// double check
-	if s.cancel.Load() {
-		return ErrStateTransactionIsCancel
-	}
-
-	batch := s.storage.Batch()
-
-	for _, pair := range s.db {
-		err := batch.Set(pair.key, pair.value)
-
-		if err != nil {
-			return err
-		}
-	}
-
-	return batch.Commit()
-}
-
-// other storage backend handle rollback in this function
-func (s *stateExTxn) Rollback() {
-	s.dbMux.Lock()
-	defer s.dbMux.Unlock()
-
-	if s.cancel.Load() {
-		return
-	}
-
-	s.cancel.Store(true)
-}
-
-func (s *stateExTxn) Set(k []byte, v []byte) error {
-	s.dbMux.Lock()
-	defer s.dbMux.Unlock()
-
-	bufKey := make([]byte, len(k))
-	copy(bufKey[:], k[:])
-
-	bufValue := make([]byte, len(v))
-	copy(bufValue[:], v[:])
-
-	s.db[txnKey(hex.EncodeToHex(k))] = &txnPair{
-		key:   bufKey,
-		value: bufValue,
-	}
-
-	return nil
-}
-
-func (s *stateExTxn) Get(k []byte) ([]byte, bool, error) {
-	s.dbMux.Lock()
-	defer s.dbMux.Unlock()
-
-	v, ok := s.db[txnKey(hex.EncodeToHex(k))]
-	if !ok {
-		return []byte{}, false, nil
-	}
-
-	bufValue := make([]byte, len(v.value))
-	copy(bufValue[:], v.value[:])
-
-	return bufValue, true, nil
+	Transaction(execute func(st StateDBTransaction))
 }
 
 type stateDBImpl struct {
@@ -131,48 +41,18 @@ type stateDBImpl struct {
 
 	cached *fastcache.Cache
 
-	txnMux        sync.Mutex
-	isTransaction *atomic.Bool
-
-	stateExTxnRef *stateExTxn
+	txnMux sync.Mutex
 }
 
 func NewStateDB(storage Storage, logger hclog.Logger) StateDB {
 	return &stateDBImpl{
-		logger:        logger.Named("state"),
-		storage:       storage,
-		cached:        fastcache.New(32 * 1024 * 1024),
-		isTransaction: atomic.NewBool(false),
-		stateExTxnRef: nil,
+		logger:  logger.Named("state"),
+		storage: storage,
+		cached:  fastcache.New(32 * 1024 * 1024),
 	}
-}
-
-func (db *stateDBImpl) Set(k, v []byte) error {
-	if db.isTransaction.Load() && db.stateExTxnRef != nil {
-		return db.stateExTxnRef.Set(k, v)
-	}
-
-	err := db.storage.Set(k, v)
-	if err != nil {
-		return err
-	}
-
-	// update cache
-	if db.cached != nil {
-		db.cached.Set(k, v)
-	}
-
-	return nil
 }
 
 func (db *stateDBImpl) Get(k []byte) ([]byte, bool, error) {
-	if db.isTransaction.Load() && db.stateExTxnRef != nil {
-		v, ok, _ := db.stateExTxnRef.Get(k)
-		if ok {
-			return v, true, nil
-		}
-	}
-
 	if db.cached != nil {
 		if enc := db.cached.Get(nil, k); enc != nil {
 			return enc, true, nil
@@ -192,34 +72,7 @@ func (db *stateDBImpl) Get(k []byte) ([]byte, bool, error) {
 	return v, ok, err
 }
 
-func (db *stateDBImpl) SetCode(hash types.Hash, code []byte) error {
-	if db.isTransaction.Load() && db.stateExTxnRef != nil {
-		return db.stateExTxnRef.Set(append(codePrefix, hash.Bytes()...), code)
-	}
-
-	perfix := append(codePrefix, hash.Bytes()...)
-
-	err := db.storage.Set(perfix, code)
-	if err != nil {
-		return nil
-	}
-
-	// update cache
-	if db.cached != nil {
-		db.cached.Set(perfix, code)
-	}
-
-	return nil
-}
-
 func (db *stateDBImpl) GetCode(hash types.Hash) ([]byte, bool) {
-	if db.isTransaction.Load() && db.stateExTxnRef != nil {
-		v, ok, _ := db.stateExTxnRef.Get(append(codePrefix, hash.Bytes()...))
-		if ok {
-			return v, true
-		}
-	}
-
 	perfix := append(codePrefix, hash.Bytes()...)
 	if db.cached != nil {
 		if enc := db.cached.Get(nil, perfix); enc != nil {
@@ -275,26 +128,36 @@ func (db *stateDBImpl) NewSnapshotAt(root types.Hash) (state.Snapshot, error) {
 	return t, nil
 }
 
-func (db *stateDBImpl) ExclusiveTransaction(execute func(StateDBTransaction)) {
+var stateTxnPool = sync.Pool{
+	New: func() interface{} {
+		return &stateDBTxn{
+			db:     make(map[txnKey]*txnPair),
+			cancel: atomic.NewBool(false),
+		}
+	},
+}
+
+func (db *stateDBImpl) Transaction(execute func(StateDBTransaction)) {
 	db.txnMux.Lock()
 	defer db.txnMux.Unlock()
 
-	stateExTxnRef := &stateExTxn{
-		db:      make(map[txnKey]*txnPair),
-		storage: db.storage,
-		cancel:  atomic.NewBool(false),
-	}
-	db.stateExTxnRef = stateExTxnRef
+	// get exclusive transaction reference from pool
+	stateDBTxnRef := stateTxnPool.Get().(*stateDBTxn)
+	// return exclusive transaction reference to pool
+	defer stateTxnPool.Put(stateDBTxnRef)
 
-	db.isTransaction.Store(true)
-	defer db.isTransaction.Store(false)
+	stateDBTxnRef.stateDB = db
+	stateDBTxnRef.storage = db.storage
+	stateDBTxnRef.cancel.Store(false)
 
-	execute(db.stateExTxnRef)
+	// clean up
+	defer stateDBTxnRef.Reset()
 
-	db.stateExTxnRef = nil
+	// execute transaction
+	execute(stateDBTxnRef)
 
 	// update cache
-	for _, pair := range stateExTxnRef.db {
+	for _, pair := range stateDBTxnRef.db {
 		db.cached.Set(pair.key, pair.value)
 	}
 }

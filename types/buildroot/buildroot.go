@@ -100,7 +100,7 @@ func deriveSlow(num int, h func(indx int) []byte) []byte {
 	ar := numArenaPool.Get()
 	for i := 0; i < num; i++ {
 		indx := ar.NewUint(uint64(i))
-		txn.Insert(nil, indx.MarshalTo(nil), h(i))
+		txn.Insert(indx.MarshalTo(nil), h(i))
 		ar.Reset()
 	}
 

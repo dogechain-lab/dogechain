@@ -12,7 +12,8 @@ import (
 type Trie struct {
 	stateDB StateDB
 	root    Node
-	epoch   uint32
+
+	epoch uint32
 }
 
 func NewTrie() *Trie {
@@ -21,7 +22,7 @@ func NewTrie() *Trie {
 
 func (t *Trie) Get(k []byte) ([]byte, bool) {
 	txn := t.Txn()
-	res := txn.Lookup(t.stateDB, k)
+	res := txn.Lookup(k)
 
 	return res, res != nil
 }
@@ -43,10 +44,11 @@ func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte) {
 	var nTrie *Trie = nil
 
 	// Create an insertion batch for all the entries
-	t.stateDB.ExclusiveTransaction(func(st StateDBTransaction) {
+	t.stateDB.Transaction(func(st StateDBTransaction) {
 		defer st.Rollback()
 
 		tt := t.Txn()
+		tt.reader = st
 
 		arena := accountArenaPool.Get()
 		defer accountArenaPool.Put(arena)
@@ -56,7 +58,7 @@ func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte) {
 
 		for _, obj := range objs {
 			if obj.Deleted {
-				tt.Delete(t.stateDB, hashit(obj.Address.Bytes()))
+				tt.Delete(hashit(obj.Address.Bytes()))
 			} else {
 				account := state.Account{
 					Balance:  obj.Balance,
@@ -81,33 +83,42 @@ func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte) {
 					for _, entry := range obj.Storage {
 						k := hashit(entry.Key)
 						if entry.Deleted {
-							localTxn.Delete(t.stateDB, k)
+							localTxn.Delete(k)
 						} else {
 							vv := ar1.NewBytes(bytes.TrimLeft(entry.Val, "\x00"))
-							localTxn.Insert(t.stateDB, k, vv.MarshalTo(nil))
+							localTxn.Insert(k, vv.MarshalTo(nil))
 						}
 					}
 
-					accountStateRoot, _ := localTxn.Hash(t.stateDB)
+					accountStateRoot, _ := localTxn.Hash(st)
 					account.Root = types.BytesToHash(accountStateRoot)
 				}
 
 				if obj.DirtyCode {
-					// TODO, we need to handle error here
-					_ = t.stateDB.SetCode(obj.CodeHash, obj.Code)
+					// write code to memory object, never failed
+					// if failed, memory can't alloc, it will panic
+					err := st.SetCode(obj.CodeHash, obj.Code)
+					if err != nil {
+						panic(err)
+					}
 				}
 
 				vv := account.MarshalWith(arena)
 				data := vv.MarshalTo(nil)
 
-				tt.Insert(t.stateDB, hashit(obj.Address.Bytes()), data)
+				tt.Insert(hashit(obj.Address.Bytes()), data)
 				arena.Reset()
 			}
 		}
 
-		root, _ = tt.Hash(t.stateDB)
+		root, _ = tt.Hash(st)
 
-		nTrie = tt.Commit()
+		// dont use st here, we need to use the original stateDB
+		nTrie = &Trie{
+			stateDB: t.stateDB,
+			root:    tt.root,
+			epoch:   tt.epoch,
+		}
 		nTrie.stateDB = t.stateDB
 
 		// Commit all the entries to db
@@ -141,7 +152,7 @@ func (t *Trie) hashRoot() ([]byte, Node, error) {
 }
 
 func (t *Trie) Txn() *Txn {
-	return &Txn{root: t.root, epoch: t.epoch + 1}
+	return &Txn{root: t.root, epoch: t.epoch + 1, reader: t.stateDB}
 }
 
 func prefixLen(k1, k2 []byte) int {
