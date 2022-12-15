@@ -179,6 +179,9 @@ func (db *stateDBImpl) Transaction(execute func(StateDBTransaction) error) error
 	// return exclusive transaction reference to pool
 	defer stateTxnPool.Put(stateDBTxnRef)
 
+	// regardless of whether the user invokes Rollback(), clear transaction again
+	stateDBTxnRef.clear()
+	// set stateDB, storage and cancel flag
 	stateDBTxnRef.stateDB = db
 	stateDBTxnRef.storage = db.storage
 	stateDBTxnRef.cancel.Store(false)

@@ -196,6 +196,10 @@ func (tx *stateDBTxn) Rollback() {
 
 	tx.cancel.Store(true)
 
+	tx.clear()
+}
+
+func (tx *stateDBTxn) clear() {
 	tx.stateDB = nil
 	tx.storage = nil
 
