@@ -185,7 +185,7 @@ func (tx *stateDBTxn) Commit() error {
 	return batch.Commit()
 }
 
-// other storage backend handle rollback in this function
+// clear transaction data, set cancel flag
 func (tx *stateDBTxn) Rollback() {
 	tx.lock.Lock()
 	defer tx.lock.Unlock()
@@ -195,15 +195,9 @@ func (tx *stateDBTxn) Rollback() {
 	}
 
 	tx.cancel.Store(true)
-}
-
-func (tx *stateDBTxn) Reset() {
-	tx.lock.Lock()
-	defer tx.lock.Unlock()
 
 	tx.stateDB = nil
 	tx.storage = nil
-	tx.cancel.Store(true)
 
 	for tk := range tx.db {
 		pair := tx.db[tk]

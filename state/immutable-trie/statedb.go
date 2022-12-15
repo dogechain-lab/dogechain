@@ -183,9 +183,6 @@ func (db *stateDBImpl) Transaction(execute func(StateDBTransaction) error) error
 	stateDBTxnRef.storage = db.storage
 	stateDBTxnRef.cancel.Store(false)
 
-	// clean up
-	defer stateDBTxnRef.Reset()
-
 	observer := db.metrics.stateCommitSecondsObserve()
 
 	// execute transaction
