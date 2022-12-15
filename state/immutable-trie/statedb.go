@@ -40,18 +40,20 @@ type stateDBImpl struct {
 	logger  hclog.Logger
 	metrics Metrics
 
-	storage Storage
-	cached  *fastcache.Cache
+	storage   Storage
+	cached    *fastcache.Cache
+	codeCache *fastcache.Cache
 
 	txnMux sync.Mutex
 }
 
 func NewStateDB(storage Storage, logger hclog.Logger, metrics Metrics) StateDB {
 	return &stateDBImpl{
-		logger:  logger.Named("state"),
-		storage: storage,
-		cached:  fastcache.New(32 * 1024 * 1024),
-		metrics: newDummyMetrics(metrics),
+		logger:    logger.Named("state"),
+		storage:   storage,
+		cached:    fastcache.New(32 * 1024 * 1024),
+		codeCache: fastcache.New(16 * 1024 * 1024),
+		metrics:   newDummyMetrics(metrics),
 	}
 }
 
@@ -91,7 +93,7 @@ func (db *stateDBImpl) Get(k []byte) ([]byte, bool, error) {
 
 func (db *stateDBImpl) GetCode(hash types.Hash) ([]byte, bool) {
 	perfix := append(codePrefix, hash.Bytes()...)
-	if enc := db.cached.Get(nil, perfix); enc != nil {
+	if enc := db.codeCache.Get(nil, perfix); enc != nil {
 		db.metrics.codeCacheHitInc()
 
 		return enc, true
@@ -195,7 +197,11 @@ func (db *stateDBImpl) Transaction(execute func(StateDBTransaction) error) error
 		observer()
 
 		for _, pair := range stateDBTxnRef.db {
-			db.cached.Set(pair.key, pair.value)
+			if pair.isCode {
+				db.codeCache.Set(pair.key, pair.value)
+			} else {
+				db.cached.Set(pair.key, pair.value)
+			}
 		}
 	}
 
