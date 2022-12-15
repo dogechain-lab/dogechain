@@ -155,6 +155,7 @@ func insertNode(storage StorageReader, epoch uint32, node Node, search, value []
 			return v, nil
 		} else {
 			child, err := insertNode(storage, epoch, nil, nil, value)
+
 			return &ShortNode{
 				key:   search,
 				child: child,
@@ -306,6 +307,7 @@ func deleteNode(storage StorageReader, node Node, search []byte) (Node, bool, er
 		n.hash = n.hash[:0]
 
 		key := search[0]
+
 		newChild, ok, err := deleteNode(storage, n.getEdge(key), search[1:])
 		if err != nil {
 			return nil, false, err
