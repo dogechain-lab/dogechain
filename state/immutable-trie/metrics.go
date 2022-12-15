@@ -271,9 +271,16 @@ func NilMetrics() Metrics {
 		accountCacheHit:  discard.NewCounter(),
 		accountCacheMiss: discard.NewCounter(),
 
+		txnInsertCount:   discard.NewHistogram(),
+		txnDeleteCount:   discard.NewHistogram(),
+		txnNewAccount:    discard.NewHistogram(),
+		txnWriteNodeSize: discard.NewHistogram(),
+
 		codeDiskReadSeconds:    discard.NewHistogram(),
 		accountDiskReadSeconds: discard.NewHistogram(),
 
+		accountHashSeconds: discard.NewHistogram(),
+		rootHashSeconds:    discard.NewHistogram(),
 		stateCommitSeconds: discard.NewHistogram(),
 	}
 }

@@ -169,6 +169,7 @@ func (tx *stateDBTxn) Commit() error {
 	}
 
 	batch := tx.storage.NewBatch()
+	metrics := tx.stateDB.GetMetrics()
 
 	for _, pair := range tx.db {
 		err := batch.Set(pair.key, pair.value)
@@ -178,7 +179,7 @@ func (tx *stateDBTxn) Commit() error {
 		}
 
 		if !pair.isCode {
-			tx.stateDB.GetMetrics().transactionWriteNodeSize(len(pair.value))
+			metrics.transactionWriteNodeSize(len(pair.value))
 		}
 	}
 
