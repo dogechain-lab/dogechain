@@ -27,17 +27,26 @@ const (
 // max worker number (min 2 and max 64)
 var _workerNum = int(common.Min(common.Max(uint64(runtime.NumCPU()), 2), 64))
 
-type Topic struct {
+type Topic interface {
+	// Publish publishes a message to the topic
+	Publish(obj proto.Message) error
+	// Subscribe subscribes to the topic
+	Subscribe(handler func(obj interface{}, from peer.ID)) error
+	// Close closes the topic
+	Close() error
+}
+
+type topicImp struct {
 	logger hclog.Logger
 
-	topic *pubsub.Topic
-	typ   reflect.Type
+	subTopic *pubsub.Topic
+	typ      reflect.Type
 
 	wg            sync.WaitGroup
 	unsubscribeCh chan struct{}
 }
 
-func (t *Topic) createObj() proto.Message {
+func (t *topicImp) createObj() proto.Message {
 	message, ok := reflect.New(t.typ).Interface().(proto.Message)
 	if !ok {
 		return nil
@@ -46,17 +55,17 @@ func (t *Topic) createObj() proto.Message {
 	return message
 }
 
-func (t *Topic) Publish(obj proto.Message) error {
+func (t *topicImp) Publish(obj proto.Message) error {
 	data, err := proto.Marshal(obj)
 	if err != nil {
 		return err
 	}
 
-	return t.topic.Publish(context.Background(), data)
+	return t.subTopic.Publish(context.Background(), data)
 }
 
-func (t *Topic) Subscribe(handler func(obj interface{}, from peer.ID)) error {
-	sub, err := t.topic.Subscribe(pubsub.WithBufferSize(subscribeOutputBufferSize))
+func (t *topicImp) Subscribe(handler func(obj interface{}, from peer.ID)) error {
+	sub, err := t.subTopic.Subscribe(pubsub.WithBufferSize(subscribeOutputBufferSize))
 	if err != nil {
 		return err
 	}
@@ -66,14 +75,14 @@ func (t *Topic) Subscribe(handler func(obj interface{}, from peer.ID)) error {
 	return nil
 }
 
-func (t *Topic) Close() error {
+func (t *topicImp) Close() error {
 	close(t.unsubscribeCh)
 	t.wg.Wait()
 
-	return t.topic.Close()
+	return t.subTopic.Close()
 }
 
-func (t *Topic) readLoop(sub *pubsub.Subscription, handler func(obj interface{}, from peer.ID)) {
+func (t *topicImp) readLoop(sub *pubsub.Subscription, handler func(obj interface{}, from peer.ID)) {
 	type task struct {
 		Message proto.Message
 		From    peer.ID
@@ -151,17 +160,17 @@ func (t *Topic) readLoop(sub *pubsub.Subscription, handler func(obj interface{},
 	}
 }
 
-func (s *Server) NewTopic(protoID string, obj proto.Message) (*Topic, error) {
+func (s *DefaultServer) NewTopic(protoID string, obj proto.Message) (Topic, error) {
 	topic, err := s.ps.Join(protoID)
 	if err != nil {
 		return nil, err
 	}
 
-	tt := &Topic{
+	tt := &topicImp{
 		logger: s.logger.Named(protoID),
 
-		topic: topic,
-		typ:   reflect.TypeOf(obj).Elem(),
+		subTopic: topic,
+		typ:      reflect.TypeOf(obj).Elem(),
 
 		unsubscribeCh: make(chan struct{}),
 	}

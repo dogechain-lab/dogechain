@@ -9,6 +9,7 @@ import (
 	"github.com/dogechain-lab/dogechain/blockchain/storage/kvstorage"
 	"github.com/dogechain-lab/dogechain/chain"
 	"github.com/dogechain-lab/dogechain/consensus"
+	"github.com/dogechain-lab/dogechain/network"
 	"github.com/dogechain-lab/dogechain/secrets"
 	"github.com/dogechain-lab/dogechain/server"
 	"github.com/dogechain-lab/dogechain/state"
@@ -80,7 +81,7 @@ func createConsensus(
 			Seal:           false,
 			Config:         config,
 			Txpool:         nil,
-			Network:        nil,
+			Network:        &network.FakeServer{},
 			Blockchain:     blockchain,
 			Executor:       executor,
 			Grpc:           nil,

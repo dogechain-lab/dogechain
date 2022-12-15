@@ -160,7 +160,7 @@ type TxPool struct {
 	index lookupMap
 
 	// networking stack
-	topic *network.Topic
+	topic network.Topic
 
 	// gauge for measuring pool capacity
 	gauge slotGauge
@@ -212,7 +212,7 @@ func NewTxPool(
 	forks chain.ForksInTime,
 	store store,
 	grpcServer *grpc.Server,
-	network *network.Server,
+	network network.Server,
 	metrics *Metrics,
 	config *Config,
 ) (*TxPool, error) {

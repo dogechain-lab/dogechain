@@ -91,7 +91,7 @@ type noForkSyncer struct {
 	status     *Status
 	statusLock sync.Mutex
 	// network server
-	server *network.Server
+	server network.Server
 	// broadcasting block flag for backward compatible nodes
 	blockBroadcast bool
 }
@@ -99,7 +99,7 @@ type noForkSyncer struct {
 // NewSyncer creates a new Syncer instance
 func NewSyncer(
 	logger hclog.Logger,
-	server *network.Server,
+	server network.Server,
 	blockchain Blockchain,
 	enableBlockBroadcast bool,
 ) Syncer {

@@ -30,7 +30,7 @@ type syncPeerClient struct {
 	blockchain Blockchain   // reference to the blockchain module
 
 	subscription           blockchain.Subscription // reference to the blockchain subscription
-	topic                  *network.Topic          // reference to the network topic
+	topic                  network.Topic           // reference to the network topic
 	id                     string                  // node id
 	peerStatusUpdateCh     chan *NoForkPeer        // peer status update channel
 	peerConnectionUpdateCh chan *event.PeerEvent   // peer connection update channel

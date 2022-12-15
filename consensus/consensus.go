@@ -67,7 +67,7 @@ type ConsensusParams struct {
 	Seal           bool
 	Config         *Config
 	Txpool         *txpool.TxPool
-	Network        *network.Server
+	Network        network.Server
 	Blockchain     *blockchain.Blockchain
 	Executor       *state.Executor
 	Grpc           *grpc.Server

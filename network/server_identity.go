@@ -16,7 +16,7 @@ import (
 )
 
 // NewIdentityClient returns a new identity service client connection
-func (s *Server) NewIdentityClient(peerID peer.ID) (proto.IdentityClient, error) {
+func (s *DefaultServer) NewIdentityClient(peerID peer.ID) (proto.IdentityClient, error) {
 	// Create a new stream connection and return it
 	protoStream, err := s.NewProtoConnection(common.IdentityProto, peerID)
 	if err != nil {
@@ -29,7 +29,7 @@ func (s *Server) NewIdentityClient(peerID peer.ID) (proto.IdentityClient, error)
 
 // AddPeer adds a new peer to the networking server's peer list,
 // and updates relevant counters and metrics
-func (s *Server) AddPeer(id peer.ID, direction network.Direction) {
+func (s *DefaultServer) AddPeer(id peer.ID, direction network.Direction) {
 	s.logger.Info("Peer connected", "id", id.String())
 
 	// Update the peer connection info
@@ -49,7 +49,7 @@ func (s *Server) AddPeer(id peer.ID, direction network.Direction) {
 // addPeerInfo updates the networking server's internal peer info table
 // and returns a flag indicating if the same peer connection previously existed.
 // In case the peer connection previously existed, this is a noop
-func (s *Server) addPeerInfo(id peer.ID, direction network.Direction) bool {
+func (s *DefaultServer) addPeerInfo(id peer.ID, direction network.Direction) bool {
 	s.peersLock.Lock()
 	defer s.peersLock.Unlock()
 
@@ -89,26 +89,26 @@ func (s *Server) addPeerInfo(id peer.ID, direction network.Direction) bool {
 }
 
 // UpdatePendingConnCount updates the pending connection count in the specified direction [Thread safe]
-func (s *Server) UpdatePendingConnCount(delta int64, direction network.Direction) {
+func (s *DefaultServer) UpdatePendingConnCount(delta int64, direction network.Direction) {
 	s.connectionCounts.UpdatePendingConnCountByDirection(delta, direction)
 
 	s.updatePendingConnCountMetrics(direction)
 }
 
 // EmitEvent emits a specified event to the networking server's event bus
-func (s *Server) EmitEvent(event *peerEvent.PeerEvent) {
+func (s *DefaultServer) EmitEvent(event *peerEvent.PeerEvent) {
 	s.emitEvent(event.PeerID, event.Type)
 }
 
 // IsTemporaryDial checks if a peer connection is temporary [Thread safe]
-func (s *Server) IsTemporaryDial(peerID peer.ID) bool {
+func (s *DefaultServer) IsTemporaryDial(peerID peer.ID) bool {
 	_, ok := s.temporaryDials.Load(peerID)
 
 	return ok
 }
 
 // setupIdentity sets up the identity service for the node
-func (s *Server) setupIdentity() error {
+func (s *DefaultServer) setupIdentity() error {
 	// Create an instance of the identity service
 	identityService := identity.NewIdentityService(
 		s,
@@ -127,7 +127,7 @@ func (s *Server) setupIdentity() error {
 }
 
 // registerIdentityService registers the identity service
-func (s *Server) registerIdentityService(identityService *identity.IdentityService) {
+func (s *DefaultServer) registerIdentityService(identityService *identity.IdentityService) {
 	grpcStream := grpc.NewGrpcStream()
 	proto.RegisterIdentityServer(grpcStream.GrpcServer(), identityService)
 	grpcStream.Serve()
@@ -135,7 +135,7 @@ func (s *Server) registerIdentityService(identityService *identity.IdentityServi
 	s.RegisterProtocol(common.IdentityProto, grpcStream)
 }
 
-func (s *Server) GetPeerDistance(peerID peer.ID) *big.Int {
+func (s *DefaultServer) GetPeerDistance(peerID peer.ID) *big.Int {
 	nodeKey := keyspace.Key{Space: keyspace.XORKeySpace, Bytes: kbucket.ConvertPeerID(s.AddrInfo().ID)}
 	peerKey := keyspace.Key{Space: keyspace.XORKeySpace, Bytes: kbucket.ConvertPeerID(peerID)}
 

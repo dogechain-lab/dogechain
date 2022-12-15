@@ -20,7 +20,7 @@ import (
 
 // GetRandomBootnode fetches a random bootnode that's currently
 // NOT connected, if any
-func (s *Server) GetRandomBootnode() *peer.AddrInfo {
+func (s *DefaultServer) GetRandomBootnode() *peer.AddrInfo {
 	nonConnectedNodes := make([]*peer.AddrInfo, 0)
 
 	for _, v := range s.bootnodes.getBootnodes() {
@@ -39,13 +39,13 @@ func (s *Server) GetRandomBootnode() *peer.AddrInfo {
 }
 
 // GetBootnodeConnCount fetches the number of active bootnode connections [Thread safe]
-func (s *Server) GetBootnodeConnCount() int64 {
+func (s *DefaultServer) GetBootnodeConnCount() int64 {
 	return s.bootnodes.getBootnodeConnCount()
 }
 
 // GetProtoStream returns an active protocol stream if present, otherwise
 // it returns nil
-func (s *Server) GetProtoStream(protocol string, peerID peer.ID) *rawGrpc.ClientConn {
+func (s *DefaultServer) GetProtoStream(protocol string, peerID peer.ID) *rawGrpc.ClientConn {
 	s.peersLock.Lock()
 	defer s.peersLock.Unlock()
 
@@ -58,7 +58,7 @@ func (s *Server) GetProtoStream(protocol string, peerID peer.ID) *rawGrpc.Client
 }
 
 // NewDiscoveryClient returns a new or existing discovery service client connection
-func (s *Server) NewDiscoveryClient(peerID peer.ID) (proto.DiscoveryClient, error) {
+func (s *DefaultServer) NewDiscoveryClient(peerID peer.ID) (proto.DiscoveryClient, error) {
 	// Temporary dials are never added to the peer store,
 	// so they have a special status when doing discovery
 	isTemporaryDial := s.IsTemporaryDial(peerID)
@@ -93,7 +93,7 @@ func (s *Server) NewDiscoveryClient(peerID peer.ID) (proto.DiscoveryClient, erro
 
 // SaveProtocolStream saves the protocol stream to the peer
 // protocol stream reference [Thread safe]
-func (s *Server) SaveProtocolStream(
+func (s *DefaultServer) SaveProtocolStream(
 	protocol string,
 	stream *rawGrpc.ClientConn,
 	peerID peer.ID,
@@ -118,7 +118,7 @@ func (s *Server) SaveProtocolStream(
 }
 
 // CloseProtocolStream closes a protocol stream to the specified peer
-func (s *Server) CloseProtocolStream(protocol string, peerID peer.ID) error {
+func (s *DefaultServer) CloseProtocolStream(protocol string, peerID peer.ID) error {
 	s.peersLock.Lock()
 	defer s.peersLock.Unlock()
 
@@ -131,24 +131,24 @@ func (s *Server) CloseProtocolStream(protocol string, peerID peer.ID) error {
 }
 
 // AddToPeerStore adds peer information to the node's peer store
-func (s *Server) AddToPeerStore(peerInfo *peer.AddrInfo) {
+func (s *DefaultServer) AddToPeerStore(peerInfo *peer.AddrInfo) {
 	s.host.Peerstore().AddAddr(peerInfo.ID, peerInfo.Addrs[0], peerstore.AddressTTL)
 }
 
 // RemoveFromPeerStore removes peer information from the node's peer store
-func (s *Server) RemoveFromPeerStore(peerInfo *peer.AddrInfo) {
+func (s *DefaultServer) RemoveFromPeerStore(peerInfo *peer.AddrInfo) {
 	s.host.Peerstore().RemovePeer(peerInfo.ID)
 }
 
 // GetPeerInfo fetches the information of a peer
-func (s *Server) GetPeerInfo(peerID peer.ID) *peer.AddrInfo {
+func (s *DefaultServer) GetPeerInfo(peerID peer.ID) *peer.AddrInfo {
 	info := s.host.Peerstore().PeerInfo(peerID)
 
 	return &info
 }
 
 // GetRandomPeer fetches a random peer from the peers list
-func (s *Server) GetRandomPeer() *peer.ID {
+func (s *DefaultServer) GetRandomPeer() *peer.ID {
 	s.peersLock.Lock()
 	defer s.peersLock.Unlock()
 
@@ -177,19 +177,19 @@ func (s *Server) GetRandomPeer() *peer.ID {
 
 // FetchOrSetTemporaryDial loads the temporary status of a peer connection, and
 // sets a new value [Thread safe]
-func (s *Server) FetchOrSetTemporaryDial(peerID peer.ID, newValue bool) bool {
+func (s *DefaultServer) FetchOrSetTemporaryDial(peerID peer.ID, newValue bool) bool {
 	_, loaded := s.temporaryDials.LoadOrStore(peerID, newValue)
 
 	return loaded
 }
 
 // RemoveTemporaryDial removes a peer connection as temporary [Thread safe]
-func (s *Server) RemoveTemporaryDial(peerID peer.ID) {
+func (s *DefaultServer) RemoveTemporaryDial(peerID peer.ID) {
 	s.temporaryDials.Delete(peerID)
 }
 
 // setupDiscovery Sets up the discovery service for the node
-func (s *Server) setupDiscovery() error {
+func (s *DefaultServer) setupDiscovery() error {
 	// Set up a fresh routing table
 	keyID := kb.ConvertPeerID(s.host.ID())
 
@@ -247,13 +247,13 @@ func (s *Server) setupDiscovery() error {
 	return nil
 }
 
-func (s *Server) TemporaryDialPeer(peerAddrInfo *peer.AddrInfo) {
+func (s *DefaultServer) TemporaryDialPeer(peerAddrInfo *peer.AddrInfo) {
 	s.logger.Debug("creating new temporary dial to peer", "peer", peerAddrInfo.ID)
 	s.addToDialQueue(peerAddrInfo, common.PriorityRandomDial)
 }
 
 // registerDiscoveryService registers the discovery protocol to be available
-func (s *Server) registerDiscoveryService(discovery *discovery.DiscoveryService) {
+func (s *DefaultServer) registerDiscoveryService(discovery *discovery.DiscoveryService) {
 	grpcStream := grpc.NewGrpcStream()
 	proto.RegisterDiscoveryServer(grpcStream.GrpcServer(), discovery)
 	grpcStream.Serve()

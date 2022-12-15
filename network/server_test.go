@@ -397,7 +397,7 @@ func TestPeerReconnection(t *testing.T) {
 			c.MaxOutboundPeers = 3
 			c.NoDiscover = false
 		},
-		ServerCallback: func(server *Server) {
+		ServerCallback: func(server *DefaultServer) {
 			server.config.Chain.Bootnodes = []string{
 				common.AddrInfoToString(bootnodes[0].AddrInfo()),
 				common.AddrInfoToString(bootnodes[1].AddrInfo()),
@@ -419,7 +419,7 @@ func TestPeerReconnection(t *testing.T) {
 		}
 	})
 
-	disconnectFromPeer := func(server *Server, peerID peer.ID) {
+	disconnectFromPeer := func(server *DefaultServer, peerID peer.ID) {
 		server.DisconnectFromPeer(peerID, "Bye")
 
 		disconnectCtx, disconnectFn := context.WithTimeout(context.Background(), DefaultJoinTimeout)
@@ -430,7 +430,7 @@ func TestPeerReconnection(t *testing.T) {
 		}
 	}
 
-	closePeerServer := func(server *Server, peer *Server) {
+	closePeerServer := func(server *DefaultServer, peer *DefaultServer) {
 		peerID := peer.AddrInfo().ID
 
 		if closeErr := peer.Close(); closeErr != nil {
@@ -592,7 +592,7 @@ func TestSelfConnection_WithBootNodes(t *testing.T) {
 					c.NoDiscover = false
 					c.DataDir = directoryName
 				},
-				ServerCallback: func(server *Server) {
+				ServerCallback: func(server *DefaultServer) {
 					server.config.Chain.Bootnodes = tt.bootNodes
 				},
 			})
@@ -607,10 +607,10 @@ func TestSelfConnection_WithBootNodes(t *testing.T) {
 
 func TestRunDial(t *testing.T) {
 	// setupServers returns server and list of peer's server
-	setupServers := func(t *testing.T, maxPeers []int64) []*Server {
+	setupServers := func(t *testing.T, maxPeers []int64) []*DefaultServer {
 		t.Helper()
 
-		servers := make([]*Server, len(maxPeers))
+		servers := make([]*DefaultServer, len(maxPeers))
 		for idx := range servers {
 			server, createErr := CreateServer(
 				&CreateServerParams{
@@ -630,7 +630,7 @@ func TestRunDial(t *testing.T) {
 		return servers
 	}
 
-	closeServers := func(servers ...*Server) {
+	closeServers := func(servers ...*DefaultServer) {
 		for _, s := range servers {
 			assert.NoError(t, s.Close())
 		}
@@ -715,7 +715,7 @@ func TestMinimumBootNodeCount(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, createErr := CreateServer(&CreateServerParams{
-				ServerCallback: func(server *Server) {
+				ServerCallback: func(server *DefaultServer) {
 					server.config.Chain.Bootnodes = tt.bootNodes
 				},
 			})
@@ -841,7 +841,7 @@ func TestMultiAddrFromDns(t *testing.T) {
 // TestPeerAdditionDeletion tests that the server's peer connection
 // information handling is valid
 func TestPeerAdditionDeletion(t *testing.T) {
-	createServer := func() *Server {
+	createServer := func() *DefaultServer {
 		server, createErr := CreateServer(nil)
 		if createErr != nil {
 			t.Fatalf("Unable to create networking server, %v", createErr)
@@ -850,7 +850,7 @@ func TestPeerAdditionDeletion(t *testing.T) {
 		return server
 	}
 
-	generateAndAddPeers := func(server *Server, peersNum int) []*randomPeer {
+	generateAndAddPeers := func(server *DefaultServer, peersNum int) []*randomPeer {
 		randomPeers, err := generateRandomPeers(t, peersNum)
 		if err != nil {
 			t.Fatalf("Unable to generate random peers, %v", err)
@@ -885,7 +885,7 @@ func TestPeerAdditionDeletion(t *testing.T) {
 	}
 
 	validateConnectionCounts := func(
-		server *Server,
+		server *DefaultServer,
 		expectedOutbound int64,
 		expectedInbound int64,
 	) {

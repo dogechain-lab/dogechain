@@ -102,8 +102,8 @@ type Ibft struct {
 
 	syncer protocol.Syncer // Reference to the sync protocol
 
-	network   *network.Server // Reference to the networking layer
-	transport transport       // Reference to the transport protocol
+	network   network.Server // Reference to the networking layer
+	transport transport      // Reference to the transport protocol
 
 	operator *operator
 
@@ -210,14 +210,12 @@ func Factory(
 	// Istanbul requires a different header hash function
 	types.HeaderHash = istanbulHeaderHash
 
-	if params.Network != nil {
-		p.syncer = protocol.NewSyncer(
-			params.Logger,
-			params.Network,
-			params.Blockchain,
-			params.BlockBroadcast,
-		)
-	}
+	p.syncer = protocol.NewSyncer(
+		params.Logger,
+		params.Network,
+		params.Blockchain,
+		params.BlockBroadcast,
+	)
 
 	return p, nil
 }
@@ -262,16 +260,13 @@ func (i *Ibft) Initialize() error {
 
 // Start starts the IBFT consensus
 func (i *Ibft) Start() error {
-	// Start the syncer if it's present
-	if i.syncer != nil {
-		// Start the syncer
-		if err := i.syncer.Start(); err != nil {
-			return err
-		}
-
-		// Start syncing blocks from other peers
-		go i.startSyncing()
+	// Start the syncer
+	if err := i.syncer.Start(); err != nil {
+		return err
 	}
+
+	// Start syncing blocks from other peers
+	go i.startSyncing()
 
 	// Start the actual IBFT protocol
 	go i.startConsensus()
@@ -323,7 +318,7 @@ type transport interface {
 var ibftProto = "/ibft/0.1"
 
 type gossipTransport struct {
-	topic *network.Topic
+	topic network.Topic
 }
 
 // Gossip publishes a new message to the topic
@@ -398,11 +393,6 @@ func (i *Ibft) setupMechanism() error {
 
 // setupTransport sets up the gossip transport protocol
 func (i *Ibft) setupTransport() error {
-	// disable transport if we're not networked
-	if i.network == nil {
-		return nil
-	}
-
 	// Define a new topic
 	topic, err := i.network.NewTopic(ibftProto, &proto.MessageReq{})
 	if err != nil {
@@ -1495,11 +1485,7 @@ func (i *Ibft) Close() error {
 		}
 	}
 
-	if i.transport != nil {
-		i.transport.Close()
-	}
-
-	i.transport = nil
+	i.transport.Close()
 
 	return nil
 }

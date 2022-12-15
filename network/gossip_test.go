@@ -20,11 +20,11 @@ const (
 	testGossipTopicName = "msg-pub-sub"
 )
 
-func NumSubscribers(srv *Server, topic string) int {
+func NumSubscribers(srv *DefaultServer, topic string) int {
 	return len(srv.ps.ListPeers(topic))
 }
 
-func WaitForSubscribers(ctx context.Context, srv *Server, topic string, expectedNumPeers int) error {
+func WaitForSubscribers(ctx context.Context, srv *DefaultServer, topic string, expectedNumPeers int) error {
 	for {
 		if n := NumSubscribers(srv, topic); n >= expectedNumPeers {
 			return nil
@@ -64,7 +64,7 @@ func TestSimpleGossip(t *testing.T) {
 		t.Fatalf("Unable to join servers [%d], %v", len(joinErrors), joinErrors)
 	}
 
-	serverTopics := make([]*Topic, numServers)
+	serverTopics := make([]Topic, numServers)
 
 	for i := 0; i < numServers; i++ {
 		topic, topicErr := servers[i].NewTopic(topicName, &testproto.GenericMessage{})
@@ -147,7 +147,7 @@ func TestTopicBackpressure(t *testing.T) {
 		t.Fatalf("Unable to join servers [%d], %v", len(joinErrors), joinErrors)
 	}
 
-	serverTopics := make([]*Topic, numServers)
+	serverTopics := make([]Topic, numServers)
 
 	for i := 0; i < numServers; i++ {
 		topic, topicErr := servers[i].NewTopic(topicName, &testproto.GenericMessage{})
@@ -210,7 +210,7 @@ func TestTopicClose(t *testing.T) {
 		t.Fatalf("Unable to join servers [%d], %v", len(joinErrors), joinErrors)
 	}
 
-	serverTopics := make([]*Topic, numServers)
+	serverTopics := make([]Topic, numServers)
 
 	for i := 0; i < numServers; i++ {
 		var count = subscribeCount[i]

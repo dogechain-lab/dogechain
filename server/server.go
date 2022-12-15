@@ -65,7 +65,7 @@ type Server struct {
 	grpcServer *grpc.Server
 
 	// libp2p network
-	network *network.Server
+	network network.Server
 
 	// transaction pool
 	txpool *txpool.TxPool
@@ -507,7 +507,7 @@ type jsonRPCHub struct {
 	*blockchain.Blockchain
 	*txpool.TxPool
 	*state.Executor
-	*network.Server
+	network.Server
 	consensus.Consensus
 }
 
