@@ -44,6 +44,13 @@ func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte, error) {
 
 	var nTrie *Trie = nil
 
+	metrics := t.stateDB.GetMetrics()
+
+	// metrics logger
+	insertCount := 0
+	deleteCount := 0
+	newSetCodeCount := 0
+
 	// Create an insertion batch for all the entries
 	err := t.stateDB.Transaction(func(st StateDBTransaction) error {
 		defer st.Rollback()
@@ -60,6 +67,7 @@ func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte, error) {
 		for _, obj := range objs {
 			if obj.Deleted {
 				tt.Delete(hashit(obj.Address.Bytes()))
+				deleteCount++
 			} else {
 				account := state.Account{
 					Balance:  obj.Balance,
@@ -85,13 +93,22 @@ func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte, error) {
 						k := hashit(entry.Key)
 						if entry.Deleted {
 							localTxn.Delete(k)
+							deleteCount++
 						} else {
 							vv := ar1.NewBytes(bytes.TrimLeft(entry.Val, "\x00"))
 							localTxn.Insert(k, vv.MarshalTo(nil))
+							insertCount++
 						}
 					}
 
+					// observe account hash time
+					observe := metrics.transactionAccountHashSecondsObserve()
+
 					accountStateRoot, _ := localTxn.Hash(st)
+
+					// end observe account hash time
+					observe()
+
 					account.Root = types.BytesToHash(accountStateRoot)
 				}
 
@@ -102,22 +119,32 @@ func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte, error) {
 					if err != nil {
 						return err
 					}
+
+					newSetCodeCount++
 				}
 
 				vv := account.MarshalWith(arena)
 				data := vv.MarshalTo(nil)
 
 				tt.Insert(hashit(obj.Address.Bytes()), data)
+				insertCount++
+
 				arena.Reset()
 			}
 		}
 
 		var err error
 
+		// observe root hash time
+		observe := metrics.transactionAccountHashSecondsObserve()
+
 		root, err = tt.Hash(st)
 		if err != nil {
 			return err
 		}
+
+		// end observe root hash time
+		observe()
 
 		// dont use st here, we need to use the original stateDB
 		nTrie = &Trie{
@@ -130,6 +157,12 @@ func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte, error) {
 		// Commit all the entries to db
 		return st.Commit()
 	})
+
+	if err == nil {
+		metrics.transactionInsertCount(insertCount)
+		metrics.transactionDeleteCount(deleteCount)
+		metrics.transactionNewAccountCount(newSetCodeCount)
+	}
 
 	return nTrie, root, err
 }

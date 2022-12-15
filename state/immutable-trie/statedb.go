@@ -29,6 +29,8 @@ type StateDBReader interface {
 }
 
 type StateDB interface {
+	GetMetrics() Metrics
+
 	StateDBReader
 
 	Transaction(execute func(st StateDBTransaction) error) error
@@ -53,19 +55,21 @@ func NewStateDB(storage Storage, logger hclog.Logger, metrics Metrics) StateDB {
 	}
 }
 
-func (db *stateDBImpl) Get(k []byte) ([]byte, bool, error) {
-	if db.cached != nil {
-		if enc := db.cached.Get(nil, k); enc != nil {
-			db.metrics.AccountCacheHitInc()
+func (db *stateDBImpl) GetMetrics() Metrics {
+	return db.metrics
+}
 
-			return enc, true, nil
-		}
+func (db *stateDBImpl) Get(k []byte) ([]byte, bool, error) {
+	if enc := db.cached.Get(nil, k); enc != nil {
+		db.metrics.accountCacheHitInc()
+
+		return enc, true, nil
 	}
 
-	db.metrics.AccountCacheMissInc()
+	db.metrics.accountCacheMissInc()
 
 	// start observe disk read time
-	observe := db.metrics.AccountDiskReadSecondsObserve()
+	observe := db.metrics.accountDiskReadSecondsObserve()
 
 	v, ok, err := db.storage.Get(k)
 	if err != nil {
@@ -87,18 +91,16 @@ func (db *stateDBImpl) Get(k []byte) ([]byte, bool, error) {
 
 func (db *stateDBImpl) GetCode(hash types.Hash) ([]byte, bool) {
 	perfix := append(codePrefix, hash.Bytes()...)
-	if db.cached != nil {
-		if enc := db.cached.Get(nil, perfix); enc != nil {
-			db.metrics.CodeCacheHitInc()
+	if enc := db.cached.Get(nil, perfix); enc != nil {
+		db.metrics.codeCacheHitInc()
 
-			return enc, true
-		}
+		return enc, true
 	}
 
-	db.metrics.CodeCacheMissInc()
+	db.metrics.codeCacheMissInc()
 
 	// start observe disk read time
-	observe := db.metrics.CodeDiskReadSecondsObserve()
+	observe := db.metrics.codeDiskReadSecondsObserve()
 
 	v, ok, err := db.storage.Get(perfix)
 	if err != nil {
@@ -182,7 +184,7 @@ func (db *stateDBImpl) Transaction(execute func(StateDBTransaction) error) error
 	// clean up
 	defer stateDBTxnRef.Reset()
 
-	observer := db.metrics.StateCommitSecondsObserve()
+	observer := db.metrics.stateCommitSecondsObserve()
 
 	// execute transaction
 	err := execute(stateDBTxnRef)

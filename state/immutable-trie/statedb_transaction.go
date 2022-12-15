@@ -24,15 +24,17 @@ type StateDBTransaction interface {
 
 type txnKey string
 type txnPair struct {
-	key   []byte
-	value []byte
+	key    []byte
+	value  []byte
+	isCode bool
 }
 
 var txnPairPool = sync.Pool{
 	New: func() interface{} {
 		return &txnPair{
-			key:   make([]byte, 0),
-			value: make([]byte, 0),
+			key:    make([]byte, 0),
+			value:  make([]byte, 0),
+			isCode: false,
 		}
 	},
 }
@@ -40,6 +42,7 @@ var txnPairPool = sync.Pool{
 func (pair *txnPair) Reset() {
 	pair.key = pair.key[:0]
 	pair.value = pair.value[:0]
+	pair.isCode = false
 }
 
 type stateDBTxn struct {
@@ -97,6 +100,7 @@ func (tx *stateDBTxn) SetCode(hash types.Hash, v []byte) error {
 
 	pair.key = append(pair.key[:], perfix...)
 	pair.value = append(pair.value[:], v...)
+	pair.isCode = true
 
 	tx.db[txnKey(hex.EncodeToString(perfix))] = pair
 
@@ -171,6 +175,10 @@ func (tx *stateDBTxn) Commit() error {
 
 		if err != nil {
 			return err
+		}
+
+		if !pair.isCode {
+			tx.stateDB.GetMetrics().transactionWriteNodeSize(len(pair.value))
 		}
 	}
 
