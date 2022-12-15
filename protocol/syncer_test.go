@@ -10,6 +10,7 @@ import (
 
 	"github.com/dogechain-lab/dogechain/blockchain"
 	"github.com/dogechain-lab/dogechain/helper/progress"
+	"github.com/dogechain-lab/dogechain/network"
 	"github.com/dogechain-lab/dogechain/network/event"
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/hashicorp/go-hclog"
@@ -125,7 +126,7 @@ func sortPeerStatuses(peerStatuses []*NoForkPeer) []*NoForkPeer {
 }
 
 func NewTestSyncer(
-	network Network,
+	network network.Network,
 	blockchain Blockchain,
 	mockSyncPeerClient *mockSyncPeerClient,
 	mockProgression Progression,

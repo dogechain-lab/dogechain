@@ -24,10 +24,10 @@ const (
 )
 
 type syncPeerClient struct {
-	logger     hclog.Logger // logger used for console logging
-	network    Network      // reference to the network module
-	connLock   sync.Mutex   // mutext for getting client connection
-	blockchain Blockchain   // reference to the blockchain module
+	logger     hclog.Logger    // logger used for console logging
+	network    network.Network // reference to the network module
+	connLock   sync.Mutex      // mutext for getting client connection
+	blockchain Blockchain      // reference to the blockchain module
 
 	subscription           blockchain.Subscription // reference to the blockchain subscription
 	topic                  network.Topic           // reference to the network topic
@@ -40,7 +40,7 @@ type syncPeerClient struct {
 
 func NewSyncPeerClient(
 	logger hclog.Logger,
-	network Network,
+	network network.Network,
 	blockchain Blockchain,
 ) SyncPeerClient {
 	return &syncPeerClient{

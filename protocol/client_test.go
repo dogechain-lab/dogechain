@@ -35,7 +35,7 @@ func newTestNetwork(t *testing.T) *network.DefaultServer {
 	return srv
 }
 
-func newTestSyncPeerClient(network Network, blockchain Blockchain) *syncPeerClient {
+func newTestSyncPeerClient(network network.Network, blockchain Blockchain) *syncPeerClient {
 	client := &syncPeerClient{
 		logger:                 hclog.NewNullLogger(),
 		network:                network,

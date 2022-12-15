@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/dogechain-lab/dogechain/network"
 	"github.com/dogechain-lab/dogechain/network/grpc"
 	"github.com/dogechain-lab/dogechain/protocol/proto"
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/golang/protobuf/ptypes/empty"
+
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
@@ -22,7 +24,7 @@ type syncPeerService struct {
 	proto.UnimplementedV1Server
 
 	blockchain Blockchain       // blockchain service
-	network    Network          // network service
+	network    network.Network  // network service
 	stream     *grpc.GrpcStream // grpc stream controlling
 
 	// deprecated fields
@@ -30,7 +32,7 @@ type syncPeerService struct {
 }
 
 func NewSyncPeerService(
-	network Network,
+	network network.Network,
 	blockchain Blockchain,
 ) SyncPeerService {
 	return &syncPeerService{

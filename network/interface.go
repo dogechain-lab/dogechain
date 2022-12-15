@@ -9,7 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type Server interface {
+type Network interface {
 	// AddrInfo returns Network Info
 	AddrInfo() *peer.AddrInfo
 	// Peers returns current connected peers
@@ -34,7 +34,11 @@ type Server interface {
 	CloseProtocolStream(protocol string, peerID peer.ID) error
 	// ForgetPeer disconnects, remove and forget peer to prevent broadcast discovery to other peers
 	ForgetPeer(peer peer.ID, reason string)
-	// Start starts the server
+}
+
+type Server interface {
+	Network
+
 	Start() error
 	// Stop stops the server
 	Close() error
