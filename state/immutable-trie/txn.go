@@ -7,22 +7,35 @@ type Txn struct {
 	epoch uint32
 }
 
-func (t *Txn) Lookup(key []byte) []byte {
-	_, res := lookupNode(t.reader, t.root, bytesToHexNibbles(key))
+func (t *Txn) Lookup(key []byte) ([]byte, error) {
+	_, res, err := lookupNode(t.reader, t.root, bytesToHexNibbles(key))
 
-	return res
+	return res, err
 }
 
-func (t *Txn) Insert(key, value []byte) {
-	root := insertNode(t.reader, t.epoch, t.root, bytesToHexNibbles(key), value)
+func (t *Txn) Insert(key, value []byte) error {
+	root, err := insertNode(t.reader, t.epoch, t.root, bytesToHexNibbles(key), value)
+
+	if err != nil {
+		return err
+	}
+
 	if root != nil {
 		t.root = root
 	}
+
+	return nil
 }
 
-func (t *Txn) Delete(key []byte) {
-	root, ok := deleteNode(t.reader, t.root, bytesToHexNibbles(key))
+func (t *Txn) Delete(key []byte) error {
+	root, ok, err := deleteNode(t.reader, t.root, bytesToHexNibbles(key))
+	if err != nil {
+		return err
+	}
+
 	if ok {
 		t.root = root
 	}
+
+	return nil
 }

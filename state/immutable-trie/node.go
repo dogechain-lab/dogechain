@@ -84,66 +84,66 @@ func (f *FullNode) getEdge(idx byte) Node {
 	}
 }
 
-func lookupNode(storage StorageReader, node interface{}, key []byte) (Node, []byte) {
+func lookupNode(storage StorageReader, node interface{}, key []byte) (Node, []byte, error) {
 	switch n := node.(type) {
 	case nil:
-		return nil, nil
+		return nil, nil, nil
 
 	case *ValueNode:
 		if n.hash {
 			nc, ok, err := GetNode(n.buf, storage)
 			if err != nil {
-				panic(err)
+				return nil, nil, err
 			}
 
 			if !ok {
-				return nil, nil
+				return nil, nil, nil
 			}
 
-			_, res := lookupNode(storage, nc, key)
+			_, res, err := lookupNode(storage, nc, key)
 
-			return nc, res
+			return nc, res, err
 		}
 
 		if len(key) == 0 {
-			return nil, n.buf
+			return nil, n.buf, nil
 		} else {
-			return nil, nil
+			return nil, nil, nil
 		}
 
 	case *ShortNode:
 		plen := len(n.key)
 		if plen > len(key) || !bytes.Equal(key[:plen], n.key) {
-			return nil, nil
+			return nil, nil, nil
 		}
 
-		child, res := lookupNode(storage, n.child, key[plen:])
+		child, res, err := lookupNode(storage, n.child, key[plen:])
 
 		if child != nil {
 			n.child = child
 		}
 
-		return nil, res
+		return nil, res, err
 
 	case *FullNode:
 		if len(key) == 0 {
 			return lookupNode(storage, n.value, key)
 		}
 
-		child, res := lookupNode(storage, n.getEdge(key[0]), key[1:])
+		child, res, err := lookupNode(storage, n.getEdge(key[0]), key[1:])
 
 		if child != nil {
 			n.children[key[0]] = child
 		}
 
-		return nil, res
+		return nil, res, err
 
 	default:
 		panic(fmt.Sprintf("unknown node type %v", n))
 	}
 }
 
-func insertNode(storage StorageReader, epoch uint32, node Node, search, value []byte) Node {
+func insertNode(storage StorageReader, epoch uint32, node Node, search, value []byte) (Node, error) {
 	switch n := node.(type) {
 	case nil:
 		// NOTE, this only happens with the full node
@@ -152,23 +152,24 @@ func insertNode(storage StorageReader, epoch uint32, node Node, search, value []
 			v.buf = make([]byte, len(value))
 			copy(v.buf, value)
 
-			return v
+			return v, nil
 		} else {
+			child, err := insertNode(storage, epoch, nil, nil, value)
 			return &ShortNode{
 				key:   search,
-				child: insertNode(storage, epoch, nil, nil, value),
-			}
+				child: child,
+			}, err
 		}
 
 	case *ValueNode:
 		if n.hash {
 			nc, ok, err := GetNode(n.buf, storage)
 			if err != nil {
-				panic(err)
+				return nil, err
 			}
 
 			if !ok {
-				return nil
+				return nil, nil
 			}
 
 			return insertNode(storage, epoch, nc, search, value)
@@ -179,20 +180,18 @@ func insertNode(storage StorageReader, epoch uint32, node Node, search, value []
 			v.buf = make([]byte, len(value))
 			copy(v.buf, value)
 
-			return v
+			return v, nil
 		} else {
-			b := insertNode(storage, epoch, &FullNode{epoch: epoch, value: n}, search, value)
-
-			return b
+			return insertNode(storage, epoch, &FullNode{epoch: epoch, value: n}, search, value)
 		}
 
 	case *ShortNode:
 		plen := prefixLen(search, n.key)
 		if plen == len(n.key) {
 			// Keep this node as is and insert to child
-			child := insertNode(storage, epoch, n.child, search[plen:], value)
+			child, err := insertNode(storage, epoch, n.child, search[plen:], value)
 
-			return &ShortNode{key: n.key, child: child}
+			return &ShortNode{key: n.key, child: child}, err
 		} else {
 			// Introduce a new branch
 			b := FullNode{epoch: epoch}
@@ -202,17 +201,16 @@ func insertNode(storage StorageReader, epoch uint32, node Node, search, value []
 				b.setEdge(n.key[plen], n.child)
 			}
 
-			child := insertNode(storage, epoch, &b, search[plen:], value)
+			child, err := insertNode(storage, epoch, &b, search[plen:], value)
 
 			if plen == 0 {
-				return child
+				return child, err
 			} else {
-				return &ShortNode{key: search[:plen], child: child}
+				return &ShortNode{key: search[:plen], child: child}, err
 			}
 		}
 
 	case *FullNode:
-		// b := t.writeNode(n)
 		nc := n
 		if epoch != n.epoch {
 			nc = &FullNode{
@@ -223,20 +221,21 @@ func insertNode(storage StorageReader, epoch uint32, node Node, search, value []
 		}
 
 		if len(search) == 0 {
-			nc.value = insertNode(storage, epoch, nc.value, nil, value)
+			var err error
+			nc.value, err = insertNode(storage, epoch, nc.value, nil, value)
 
-			return nc
+			return nc, err
 		} else {
 			k := search[0]
 			child := n.getEdge(k)
-			newChild := insertNode(storage, epoch, child, search[1:], value)
+			newChild, err := insertNode(storage, epoch, child, search[1:], value)
 			if child == nil {
 				nc.setEdge(k, newChild)
 			} else {
 				nc.setEdge(k, newChild)
 			}
 
-			return nc
+			return nc, err
 		}
 
 	default:
@@ -244,69 +243,76 @@ func insertNode(storage StorageReader, epoch uint32, node Node, search, value []
 	}
 }
 
-func deleteNode(storage StorageReader, node Node, search []byte) (Node, bool) {
+func deleteNode(storage StorageReader, node Node, search []byte) (Node, bool, error) {
 	switch n := node.(type) {
 	case nil:
-		return nil, false
+		return nil, false, nil
 
 	case *ShortNode:
 		n.hash = n.hash[:0]
 
 		plen := prefixLen(search, n.key)
 		if plen == len(search) {
-			return nil, true
+			return nil, true, nil
 		}
 
 		if plen == 0 {
-			return nil, false
+			return nil, false, nil
 		}
 
-		child, ok := deleteNode(storage, n.child, search[plen:])
+		child, ok, err := deleteNode(storage, n.child, search[plen:])
+		if err != nil {
+			return nil, false, err
+		}
+
 		if !ok {
-			return nil, false
+			return nil, false, nil
 		}
 
 		if child == nil {
-			return nil, true
+			return nil, true, nil
 		}
 
 		if short, ok := child.(*ShortNode); ok {
 			// merge nodes
-			return &ShortNode{key: concat(n.key, short.key), child: short.child}, true
+			return &ShortNode{key: concat(n.key, short.key), child: short.child}, true, nil
 		} else {
 			// full node
-			return &ShortNode{key: n.key, child: child}, true
+			return &ShortNode{key: n.key, child: child}, true, nil
 		}
 
 	case *ValueNode:
 		if n.hash {
 			nc, ok, err := GetNode(n.buf, storage)
 			if err != nil {
-				panic(err)
+				return nil, false, err
 			}
 
 			if !ok {
-				return nil, false
+				return nil, false, nil
 			}
 
 			return deleteNode(storage, nc, search)
 		}
 
 		if len(search) != 0 {
-			return nil, false
+			return nil, false, nil
 		}
 
-		return nil, true
+		return nil, true, nil
 
 	case *FullNode:
 		n = n.copy()
 		n.hash = n.hash[:0]
 
 		key := search[0]
-		newChild, ok := deleteNode(storage, n.getEdge(key), search[1:])
+		newChild, ok, err := deleteNode(storage, n.getEdge(key), search[1:])
+		if err != nil {
+			return nil, false, err
+		}
 
 		if !ok {
-			return nil, false
+			return nil, false, err
 		}
 
 		n.setEdge(key, newChild)
@@ -334,17 +340,17 @@ func deleteNode(storage StorageReader, node Node, search []byte) (Node, bool) {
 
 		if notEmpty {
 			// The full node still has some other values
-			return n, true
+			return n, true, nil
 		}
 
 		if indx == -1 {
 			// There are no children nodes
 			if n.value == nil {
 				// Everything is empty, return nil
-				return nil, true
+				return nil, true, nil
 			}
 			// The value is the only left, return a short node with it
-			return &ShortNode{key: []byte{0x10}, child: n.value}, true
+			return &ShortNode{key: []byte{0x10}, child: n.value}, true, nil
 		}
 
 		// Only one value left at indx
@@ -355,11 +361,11 @@ func deleteNode(storage StorageReader, node Node, search []byte) (Node, bool) {
 			// This needs better testing
 			aux, ok, err := GetNode(vv.buf, storage)
 			if err != nil {
-				panic(err)
+				return nil, false, err
 			}
 
 			if !ok {
-				return nil, false
+				return nil, false, nil
 			}
 
 			nc = aux
@@ -371,14 +377,14 @@ func deleteNode(storage StorageReader, node Node, search []byte) (Node, bool) {
 			obj.key = []byte{byte(indx)}
 			obj.child = nc
 
-			return obj, true
+			return obj, true, nil
 		}
 
 		ncc := &ShortNode{}
 		ncc.key = concat([]byte{byte(indx)}, obj.key)
 		ncc.child = obj.child
 
-		return ncc, true
+		return ncc, true, nil
 	}
 
 	panic("it should not happen")

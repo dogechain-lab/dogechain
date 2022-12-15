@@ -23,7 +23,12 @@ func NewTrie() *Trie {
 
 func (t *Trie) Get(k []byte) ([]byte, bool) {
 	txn := t.Txn()
-	res := txn.Lookup(k)
+
+	res, err := txn.Lookup(k)
+	if err != nil {
+		// maby return error? interface need changed, big change
+		t.stateDB.Logger().Error("Failed to lookup key", "key", k, "err", err)
+	}
 
 	return res, res != nil
 }
@@ -66,7 +71,11 @@ func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte, error) {
 
 		for _, obj := range objs {
 			if obj.Deleted {
-				tt.Delete(hashit(obj.Address.Bytes()))
+				err := tt.Delete(hashit(obj.Address.Bytes()))
+				if err != nil {
+					return err
+				}
+
 				deleteCount++
 			} else {
 				account := state.Account{
@@ -79,7 +88,7 @@ func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte, error) {
 				if len(obj.Storage) != 0 {
 					localSnapshot, err := t.stateDB.NewSnapshotAt(obj.Root)
 					if err != nil {
-						panic(err)
+						return err
 					}
 
 					trie, ok := localSnapshot.(*Trie)
@@ -92,11 +101,19 @@ func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte, error) {
 					for _, entry := range obj.Storage {
 						k := hashit(entry.Key)
 						if entry.Deleted {
-							localTxn.Delete(k)
+							err := localTxn.Delete(k)
+							if err != nil {
+								return err
+							}
+
 							deleteCount++
 						} else {
 							vv := ar1.NewBytes(bytes.TrimLeft(entry.Val, "\x00"))
-							localTxn.Insert(k, vv.MarshalTo(nil))
+							err := localTxn.Insert(k, vv.MarshalTo(nil))
+							if err != nil {
+								return err
+							}
+
 							insertCount++
 						}
 					}

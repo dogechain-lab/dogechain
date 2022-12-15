@@ -29,11 +29,13 @@ type StateDBReader interface {
 }
 
 type StateDB interface {
-	GetMetrics() Metrics
-
 	StateDBReader
 
 	Transaction(execute func(st StateDBTransaction) error) error
+
+	GetMetrics() Metrics
+
+	Logger() hclog.Logger
 }
 
 type stateDBImpl struct {
@@ -61,6 +63,10 @@ func (db *stateDBImpl) GetMetrics() Metrics {
 	return db.metrics
 }
 
+func (db *stateDBImpl) Logger() hclog.Logger {
+	return db.logger
+}
+
 func (db *stateDBImpl) Get(k []byte) ([]byte, bool, error) {
 	if enc := db.cached.Get(nil, k); enc != nil {
 		db.metrics.accountCacheHitInc()
@@ -75,7 +81,7 @@ func (db *stateDBImpl) Get(k []byte) ([]byte, bool, error) {
 
 	v, ok, err := db.storage.Get(k)
 	if err != nil {
-		db.logger.Error("get", "err", err)
+		db.logger.Error("failed to get key", "err", err)
 	}
 
 	// end observe disk read time, if err != nil, observe will be a no-op
