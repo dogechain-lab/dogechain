@@ -1,4 +1,4 @@
-package verify
+package reverify
 
 import (
 	"github.com/dogechain-lab/dogechain/helper/kvdb"

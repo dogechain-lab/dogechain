@@ -12,11 +12,11 @@ import (
 	"github.com/dogechain-lab/dogechain/command/loadbot"
 	"github.com/dogechain-lab/dogechain/command/monitor"
 	"github.com/dogechain-lab/dogechain/command/peers"
+	"github.com/dogechain-lab/dogechain/command/reverify"
 	"github.com/dogechain-lab/dogechain/command/secrets"
 	"github.com/dogechain-lab/dogechain/command/server"
 	"github.com/dogechain-lab/dogechain/command/status"
 	"github.com/dogechain-lab/dogechain/command/txpool"
-	"github.com/dogechain-lab/dogechain/command/verify"
 	"github.com/dogechain-lab/dogechain/command/version"
 	"github.com/spf13/cobra"
 )
@@ -46,7 +46,7 @@ func (rc *RootCommand) registerSubCommands() {
 		status.GetCommand(),
 		secrets.GetCommand(),
 		peers.GetCommand(),
-		verify.GetCommand(),
+		reverify.GetCommand(),
 		monitor.GetCommand(),
 		loadbot.GetCommand(),
 		ibft.GetCommand(),

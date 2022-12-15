@@ -1,4 +1,4 @@
-package verify
+package reverify
 
 import (
 	"github.com/dogechain-lab/dogechain/types"
@@ -11,10 +11,10 @@ const (
 )
 
 var (
-	params = &verifyParams{}
+	params = &reverifyParams{}
 )
 
-type verifyParams struct {
+type reverifyParams struct {
 	DataDir     string
 	GenesisPath string
 
@@ -22,7 +22,7 @@ type verifyParams struct {
 	startHeight    uint64
 }
 
-func (p *verifyParams) validateFlags() error {
+func (p *reverifyParams) validateFlags() error {
 	var parseErr error
 
 	if p.startHeight, parseErr = types.ParseUint64orHex(&p.startHeightRaw); parseErr != nil {
@@ -32,7 +32,7 @@ func (p *verifyParams) validateFlags() error {
 	return nil
 }
 
-func (p *verifyParams) getRequiredFlags() []string {
+func (p *reverifyParams) getRequiredFlags() []string {
 	return []string{
 		dataDirFlag,
 		startHeight,

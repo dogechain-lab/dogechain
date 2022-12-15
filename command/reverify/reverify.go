@@ -1,4 +1,4 @@
-package verify
+package reverify
 
 import (
 	"fmt"
@@ -13,19 +13,19 @@ import (
 )
 
 func GetCommand() *cobra.Command {
-	verifyCmd := &cobra.Command{
-		Use:     "verify",
-		Short:   "Verify block data",
+	reverifyCmd := &cobra.Command{
+		Use:     "reverify",
+		Short:   "Reverify block data",
 		PreRunE: runPreRun,
 		Run:     runCommand,
 	}
 
-	helper.RegisterPprofFlag(verifyCmd)
-	helper.SetRequiredFlags(verifyCmd, params.getRequiredFlags())
+	helper.RegisterPprofFlag(reverifyCmd)
+	helper.SetRequiredFlags(reverifyCmd, params.getRequiredFlags())
 
-	setFlags(verifyCmd)
+	setFlags(reverifyCmd)
 
-	return verifyCmd
+	return reverifyCmd
 }
 
 func setFlags(cmd *cobra.Command) {
@@ -40,7 +40,7 @@ func setFlags(cmd *cobra.Command) {
 		&params.startHeightRaw,
 		startHeight,
 		"1",
-		"start verify block height",
+		"start reverify block height",
 	)
 
 	cmd.Flags().StringVar(
@@ -59,7 +59,7 @@ func runCommand(cmd *cobra.Command, _ []string) {
 	command.InitializePprofServer(cmd)
 
 	logger := hclog.New(&hclog.LoggerOptions{
-		Name:  "verify",
+		Name:  "reverify",
 		Level: hclog.Info,
 	})
 
