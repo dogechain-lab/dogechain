@@ -63,6 +63,7 @@ func (m *stateDBMetrics) CodeDiskReadSecondsObserve() MetricsTimeendRecord {
 	}
 
 	begin := time.Now()
+
 	return func() {
 		m.codeDiskReadSeconds.Observe(time.Since(begin).Seconds())
 	}
@@ -74,6 +75,7 @@ func (m *stateDBMetrics) AccountDiskReadSecondsObserve() MetricsTimeendRecord {
 	}
 
 	begin := time.Now()
+
 	return func() {
 		m.accountDiskReadSeconds.Observe(time.Since(begin).Seconds())
 	}
@@ -85,6 +87,7 @@ func (m *stateDBMetrics) StateCommitSecondsObserve() MetricsTimeendRecord {
 	}
 
 	begin := time.Now()
+
 	return func() {
 		m.stateCommitSeconds.Observe(time.Since(begin).Seconds())
 	}
