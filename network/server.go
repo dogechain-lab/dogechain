@@ -593,8 +593,9 @@ func (s *DefaultServer) DisconnectFromPeer(peer peer.ID, reason string) {
 
 var (
 	// Anything below 35s is prone to false timeouts, as seen from empirical test data
+	// Github action runners are very slow, so we need to increase the timeout
 	DefaultJoinTimeout   = 100 * time.Second
-	DefaultBufferTimeout = DefaultJoinTimeout + time.Second*5
+	DefaultBufferTimeout = DefaultJoinTimeout + time.Second*30
 )
 
 // JoinPeer attempts to add a new peer to the networking server
