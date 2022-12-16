@@ -85,6 +85,9 @@ func TestReverify(t *testing.T) {
 
 	err = resvr.Start(ctx)
 	assert.NoError(t, err)
+	t.Cleanup(func() {
+		resvr.Stop()
+	})
 
 	_, err = framework.WaitUntilBlockMined(ctx, resvr, finalToBlock)
 	assert.NoError(t, err)
