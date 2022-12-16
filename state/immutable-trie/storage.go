@@ -45,9 +45,7 @@ func (kvBatch *kvStorageBatch) Set(k, v []byte) error {
 }
 
 func (kvBatch *kvStorageBatch) Commit() error {
-	kvBatch.batch.Write()
-
-	return nil
+	return kvBatch.batch.Write()
 }
 
 // wrap generic kvdb storage to implement Storage interface
