@@ -20,6 +20,8 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/assert"
+
+	netcommon "github.com/dogechain-lab/dogechain/network/common"
 )
 
 const (
@@ -44,7 +46,7 @@ func JoinAndWait(
 	}
 
 	// Mark the destination address as ready for dialing
-	source.JoinPeer(destination.AddrInfo().String())
+	source.JoinPeer(netcommon.AddrInfoToString(destination.AddrInfo()))
 
 	connectCtx, cancelFn := context.WithTimeout(context.Background(), connectTimeout)
 	defer cancelFn()

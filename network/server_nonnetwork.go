@@ -7,6 +7,7 @@ import (
 
 	"github.com/dogechain-lab/dogechain/network/event"
 	"github.com/libp2p/go-libp2p-core/peer"
+	"go.uber.org/atomic"
 	rawGrpc "google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 )
@@ -31,6 +32,8 @@ func (t *NonetworkTopic) Close() error {
 // only used for testing or offline mode
 type NonetworkServer struct {
 	sublock sync.Mutex
+
+	isClose atomic.Bool
 	sub     []chan *event.PeerEvent
 }
 
@@ -79,15 +82,26 @@ func (s *NonetworkServer) CloseProtocolStream(protocol string, peerID peer.ID) e
 
 func (s *NonetworkServer) ForgetPeer(peer peer.ID, reason string) {}
 
-func (s *NonetworkServer) Start() error { return nil }
+func (s *NonetworkServer) Start() error {
+	s.isClose.Store(false)
+
+	return nil
+}
 
 func (s *NonetworkServer) Close() error {
 	s.sublock.Lock()
 	defer s.sublock.Unlock()
 
+	if s.isClose.Load() {
+		return nil
+	}
+	s.isClose.Store(true)
+
 	for _, sub := range s.sub {
 		close(sub)
 	}
+
+	s.sub = s.sub[:0]
 
 	return nil
 }

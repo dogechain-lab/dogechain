@@ -2,22 +2,31 @@ package reverify
 
 import (
 	"fmt"
-	"path/filepath"
 
+	"github.com/dogechain-lab/dogechain/chain"
 	"github.com/dogechain-lab/dogechain/command"
 	"github.com/dogechain-lab/dogechain/command/helper"
+	"github.com/dogechain-lab/dogechain/reverify"
 	"github.com/hashicorp/go-hclog"
 	"github.com/spf13/cobra"
-
-	itrie "github.com/dogechain-lab/dogechain/state/immutable-trie"
 )
+
+func parseGenesis(genesisPath string) (*chain.Chain, error) {
+	if genesisConfig, parseErr := chain.Import(
+		genesisPath,
+	); parseErr != nil {
+		return nil, parseErr
+	} else {
+		return genesisConfig, nil
+	}
+}
 
 func GetCommand() *cobra.Command {
 	reverifyCmd := &cobra.Command{
 		Use:     "reverify",
 		Short:   "Reverify block data",
 		PreRunE: runPreRun,
-		Run:     runCommand,
+		RunE:    runCommand,
 	}
 
 	helper.RegisterPprofFlag(reverifyCmd)
@@ -55,7 +64,7 @@ func runPreRun(cmd *cobra.Command, args []string) error {
 	return params.validateFlags()
 }
 
-func runCommand(cmd *cobra.Command, _ []string) {
+func runCommand(cmd *cobra.Command, _ []string) error {
 	command.InitializePprofServer(cmd)
 
 	logger := hclog.New(&hclog.LoggerOptions{
@@ -65,74 +74,20 @@ func runCommand(cmd *cobra.Command, _ []string) {
 
 	verifyStartHeight := params.startHeight
 	if verifyStartHeight <= 0 {
-		logger.Error("verify height must be greater than 0")
-
-		return
+		return fmt.Errorf("verify height must be greater than 0")
 	}
 
 	chain, err := parseGenesis(params.GenesisPath)
 	if err != nil {
-		logger.Error("failed to parse genesis", "err", err)
+		logger.Error("failed to parse genesis")
 
-		return
+		return err
 	}
 
-	stateStorage, err := itrie.NewLevelDBStorage(
-		newLevelDBBuilder(logger, filepath.Join(params.DataDir, "trie")))
-	if err != nil {
-		logger.Error("failed to create state storage", "err", err)
-
-		return
-	}
-	defer stateStorage.Close()
-
-	blockchain, consensus, err := createBlockchain(
+	return reverify.ReverifyChain(
 		logger,
 		chain,
-		itrie.NewState(stateStorage, nil),
 		params.DataDir,
+		verifyStartHeight,
 	)
-	if err != nil {
-		logger.Error("failed to create blockchain", "err", err)
-
-		return
-	}
-	defer blockchain.Close()
-	defer consensus.Close()
-
-	hash, ok := blockchain.GetHeaderHash()
-	if ok {
-		logger.Info("current blockchain hash", "hash", hash)
-	}
-
-	currentHeight, ok := blockchain.GetHeaderNumber()
-	if ok {
-		logger.Info("current blockchain height", "Height", currentHeight)
-	}
-
-	for i := verifyStartHeight; i <= currentHeight; i++ {
-		haeder, ok := blockchain.GetHeaderByNumber(i)
-		if !ok {
-			logger.Error("failed to read canonical hash", "height", i, "header", haeder)
-
-			return
-		}
-
-		block, ok := blockchain.GetBlock(haeder.Hash, i, true)
-		if !ok {
-			logger.Error("failed to read block", "hash", haeder)
-
-			return
-		}
-
-		if err := blockchain.VerifyFinalizedBlock(block); err != nil {
-			logger.Error("failed to verify block", "hash", haeder, "err", err)
-
-			return
-		}
-
-		logger.Info("verify block success", "height", i, "hash", haeder.Hash, "txs", len(block.Transactions))
-	}
-
-	logger.Info(fmt.Sprintf("verify height from %d to %d \n", params.startHeight, currentHeight))
 }
