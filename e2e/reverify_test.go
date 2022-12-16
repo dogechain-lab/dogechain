@@ -50,7 +50,7 @@ func TestReverify(t *testing.T) {
 
 	// corrupt data
 	{
-		iter := trie.Iteration(nil)
+		iter := trie.Iterator(nil)
 		iter.Last()
 
 		for iter.Prev() {

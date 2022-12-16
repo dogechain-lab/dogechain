@@ -5,12 +5,12 @@ type KVBatch interface {
 	Write() error
 }
 
-type KVIteratioRange struct {
+type KVIteratorRange struct {
 	Start []byte
 	Limit []byte
 }
 
-type KVIteration interface {
+type KVIterator interface {
 	// First moves the iterator to the first key/value pair. If the iterator
 	// only contains one key/value pair then First and Last would moves
 	// to the same key/value pair.
@@ -65,6 +65,7 @@ type KVStorage interface {
 type KVBatchStorage interface {
 	KVStorage
 
-	Iteration(*KVIteratioRange) KVIteration
+	Iterator(*KVIteratorRange) KVIterator
+
 	Batch() KVBatch
 }

@@ -4,18 +4,12 @@ import (
 	"errors"
 
 	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/syndtr/goleveldb/leveldb/iterator"
 	"github.com/syndtr/goleveldb/leveldb/util"
 )
 
 type levelBatch struct {
 	db    *leveldb.DB
 	batch *leveldb.Batch
-}
-
-type levelIteration struct {
-	db   *leveldb.DB
-	iter iterator.Iterator
 }
 
 func (b *levelBatch) Set(k, v []byte) {
@@ -35,7 +29,7 @@ func (kv *levelDBKV) Batch() KVBatch {
 	return &levelBatch{db: kv.db, batch: &leveldb.Batch{}}
 }
 
-func (kv *levelDBKV) Iteration(Range *KVIteratioRange) KVIteration {
+func (kv *levelDBKV) Iterator(Range *KVIteratorRange) KVIterator {
 	if Range == nil {
 		return kv.db.NewIterator(nil, nil)
 	}
