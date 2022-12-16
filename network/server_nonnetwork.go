@@ -95,6 +95,7 @@ func (s *NonetworkServer) Close() error {
 	if s.isClose.Load() {
 		return nil
 	}
+
 	s.isClose.Store(true)
 
 	for _, sub := range s.sub {

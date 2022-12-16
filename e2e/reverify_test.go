@@ -16,6 +16,7 @@ import (
 
 func TestReverify(t *testing.T) {
 	const toBlock uint64 = 10
+
 	const finalToBlock uint64 = 15
 
 	svrs := framework.NewTestServers(t, 4, func(config *framework.TestServerConfig) {
@@ -87,5 +88,4 @@ func TestReverify(t *testing.T) {
 
 	_, err = framework.WaitUntilBlockMined(ctx, resvr, finalToBlock)
 	assert.NoError(t, err)
-
 }
