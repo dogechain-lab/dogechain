@@ -86,6 +86,7 @@ func (db *stateDBImpl) Get(k []byte) ([]byte, bool, error) {
 
 	// end observe disk read time, if err != nil, observe will be a no-op
 	if err == nil {
+		db.metrics.accountReadCountInc()
 		observe()
 	}
 
@@ -112,7 +113,7 @@ func (db *stateDBImpl) GetCode(hash types.Hash) ([]byte, bool) {
 
 	v, ok, err := db.storage.Get(perfix)
 	if err != nil {
-		db.logger.Error("get code", "err", err)
+		db.logger.Error("failed to get code", "err", err)
 	}
 
 	// end observe disk read time, if err != nil, observe will be a no-op

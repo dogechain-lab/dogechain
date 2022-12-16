@@ -25,6 +25,9 @@ type Metrics interface {
 	// Read account cache miss
 	accountCacheMissInc()
 
+	// Read account count from disk
+	accountReadCountInc()
+
 	// Number of inserted nodes per transaction
 	transactionInsertCount(int)
 
@@ -62,6 +65,7 @@ type stateDBMetrics struct {
 
 	accountCacheHit  metrics.Counter
 	accountCacheMiss metrics.Counter
+	accountReadCount metrics.Counter
 
 	txnInsertCount   metrics.Histogram
 	txnDeleteCount   metrics.Histogram
@@ -91,6 +95,10 @@ func (m *stateDBMetrics) accountCacheHitInc() {
 
 func (m *stateDBMetrics) accountCacheMissInc() {
 	m.accountCacheMiss.Add(1)
+}
+
+func (m *stateDBMetrics) accountReadCountInc() {
+	m.accountReadCount.Add(1)
 }
 
 func (m *stateDBMetrics) transactionInsertCount(count int) {
@@ -179,7 +187,6 @@ func GetPrometheusMetrics(namespace string, trackingIOTimer bool, labelsWithValu
 
 	return &stateDBMetrics{
 		trackingIOTimer: trackingIOTimer,
-
 		codeCacheHit: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: "itrie",
@@ -203,6 +210,12 @@ func GetPrometheusMetrics(namespace string, trackingIOTimer bool, labelsWithValu
 			Subsystem: "itrie",
 			Name:      "state_account_cache_miss",
 			Help:      "state account cache miss count",
+		}, labels).With(labelsWithValues...),
+		accountReadCount: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: "itrie",
+			Name:      "state_account_read_count",
+			Help:      "state account read count",
 		}, labels).With(labelsWithValues...),
 		txnInsertCount: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: namespace,
@@ -270,6 +283,7 @@ func NilMetrics() Metrics {
 		codeCacheMiss:    discard.NewCounter(),
 		accountCacheHit:  discard.NewCounter(),
 		accountCacheMiss: discard.NewCounter(),
+		accountReadCount: discard.NewCounter(),
 
 		txnInsertCount:   discard.NewHistogram(),
 		txnDeleteCount:   discard.NewHistogram(),
