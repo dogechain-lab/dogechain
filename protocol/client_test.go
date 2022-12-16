@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/atomic"
 )
 
 var (
@@ -43,6 +44,7 @@ func newTestSyncPeerClient(network network.Network, blockchain Blockchain) *sync
 		id:                     network.AddrInfo().ID.String(),
 		peerStatusUpdateCh:     make(chan *NoForkPeer, 1),
 		peerConnectionUpdateCh: make(chan *event.PeerEvent, 1),
+		isClose:                atomic.NewBool(false),
 	}
 
 	// need to register protocol
