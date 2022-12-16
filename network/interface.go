@@ -10,18 +10,38 @@ import (
 )
 
 type Network interface {
+	// **Peer**
+
 	// AddrInfo returns Network Info
 	AddrInfo() *peer.AddrInfo
 	// Peers returns current connected peers
 	Peers() []*PeerConnInfo
+	// GetPeerInfo returns the peer info for the given peer ID
+	GetPeerInfo(peerID peer.ID) *peer.AddrInfo
+	// JoinPeer joins a peer to the network
+	JoinPeer(rawPeerMultiaddr string) error
+	// HasPeer returns true if the peer is connected
+	HasPeer(peerID peer.ID) bool
 	// IsConnected returns the node is connecting to the peer associated with the given ID
 	IsConnected(peerID peer.ID) bool
-	// SubscribeCh returns a channel of peer event
-	SubscribeCh(context.Context) (<-chan *event.PeerEvent, error)
+	// DisconnectFromPeer disconnects the networking server from the specified peer
+	DisconnectFromPeer(peer peer.ID, reason string)
+	// ForgetPeer disconnects, remove and forget peer to prevent broadcast discovery to other peers
+	ForgetPeer(peer peer.ID, reason string)
+
+	// **Topic**
+
 	// NewTopic Creates New Topic for gossip
 	NewTopic(protoID string, obj proto.Message) (Topic, error)
+	// SubscribeCh returns a channel of peer event
+	SubscribeCh(context.Context) (<-chan *event.PeerEvent, error)
+
+	// **Protocol**
+
 	// RegisterProtocol registers gRPC service
 	RegisterProtocol(string, Protocol)
+	// GetProtocols returns the list of protocols supported by the peer
+	GetProtocols(peerID peer.ID) ([]string, error)
 	// GetProtoStream returns an active protocol stream if present, otherwise
 	// it returns nil
 	GetProtoStream(protocol string, peerID peer.ID) *rawGrpc.ClientConn
@@ -32,20 +52,13 @@ type Network interface {
 	SaveProtocolStream(protocol string, stream *rawGrpc.ClientConn, peerID peer.ID)
 	// CloseProtocolStream closes stream
 	CloseProtocolStream(protocol string, peerID peer.ID) error
-	// ForgetPeer disconnects, remove and forget peer to prevent broadcast discovery to other peers
-	ForgetPeer(peer peer.ID, reason string)
 }
 
 type Server interface {
 	Network
 
+	// Start starts the server
 	Start() error
 	// Stop stops the server
 	Close() error
-	// JoinPeer joins a peer to the network
-	JoinPeer(rawPeerMultiaddr string) error
-	// GetProtocols returns the list of protocols supported by the peer
-	GetProtocols(peerID peer.ID) ([]string, error)
-	// GetPeerInfo returns the peer info for the given peer ID
-	GetPeerInfo(peerID peer.ID) *peer.AddrInfo
 }

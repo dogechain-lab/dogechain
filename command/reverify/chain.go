@@ -81,7 +81,7 @@ func createConsensus(
 			Seal:           false,
 			Config:         config,
 			Txpool:         nil,
-			Network:        &network.FakeServer{},
+			Network:        &network.NonetworkServer{},
 			Blockchain:     blockchain,
 			Executor:       executor,
 			Grpc:           nil,

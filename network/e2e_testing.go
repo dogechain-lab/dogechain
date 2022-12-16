@@ -30,7 +30,7 @@ const (
 // and waiting for the connection to be successful (destination node is a peer of source)
 func JoinAndWait(
 	source,
-	destination *DefaultServer,
+	destination Server,
 	connectTimeout time.Duration,
 	joinTimeout time.Duration,
 ) error {
@@ -44,7 +44,7 @@ func JoinAndWait(
 	}
 
 	// Mark the destination address as ready for dialing
-	source.joinPeer(destination.AddrInfo())
+	source.JoinPeer(destination.AddrInfo().String())
 
 	connectCtx, cancelFn := context.WithTimeout(context.Background(), connectTimeout)
 	defer cancelFn()
@@ -57,7 +57,7 @@ func JoinAndWait(
 // JoinAndWait is a helper method to make multiple servers connect to corresponding peer
 func JoinAndWaitMultiple(
 	timeout time.Duration,
-	servers ...*DefaultServer,
+	servers ...Server,
 ) error {
 	if len(servers)%2 != 0 {
 		return errors.New("number of servers must be even")
@@ -96,7 +96,7 @@ func JoinAndWaitMultiple(
 }
 
 func DisconnectAndWait(
-	source *DefaultServer,
+	source Server,
 	target peer.ID,
 	leaveTimeout time.Duration,
 ) error {
@@ -116,13 +116,13 @@ func DisconnectAndWait(
 	return err
 }
 
-func WaitUntilPeerConnectsTo(ctx context.Context, srv *DefaultServer, ids ...peer.ID) (bool, error) {
+func WaitUntilPeerConnectsTo(ctx context.Context, srv Server, ids ...peer.ID) (bool, error) {
 	peersConnected := 0
 	targetPeers := len(ids)
 
 	res, err := tests.RetryUntilTimeout(ctx, func() (interface{}, bool) {
 		for _, v := range ids {
-			if srv.hasPeer(v) {
+			if srv.HasPeer(v) {
 				peersConnected++
 			}
 
@@ -145,13 +145,13 @@ func WaitUntilPeerConnectsTo(ctx context.Context, srv *DefaultServer, ids ...pee
 	return resVal, nil
 }
 
-func WaitUntilPeerDisconnectsFrom(ctx context.Context, srv *DefaultServer, ids ...peer.ID) (bool, error) {
+func WaitUntilPeerDisconnectsFrom(ctx context.Context, srv Server, ids ...peer.ID) (bool, error) {
 	peersDisconnected := 0
 	targetPeers := len(ids)
 
 	res, err := tests.RetryUntilTimeout(ctx, func() (interface{}, bool) {
 		for _, v := range ids {
-			if !srv.hasPeer(v) {
+			if !srv.HasPeer(v) {
 				peersDisconnected++
 			}
 
@@ -303,7 +303,7 @@ func CreateServer(params *CreateServerParams) (*DefaultServer, error) {
 	cfg.SecretsManager = secretsManager
 	cfg.Metrics = NilMetrics()
 
-	server, err := NewServer(params.Logger, cfg)
+	server, err := newServer(params.Logger, cfg)
 	if err != nil {
 		return nil, err
 	}

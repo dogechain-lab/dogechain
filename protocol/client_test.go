@@ -23,7 +23,7 @@ var (
 	}
 )
 
-func newTestNetwork(t *testing.T) *network.DefaultServer {
+func newTestNetwork(t *testing.T) network.Server {
 	t.Helper()
 
 	srv, err := network.CreateServer(&network.CreateServerParams{
@@ -51,7 +51,7 @@ func newTestSyncPeerClient(network network.Network, blockchain Blockchain) *sync
 	return client
 }
 
-func createTestSyncerService(t *testing.T, chain Blockchain) (*syncPeerService, *network.DefaultServer) {
+func createTestSyncerService(t *testing.T, chain Blockchain) (*syncPeerService, network.Server) {
 	t.Helper()
 
 	srv := newTestNetwork(t)
@@ -530,7 +530,7 @@ func (s *syncPeerService) setupIncompatibleGRPCServer() {
 	s.network.RegisterProtocol("/fake-syncer/1.0", s.stream)
 }
 
-func createNonSyncerService(t *testing.T, chain Blockchain) (*syncPeerService, *network.DefaultServer) {
+func createNonSyncerService(t *testing.T, chain Blockchain) (*syncPeerService, network.Server) {
 	t.Helper()
 
 	srv := newTestNetwork(t)

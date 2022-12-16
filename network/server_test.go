@@ -419,7 +419,7 @@ func TestPeerReconnection(t *testing.T) {
 		}
 	})
 
-	disconnectFromPeer := func(server *DefaultServer, peerID peer.ID) {
+	disconnectFromPeer := func(server Server, peerID peer.ID) {
 		server.DisconnectFromPeer(peerID, "Bye")
 
 		disconnectCtx, disconnectFn := context.WithTimeout(context.Background(), DefaultJoinTimeout)
@@ -430,7 +430,7 @@ func TestPeerReconnection(t *testing.T) {
 		}
 	}
 
-	closePeerServer := func(server *DefaultServer, peer *DefaultServer) {
+	closePeerServer := func(server Server, peer Server) {
 		peerID := peer.AddrInfo().ID
 
 		if closeErr := peer.Close(); closeErr != nil {
@@ -859,7 +859,7 @@ func TestPeerAdditionDeletion(t *testing.T) {
 		for _, randomPeer := range randomPeers {
 			server.AddPeer(randomPeer.peerID, randomPeer.direction)
 
-			assert.True(t, true, server.hasPeer(randomPeer.peerID))
+			assert.True(t, true, server.HasPeer(randomPeer.peerID))
 		}
 
 		assert.Len(t, server.Peers(), peersNum)
@@ -914,7 +914,7 @@ func TestPeerAdditionDeletion(t *testing.T) {
 
 		server.AddPeer(randomPeer.peerID, randomPeer.direction)
 
-		assert.True(t, true, server.hasPeer(randomPeer.peerID))
+		assert.True(t, true, server.HasPeer(randomPeer.peerID))
 
 		server.AddPeer(randomPeer.peerID, randomPeer.direction)
 
@@ -949,7 +949,7 @@ func TestPeerAdditionDeletion(t *testing.T) {
 		for _, peer := range randomPeers {
 			server.AddPeer(peer.peerID, peer.direction)
 
-			assert.True(t, true, server.hasPeer(peer.peerID))
+			assert.True(t, true, server.HasPeer(peer.peerID))
 		}
 
 		assert.Len(t, server.Peers(), 1)
@@ -978,7 +978,7 @@ func TestPeerAdditionDeletion(t *testing.T) {
 			prunedPeers++
 			server.removePeer(randomPeers[i].peerID)
 
-			assert.False(t, server.hasPeer(randomPeers[i].peerID))
+			assert.False(t, server.HasPeer(randomPeers[i].peerID))
 		}
 
 		leftoverPeers := make([]*randomPeer, 0)

@@ -90,7 +90,11 @@ type DefaultServer struct {
 }
 
 // NewServer returns a new instance of the networking server
-func NewServer(logger hclog.Logger, config *Config) (*DefaultServer, error) {
+func NewServer(logger hclog.Logger, config *Config) (Server, error) {
+	return newServer(logger, config)
+}
+
+func newServer(logger hclog.Logger, config *Config) (*DefaultServer, error) {
 	logger = logger.Named("network")
 
 	key, err := setupLibp2pKey(config.SecretsManager)
@@ -464,7 +468,7 @@ func (s *DefaultServer) Peers() []*PeerConnInfo {
 }
 
 // hasPeer checks if the peer is present in the peers list [Thread safe]
-func (s *DefaultServer) hasPeer(peerID peer.ID) bool {
+func (s *DefaultServer) HasPeer(peerID peer.ID) bool {
 	s.peersLock.Lock()
 	defer s.peersLock.Unlock()
 
