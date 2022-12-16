@@ -94,7 +94,6 @@ func TestLevelDB(t *testing.T) {
 
 		{
 			for i := 1; i < len(keys); i++ {
-
 				val, exist, err := db.Get(keys[i])
 				if err != nil {
 					t.Fatal(err)
@@ -128,7 +127,7 @@ func TestLevelDB(t *testing.T) {
 				prefix := make([]byte, 4)
 				binary.LittleEndian.PutUint32(prefix, uint32(i))
 
-				key = append(prefix, key...)
+				key = append(prefix[:], key...)
 
 				keys = append(keys, key)
 
@@ -157,7 +156,6 @@ func TestLevelDB(t *testing.T) {
 
 				iter.Next()
 			}
-
 		}
 	})
 }
