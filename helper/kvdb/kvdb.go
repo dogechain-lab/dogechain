@@ -51,6 +51,10 @@ type KVIterator interface {
 	// Release releases associated resources. Release should always success
 	// and can be called multiple times without causing error.
 	Release()
+
+	// Error returns any accumulated error. Exhausting all the key/value pairs
+	// is not considered to be an error.
+	Error() error
 }
 
 // KVStorage is a k/v storage on memory or leveldb

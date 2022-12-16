@@ -51,9 +51,13 @@ func TestReverify(t *testing.T) {
 	// corrupt data
 	{
 		iter := trie.Iterator(nil)
+		assert.NoError(t, iter.Error())
+
 		iter.Last()
+		assert.NoError(t, iter.Error())
 
 		for iter.Prev() {
+			assert.NoError(t, iter.Error())
 			trie.Set(iter.Key(), []byte("corrupted data"))
 		}
 		iter.Release()
