@@ -304,9 +304,9 @@ func (s *noForkSyncer) syncWithSkipList(
 		return
 	}
 
-	// if the bestPeer does not have a new block continue
+	// if the betterPeer does not have a new block continue
 	if betterPeer.Number <= localLatest {
-		s.logger.Debug("wait for the best peer catching up the latest block", "bestPeer", betterPeer.ID)
+		s.logger.Debug("wait for the best peer catching up the latest block", "betterPeer", betterPeer.ID)
 
 		return
 	}

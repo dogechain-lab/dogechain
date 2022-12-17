@@ -1,7 +1,6 @@
 package protocol
 
 import (
-	"sort"
 	"sync"
 
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -49,27 +48,6 @@ func (m *PeerMap) Put(peers ...*NoForkPeer) {
 // Remove removes a peer from heap if it exists
 func (m *PeerMap) Remove(peerID peer.ID) {
 	m.Delete(peerID.String())
-}
-
-// ToList return all peers (sort by IsBetter)
-func (m *PeerMap) ToList() []*NoForkPeer {
-	// get all values
-	var peers = []*NoForkPeer{}
-
-	m.Range(func(_, val interface{}) bool {
-		peer, ok := val.(*NoForkPeer)
-		if ok {
-			peers = append(peers, peer)
-		}
-
-		return true
-	})
-
-	sort.Slice(peers, func(i, j int) bool {
-		return peers[i].IsBetter(peers[j])
-	})
-
-	return peers
 }
 
 // BetterPeer returns higher node

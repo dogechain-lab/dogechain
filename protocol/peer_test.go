@@ -39,16 +39,33 @@ func cloneNoForkPeers(peers []*NoForkPeer) []*NoForkPeer {
 	return clone
 }
 
+// ToList return all peers (sort by IsBetter)
+func (m *PeerMap) toList() []*NoForkPeer {
+	// get all values
+	var peers = []*NoForkPeer{}
+
+	m.Range(func(_, val interface{}) bool {
+		peer, ok := val.(*NoForkPeer)
+		if ok {
+			peers = append(peers, peer)
+		}
+
+		return true
+	})
+
+	return sortNoForkPeers(peers)
+}
+
 func sortNoForkPeers(peers []*NoForkPeer) []*NoForkPeer {
 	sort.SliceStable(peers, func(p, q int) bool {
-		return peers[p].Number > peers[q].Number
+		return peers[p].IsBetter(peers[q])
 	})
 
 	return peers
 }
 
 func peerMapToPeers(peerMap *PeerMap) []*NoForkPeer {
-	peers := peerMap.ToList()
+	peers := peerMap.toList()
 
 	sort.Slice(peers, func(i, j int) bool {
 		return peers[i].IsBetter(peers[j])
