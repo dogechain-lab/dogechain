@@ -28,7 +28,7 @@ func ReverifyChain(
 	blockchain, consensus, err := createBlockchain(
 		logger,
 		chain,
-		itrie.NewState(stateStorage, nil),
+		itrie.NewStateDB(stateStorage, hclog.NewNullLogger(), itrie.NilMetrics()),
 		dataDir,
 	)
 	if err != nil {

@@ -103,14 +103,18 @@ func createConsensus(
 func createBlockchain(
 	logger hclog.Logger,
 	genesis *chain.Chain,
-	st *itrie.State,
+	st itrie.StateDB,
 	dataDir string,
 ) (*blockchain.Blockchain, consensus.Consensus, error) {
 	executor := state.NewExecutor(genesis.Params, st, logger)
 	executor.SetRuntime(precompiled.NewPrecompiled())
 	executor.SetRuntime(evm.NewEVM())
 
-	genesisRoot := executor.WriteGenesis(genesis.Genesis.Alloc)
+	genesisRoot, err := executor.WriteGenesis(genesis.Genesis.Alloc)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	genesis.Genesis.StateRoot = genesisRoot
 
 	chain, err := blockchain.NewBlockchain(
