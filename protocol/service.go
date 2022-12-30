@@ -9,9 +9,9 @@ import (
 	"github.com/dogechain-lab/dogechain/network/grpc"
 	"github.com/dogechain-lab/dogechain/protocol/proto"
 	"github.com/dogechain-lab/dogechain/types"
-	"github.com/golang/protobuf/ptypes/empty"
 
 	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 var (
@@ -118,7 +118,7 @@ func (s *syncPeerService) GetBlocks(
 // GetStatus is a gRPC endpoint to return the latest block number as a node status
 func (s *syncPeerService) GetStatus(
 	ctx context.Context,
-	req *empty.Empty,
+	req *emptypb.Empty,
 ) (*proto.SyncPeerStatus, error) {
 	var number uint64
 	if header := s.blockchain.Header(); header != nil {
@@ -134,12 +134,12 @@ func (s *syncPeerService) GetStatus(
  * Deprecated methods.
  */
 
-func (s *syncPeerService) Notify(ctx context.Context, req *proto.NotifyReq) (*empty.Empty, error) {
-	return &empty.Empty{}, nil
+func (s *syncPeerService) Notify(ctx context.Context, req *proto.NotifyReq) (*emptypb.Empty, error) {
+	return &emptypb.Empty{}, nil
 }
 
 // GetCurrent implements the V1Server interface
-func (s *syncPeerService) GetCurrent(_ context.Context, _ *empty.Empty) (*proto.V1Status, error) {
+func (s *syncPeerService) GetCurrent(_ context.Context, _ *emptypb.Empty) (*proto.V1Status, error) {
 	return s.syncer.status.toProto(), nil
 }
 

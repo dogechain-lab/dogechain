@@ -13,22 +13,21 @@ import (
 	"github.com/dogechain-lab/dogechain/secrets"
 
 	peerEvent "github.com/dogechain-lab/dogechain/network/event"
-
-	"github.com/hashicorp/go-hclog"
-	"github.com/libp2p/go-libp2p"
-	"github.com/multiformats/go-multiaddr"
-
-	noise "github.com/libp2p/go-libp2p-noise"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	connmgr "github.com/libp2p/go-libp2p/p2p/net/connmgr"
 	rawGrpc "google.golang.org/grpc"
 
-	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/libp2p/go-libp2p-core/event"
-	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/network"
-	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/libp2p/go-libp2p-core/protocol"
+	"github.com/libp2p/go-libp2p"
+	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/libp2p/go-libp2p/core/event"
+	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/protocol"
+	"github.com/libp2p/go-libp2p/p2p/net/connmgr"
+	"github.com/libp2p/go-libp2p/p2p/security/noise"
+
+	"github.com/hashicorp/go-hclog"
+	"github.com/multiformats/go-multiaddr"
 )
 
 const (

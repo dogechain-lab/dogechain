@@ -10,12 +10,12 @@ import (
 	"github.com/dogechain-lab/dogechain/network/common"
 	"github.com/dogechain-lab/dogechain/network/event"
 	"github.com/hashicorp/go-hclog"
-	"github.com/libp2p/go-libp2p-core/network"
+	"github.com/libp2p/go-libp2p/core/network"
 
 	"github.com/dogechain-lab/dogechain/network/grpc"
 	"github.com/dogechain-lab/dogechain/network/proto"
-	"github.com/libp2p/go-libp2p-core/peer"
 	kb "github.com/libp2p/go-libp2p-kbucket"
+	"github.com/libp2p/go-libp2p/core/peer"
 
 	ranger "github.com/libp2p/go-cidranger"
 )

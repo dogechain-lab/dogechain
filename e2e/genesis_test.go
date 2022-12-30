@@ -7,13 +7,13 @@ import (
 	"time"
 
 	"github.com/dogechain-lab/dogechain/command"
+	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/dogechain-lab/dogechain/crypto"
 	"github.com/dogechain-lab/dogechain/e2e/framework"
 	"github.com/dogechain-lab/dogechain/helper/tests"
 	txpoolOp "github.com/dogechain-lab/dogechain/txpool/proto"
 	"github.com/dogechain-lab/dogechain/types"
-	"github.com/golang/protobuf/ptypes/any"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -103,7 +103,7 @@ func TestCustomBlockGasLimitPropagation(t *testing.T) {
 		}
 
 		_, err = srv.TxnPoolOperator().AddTxn(context.Background(), &txpoolOp.AddTxnReq{
-			Raw: &any.Any{
+			Raw: &anypb.Any{
 				Value: signedTx.MarshalRLP(),
 			},
 			From: types.ZeroAddress.String(),

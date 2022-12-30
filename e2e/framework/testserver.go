@@ -34,7 +34,7 @@ import (
 	txpoolProto "github.com/dogechain-lab/dogechain/txpool/proto"
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/hashicorp/go-hclog"
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/umbracle/go-web3"
 	"github.com/umbracle/go-web3/jsonrpc"
 	"google.golang.org/grpc"

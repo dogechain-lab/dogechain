@@ -15,10 +15,10 @@ import (
 	"github.com/dogechain-lab/dogechain/state"
 	"github.com/dogechain-lab/dogechain/txpool/proto"
 	"github.com/dogechain-lab/dogechain/types"
-	"github.com/golang/protobuf/ptypes/any"
 	"github.com/hashicorp/go-hclog"
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 const (
@@ -387,7 +387,7 @@ func (p *TxPool) AddTx(tx *types.Transaction) error {
 	// subscription is present
 	if p.topic != nil {
 		tx := &proto.Txn{
-			Raw: &any.Any{
+			Raw: &anypb.Any{
 				Value: tx.MarshalRLP(),
 			},
 		}

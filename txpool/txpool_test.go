@@ -15,7 +15,6 @@ import (
 	"github.com/dogechain-lab/dogechain/helper/tests"
 	"github.com/dogechain-lab/dogechain/txpool/proto"
 	"github.com/dogechain-lab/dogechain/types"
-	"github.com/golang/protobuf/ptypes/any"
 	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -344,7 +343,7 @@ func TestAddGossipTx(t *testing.T) {
 		// send tx
 		go func() {
 			protoTx := &proto.Txn{
-				Raw: &any.Any{
+				Raw: &anypb.Any{
 					Value: signedTx.MarshalRLP(),
 				},
 			}
@@ -371,7 +370,7 @@ func TestAddGossipTx(t *testing.T) {
 
 		// send tx
 		protoTx := &proto.Txn{
-			Raw: &any.Any{
+			Raw: &anypb.Any{
 				Value: signedTx.MarshalRLP(),
 			},
 		}

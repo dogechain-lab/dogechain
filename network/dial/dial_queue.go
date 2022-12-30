@@ -7,7 +7,7 @@ import (
 	"github.com/dogechain-lab/dogechain/network/common"
 	"go.uber.org/atomic"
 
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/peer"
 )
 
 // DialQueue is a queue that holds dials tasks for potential peers, implemented as a min-heap

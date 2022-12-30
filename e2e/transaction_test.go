@@ -18,10 +18,10 @@ import (
 	"github.com/dogechain-lab/dogechain/helper/tests"
 	txpoolOp "github.com/dogechain-lab/dogechain/txpool/proto"
 	"github.com/dogechain-lab/dogechain/types"
-	"github.com/golang/protobuf/ptypes/any"
 	"github.com/stretchr/testify/assert"
 	"github.com/umbracle/go-web3"
 	"github.com/umbracle/go-web3/jsonrpc"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 func TestSignedTransaction(t *testing.T) {
@@ -339,7 +339,7 @@ func addStressTestTxns(
 		currentNonce++
 
 		msg = &txpoolOp.AddTxnReq{
-			Raw: &any.Any{
+			Raw: &anypb.Any{
 				Value: setNameTxn.MarshalRLP(),
 			},
 			From: types.ZeroAddress.String(),

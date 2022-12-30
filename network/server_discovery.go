@@ -14,9 +14,9 @@ import (
 	"github.com/dogechain-lab/dogechain/network/grpc"
 	"github.com/dogechain-lab/dogechain/network/proto"
 	ranger "github.com/libp2p/go-cidranger"
-	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/libp2p/go-libp2p-core/peerstore"
 	kb "github.com/libp2p/go-libp2p-kbucket"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/peerstore"
 )
 
 // GetRandomBootnode fetches a random bootnode that's currently

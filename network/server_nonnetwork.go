@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/dogechain-lab/dogechain/network/event"
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"go.uber.org/atomic"
 	rawGrpc "google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"

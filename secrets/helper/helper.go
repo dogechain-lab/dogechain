@@ -13,7 +13,7 @@ import (
 	"github.com/dogechain-lab/dogechain/secrets/hashicorpvault"
 	"github.com/dogechain-lab/dogechain/secrets/local"
 	"github.com/hashicorp/go-hclog"
-	libp2pCrypto "github.com/libp2p/go-libp2p-core/crypto"
+	libp2pCrypto "github.com/libp2p/go-libp2p/core/crypto"
 )
 
 // SetupLocalSecretsManager is a helper method for boilerplate local secrets manager setup

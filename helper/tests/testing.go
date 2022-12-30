@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	libp2pCrypto "github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/libp2p/go-libp2p-core/peer"
+	libp2pCrypto "github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 
 	"github.com/dogechain-lab/dogechain/crypto"

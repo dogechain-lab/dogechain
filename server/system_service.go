@@ -11,7 +11,7 @@ import (
 	"github.com/dogechain-lab/dogechain/server/proto"
 	"github.com/dogechain-lab/dogechain/txpool"
 	"github.com/dogechain-lab/dogechain/types"
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/peer"
 	empty "google.golang.org/protobuf/types/known/emptypb"
 )
 

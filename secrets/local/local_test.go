@@ -10,7 +10,7 @@ import (
 	"github.com/dogechain-lab/dogechain/helper/common"
 	"github.com/dogechain-lab/dogechain/secrets"
 	"github.com/hashicorp/go-hclog"
-	libp2pCrypto "github.com/libp2p/go-libp2p-core/crypto"
+	libp2pCrypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -13,8 +13,8 @@ import (
 	cmap "github.com/dogechain-lab/dogechain/helper/concurrentmap"
 	"github.com/dogechain-lab/dogechain/helper/tests"
 	txpoolOp "github.com/dogechain-lab/dogechain/txpool/proto"
-	"github.com/golang/protobuf/ptypes/any"
 	"github.com/umbracle/go-web3/jsonrpc"
+	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/umbracle/go-web3"
@@ -325,7 +325,7 @@ func (l *Loadbot) executeTxn(
 	}
 
 	addReq := &txpoolOp.AddTxnReq{
-		Raw: &any.Any{
+		Raw: &anypb.Any{
 			Value: txn.MarshalRLP(),
 		},
 		From: types.ZeroAddress.String(),

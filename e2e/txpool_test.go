@@ -16,9 +16,9 @@ import (
 	"github.com/dogechain-lab/dogechain/txpool"
 	txpoolOp "github.com/dogechain-lab/dogechain/txpool/proto"
 	"github.com/dogechain-lab/dogechain/types"
-	"github.com/golang/protobuf/ptypes/any"
 	"github.com/stretchr/testify/assert"
 	"github.com/umbracle/go-web3"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 var (
@@ -56,7 +56,7 @@ func generateTx(params generateTxReqParams) *types.Transaction {
 
 func generateReq(params generateTxReqParams) *txpoolOp.AddTxnReq {
 	msg := &txpoolOp.AddTxnReq{
-		Raw: &any.Any{
+		Raw: &anypb.Any{
 			Value: generateTx(params).MarshalRLP(),
 		},
 		From: types.ZeroAddress.String(),
@@ -223,7 +223,7 @@ func TestTxPool_TransactionCoalescing(t *testing.T) {
 
 	generateReq := func(nonce uint64) *txpoolOp.AddTxnReq {
 		msg := &txpoolOp.AddTxnReq{
-			Raw: &any.Any{
+			Raw: &anypb.Any{
 				Value: generateTx(nonce).MarshalRLP(),
 			},
 			From: types.ZeroAddress.String(),
@@ -542,7 +542,7 @@ func TestTxPool_RecoverableError(t *testing.T) {
 		assert.NoError(t, err)
 
 		response, err := operator.AddTxn(context.Background(), &txpoolOp.AddTxnReq{
-			Raw: &any.Any{
+			Raw: &anypb.Any{
 				Value: signedTx.MarshalRLP(),
 			},
 			From: types.ZeroAddress.String(),
@@ -710,7 +710,7 @@ func TestTxPool_GreedyPackingStrategy(t *testing.T) {
 		assert.NoError(t, err)
 
 		response, err := operator.AddTxn(context.Background(), &txpoolOp.AddTxnReq{
-			Raw: &any.Any{
+			Raw: &anypb.Any{
 				Value: signedTx.MarshalRLP(),
 			},
 			From: types.ZeroAddress.String(),
@@ -823,7 +823,7 @@ func TestTxPool_ZeroPriceDev(t *testing.T) {
 		assert.NoError(t, err, "failed to sign transaction")
 
 		_, err = operator.AddTxn(ctx, &txpoolOp.AddTxnReq{
-			Raw: &any.Any{
+			Raw: &anypb.Any{
 				Value: tx.MarshalRLP(),
 			},
 			From: types.ZeroAddress.String(),
@@ -899,7 +899,7 @@ func TestTxPool_GetPendingTx(t *testing.T) {
 
 	// Add the transaction
 	response, err := operator.AddTxn(context.Background(), &txpoolOp.AddTxnReq{
-		Raw: &any.Any{
+		Raw: &anypb.Any{
 			Value: signedTx.MarshalRLP(),
 		},
 		From: types.ZeroAddress.String(),

@@ -8,7 +8,7 @@ import (
 	"github.com/dogechain-lab/dogechain/helper/progress"
 	"github.com/dogechain-lab/dogechain/network/event"
 	"github.com/dogechain-lab/dogechain/types"
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/peer"
 )
 
 // Syncer is a sync protocol for block downloading
