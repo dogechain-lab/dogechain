@@ -77,7 +77,7 @@ func GetPrometheusMetrics(namespace string, labelsWithValues ...string) *Metrics
 		constLabels[labelsWithValues[i-1]] = labelsWithValues[i]
 	}
 
-	return &Metrics{
+	m := &Metrics{
 		Requests: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: "jsonrpc",
@@ -110,36 +110,46 @@ func GetPrometheusMetrics(namespace string, labelsWithValues ...string) *Metrics
 			Name:        "eth_api_requests",
 			Help:        "eth api requests",
 			ConstLabels: constLabels,
-		}, []string{}),
+		}, []string{"method"}),
 		netAPI: stdprometheus.NewCounterVec(stdprometheus.CounterOpts{
 			Namespace:   namespace,
 			Subsystem:   "jsonrpc",
 			Name:        "net_api_requests",
 			Help:        "net api requests",
 			ConstLabels: constLabels,
-		}, []string{}),
+		}, []string{"method"}),
 		web3API: stdprometheus.NewCounterVec(stdprometheus.CounterOpts{
 			Namespace:   namespace,
 			Subsystem:   "jsonrpc",
 			Name:        "web3_api_requests",
 			Help:        "web3 api requests",
 			ConstLabels: constLabels,
-		}, []string{}),
+		}, []string{"method"}),
 		txPoolAPI: stdprometheus.NewCounterVec(stdprometheus.CounterOpts{
 			Namespace:   namespace,
 			Subsystem:   "jsonrpc",
 			Name:        "txpool_api_requests",
 			Help:        "TxPool api requests",
 			ConstLabels: constLabels,
-		}, []string{}),
+		}, []string{"method"}),
 		debugAPI: stdprometheus.NewCounterVec(stdprometheus.CounterOpts{
 			Namespace:   namespace,
 			Subsystem:   "jsonrpc",
 			Name:        "debug_api_requests",
 			Help:        "debug api requests",
 			ConstLabels: constLabels,
-		}, []string{}),
+		}, []string{"method"}),
 	}
+
+	stdprometheus.MustRegister(
+		m.ethAPI,
+		m.netAPI,
+		m.web3API,
+		m.txPoolAPI,
+		m.debugAPI,
+	)
+
+	return m
 }
 
 // NilMetrics will return the non operational jsonrpc metrics
