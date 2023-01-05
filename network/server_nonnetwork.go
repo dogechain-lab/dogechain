@@ -45,6 +45,10 @@ func (s *NonetworkServer) Peers() []*PeerConnInfo {
 	return []*PeerConnInfo{}
 }
 
+func (s *NonetworkServer) PeerCount() int64 {
+	return 0
+}
+
 func (s *NonetworkServer) IsConnected(peerID peer.ID) bool {
 	return false
 }

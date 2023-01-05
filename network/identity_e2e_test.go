@@ -87,12 +87,12 @@ func TestIdentityHandshake(t *testing.T) {
 				}
 
 				// Peer has been successfully added
-				assert.Equal(t, servers[0].numPeers(), int64(len(servers)-1))
-				assert.Equal(t, servers[1].numPeers(), int64(len(servers)-1))
+				assert.Equal(t, servers[0].PeerCount(), int64(len(servers)-1))
+				assert.Equal(t, servers[1].PeerCount(), int64(len(servers)-1))
 			} else {
 				// No peer has been added
-				assert.Equal(t, servers[0].numPeers(), int64(0))
-				assert.Equal(t, servers[1].numPeers(), int64(0))
+				assert.Equal(t, servers[0].PeerCount(), int64(0))
+				assert.Equal(t, servers[1].PeerCount(), int64(0))
 			}
 		})
 	}

@@ -44,6 +44,9 @@ type ethBlockchainStore interface {
 	// GetHeaderByNumber returns the header by number
 	GetHeaderByNumber(block uint64) (*types.Header, bool)
 
+	// GetHeaderByHash returns the header by hash
+	GetHeaderByHash(hash types.Hash) (*types.Header, bool)
+
 	// GetBlockByHash gets a block using the provided hash
 	GetBlockByHash(hash types.Hash, full bool) (*types.Block, bool)
 
@@ -84,6 +87,8 @@ type Eth struct {
 	chainID       uint64
 	filterManager *FilterManager
 	priceLimit    uint64
+
+	metrics *Metrics
 }
 
 var (
@@ -95,6 +100,8 @@ var (
 //
 //nolint:stylecheck
 func (e *Eth) ChainId() (interface{}, error) {
+	e.metrics.EthAPICounterInc("chainId")
+
 	return argUintPtr(e.chainID), nil
 }
 
@@ -122,6 +129,8 @@ func (e *Eth) getHeaderFromBlockNumberOrHash(bnh *BlockNumberOrHash) (*types.Hea
 }
 
 func (e *Eth) Syncing() (interface{}, error) {
+	e.metrics.EthAPICounterInc("syncing")
+
 	if syncProgression := e.store.GetSyncProgression(); syncProgression != nil {
 		// Node is bulk syncing, return the status
 		return progression{
@@ -159,6 +168,8 @@ func GetNumericBlockNumber(number BlockNumber, e *Eth) (uint64, error) {
 
 // GetBlockByNumber returns information about a block by block number
 func (e *Eth) GetBlockByNumber(number BlockNumber, fullTx bool) (interface{}, error) {
+	e.metrics.EthAPICounterInc("getBlockByNumber")
+
 	num, err := GetNumericBlockNumber(number, e)
 	if err != nil {
 		return nil, err
@@ -175,6 +186,8 @@ func (e *Eth) GetBlockByNumber(number BlockNumber, fullTx bool) (interface{}, er
 
 // GetBlockByHash returns information about a block by hash
 func (e *Eth) GetBlockByHash(hash types.Hash, fullTx bool) (interface{}, error) {
+	e.metrics.EthAPICounterInc("getBlockByHash")
+
 	block, ok := e.store.GetBlockByHash(hash, true)
 	if !ok {
 		return nil, nil
@@ -184,6 +197,8 @@ func (e *Eth) GetBlockByHash(hash types.Hash, fullTx bool) (interface{}, error) 
 }
 
 func (e *Eth) GetBlockTransactionCountByNumber(number BlockNumber) (interface{}, error) {
+	e.metrics.EthAPICounterInc("getBlockTransactionCountByNumber")
+
 	num, err := GetNumericBlockNumber(number, e)
 	if err != nil {
 		return nil, err
@@ -200,6 +215,8 @@ func (e *Eth) GetBlockTransactionCountByNumber(number BlockNumber) (interface{},
 
 // BlockNumber returns current block number
 func (e *Eth) BlockNumber() (interface{}, error) {
+	e.metrics.EthAPICounterInc("blockNumber")
+
 	h := e.store.Header()
 	if h == nil {
 		return nil, fmt.Errorf("header has a nil value")
@@ -210,6 +227,8 @@ func (e *Eth) BlockNumber() (interface{}, error) {
 
 // SendRawTransaction sends a raw transaction
 func (e *Eth) SendRawTransaction(input string) (interface{}, error) {
+	e.metrics.EthAPICounterInc("sendRawTransaction")
+
 	buf, err := hex.DecodeHex(input)
 	if err != nil {
 		return nil, fmt.Errorf("raw tx input decode hex err: %w", err)
@@ -237,6 +256,8 @@ func (e *Eth) SendTransaction(arg *txnArgs) (interface{}, error) {
 // If the transaction is still pending -> return the txn with some fields omitted
 // If the transaction is sealed into a block -> return the whole txn with all fields
 func (e *Eth) GetTransactionByHash(hash types.Hash) (interface{}, error) {
+	e.metrics.EthAPICounterInc("getTransactionByHash")
+
 	// findSealedTx is a helper method for checking the world state
 	// for the transaction with the provided hash
 	findSealedTx := func() *transaction {
@@ -301,6 +322,8 @@ func (e *Eth) GetTransactionByHash(hash types.Hash) (interface{}, error) {
 
 // GetTransactionReceipt returns a transaction receipt by his hash
 func (e *Eth) GetTransactionReceipt(hash types.Hash) (interface{}, error) {
+	e.metrics.EthAPICounterInc("getTransactionReceipt")
+
 	blockHash, ok := e.store.ReadTxLookup(hash)
 	if !ok {
 		// txn not found
@@ -394,6 +417,8 @@ func (e *Eth) GetStorageAt(
 	index types.Hash,
 	filter BlockNumberOrHash,
 ) (interface{}, error) {
+	e.metrics.EthAPICounterInc("getStorageAt")
+
 	var (
 		header *types.Header
 		err    error
@@ -438,6 +463,8 @@ func (e *Eth) GetStorageAt(
 
 // GasPrice returns the average gas price based on the last x blocks
 func (e *Eth) GasPrice() (interface{}, error) {
+	e.metrics.EthAPICounterInc("gasPrice")
+
 	// var avgGasPrice string
 	// Grab the average gas price and convert it to a hex value
 	priceLimit := new(big.Int).SetUint64(e.priceLimit)
@@ -460,6 +487,8 @@ func (e *Eth) GasPrice() (interface{}, error) {
 
 // Call executes a smart contract call using the transaction object data
 func (e *Eth) Call(arg *txnArgs, filter BlockNumberOrHash) (interface{}, error) {
+	e.metrics.EthAPICounterInc("call")
+
 	var (
 		header *types.Header
 		err    error
@@ -505,6 +534,8 @@ func (e *Eth) Call(arg *txnArgs, filter BlockNumberOrHash) (interface{}, error) 
 
 // EstimateGas estimates the gas needed to execute a transaction
 func (e *Eth) EstimateGas(arg *txnArgs, rawNum *BlockNumber) (interface{}, error) {
+	e.metrics.EthAPICounterInc("estimateGas")
+
 	transaction, err := e.decodeTxn(arg)
 	if err != nil {
 		return nil, err
@@ -693,6 +724,8 @@ func (e *Eth) EstimateGas(arg *txnArgs, rawNum *BlockNumber) (interface{}, error
 
 // GetFilterLogs returns an array of logs for the specified filter
 func (e *Eth) GetFilterLogs(id string) (interface{}, error) {
+	e.metrics.EthAPICounterInc("getFilterLogs")
+
 	logFilter, err := e.filterManager.GetLogFilterFromID(id)
 	if err != nil {
 		return nil, err
@@ -703,11 +736,15 @@ func (e *Eth) GetFilterLogs(id string) (interface{}, error) {
 
 // GetLogs returns an array of logs matching the filter options
 func (e *Eth) GetLogs(query *LogQuery) (interface{}, error) {
+	e.metrics.EthAPICounterInc("getLogs")
+
 	return e.filterManager.GetLogs(query)
 }
 
 // GetBalance returns the account's balance at the referenced block.
 func (e *Eth) GetBalance(address types.Address, filter BlockNumberOrHash) (interface{}, error) {
+	e.metrics.EthAPICounterInc("getBalance")
+
 	var (
 		header *types.Header
 		err    error
@@ -737,6 +774,8 @@ func (e *Eth) GetBalance(address types.Address, filter BlockNumberOrHash) (inter
 
 // GetTransactionCount returns account nonce
 func (e *Eth) GetTransactionCount(address types.Address, filter BlockNumberOrHash) (interface{}, error) {
+	e.metrics.EthAPICounterInc("getTransactionCount")
+
 	var (
 		blockNumber BlockNumber
 		header      *types.Header
@@ -773,6 +812,8 @@ func (e *Eth) GetTransactionCount(address types.Address, filter BlockNumberOrHas
 
 // GetCode returns account code at given block number
 func (e *Eth) GetCode(address types.Address, filter BlockNumberOrHash) (interface{}, error) {
+	e.metrics.EthAPICounterInc("getCode")
+
 	var (
 		header *types.Header
 		err    error
@@ -810,11 +851,15 @@ func (e *Eth) GetCode(address types.Address, filter BlockNumberOrHash) (interfac
 
 // NewFilter creates a filter object, based on filter options, to notify when the state changes (logs).
 func (e *Eth) NewFilter(filter *LogQuery) (interface{}, error) {
+	e.metrics.EthAPICounterInc("newFilter")
+
 	return e.filterManager.NewLogFilter(filter, nil), nil
 }
 
 // NewBlockFilter creates a filter in the node, to notify when a new block arrives
 func (e *Eth) NewBlockFilter() (interface{}, error) {
+	e.metrics.EthAPICounterInc("newBlockFilter")
+
 	return e.filterManager.NewBlockFilter(nil), nil
 }
 
@@ -822,16 +867,22 @@ func (e *Eth) NewBlockFilter() (interface{}, error) {
 // which occurred since last poll. WebSocket polling log filter changes would not be
 // accepted anymore.
 func (e *Eth) GetFilterChanges(id string) (interface{}, error) {
+	e.metrics.EthAPICounterInc("getFilterChanges")
+
 	return e.filterManager.GetFilterChanges(id)
 }
 
 // UninstallFilter uninstalls a filter with given ID
 func (e *Eth) UninstallFilter(id string) (bool, error) {
+	e.metrics.EthAPICounterInc("uninstallFilter")
+
 	return e.filterManager.Uninstall(id), nil
 }
 
 // Unsubscribe uninstalls a filter in a websocket
 func (e *Eth) Unsubscribe(id string) (bool, error) {
+	e.metrics.EthAPICounterInc("unsubscribe")
+
 	return e.filterManager.Uninstall(id), nil
 }
 

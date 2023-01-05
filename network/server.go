@@ -344,7 +344,7 @@ func (s *DefaultServer) keepAliveMinimumPeerConnections() {
 			return
 		}
 
-		if s.numPeers() >= MinimumPeerConnections {
+		if s.PeerCount() >= MinimumPeerConnections {
 			continue
 		}
 
@@ -445,8 +445,8 @@ func (s *DefaultServer) runDial() {
 	}
 }
 
-// numPeers returns the number of connected peers [Thread safe]
-func (s *DefaultServer) numPeers() int64 {
+// PeerCount returns the number of connected peers [Thread safe]
+func (s *DefaultServer) PeerCount() int64 {
 	s.peersLock.Lock()
 	defer s.peersLock.Unlock()
 

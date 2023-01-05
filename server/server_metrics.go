@@ -12,33 +12,36 @@ import (
 
 // serverMetrics holds the metric instances of all sub systems
 type serverMetrics struct {
-	blockchain *blockchain.Metrics
-	consensus  *consensus.Metrics
-	network    *network.Metrics
-	txpool     *txpool.Metrics
-	jsonrpc    *jsonrpc.Metrics
-	trie       itrie.Metrics
+	blockchain   *blockchain.Metrics
+	consensus    *consensus.Metrics
+	network      *network.Metrics
+	txpool       *txpool.Metrics
+	jsonrpc      *jsonrpc.Metrics
+	jsonrpcStore *JSONRPCStoreMetrics
+	trie         itrie.Metrics
 }
 
 // metricProvider serverMetric instance for the given ChainID and nameSpace
 func metricProvider(nameSpace string, chainID string, metricsRequired bool, trackingIOTimer bool) *serverMetrics {
 	if metricsRequired {
 		return &serverMetrics{
-			blockchain: blockchain.GetPrometheusMetrics(nameSpace, "chain_id", chainID),
-			consensus:  consensus.GetPrometheusMetrics(nameSpace, "chain_id", chainID),
-			network:    network.GetPrometheusMetrics(nameSpace, "chain_id", chainID),
-			txpool:     txpool.GetPrometheusMetrics(nameSpace, "chain_id", chainID),
-			jsonrpc:    jsonrpc.GetPrometheusMetrics(nameSpace, "chain_id", chainID),
-			trie:       itrie.GetPrometheusMetrics(nameSpace, trackingIOTimer, "chain_id", chainID),
+			blockchain:   blockchain.GetPrometheusMetrics(nameSpace, "chain_id", chainID),
+			consensus:    consensus.GetPrometheusMetrics(nameSpace, "chain_id", chainID),
+			network:      network.GetPrometheusMetrics(nameSpace, "chain_id", chainID),
+			txpool:       txpool.GetPrometheusMetrics(nameSpace, "chain_id", chainID),
+			jsonrpc:      jsonrpc.GetPrometheusMetrics(nameSpace, "chain_id", chainID),
+			jsonrpcStore: NewJSONRPCStoreMetrics(nameSpace, "chain_id", chainID),
+			trie:         itrie.GetPrometheusMetrics(nameSpace, trackingIOTimer, "chain_id", chainID),
 		}
 	}
 
 	return &serverMetrics{
-		blockchain: blockchain.NilMetrics(),
-		consensus:  consensus.NilMetrics(),
-		network:    network.NilMetrics(),
-		txpool:     txpool.NilMetrics(),
-		jsonrpc:    jsonrpc.NilMetrics(),
-		trie:       itrie.NilMetrics(),
+		blockchain:   blockchain.NilMetrics(),
+		consensus:    consensus.NilMetrics(),
+		network:      network.NilMetrics(),
+		txpool:       txpool.NilMetrics(),
+		jsonrpc:      jsonrpc.NilMetrics(),
+		jsonrpcStore: JSONRPCStoreNilMetrics(),
+		trie:         itrie.NilMetrics(),
 	}
 }

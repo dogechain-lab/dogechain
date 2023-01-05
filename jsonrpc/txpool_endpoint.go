@@ -19,6 +19,8 @@ type txPoolStore interface {
 // TxPool is the txpool jsonrpc endpoint
 type TxPool struct {
 	store txPoolStore
+
+	metrics *Metrics
 }
 
 type ContentResponse struct {
@@ -71,6 +73,8 @@ func toTxPoolTransaction(t *types.Transaction) *txpoolTransaction {
 // Create response for txpool_content request.
 // See https://geth.ethereum.org/docs/rpc/ns-txpool#txpool_content.
 func (t *TxPool) Content() (interface{}, error) {
+	t.metrics.TxPoolAPICounterInc("content")
+
 	pendingTxs, queuedTxs := t.store.GetTxs(true)
 
 	// collect pending
@@ -110,6 +114,8 @@ func (t *TxPool) Content() (interface{}, error) {
 // Create response for txpool_inspect request.
 // See https://geth.ethereum.org/docs/rpc/ns-txpool#txpool_inspect.
 func (t *TxPool) Inspect() (interface{}, error) {
+	t.metrics.TxPoolAPICounterInc("inspect")
+
 	pendingTxs, queuedTxs := t.store.GetTxs(true)
 
 	// collect pending
@@ -154,6 +160,7 @@ func (t *TxPool) Inspect() (interface{}, error) {
 // Create response for txpool_status request.
 // See https://geth.ethereum.org/docs/rpc/ns-txpool#txpool_status.
 func (t *TxPool) Status() (interface{}, error) {
+	t.metrics.TxPoolAPICounterInc("status")
 	pendingTxs, queuedTxs := t.store.GetTxs(true)
 
 	var pendingCount int

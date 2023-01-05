@@ -19,9 +19,13 @@ var (
 
 type Debug struct {
 	store ethStore
+
+	metrics *Metrics
 }
 
 func (d *Debug) TraceTransaction(hash types.Hash) (interface{}, error) {
+	d.metrics.DebugAPICounterInc("traceTransaction")
+
 	// Check the chain state for the transaction
 	blockHash, ok := d.store.ReadTxLookup(hash)
 	if !ok {

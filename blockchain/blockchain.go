@@ -23,7 +23,7 @@ import (
 
 const (
 	BlockGasTargetDivisor uint64 = 1024 // The bound divisor of the gas limit, used in update calculations
-	defaultCacheSize      int    = 10   // The default size for Blockchain LRU cache structures
+	defaultCacheSize      int    = 100  // The default size for Blockchain LRU cache structures
 )
 
 var (

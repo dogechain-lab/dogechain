@@ -63,6 +63,7 @@ type Dispatcher struct {
 
 func newDispatcher(
 	logger hclog.Logger,
+	metrics *Metrics,
 	store JSONRPCStore,
 	chainID uint64,
 	jsonRPCBatchLengthLimit uint64,
@@ -89,24 +90,25 @@ func newDispatcher(
 		go d.filterManager.Run()
 	}
 
-	d.initEndpoints(store)
+	d.initEndpoints(store, metrics)
 	d.registerEndpoints()
 
 	return d
 }
 
-func (d *Dispatcher) initEndpoints(store JSONRPCStore) {
+func (d *Dispatcher) initEndpoints(store JSONRPCStore, metrics *Metrics) {
 	d.endpoints.Eth = &Eth{
 		logger:        d.logger,
 		store:         store,
 		chainID:       d.chainID,
 		filterManager: d.filterManager,
 		priceLimit:    d.priceLimit,
+		metrics:       metrics,
 	}
-	d.endpoints.Net = &Net{store, d.chainID}
-	d.endpoints.Web3 = &Web3{d.chainID}
-	d.endpoints.TxPool = &TxPool{store}
-	d.endpoints.Debug = &Debug{store}
+	d.endpoints.Net = &Net{store, d.chainID, metrics}
+	d.endpoints.Web3 = &Web3{d.chainID, metrics}
+	d.endpoints.TxPool = &TxPool{store, metrics}
+	d.endpoints.Debug = &Debug{store, metrics}
 }
 
 func (d *Dispatcher) registerEndpoints() {

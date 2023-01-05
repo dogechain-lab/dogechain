@@ -10,7 +10,7 @@ import (
 )
 
 func TestWeb3EndpointSha3(t *testing.T) {
-	dispatcher := newDispatcher(hclog.NewNullLogger(), newMockStore(), 0, 20, 1000, 0, []Namespace{
+	dispatcher := newDispatcher(hclog.NewNullLogger(), NilMetrics(), newMockStore(), 0, 20, 1000, 0, []Namespace{
 		NamespaceWeb3,
 	})
 
@@ -31,6 +31,7 @@ func TestWeb3EndpointClientVersion(t *testing.T) {
 
 	dispatcher := newDispatcher(
 		hclog.NewNullLogger(),
+		NilMetrics(),
 		newMockStore(),
 		chainID,
 		20,

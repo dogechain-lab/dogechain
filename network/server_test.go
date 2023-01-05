@@ -559,8 +559,8 @@ func TestReconnectionWithNewIP(t *testing.T) {
 		t.Fatalf("Unable to wait for connection between Server 2 and Server 0, %v", connectErr)
 	}
 
-	assert.Equal(t, int64(1), servers[0].numPeers())
-	assert.Equal(t, int64(1), servers[2].numPeers())
+	assert.Equal(t, int64(1), servers[0].PeerCount())
+	assert.Equal(t, int64(1), servers[2].PeerCount())
 }
 
 func TestSelfConnection_WithBootNodes(t *testing.T) {

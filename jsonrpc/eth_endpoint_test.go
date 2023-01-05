@@ -223,5 +223,5 @@ func TestEth_GetNextNonce(t *testing.T) {
 }
 
 func newTestEthEndpoint(store ethStore) *Eth {
-	return &Eth{hclog.NewNullLogger(), store, 100, nil, 0}
+	return &Eth{hclog.NewNullLogger(), store, 100, nil, 0, NilMetrics()}
 }

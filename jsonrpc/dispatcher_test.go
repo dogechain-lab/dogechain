@@ -58,7 +58,7 @@ func expectBatchJSONResult(data []byte, v interface{}) error {
 func TestDispatcher_HandleWebsocketConnection_EthSubscribe(t *testing.T) {
 	t.Run("clients should be able to receive \"newHeads\" event thru eth_subscribe", func(t *testing.T) {
 		store := newMockStore()
-		dispatcher := newDispatcher(hclog.NewNullLogger(), store, 0, 0, 0, 0, []Namespace{
+		dispatcher := newDispatcher(hclog.NewNullLogger(), NilMetrics(), store, 0, 0, 0, 0, []Namespace{
 			NamespaceEth,
 		})
 
@@ -97,7 +97,7 @@ func TestDispatcher_HandleWebsocketConnection_EthSubscribe(t *testing.T) {
 
 func TestDispatcher_WebsocketConnection_RequestFormats(t *testing.T) {
 	store := newMockStore()
-	dispatcher := newDispatcher(hclog.NewNullLogger(), store, 0, 0, 0, 0, []Namespace{
+	dispatcher := newDispatcher(hclog.NewNullLogger(), NilMetrics(), store, 0, 0, 0, 0, []Namespace{
 		NamespaceEth,
 	})
 
@@ -210,7 +210,7 @@ func TestDispatcher_NamespaceRegistration(t *testing.T) {
 	}
 	for _, c := range cases {
 		// different dispatcher
-		dispatcher := newDispatcher(hclog.NewNullLogger(), store, 0, 0, 0, 0, c.ns)
+		dispatcher := newDispatcher(hclog.NewNullLogger(), NilMetrics(), store, 0, 0, 0, 0, c.ns)
 
 		data, err := dispatcher.Handle(c.msg)
 		assert.NoError(t, err)
@@ -267,7 +267,7 @@ func (m *mockService) Filter(f LogQuery) (interface{}, error) {
 func TestDispatcherFuncDecode(t *testing.T) {
 	srv := &mockService{msgCh: make(chan interface{}, 10)}
 
-	dispatcher := newDispatcher(hclog.NewNullLogger(), newMockStore(), 0, 0, 0, 0, nil)
+	dispatcher := newDispatcher(hclog.NewNullLogger(), NilMetrics(), newMockStore(), 0, 0, 0, 0, nil)
 	dispatcher.registerService("mock", srv)
 
 	handleReq := func(typ string, msg string) interface{} {
@@ -349,7 +349,7 @@ func TestDispatcherBatchRequest(t *testing.T) {
 		{
 			"leading-whitespace",
 			"test with leading whitespace (\"  \\t\\n\\n\\r\\)",
-			newDispatcher(hclog.NewNullLogger(), newMockStore(), 0, 0, 0, 0, []Namespace{
+			newDispatcher(hclog.NewNullLogger(), NilMetrics(), newMockStore(), 0, 0, 0, 0, []Namespace{
 				NamespaceAll,
 			}),
 			append([]byte{0x20, 0x20, 0x09, 0x0A, 0x0A, 0x0D}, []byte(`[
@@ -367,7 +367,7 @@ func TestDispatcherBatchRequest(t *testing.T) {
 		{
 			"valid-batch-req",
 			"test with batch req length within batchRequestLengthLimit",
-			newDispatcher(hclog.NewNullLogger(), newMockStore(), 0, 0, 0, 0, []Namespace{
+			newDispatcher(hclog.NewNullLogger(), NilMetrics(), newMockStore(), 0, 0, 0, 0, []Namespace{
 				NamespaceEth,
 			}),
 			[]byte(`[
@@ -389,7 +389,7 @@ func TestDispatcherBatchRequest(t *testing.T) {
 		{
 			"invalid-batch-req",
 			"test with batch req length exceeding batchRequestLengthLimit",
-			newDispatcher(hclog.NewNullLogger(), newMockStore(), 0, 3, 1000, 0, []Namespace{
+			newDispatcher(hclog.NewNullLogger(), NilMetrics(), newMockStore(), 0, 3, 1000, 0, []Namespace{
 				NamespaceEth,
 			}),
 			[]byte(`[
@@ -405,7 +405,7 @@ func TestDispatcherBatchRequest(t *testing.T) {
 		{
 			"no-limits",
 			"test when limits are not set",
-			newDispatcher(hclog.NewNullLogger(), newMockStore(), 0, 0, 0, 0, []Namespace{
+			newDispatcher(hclog.NewNullLogger(), NilMetrics(), newMockStore(), 0, 0, 0, 0, []Namespace{
 				NamespaceEth,
 			}),
 			[]byte(`[

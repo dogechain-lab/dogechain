@@ -28,7 +28,6 @@ import (
 	"github.com/dogechain-lab/dogechain/server/proto"
 	"github.com/dogechain-lab/dogechain/state"
 	itrie "github.com/dogechain-lab/dogechain/state/immutable-trie"
-	"github.com/dogechain-lab/dogechain/state/runtime"
 	"github.com/dogechain-lab/dogechain/state/runtime/evm"
 	"github.com/dogechain-lab/dogechain/state/runtime/precompiled"
 	"github.com/dogechain-lab/dogechain/txpool"
@@ -504,177 +503,20 @@ func (s *Server) setupConsensus() error {
 	return nil
 }
 
-type jsonRPCHub struct {
-	state              state.State
-	restoreProgression *progress.ProgressionWrapper
-
-	*blockchain.Blockchain
-	*txpool.TxPool
-	*state.Executor
-	network.Server
-	consensus.Consensus
-}
-
-// HELPER + WRAPPER METHODS //
-
-func (j *jsonRPCHub) GetPeers() int {
-	return len(j.Server.Peers())
-}
-
-func (j *jsonRPCHub) getState(root types.Hash, slot []byte) ([]byte, error) {
-	// the values in the trie are the hashed objects of the keys
-	key := keccak.Keccak256(nil, slot)
-
-	snap, err := j.state.NewSnapshotAt(root)
-	if err != nil {
-		return nil, err
-	}
-
-	result, ok := snap.Get(key)
-
-	if !ok {
-		return nil, jsonrpc.ErrStateNotFound
-	}
-
-	return result, nil
-}
-
-func (j *jsonRPCHub) GetAccount(root types.Hash, addr types.Address) (*state.Account, error) {
-	obj, err := j.getState(root, addr.Bytes())
-	if err != nil {
-		return nil, err
-	}
-
-	var account state.Account
-	if err := account.UnmarshalRlp(obj); err != nil {
-		return nil, err
-	}
-
-	return &account, nil
-}
-
-// GetForksInTime returns the active forks at the given block height
-func (j *jsonRPCHub) GetForksInTime(blockNumber uint64) chain.ForksInTime {
-	return j.Executor.GetForksInTime(blockNumber)
-}
-
-func (j *jsonRPCHub) GetStorage(root types.Hash, addr types.Address, slot types.Hash) ([]byte, error) {
-	account, err := j.GetAccount(root, addr)
-
-	if err != nil {
-		return nil, err
-	}
-
-	obj, err := j.getState(account.Root, slot.Bytes())
-
-	if err != nil {
-		return nil, err
-	}
-
-	return obj, nil
-}
-
-func (j *jsonRPCHub) GetCode(hash types.Hash) ([]byte, error) {
-	res, ok := j.state.GetCode(hash)
-
-	if !ok {
-		return nil, fmt.Errorf("unable to fetch code")
-	}
-
-	return res, nil
-}
-
-func (j *jsonRPCHub) ApplyTxn(
-	header *types.Header,
-	txn *types.Transaction,
-) (result *runtime.ExecutionResult, err error) {
-	blockCreator, err := j.GetConsensus().GetBlockCreator(header)
-	if err != nil {
-		return nil, err
-	}
-
-	transition, err := j.BeginTxn(header.StateRoot, header, blockCreator)
-
-	if err != nil {
-		return
-	}
-
-	result, err = transition.Apply(txn)
-
-	return
-}
-
-func (j *jsonRPCHub) GetSyncProgression() *progress.Progression {
-	// restore progression
-	if restoreProg := j.restoreProgression.GetProgression(); restoreProg != nil {
-		return restoreProg
-	}
-
-	// consensus sync progression
-	if consensusSyncProg := j.Consensus.GetSyncProgression(); consensusSyncProg != nil {
-		return consensusSyncProg
-	}
-
-	return nil
-}
-
-func (j *jsonRPCHub) StateAtTransaction(block *types.Block, txIndex int) (*state.Transition, error) {
-	if block.Number() == 0 {
-		return nil, errors.New("no transaction in genesis")
-	}
-
-	if txIndex < 0 {
-		return nil, errors.New("invalid transaction index")
-	}
-
-	// get parent header
-	parent, exists := j.GetParent(block.Header)
-	if !exists {
-		return nil, fmt.Errorf("parent %s not found", block.ParentHash())
-	}
-
-	// block creator
-	blockCreator, err := j.GetConsensus().GetBlockCreator(block.Header)
-	if err != nil {
-		return nil, err
-	}
-
-	// begin transition, use parent block
-	txn, err := j.BeginTxn(parent.StateRoot, parent, blockCreator)
-	if err != nil {
-		return nil, err
-	}
-
-	if txIndex == 0 {
-		return txn, nil
-	}
-
-	for idx, tx := range block.Transactions {
-		if idx == txIndex {
-			return txn, nil
-		}
-
-		if _, err := txn.Apply(tx); err != nil {
-			return nil, fmt.Errorf("transaction %s failed: %w", tx.Hash(), err)
-		}
-	}
-
-	return nil, fmt.Errorf("transaction index %d out of range for block %s", txIndex, block.Hash())
-}
-
 // SETUP //
 
 // setupJSONRCP sets up the JSONRPC server, using the set configuration
 func (s *Server) setupJSONRPC() error {
-	hub := &jsonRPCHub{
-		state:              s.state,
-		restoreProgression: s.restoreProgression,
-		Blockchain:         s.blockchain,
-		TxPool:             s.txpool,
-		Executor:           s.executor,
-		Consensus:          s.consensus,
-		Server:             s.network,
-	}
+	hub := NewJSONRPCStore(
+		s.state,
+		s.blockchain,
+		s.restoreProgression,
+		s.txpool,
+		s.executor,
+		s.consensus,
+		s.network,
+		s.serverMetrics.jsonrpcStore,
+	)
 
 	// format the jsonrpc endpoint namespaces
 	namespaces := make([]jsonrpc.Namespace, len(s.config.JSONRPC.JSONNamespace))
@@ -712,15 +554,16 @@ func (s *Server) setupGraphQL() error {
 		return nil
 	}
 
-	hub := &jsonRPCHub{
-		state:              s.state,
-		restoreProgression: s.restoreProgression,
-		Blockchain:         s.blockchain,
-		TxPool:             s.txpool,
-		Executor:           s.executor,
-		Consensus:          s.consensus,
-		Server:             s.network,
-	}
+	hub := NewJSONRPCStore(
+		s.state,
+		s.blockchain,
+		s.restoreProgression,
+		s.txpool,
+		s.executor,
+		s.consensus,
+		s.network,
+		s.serverMetrics.jsonrpcStore,
+	)
 
 	conf := &graphql.Config{
 		Store:                    hub,

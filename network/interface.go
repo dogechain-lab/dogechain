@@ -16,6 +16,8 @@ type Network interface {
 	AddrInfo() *peer.AddrInfo
 	// Peers returns current connected peers
 	Peers() []*PeerConnInfo
+	// PeerCount returns the number of connected peers
+	PeerCount() int64
 	// GetPeerInfo returns the peer info for the given peer ID
 	GetPeerInfo(peerID peer.ID) *peer.AddrInfo
 	// JoinPeer joins a peer to the network

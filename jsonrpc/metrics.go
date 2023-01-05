@@ -17,6 +17,51 @@ type Metrics struct {
 
 	// Requests duration (seconds)
 	ResponseTime metrics.Histogram
+
+	// Eth metrics
+	ethAPI *stdprometheus.CounterVec
+
+	// Net metrics
+	netAPI *stdprometheus.CounterVec
+
+	// Web3 metrics
+	web3API *stdprometheus.CounterVec
+
+	// TxPool metrics
+	txPoolAPI *stdprometheus.CounterVec
+
+	// Debug metrics
+	debugAPI *stdprometheus.CounterVec
+}
+
+func (m *Metrics) EthAPICounterInc(method string) {
+	if m.ethAPI != nil {
+		m.ethAPI.With(stdprometheus.Labels{"method": "eth_" + method}).Inc()
+	}
+}
+
+func (m *Metrics) NetAPICounterInc(method string) {
+	if m.netAPI != nil {
+		m.netAPI.With(stdprometheus.Labels{"method": "net_" + method}).Inc()
+	}
+}
+
+func (m *Metrics) Web3APICounterInc(method string) {
+	if m.web3API != nil {
+		m.web3API.With(stdprometheus.Labels{"method": "web3_" + method}).Inc()
+	}
+}
+
+func (m *Metrics) TxPoolAPICounterInc(method string) {
+	if m.txPoolAPI != nil {
+		m.txPoolAPI.With(stdprometheus.Labels{"method": "txpool_" + method}).Inc()
+	}
+}
+
+func (m *Metrics) DebugAPICounterInc(method string) {
+	if m.debugAPI != nil {
+		m.debugAPI.With(stdprometheus.Labels{"method": "debug_" + method}).Inc()
+	}
 }
 
 // GetPrometheusMetrics return the blockchain metrics instance
@@ -25,6 +70,11 @@ func GetPrometheusMetrics(namespace string, labelsWithValues ...string) *Metrics
 
 	for i := 0; i < len(labelsWithValues); i += 2 {
 		labels = append(labels, labelsWithValues[i])
+	}
+
+	constLabels := map[string]string{}
+	for i := 1; i < len(labelsWithValues); i += 2 {
+		constLabels[labelsWithValues[i-1]] = labelsWithValues[i]
 	}
 
 	return &Metrics{
@@ -54,6 +104,41 @@ func GetPrometheusMetrics(namespace string, labelsWithValues ...string) *Metrics
 				2.0,
 			},
 		}, labels).With(labelsWithValues...),
+		ethAPI: stdprometheus.NewCounterVec(stdprometheus.CounterOpts{
+			Namespace:   namespace,
+			Subsystem:   "jsonrpc",
+			Name:        "eth_api_requests",
+			Help:        "eth api requests",
+			ConstLabels: constLabels,
+		}, []string{}),
+		netAPI: stdprometheus.NewCounterVec(stdprometheus.CounterOpts{
+			Namespace:   namespace,
+			Subsystem:   "jsonrpc",
+			Name:        "net_api_requests",
+			Help:        "net api requests",
+			ConstLabels: constLabels,
+		}, []string{}),
+		web3API: stdprometheus.NewCounterVec(stdprometheus.CounterOpts{
+			Namespace:   namespace,
+			Subsystem:   "jsonrpc",
+			Name:        "web3_api_requests",
+			Help:        "web3 api requests",
+			ConstLabels: constLabels,
+		}, []string{}),
+		txPoolAPI: stdprometheus.NewCounterVec(stdprometheus.CounterOpts{
+			Namespace:   namespace,
+			Subsystem:   "jsonrpc",
+			Name:        "txpool_api_requests",
+			Help:        "TxPool api requests",
+			ConstLabels: constLabels,
+		}, []string{}),
+		debugAPI: stdprometheus.NewCounterVec(stdprometheus.CounterOpts{
+			Namespace:   namespace,
+			Subsystem:   "jsonrpc",
+			Name:        "debug_api_requests",
+			Help:        "debug api requests",
+			ConstLabels: constLabels,
+		}, []string{}),
 	}
 }
 
@@ -63,6 +148,11 @@ func NilMetrics() *Metrics {
 		Requests:     discard.NewCounter(),
 		Errors:       discard.NewCounter(),
 		ResponseTime: discard.NewHistogram(),
+		ethAPI:       nil,
+		netAPI:       nil,
+		web3API:      nil,
+		txPoolAPI:    nil,
+		debugAPI:     nil,
 	}
 }
 
