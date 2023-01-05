@@ -24,7 +24,7 @@ type Debug struct {
 }
 
 func (d *Debug) TraceTransaction(hash types.Hash) (interface{}, error) {
-	d.metrics.DebugAPICounterInc("traceTransaction")
+	d.metrics.DebugAPICounterInc(DebugTraceTransactionLabel)
 
 	// Check the chain state for the transaction
 	blockHash, ok := d.store.ReadTxLookup(hash)

@@ -19,7 +19,7 @@ var _clientVersionTemplate = "dogechain [chain-id: %d] [version: %s]"
 
 // ClientVersion returns the version of the web3 client (web3_clientVersion)
 func (w *Web3) ClientVersion() (interface{}, error) {
-	w.metrics.Web3APICounterInc("clientVersion")
+	w.metrics.Web3APICounterInc(Web3ClientVersionLabel)
 
 	return fmt.Sprintf(
 		_clientVersionTemplate,
@@ -30,7 +30,7 @@ func (w *Web3) ClientVersion() (interface{}, error) {
 
 // Sha3 returns Keccak-256 (not the standardized SHA3-256) of the given data
 func (w *Web3) Sha3(val string) (interface{}, error) {
-	w.metrics.Web3APICounterInc("sha3")
+	w.metrics.Web3APICounterInc(Web3Sha3Label)
 
 	v, err := hex.DecodeHex(val)
 	if err != nil {

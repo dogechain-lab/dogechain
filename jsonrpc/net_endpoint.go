@@ -17,21 +17,21 @@ type Net struct {
 
 // Version returns the current network id
 func (n *Net) Version() (interface{}, error) {
-	n.metrics.NetAPICounterInc("version")
+	n.metrics.NetAPICounterInc(NetVersionLabel)
 
 	return strconv.FormatUint(n.chainID, 10), nil
 }
 
 // Listening returns true if client is actively listening for network connections
 func (n *Net) Listening() (interface{}, error) {
-	n.metrics.NetAPICounterInc("listening")
+	n.metrics.NetAPICounterInc(NetListeningLabel)
 
 	return true, nil
 }
 
 // PeerCount returns number of peers currently connected to the client
 func (n *Net) PeerCount() (interface{}, error) {
-	n.metrics.NetAPICounterInc("peerCount")
+	n.metrics.NetAPICounterInc(NetPeerCountLabel)
 
 	peers := n.store.PeerCount()
 

@@ -73,7 +73,7 @@ func toTxPoolTransaction(t *types.Transaction) *txpoolTransaction {
 // Create response for txpool_content request.
 // See https://geth.ethereum.org/docs/rpc/ns-txpool#txpool_content.
 func (t *TxPool) Content() (interface{}, error) {
-	t.metrics.TxPoolAPICounterInc("content")
+	t.metrics.TxPoolAPICounterInc(TxPoolContentLabel)
 
 	pendingTxs, queuedTxs := t.store.GetTxs(true)
 
@@ -114,7 +114,7 @@ func (t *TxPool) Content() (interface{}, error) {
 // Create response for txpool_inspect request.
 // See https://geth.ethereum.org/docs/rpc/ns-txpool#txpool_inspect.
 func (t *TxPool) Inspect() (interface{}, error) {
-	t.metrics.TxPoolAPICounterInc("inspect")
+	t.metrics.TxPoolAPICounterInc(TxPoolInspectLabel)
 
 	pendingTxs, queuedTxs := t.store.GetTxs(true)
 
@@ -160,7 +160,7 @@ func (t *TxPool) Inspect() (interface{}, error) {
 // Create response for txpool_status request.
 // See https://geth.ethereum.org/docs/rpc/ns-txpool#txpool_status.
 func (t *TxPool) Status() (interface{}, error) {
-	t.metrics.TxPoolAPICounterInc("status")
+	t.metrics.TxPoolAPICounterInc(TxPoolStatusLabel)
 	pendingTxs, queuedTxs := t.store.GetTxs(true)
 
 	var pendingCount int
