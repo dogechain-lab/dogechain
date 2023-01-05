@@ -1,337 +1,192 @@
 package server
 
 import (
-	"github.com/go-kit/kit/metrics"
-	"github.com/go-kit/kit/metrics/discard"
-
-	prometheus "github.com/go-kit/kit/metrics/prometheus"
-	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type JSONRPCStoreMetrics struct {
+	counter *prometheus.CounterVec
+}
 
-	// GetNonce api calls
-	GetNonce metrics.Counter
+// GetNonce api calls
+func (m *JSONRPCStoreMetrics) GetNonceInc() {
+	if m.counter != nil {
+		m.counter.With(prometheus.Labels{"method": "GetNonce"}).Inc()
+	}
+}
 
-	// AddTx api calls
-	AddTx metrics.Counter
+// AddTx api calls
+func (m *JSONRPCStoreMetrics) AddTxInc() {
+	if m.counter != nil {
+		m.counter.With(prometheus.Labels{"method": "AddTx"}).Inc()
+	}
+}
 
-	// GetPendingTx api calls
-	GetPendingTx metrics.Counter
+// GetPendingTx api calls
+func (m *JSONRPCStoreMetrics) GetPendingTxInc() {
+	if m.counter != nil {
+		m.counter.With(prometheus.Labels{"method": "GetPendingTx"}).Inc()
+	}
+}
 
-	// GetAccount api calls
-	GetAccount metrics.Counter
+// GetAccount api calls
+func (m *JSONRPCStoreMetrics) GetAccountInc() {
+	if m.counter != nil {
+		m.counter.With(prometheus.Labels{"method": "GetAccount"}).Inc()
+	}
+}
 
-	// GetGetStorage api calls
-	GetStorage metrics.Counter
+// GetGetStorage api calls
+func (m *JSONRPCStoreMetrics) GetStorageInc() {
+	if m.counter != nil {
+		m.counter.With(prometheus.Labels{"method": "GetStorage"}).Inc()
+	}
+}
 
-	// GetForksInTime api calls
-	GetForksInTime metrics.Counter
+// GetForksInTime api calls
+func (m *JSONRPCStoreMetrics) GetForksInTimeInc() {
+	if m.counter != nil {
+		m.counter.With(prometheus.Labels{"method": "GetForksInTime"}).Inc()
+	}
+}
 
-	// GetCode api calls
-	GetCode metrics.Counter
+// GetCode api calls
+func (m *JSONRPCStoreMetrics) GetCodeInc() {
+	if m.counter != nil {
+		m.counter.With(prometheus.Labels{"method": "GetCode"}).Inc()
+	}
+}
 
-	// Header api calls
-	Header metrics.Counter
+// Header api calls
+func (m *JSONRPCStoreMetrics) HeaderInc() {
+	if m.counter != nil {
+		m.counter.With(prometheus.Labels{"method": "Header"}).Inc()
+	}
+}
 
-	// GetHeaderByNumber api calls
-	GetHeaderByNumber metrics.Counter
+// GetHeaderByNumber api calls
+func (m *JSONRPCStoreMetrics) GetHeaderByNumberInc() {
+	if m.counter != nil {
+		m.counter.With(prometheus.Labels{"method": "GetHeaderByNumber"}).Inc()
+	}
+}
 
-	// GetHeaderByHash api calls
-	GetHeaderByHash metrics.Counter
+// GetHeaderByHash api calls
+func (m *JSONRPCStoreMetrics) GetHeaderByHashInc() {
+	if m.counter != nil {
+		m.counter.With(prometheus.Labels{"method": "GetHeaderByHash"}).Inc()
+	}
+}
 
-	// GetBlockByHash api calls
-	GetBlockByHash metrics.Counter
+// GetBlockByHash api calls
+func (m *JSONRPCStoreMetrics) GetBlockByHashInc() {
+	if m.counter != nil {
+		m.counter.With(prometheus.Labels{"method": "GetBlockByHash"}).Inc()
+	}
+}
 
-	// GetBlockByNumber api calls
-	GetBlockByNumber metrics.Counter
+// GetBlockByNumber api calls
+func (m *JSONRPCStoreMetrics) GetBlockByNumberInc() {
+	if m.counter != nil {
+		m.counter.With(prometheus.Labels{"method": "GetBlockByNumber"}).Inc()
+	}
+}
 
-	// ReadTxLookup api calls
-	ReadTxLookup metrics.Counter
+// ReadTxLookup api calls
+func (m *JSONRPCStoreMetrics) ReadTxLookupInc() {
+	if m.counter != nil {
+		m.counter.With(prometheus.Labels{"method": "ReadTxLookup"}).Inc()
+	}
+}
 
-	// GetReceiptsByHash api calls
-	GetReceiptsByHash metrics.Counter
+// GetReceiptsByHash api calls
+func (m *JSONRPCStoreMetrics) GetReceiptsByHashInc() {
+	if m.counter != nil {
+		m.counter.With(prometheus.Labels{"method": "GetReceiptsByHash"}).Inc()
+	}
+}
 
-	// GetAvgGasPrice api calls
-	GetAvgGasPrice metrics.Counter
+// GetAvgGasPrice api calls
+func (m *JSONRPCStoreMetrics) GetAvgGasPriceInc() {
+	if m.counter != nil {
+		m.counter.With(prometheus.Labels{"method": "GetAvgGasPrice"}).Inc()
+	}
+}
 
-	// ApplyTxn api calls
-	ApplyTxn metrics.Counter
+// ApplyTxn api calls
+func (m *JSONRPCStoreMetrics) ApplyTxnInc() {
+	if m.counter != nil {
+		m.counter.With(prometheus.Labels{"method": "ApplyTxn"}).Inc()
+	}
+}
 
-	// GetSyncProgression api calls
-	GetSyncProgression metrics.Counter
+// GetSyncProgression api calls
+func (m *JSONRPCStoreMetrics) GetSyncProgressionInc() {
+	if m.counter != nil {
+		m.counter.With(prometheus.Labels{"method": "GetSyncProgression"}).Inc()
+	}
+}
 
-	// StateAtTransaction api calls
-	StateAtTransaction metrics.Counter
+// StateAtTransaction api calls
+func (m *JSONRPCStoreMetrics) StateAtTransactionInc() {
+	if m.counter != nil {
+		m.counter.With(prometheus.Labels{"method": "StateAtTransaction"}).Inc()
+	}
+}
 
-	// PeerCount api calls
-	PeerCount metrics.Counter
+// PeerCount api calls
+func (m *JSONRPCStoreMetrics) PeerCountInc() {
+	if m.counter != nil {
+		m.counter.With(prometheus.Labels{"method": "PeerCount"}).Inc()
+	}
+}
 
-	// GetTxs api calls
-	GetTxs metrics.Counter
+// GetTxs api calls
+func (m *JSONRPCStoreMetrics) GetTxsInc() {
+	if m.counter != nil {
+		m.counter.With(prometheus.Labels{"method": "GetTxs"}).Inc()
+	}
+}
 
-	// GetCapacity api calls
-	GetCapacity metrics.Counter
+// GetCapacity api calls
+func (m *JSONRPCStoreMetrics) GetCapacityInc() {
+	if m.counter != nil {
+		m.counter.With(prometheus.Labels{"method": "GetCapacity"}).Inc()
+	}
+}
 
-	// SubscribeEvents api calls
-	SubscribeEvents metrics.Counter
+// SubscribeEvents api calls
+func (m *JSONRPCStoreMetrics) SubscribeEventsInc() {
+	if m.counter != nil {
+		m.counter.With(prometheus.Labels{"method": "SubscribeEvents"}).Inc()
+	}
 }
 
 // NewJSONRPCStoreMetrics return the JSONRPCStore metrics instance
 func NewJSONRPCStoreMetrics(namespace string, labelsWithValues ...string) *JSONRPCStoreMetrics {
-	labels := []string{}
-
-	for i := 0; i < len(labelsWithValues); i += 2 {
-		labels = append(labels, labelsWithValues[i])
+	constLabels := map[string]string{}
+	for i := 1; i < len(labelsWithValues); i += 2 {
+		constLabels[labelsWithValues[i-1]] = labelsWithValues[i]
 	}
 
-	return &JSONRPCStoreMetrics{
-		// GetNonce api calls
-		GetNonce: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "jsonrpc_store",
-			Name:      "get_nonce",
-			Help:      "GetNonce api calls",
-		}, labels).With(labelsWithValues...),
-
-		// AddTx api calls
-		AddTx: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "jsonrpc_store",
-			Name:      "add_tx",
-			Help:      "AddTx api calls",
-		}, labels).With(labelsWithValues...),
-
-		// GetPendingTx api calls
-		GetPendingTx: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "jsonrpc_store",
-			Name:      "get_pending_tx",
-			Help:      "GetPendingTx api calls",
-		}, labels).With(labelsWithValues...),
-
-		// GetAccount api calls
-		GetAccount: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "jsonrpc_store",
-			Name:      "get_account",
-			Help:      "GetAccount api calls",
-		}, labels).With(labelsWithValues...),
-
-		// GetGetStorage api calls
-		GetStorage: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "jsonrpc_store",
-			Name:      "get_storage",
-			Help:      "GetStorage api calls",
-		}, labels).With(labelsWithValues...),
-
-		// GetForksInTime api calls
-		GetForksInTime: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "jsonrpc_store",
-			Name:      "get_forks_in_time",
-			Help:      "GetForksInTime api calls",
-		}, labels).With(labelsWithValues...),
-
-		// GetCode api calls
-		GetCode: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "jsonrpc_store",
-			Name:      "get_code",
-			Help:      "GetCode api calls",
-		}, labels).With(labelsWithValues...),
-
-		// Header api calls
-		Header: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "jsonrpc_store",
-			Name:      "header",
-			Help:      "Header api calls",
-		}, labels).With(labelsWithValues...),
-
-		// GetHeaderByNumber api calls
-		GetHeaderByNumber: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "jsonrpc_store",
-			Name:      "get_header_by_number",
-			Help:      "GetHeaderByNumber api calls",
-		}, labels).With(labelsWithValues...),
-
-		// GetHeaderByHash api calls
-		GetHeaderByHash: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "jsonrpc_store",
-			Name:      "get_header_by_hash",
-			Help:      "GetHeaderByHash api calls",
-		}, labels).With(labelsWithValues...),
-
-		// GetBlockByHash api calls
-		GetBlockByHash: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "jsonrpc_store",
-			Name:      "get_block_by_hash",
-			Help:      "GetBlockByHash api calls",
-		}, labels).With(labelsWithValues...),
-
-		// GetBlockByNumber api calls
-		GetBlockByNumber: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "jsonrpc_store",
-			Name:      "get_block_by_number",
-			Help:      "GetBlockByNumber api calls",
-		}, labels).With(labelsWithValues...),
-
-		// ReadTxLookup api calls
-		ReadTxLookup: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "jsonrpc_store",
-			Name:      "read_tx_lookup",
-			Help:      "ReadTxLookup api calls",
-		}, labels).With(labelsWithValues...),
-
-		// GetReceiptsByHash api calls
-		GetReceiptsByHash: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "jsonrpc_store",
-			Name:      "get_receipts_by_hash",
-			Help:      "GetReceiptsByHash api calls",
-		}, labels).With(labelsWithValues...),
-
-		// GetAvgGasPrice api calls
-		GetAvgGasPrice: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "jsonrpc_store",
-			Name:      "get_avg_gas_price",
-			Help:      "GetAvgGasPrice api calls",
-		}, labels).With(labelsWithValues...),
-
-		// ApplyTxn api calls
-		ApplyTxn: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "jsonrpc_store",
-			Name:      "apply_txn",
-			Help:      "ApplyTxn api calls",
-		}, labels).With(labelsWithValues...),
-
-		// GetSyncProgression api calls
-		GetSyncProgression: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "jsonrpc_store",
-			Name:      "get_sync_progression",
-			Help:      "GetSyncProgression api calls",
-		}, labels).With(labelsWithValues...),
-
-		// StateAtTransaction api calls
-		StateAtTransaction: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "jsonrpc_store",
-			Name:      "state_at_transaction",
-			Help:      "StateAtTransaction api calls",
-		}, labels).With(labelsWithValues...),
-
-		// PeerCount api calls
-		PeerCount: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "jsonrpc_store",
-			Name:      "peer_count",
-			Help:      "PeerCount api calls",
-		}, labels).With(labelsWithValues...),
-
-		// GetTxs api calls
-		GetTxs: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "jsonrpc_store",
-			Name:      "get_txs",
-			Help:      "GetTxs api calls",
-		}, labels).With(labelsWithValues...),
-
-		// GetCapacity api calls
-		GetCapacity: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "jsonrpc_store",
-			Name:      "get_capacity",
-			Help:      "GetCapacity api calls",
-		}, labels).With(labelsWithValues...),
-
-		// SubscribeEvents api calls
-		SubscribeEvents: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "jsonrpc_store",
-			Name:      "subscribe_events",
-			Help:      "SubscribeEvents api calls",
-		}, labels).With(labelsWithValues...),
+	m := &JSONRPCStoreMetrics{
+		counter: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Namespace:   namespace,
+			Subsystem:   "jsonrpc_store",
+			Name:        "api_call_counter",
+			Help:        "api call counter",
+			ConstLabels: constLabels,
+		}, []string{"method"}),
 	}
+
+	prometheus.MustRegister(m.counter)
+
+	return m
 }
 
 // JSONRPCStoreNilMetrics will return the non operational jsonrpc metrics
 func JSONRPCStoreNilMetrics() *JSONRPCStoreMetrics {
 	return &JSONRPCStoreMetrics{
-
-		// GetNonce api calls
-		GetNonce: discard.NewCounter(),
-
-		// AddTx api calls
-		AddTx: discard.NewCounter(),
-
-		// GetPendingTx api calls
-		GetPendingTx: discard.NewCounter(),
-
-		// GetAccount api calls
-		GetAccount: discard.NewCounter(),
-
-		// GetGetStorage api calls
-		GetStorage: discard.NewCounter(),
-
-		// GetForksInTime api calls
-		GetForksInTime: discard.NewCounter(),
-
-		// GetCode api calls
-		GetCode: discard.NewCounter(),
-
-		// Header api calls
-		Header: discard.NewCounter(),
-
-		// GetHeaderByNumber api calls
-		GetHeaderByNumber: discard.NewCounter(),
-
-		// GetHeaderByHash api calls
-		GetHeaderByHash: discard.NewCounter(),
-
-		// GetBlockByHash api calls
-		GetBlockByHash: discard.NewCounter(),
-
-		// GetBlockByNumber api calls
-		GetBlockByNumber: discard.NewCounter(),
-
-		// ReadTxLookup api calls
-		ReadTxLookup: discard.NewCounter(),
-
-		// GetReceiptsByHash api calls
-		GetReceiptsByHash: discard.NewCounter(),
-
-		// GetAvgGasPrice api calls
-		GetAvgGasPrice: discard.NewCounter(),
-
-		// ApplyTxn api calls
-		ApplyTxn: discard.NewCounter(),
-
-		// GetSyncProgression api calls
-		GetSyncProgression: discard.NewCounter(),
-
-		// StateAtTransaction api calls
-		StateAtTransaction: discard.NewCounter(),
-
-		// PeerCount api calls
-		PeerCount: discard.NewCounter(),
-
-		// GetTxs api calls
-		GetTxs: discard.NewCounter(),
-
-		// GetCapacity api calls
-		GetCapacity: discard.NewCounter(),
-
-		// SubscribeEvents api calls
-		SubscribeEvents: discard.NewCounter(),
+		counter: nil,
 	}
 }

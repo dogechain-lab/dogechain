@@ -81,28 +81,28 @@ func (j *jsonRPCStore) getState(root types.Hash, slot []byte) ([]byte, error) {
 
 // GetNonce returns the next nonce for this address
 func (j *jsonRPCStore) GetNonce(addr types.Address) uint64 {
-	j.metrics.GetNonce.Add(1.0)
+	j.metrics.GetNonceInc()
 
 	return j.txpool.GetNonce(addr)
 }
 
 // AddTx adds a new transaction to the tx pool
 func (j *jsonRPCStore) AddTx(tx *types.Transaction) error {
-	j.metrics.AddTx.Add(1.0)
+	j.metrics.AddTxInc()
 
 	return j.txpool.AddTx(tx)
 }
 
 // GetPendingTx gets the pending transaction from the transaction pool, if it's present
 func (j *jsonRPCStore) GetPendingTx(txHash types.Hash) (*types.Transaction, bool) {
-	j.metrics.GetPendingTx.Add(1.0)
+	j.metrics.GetPendingTxInc()
 
 	return j.txpool.GetPendingTx(txHash)
 }
 
 // jsonrpc.ethStateStore interface
 func (j *jsonRPCStore) GetAccount(root types.Hash, addr types.Address) (*state.Account, error) {
-	j.metrics.GetAccount.Add(1.0)
+	j.metrics.GetAccountInc()
 
 	obj, err := j.getState(root, addr.Bytes())
 	if err != nil {
@@ -118,7 +118,7 @@ func (j *jsonRPCStore) GetAccount(root types.Hash, addr types.Address) (*state.A
 }
 
 func (j *jsonRPCStore) GetStorage(root types.Hash, addr types.Address, slot types.Hash) ([]byte, error) {
-	j.metrics.GetStorage.Add(1.0)
+	j.metrics.GetStorageInc()
 	account, err := j.GetAccount(root, addr)
 
 	if err != nil {
@@ -136,13 +136,13 @@ func (j *jsonRPCStore) GetStorage(root types.Hash, addr types.Address, slot type
 
 // GetForksInTime returns the active forks at the given block height
 func (j *jsonRPCStore) GetForksInTime(blockNumber uint64) chain.ForksInTime {
-	j.metrics.GetForksInTime.Add(1.0)
+	j.metrics.GetForksInTimeInc()
 
 	return j.executor.GetForksInTime(blockNumber)
 }
 
 func (j *jsonRPCStore) GetCode(hash types.Hash) ([]byte, error) {
-	j.metrics.GetCode.Add(1.0)
+	j.metrics.GetCodeInc()
 
 	res, ok := j.state.GetCode(hash)
 
@@ -157,56 +157,56 @@ func (j *jsonRPCStore) GetCode(hash types.Hash) ([]byte, error) {
 
 // Header returns the current header of the chain (genesis if empty)
 func (j *jsonRPCStore) Header() *types.Header {
-	j.metrics.Header.Add(1.0)
+	j.metrics.HeaderInc()
 
 	return j.blockchain.Header()
 }
 
 // GetHeaderByNumber returns the header by number
 func (j *jsonRPCStore) GetHeaderByNumber(n uint64) (*types.Header, bool) {
-	j.metrics.GetHeaderByNumber.Add(1.0)
+	j.metrics.GetHeaderByNumberInc()
 
 	return j.blockchain.GetHeaderByNumber(n)
 }
 
 // GetHeaderByHash returns the header by hash
 func (j *jsonRPCStore) GetHeaderByHash(hash types.Hash) (*types.Header, bool) {
-	j.metrics.GetHeaderByHash.Add(1.0)
+	j.metrics.GetHeaderByHashInc()
 
 	return j.blockchain.GetHeaderByHash(hash)
 }
 
 // GetBlockByHash gets a block using the provided hash
 func (j *jsonRPCStore) GetBlockByHash(hash types.Hash, full bool) (*types.Block, bool) {
-	j.metrics.GetBlockByHash.Add(1.0)
+	j.metrics.GetBlockByHashInc()
 
 	return j.blockchain.GetBlockByHash(hash, full)
 }
 
 // GetBlockByNumber returns a block using the provided number
 func (j *jsonRPCStore) GetBlockByNumber(number uint64, full bool) (*types.Block, bool) {
-	j.metrics.GetBlockByNumber.Add(1.0)
+	j.metrics.GetBlockByNumberInc()
 
 	return j.blockchain.GetBlockByNumber(number, full)
 }
 
 // ReadTxLookup returns a block hash in which a given txn was mined
 func (j *jsonRPCStore) ReadTxLookup(txnHash types.Hash) (types.Hash, bool) {
-	j.metrics.ReadTxLookup.Add(1.0)
+	j.metrics.ReadTxLookupInc()
 
 	return j.blockchain.ReadTxLookup(txnHash)
 }
 
 // GetReceiptsByHash returns the receipts for a block hash
 func (j *jsonRPCStore) GetReceiptsByHash(hash types.Hash) ([]*types.Receipt, error) {
-	j.metrics.GetReceiptsByHash.Add(1.0)
+	j.metrics.GetReceiptsByHashInc()
 
 	return j.blockchain.GetReceiptsByHash(hash)
 }
 
 // GetAvgGasPrice returns the average gas price
 func (j *jsonRPCStore) GetAvgGasPrice() *big.Int {
-	j.metrics.GetAvgGasPrice.Add(1.0)
+	j.metrics.GetAvgGasPriceInc()
 
 	return j.blockchain.GetAvgGasPrice()
 }
@@ -216,7 +216,7 @@ func (j *jsonRPCStore) ApplyTxn(
 	header *types.Header,
 	txn *types.Transaction,
 ) (result *runtime.ExecutionResult, err error) {
-	j.metrics.ApplyTxn.Add(1.0)
+	j.metrics.ApplyTxnInc()
 
 	blockCreator, err := j.consensus.GetBlockCreator(header)
 	if err != nil {
@@ -236,7 +236,7 @@ func (j *jsonRPCStore) ApplyTxn(
 
 // GetSyncProgression retrieves the current sync progression, if any
 func (j *jsonRPCStore) GetSyncProgression() *progress.Progression {
-	j.metrics.GetSyncProgression.Add(1.0)
+	j.metrics.GetSyncProgressionInc()
 
 	// restore progression
 	if restoreProg := j.restoreProgression.GetProgression(); restoreProg != nil {
@@ -254,7 +254,7 @@ func (j *jsonRPCStore) GetSyncProgression() *progress.Progression {
 // StateAtTransaction returns the execution environment of a certain transaction.
 // The transition should not commit, it shall be collected by GC.
 func (j *jsonRPCStore) StateAtTransaction(block *types.Block, txIndex int) (*state.Transition, error) {
-	j.metrics.StateAtTransaction.Add(1.0)
+	j.metrics.StateAtTransactionInc()
 
 	if block.Number() == 0 {
 		return nil, errors.New("no transaction in genesis")
@@ -302,7 +302,7 @@ func (j *jsonRPCStore) StateAtTransaction(block *types.Block, txIndex int) (*sta
 // jsonrpc.networkStore interface
 
 func (j *jsonRPCStore) PeerCount() int64 {
-	j.metrics.PeerCount.Add(1.0)
+	j.metrics.PeerCountInc()
 
 	return j.server.PeerCount()
 }
@@ -313,14 +313,14 @@ func (j *jsonRPCStore) PeerCount() int64 {
 func (j *jsonRPCStore) GetTxs(inclQueued bool) (
 	map[types.Address][]*types.Transaction, map[types.Address][]*types.Transaction,
 ) {
-	j.metrics.GetTxs.Add(1.0)
+	j.metrics.GetTxsInc()
 
 	return j.txpool.GetTxs(inclQueued)
 }
 
 // GetCapacity returns the current and max capacity of the pool in slots
 func (j *jsonRPCStore) GetCapacity() (uint64, uint64) {
-	j.metrics.GetCapacity.Add(1.0)
+	j.metrics.GetCapacityInc()
 
 	return j.txpool.GetCapacity()
 }
@@ -328,7 +328,7 @@ func (j *jsonRPCStore) GetCapacity() (uint64, uint64) {
 // jsonrpc.filterManagerStore interface
 
 func (j *jsonRPCStore) SubscribeEvents() blockchain.Subscription {
-	j.metrics.SubscribeEvents.Add(1.0)
+	j.metrics.SubscribeEventsInc()
 
 	return j.blockchain.SubscribeEvents()
 }
