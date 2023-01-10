@@ -11,7 +11,7 @@ import (
 	"github.com/dogechain-lab/dogechain/helper/tests"
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/stretchr/testify/assert"
-	"github.com/umbracle/go-web3"
+	"github.com/umbracle/ethgo"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -34,7 +34,7 @@ func TestNewFilter_Logs(t *testing.T) {
 	}
 
 	client := srv.JSONRPC()
-	id, err := client.Eth().NewFilter(&web3.LogFilter{})
+	id, err := client.Eth().NewFilter(&ethgo.LogFilter{})
 	assert.NoError(t, err)
 
 	numCalls := 10
@@ -126,22 +126,22 @@ func TestFilterValue(t *testing.T) {
 
 	// Convert to right format
 	var (
-		placeholderWrapper []*web3.Hash
-		placeholder        web3.Hash
+		placeholderWrapper []*ethgo.Hash
+		placeholder        ethgo.Hash
 	)
 
 	copy(placeholder[:], buf)
 	placeholderWrapper = append(placeholderWrapper, &placeholder)
 
-	var filterEventHashes [][]*web3.Hash
+	var filterEventHashes [][]*ethgo.Hash
 
 	filterEventHashes = append(filterEventHashes, placeholderWrapper)
 
-	var filterAddresses []web3.Address
+	var filterAddresses []ethgo.Address
 
 	filterAddresses = append(filterAddresses, contractAddr)
 
-	id, err := client.Eth().NewFilter(&web3.LogFilter{
+	id, err := client.Eth().NewFilter(&ethgo.LogFilter{
 		Address: filterAddresses,
 		Topics:  filterEventHashes,
 	})

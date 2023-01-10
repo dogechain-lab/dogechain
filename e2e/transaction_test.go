@@ -20,8 +20,8 @@ import (
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/stretchr/testify/assert"
-	"github.com/umbracle/go-web3"
-	"github.com/umbracle/go-web3/jsonrpc"
+	"github.com/umbracle/ethgo/jsonrpc"
+	"github.com/umbracle/ethgo"
 )
 
 func TestSignedTransaction(t *testing.T) {
@@ -46,7 +46,7 @@ func TestSignedTransaction(t *testing.T) {
 	clt := srv.JSONRPC()
 
 	// check there is enough balance
-	balance, err := clt.Eth().GetBalance(web3.Address(senderAddr), web3.Latest)
+	balance, err := clt.Eth().GetBalance(ethgo.Address(senderAddr), ethgo.Latest)
 	assert.NoError(t, err)
 	assert.Equal(t, preminedAmount, balance)
 
@@ -112,7 +112,7 @@ func TestPreminedBalance(t *testing.T) {
 
 	for _, testCase := range testTable {
 		t.Run(testCase.name, func(t *testing.T) {
-			balance, err := rpcClient.Eth().GetBalance(web3.Address(testCase.address), web3.Latest)
+			balance, err := rpcClient.Eth().GetBalance(ethgo.Address(testCase.address), ethgo.Latest)
 			assert.NoError(t, err)
 			assert.Equal(t, testCase.balance, balance)
 		})
@@ -190,14 +190,14 @@ func TestEthTransfer(t *testing.T) {
 	for _, testCase := range testTable {
 		// Fetch the balances before sending
 		balanceSender, err := rpcClient.Eth().GetBalance(
-			web3.Address(testCase.sender),
-			web3.Latest,
+			ethgo.Address(testCase.sender),
+			ethgo.Latest,
 		)
 		assert.NoError(t, err, testCase.name)
 
 		balanceReceiver, err := rpcClient.Eth().GetBalance(
-			web3.Address(testCase.recipient),
-			web3.Latest,
+			ethgo.Address(testCase.recipient),
+			ethgo.Latest,
 		)
 		assert.NoError(t, err, testCase.name)
 
@@ -229,14 +229,14 @@ func TestEthTransfer(t *testing.T) {
 
 		// Fetch the balances after sending
 		balanceSender, err = rpcClient.Eth().GetBalance(
-			web3.Address(testCase.sender),
-			web3.Latest,
+			ethgo.Address(testCase.sender),
+			ethgo.Latest,
 		)
 		assert.NoError(t, err, testCase.name)
 
 		balanceReceiver, err = rpcClient.Eth().GetBalance(
-			web3.Address(testCase.recipient),
-			web3.Latest,
+			ethgo.Address(testCase.recipient),
+			ethgo.Latest,
 		)
 		assert.NoError(t, err, testCase.name)
 
@@ -275,7 +275,7 @@ func TestEthTransfer(t *testing.T) {
 // getCount is a helper function for the stress test SC
 func getCount(
 	from types.Address,
-	contractAddress web3.Address,
+	contractAddress ethgo.Address,
 	rpcClient *jsonrpc.Client,
 ) (*big.Int, error) {
 	stressTestMethod, ok := abis.StressTestABI.Methods["getCount"]
@@ -285,14 +285,14 @@ func getCount(
 
 	selector := stressTestMethod.ID()
 	response, err := rpcClient.Eth().Call(
-		&web3.CallMsg{
-			From:     web3.Address(from),
+		&ethgo.CallMsg{
+			From:     ethgo.Address(from),
 			To:       &contractAddress,
 			Data:     selector,
 			GasPrice: 100000000,
 			Value:    big.NewInt(0),
 		},
-		web3.Latest,
+		ethgo.Latest,
 	)
 
 	if err != nil {
@@ -406,7 +406,7 @@ func Test_TransactionDevLoop(t *testing.T) {
 	_, err = tests.WaitForNonce(
 		retryCtx,
 		client.Eth(),
-		web3.BytesToAddress(sender.Bytes()),
+		ethgo.BytesToAddress(sender.Bytes()),
 		1+uint64(numTransactions), // contract nonce is 1 (EIP-161)
 	)
 	assert.NoError(t, err)
@@ -474,12 +474,12 @@ func addStressTxnsWithHashes(
 	numTransactions int,
 	contractAddr types.Address,
 	senderKey *ecdsa.PrivateKey,
-) []web3.Hash {
+) []ethgo.Hash {
 	t.Helper()
 
 	currentNonce := 1 // 1 because the first transaction was deployment
 
-	txHashes := make([]web3.Hash, 0)
+	txHashes := make([]ethgo.Hash, 0)
 
 	for i := 0; i < numTransactions; i++ {
 		setNameTxn := generateStressTestTx(

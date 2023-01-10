@@ -9,8 +9,8 @@ import (
 	"github.com/dogechain-lab/dogechain/contracts/systemcontracts"
 	"github.com/dogechain-lab/dogechain/state/runtime"
 	"github.com/dogechain-lab/dogechain/types"
-	"github.com/umbracle/go-web3"
-	"github.com/umbracle/go-web3/abi"
+	"github.com/umbracle/ethgo/abi"
+	"github.com/umbracle/ethgo"
 )
 
 const (
@@ -44,13 +44,13 @@ func DecodeValidators(method *abi.Method, returnValue []byte) ([]types.Address, 
 	}
 
 	// type assertion
-	web3Addresses, ok := results["0"].([]web3.Address)
+	ethgoAddresses, ok := results["0"].([]ethgo.Address)
 	if !ok {
-		return nil, errors.New("failed type assertion from results[0] to []web3.Address")
+		return nil, errors.New("failed type assertion from results[0] to []ethgo.Address")
 	}
 
-	addresses := make([]types.Address, len(web3Addresses))
-	for idx, waddr := range web3Addresses {
+	addresses := make([]types.Address, len(ethgoAddresses))
+	for idx, waddr := range ethgoAddresses {
 		addresses[idx] = types.Address(waddr)
 	}
 
@@ -122,7 +122,7 @@ func MakeSlashTx(t NonceHub, from types.Address, needPunished types.Address) (*t
 	input, err := abis.EncodeTxMethod(
 		method,
 		map[string]interface{}{
-			_slashParameterName: web3.Address(needPunished),
+			_slashParameterName: ethgo.Address(needPunished),
 		},
 	)
 	if err != nil {

@@ -21,8 +21,8 @@ import (
 	txpoolProto "github.com/dogechain-lab/dogechain/txpool/proto"
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/stretchr/testify/assert"
-	"github.com/umbracle/go-web3"
-	"github.com/umbracle/go-web3/jsonrpc"
+	"github.com/umbracle/ethgo/jsonrpc"
+	"github.com/umbracle/ethgo"
 	"golang.org/x/crypto/sha3"
 	empty "google.golang.org/protobuf/types/known/emptypb"
 )
@@ -46,8 +46,8 @@ func GetAccountBalance(t *testing.T, address types.Address, rpcClient *jsonrpc.C
 	t.Helper()
 
 	accountBalance, err := rpcClient.Eth().GetBalance(
-		web3.Address(address),
-		web3.Latest,
+		ethgo.Address(address),
+		ethgo.Latest,
 	)
 
 	assert.NoError(t, err)
@@ -89,7 +89,7 @@ func UnstakeAmount(
 	from types.Address,
 	senderKey *ecdsa.PrivateKey,
 	srv *TestServer,
-) (*web3.Receipt, error) {
+) (*ethgo.Receipt, error) {
 	// Stake Balance
 	txn := &PreparedTransaction{
 		From:     from,

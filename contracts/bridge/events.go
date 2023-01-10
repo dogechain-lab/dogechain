@@ -7,7 +7,7 @@ import (
 
 	"github.com/dogechain-lab/dogechain/contracts/abis"
 	"github.com/dogechain-lab/dogechain/types"
-	"github.com/umbracle/go-web3"
+	"github.com/umbracle/ethgo"
 )
 
 const (
@@ -38,13 +38,13 @@ type DepositedLog struct {
 }
 
 func ParseBridgeDepositedLog(log *types.Log) (*DepositedLog, error) {
-	topics := make([]web3.Hash, 0, len(log.Topics))
+	topics := make([]ethgo.Hash, 0, len(log.Topics))
 	for _, topic := range log.Topics {
-		topics = append(topics, web3.Hash(topic))
+		topics = append(topics, ethgo.Hash(topic))
 	}
 
-	w3Log, err := BridgeDepositedEvent.ParseLog(&web3.Log{
-		Address: web3.Address(log.Address),
+	w3Log, err := BridgeDepositedEvent.ParseLog(&ethgo.Log{
+		Address: ethgo.Address(log.Address),
 		Topics:  topics,
 		Data:    log.Data,
 	})
@@ -57,7 +57,7 @@ func ParseBridgeDepositedLog(log *types.Log) (*DepositedLog, error) {
 		return nil, errors.New("address not exists in Deposited event")
 	}
 
-	account, ok := receiver.(web3.Address)
+	account, ok := receiver.(ethgo.Address)
 	if !ok {
 		return nil, errors.New("address downcast failed")
 	}
@@ -85,13 +85,13 @@ type WithdrawnLog struct {
 }
 
 func ParseBridgeWithdrawnLog(log *types.Log) (*WithdrawnLog, error) {
-	topics := make([]web3.Hash, 0, len(log.Topics))
+	topics := make([]ethgo.Hash, 0, len(log.Topics))
 	for _, topic := range log.Topics {
-		topics = append(topics, web3.Hash(topic))
+		topics = append(topics, ethgo.Hash(topic))
 	}
 
-	w3Log, err := BridgeWithdrawnEvent.ParseLog(&web3.Log{
-		Address: web3.Address(log.Address),
+	w3Log, err := BridgeWithdrawnEvent.ParseLog(&ethgo.Log{
+		Address: ethgo.Address(log.Address),
 		Topics:  topics,
 		Data:    log.Data,
 	})
@@ -136,13 +136,13 @@ type BurnedLog struct {
 }
 
 func ParseBridgeBurnedLog(log *types.Log) (*BurnedLog, error) {
-	topics := make([]web3.Hash, 0, len(log.Topics))
+	topics := make([]ethgo.Hash, 0, len(log.Topics))
 	for _, topic := range log.Topics {
-		topics = append(topics, web3.Hash(topic))
+		topics = append(topics, ethgo.Hash(topic))
 	}
 
-	w3Log, err := BridgeEventBurnedEvent.ParseLog(&web3.Log{
-		Address: web3.Address(log.Address),
+	w3Log, err := BridgeEventBurnedEvent.ParseLog(&ethgo.Log{
+		Address: ethgo.Address(log.Address),
 		Topics:  topics,
 		Data:    log.Data,
 	})
@@ -155,7 +155,7 @@ func ParseBridgeBurnedLog(log *types.Log) (*BurnedLog, error) {
 		return nil, errors.New("address not exists in Burned event")
 	}
 
-	account, ok := sender.(web3.Address)
+	account, ok := sender.(ethgo.Address)
 	if !ok {
 		return nil, errors.New("address downcast failed")
 	}

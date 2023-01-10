@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/dogechain-lab/dogechain/state/runtime"
-	"github.com/umbracle/go-web3/abi"
+	"github.com/umbracle/ethgo/abi"
 )
 
 var (

@@ -12,7 +12,7 @@ import (
 	"github.com/dogechain-lab/dogechain/e2e/framework"
 	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/assert"
-	"github.com/umbracle/go-web3"
+	"github.com/umbracle/ethgo"
 )
 
 func TestBackup(t *testing.T) {
@@ -62,7 +62,7 @@ func TestBackup(t *testing.T) {
 		})
 	}
 
-	block, err := svr.JSONRPC().Eth().GetBlockByNumber(web3.BlockNumber(toBlock), false)
+	block, err := svr.JSONRPC().Eth().GetBlockByNumber(ethgo.BlockNumber(toBlock), false)
 	assert.NoError(t, err)
 
 	blockHash := block.Hash
@@ -89,7 +89,7 @@ func TestBackup(t *testing.T) {
 		_, err = framework.WaitUntilBlockMined(ctx, restoreSvr, toBlock)
 		assert.NoError(t, err)
 
-		block, err := restoreSvr.JSONRPC().Eth().GetBlockByNumber(web3.BlockNumber(toBlock), false)
+		block, err := restoreSvr.JSONRPC().Eth().GetBlockByNumber(ethgo.BlockNumber(toBlock), false)
 		assert.NoError(t, err)
 
 		restoreHash := block.Hash

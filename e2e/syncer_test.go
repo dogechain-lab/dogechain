@@ -8,7 +8,7 @@ import (
 
 	"github.com/dogechain-lab/dogechain/e2e/framework"
 	"github.com/stretchr/testify/assert"
-	"github.com/umbracle/go-web3"
+	"github.com/umbracle/ethgo"
 )
 
 func TestClusterBlockSync(t *testing.T) {
@@ -48,7 +48,7 @@ func TestClusterBlockSync(t *testing.T) {
 
 	// should get the same block results no matter which one to query
 	var (
-		blocks = make([]*web3.Block, len(servers))
+		blocks = make([]*ethgo.Block, len(servers))
 		err    error
 	)
 

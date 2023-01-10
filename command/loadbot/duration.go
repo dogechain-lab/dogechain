@@ -5,7 +5,7 @@ import (
 	"time"
 
 	cmap "github.com/dogechain-lab/dogechain/helper/concurrentmap"
-	"github.com/umbracle/go-web3"
+	"github.com/umbracle/ethgo"
 )
 
 type ExecDuration struct {
@@ -89,7 +89,7 @@ func (ed *ExecDuration) calcTurnAroundMetrics() {
 // reportTurnAroundTime reports the turn around time for a transaction
 // for a single loadbot run
 func (ed *ExecDuration) reportTurnAroundTime(
-	txHash web3.Hash,
+	txHash ethgo.Hash,
 	data *metadata,
 ) {
 	ed.turnAroundMap.Store(txHash, data)

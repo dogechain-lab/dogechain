@@ -17,8 +17,8 @@ import (
 	txpoolOp "github.com/dogechain-lab/dogechain/txpool/proto"
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/stretchr/testify/assert"
-	"github.com/umbracle/go-web3"
-	"github.com/umbracle/go-web3/jsonrpc"
+	"github.com/umbracle/ethgo/jsonrpc"
+	"github.com/umbracle/ethgo"
 	empty "google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -163,7 +163,7 @@ func WaitUntilTxPoolEmpty(
 func WaitForNonce(
 	ctx context.Context,
 	ethClient *jsonrpc.Eth,
-	addr web3.Address,
+	addr ethgo.Address,
 	expectedNonce uint64,
 ) (
 	interface{},
@@ -175,7 +175,7 @@ func WaitForNonce(
 	}
 
 	resObj, err := RetryUntilTimeout(ctx, func() (interface{}, bool) {
-		nonce, err := ethClient.GetNonce(addr, web3.Latest)
+		nonce, err := ethClient.GetNonce(addr, ethgo.Latest)
 		if err != nil {
 			//	error -> stop retrying
 			return result{nonce, err}, false
@@ -203,9 +203,9 @@ func WaitForNonce(
 }
 
 // WaitForReceipt waits transaction receipt
-func WaitForReceipt(ctx context.Context, client *jsonrpc.Eth, hash web3.Hash) (*web3.Receipt, error) {
+func WaitForReceipt(ctx context.Context, client *jsonrpc.Eth, hash ethgo.Hash) (*ethgo.Receipt, error) {
 	type result struct {
-		receipt *web3.Receipt
+		receipt *ethgo.Receipt
 		err     error
 	}
 

@@ -35,8 +35,8 @@ import (
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/hashicorp/go-hclog"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/umbracle/go-web3"
-	"github.com/umbracle/go-web3/jsonrpc"
+	"github.com/umbracle/ethgo/jsonrpc"
+	"github.com/umbracle/ethgo"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	empty "google.golang.org/protobuf/types/known/emptypb"
@@ -471,15 +471,15 @@ func (t *TestServer) DeployContract(
 	ctx context.Context,
 	binary string,
 	privateKey *ecdsa.PrivateKey,
-) (web3.Address, error) {
+) (ethgo.Address, error) {
 	buf, err := hex.DecodeString(binary)
 	if err != nil {
-		return web3.Address{}, err
+		return ethgo.Address{}, err
 	}
 
 	sender, err := crypto.GetAddressFromKey(privateKey)
 	if err != nil {
-		return web3.ZeroAddress, fmt.Errorf("unable to extract key, %w", err)
+		return ethgo.ZeroAddress, fmt.Errorf("unable to extract key, %w", err)
 	}
 
 	receipt, err := t.SendRawTx(ctx, &PreparedTransaction{
@@ -489,7 +489,7 @@ func (t *TestServer) DeployContract(
 		Input:    buf,
 	}, privateKey)
 	if err != nil {
-		return web3.Address{}, err
+		return ethgo.Address{}, err
 	}
 
 	return receipt.ContractAddress, nil
@@ -514,10 +514,10 @@ func (t *TestServer) SendRawTx(
 	ctx context.Context,
 	tx *PreparedTransaction,
 	signerKey *ecdsa.PrivateKey,
-) (*web3.Receipt, error) {
+) (*ethgo.Receipt, error) {
 	client := t.JSONRPC()
 
-	nextNonce, err := client.Eth().GetNonce(web3.Address(tx.From), web3.Latest)
+	nextNonce, err := client.Eth().GetNonce(ethgo.Address(tx.From), ethgo.Latest)
 	if err != nil {
 		return nil, err
 	}
@@ -543,11 +543,11 @@ func (t *TestServer) SendRawTx(
 	return tests.WaitForReceipt(ctx, t.JSONRPC().Eth(), txHash)
 }
 
-func (t *TestServer) WaitForReceipt(ctx context.Context, hash web3.Hash) (*web3.Receipt, error) {
+func (t *TestServer) WaitForReceipt(ctx context.Context, hash ethgo.Hash) (*ethgo.Receipt, error) {
 	client := t.JSONRPC()
 
 	type result struct {
-		receipt *web3.Receipt
+		receipt *ethgo.Receipt
 		err     error
 	}
 
@@ -595,7 +595,7 @@ func (t *TestServer) InvokeMethod(
 	contractAddress types.Address,
 	method string,
 	fromKey *ecdsa.PrivateKey,
-) *web3.Receipt {
+) *ethgo.Receipt {
 	sig := MethodSig(method)
 
 	fromAddress, err := crypto.GetAddressFromKey(fromKey)

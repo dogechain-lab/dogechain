@@ -8,7 +8,7 @@ import (
 
 	"github.com/dogechain-lab/dogechain/command/loadbot/generator"
 	"github.com/dogechain-lab/dogechain/types"
-	"github.com/umbracle/go-web3/abi"
+	"github.com/umbracle/ethgo/abi"
 )
 
 var (
