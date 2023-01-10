@@ -737,6 +737,10 @@ func (s *DefaultServer) JoinPeer(rawPeerMultiaddr string, static bool) error {
 		return err
 	}
 
+	if peerInfo.ID == s.host.ID() {
+		return fmt.Errorf("cannot join self")
+	}
+
 	if static {
 		s.staticnodes.addStaticnode(peerInfo)
 		s.markStaticPeer(peerInfo)
