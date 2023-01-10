@@ -205,8 +205,10 @@ func Keccak256(v ...[]byte) []byte {
 		h = sha3.NewLegacyKeccak256()
 	}
 
-	defer hasherPool.Put(h)
-	h.Reset()
+	defer func() {
+		h.Reset()
+		hasherPool.Put(h)
+	}()
 
 	for _, i := range v {
 		h.Write(i)
