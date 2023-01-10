@@ -20,8 +20,8 @@ import (
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/stretchr/testify/assert"
-	"github.com/umbracle/ethgo/jsonrpc"
 	"github.com/umbracle/ethgo"
+	"github.com/umbracle/ethgo/jsonrpc"
 )
 
 func TestSignedTransaction(t *testing.T) {

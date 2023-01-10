@@ -21,8 +21,8 @@ import (
 	txpoolProto "github.com/dogechain-lab/dogechain/txpool/proto"
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/stretchr/testify/assert"
-	"github.com/umbracle/ethgo/jsonrpc"
 	"github.com/umbracle/ethgo"
+	"github.com/umbracle/ethgo/jsonrpc"
 	"golang.org/x/crypto/sha3"
 	empty "google.golang.org/protobuf/types/known/emptypb"
 )

@@ -14,8 +14,8 @@ import (
 	"github.com/dogechain-lab/dogechain/helper/tests"
 	txpoolOp "github.com/dogechain-lab/dogechain/txpool/proto"
 	"github.com/golang/protobuf/ptypes/any"
-	"github.com/umbracle/ethgo/jsonrpc"
 	"github.com/umbracle/ethgo"
+	"github.com/umbracle/ethgo/jsonrpc"
 
 	"github.com/dogechain-lab/dogechain/types"
 )

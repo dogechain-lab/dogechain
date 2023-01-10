@@ -52,7 +52,7 @@ type LoadbotResult struct {
 	BlockData              TxnBlockData         `json:"block_data"`
 	DetailedErrorData      TxnDetailedErrorData `json:"detailed_error_data,omitempty"`
 	ApproxTPS              uint64               `json:"approx_tps"`
-	ContractAddress        ethgo.Address         `json:"contract_address,omitempty"`
+	ContractAddress        ethgo.Address        `json:"contract_address,omitempty"`
 	ContractBlockData      TxnBlockData         `json:"contract_block_data,omitempty"`
 }
 

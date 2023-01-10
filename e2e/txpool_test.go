@@ -235,7 +235,7 @@ func TestTxPool_TransactionCoalescing(t *testing.T) {
 	// keeping track of test transaction execution
 	type testTransaction struct {
 		txHash ethgo.Hash // the transaction hash
-		block  *uint64   // the block the transaction was included in
+		block  *uint64    // the block the transaction was included in
 	}
 
 	testTransactions := make([]*testTransaction, 0)

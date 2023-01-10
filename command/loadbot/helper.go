@@ -9,8 +9,8 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/dogechain-lab/dogechain/types"
-	"github.com/umbracle/ethgo/jsonrpc"
 	"github.com/umbracle/ethgo"
+	"github.com/umbracle/ethgo/jsonrpc"
 )
 
 // getInitialSenderNonce queries the sender account nonce before starting the loadbot run.
