@@ -63,7 +63,7 @@ require (
 	lukechampine.com/blake3 v1.1.7 // indirect
 )
 
-require go.uber.org/atomic v1.9.0
+require go.uber.org/atomic v1.10.0
 
 require (
 	github.com/VictoriaMetrics/fastcache v1.6.0
@@ -107,7 +107,7 @@ require (
 	github.com/klauspost/cpuid/v2 v2.0.9 // indirect
 	github.com/koron/go-ssdp v0.0.2 // indirect
 	github.com/libp2p/go-buffer-pool v0.0.2 // indirect
-	github.com/libp2p/go-cidranger v1.1.0 // indirect
+	github.com/libp2p/go-cidranger v1.1.0
 	github.com/libp2p/go-conn-security-multistream v0.3.0 // indirect
 	github.com/libp2p/go-eventbus v0.2.1 // indirect
 	github.com/libp2p/go-flow-metrics v0.0.3 // indirect
