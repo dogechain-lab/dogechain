@@ -5,6 +5,8 @@ import (
 	"fmt"
 )
 
+var nodePool = NewNodePool()
+
 // Node represents a node reference
 type Node interface {
 	Hash() ([]byte, bool)
@@ -61,7 +63,7 @@ type FullNode struct {
 }
 
 func (f *FullNode) copy() *FullNode {
-	nc := &FullNode{}
+	nc := nodePool.GetFullNode()
 	nc.value = f.value
 	copy(nc.children[:], f.children[:])
 
@@ -148,18 +150,18 @@ func insertNode(storage StorageReader, epoch uint32, node Node, search, value []
 	case nil:
 		// NOTE, this only happens with the full node
 		if len(search) == 0 {
-			v := &ValueNode{}
-			v.buf = make([]byte, len(value))
-			copy(v.buf, value)
+			v := nodePool.GetValueNode()
+			v.buf = append(v.buf[0:0], value...)
 
 			return v, nil
 		} else {
 			child, err := insertNode(storage, epoch, nil, nil, value)
 
-			return &ShortNode{
-				key:   search,
-				child: child,
-			}, err
+			sn := nodePool.GetShortNode()
+			sn.key = append(sn.key[0:0], search...)
+			sn.child = child
+
+			return sn, err
 		}
 
 	case *ValueNode:
@@ -177,13 +179,16 @@ func insertNode(storage StorageReader, epoch uint32, node Node, search, value []
 		}
 
 		if len(search) == 0 {
-			v := &ValueNode{}
-			v.buf = make([]byte, len(value))
-			copy(v.buf, value)
+			v := nodePool.GetValueNode()
+			v.buf = append(v.buf[0:0], value...)
 
 			return v, nil
 		} else {
-			return insertNode(storage, epoch, &FullNode{epoch: epoch, value: n}, search, value)
+			fn := nodePool.GetFullNode()
+			fn.epoch = epoch
+			fn.value = n
+
+			return insertNode(storage, epoch, fn, search, value)
 		}
 
 	case *ShortNode:
@@ -192,32 +197,45 @@ func insertNode(storage StorageReader, epoch uint32, node Node, search, value []
 			// Keep this node as is and insert to child
 			child, err := insertNode(storage, epoch, n.child, search[plen:], value)
 
-			return &ShortNode{key: n.key, child: child}, err
+			sn := nodePool.GetShortNode()
+			sn.key = append(sn.key[0:0], n.key...)
+			sn.child = child
+
+			return sn, err
 		} else {
 			// Introduce a new branch
-			b := FullNode{epoch: epoch}
+			b := nodePool.GetFullNode()
+			b.epoch = epoch
+
 			if len(n.key) > plen+1 {
-				b.setEdge(n.key[plen], &ShortNode{key: n.key[plen+1:], child: n.child})
+				sn := nodePool.GetShortNode()
+				sn.key = append(sn.key[0:0], n.key[plen+1:]...)
+				sn.child = n.child
+
+				b.setEdge(n.key[plen], sn)
 			} else {
 				b.setEdge(n.key[plen], n.child)
 			}
 
-			child, err := insertNode(storage, epoch, &b, search[plen:], value)
+			child, err := insertNode(storage, epoch, b, search[plen:], value)
 
 			if plen == 0 {
 				return child, err
 			} else {
-				return &ShortNode{key: search[:plen], child: child}, err
+				sn := nodePool.GetShortNode()
+				sn.key = append(sn.key[0:0], search[:plen]...)
+				sn.child = child
+
+				return sn, err
 			}
 		}
 
 	case *FullNode:
 		nc := n
 		if epoch != n.epoch {
-			nc = &FullNode{
-				epoch: epoch,
-				value: n.value,
-			}
+			nc = nodePool.GetFullNode()
+			nc.epoch = epoch
+			nc.value = n.value
 			copy(nc.children[:], n.children[:])
 		}
 
@@ -276,10 +294,18 @@ func deleteNode(storage StorageReader, node Node, search []byte) (Node, bool, er
 
 		if short, ok := child.(*ShortNode); ok {
 			// merge nodes
-			return &ShortNode{key: concat(n.key, short.key), child: short.child}, true, nil
+			sn := nodePool.GetShortNode()
+			sn.key = append(sn.key[0:0], concat(n.key, short.key)...)
+			sn.child = short.child
+
+			return sn, true, nil
 		} else {
 			// full node
-			return &ShortNode{key: n.key, child: child}, true, nil
+			sn := nodePool.GetShortNode()
+			sn.key = append(sn.key[0:0], n.key...)
+			sn.child = child
+
+			return sn, true, nil
 		}
 
 	case *ValueNode:
@@ -352,7 +378,11 @@ func deleteNode(storage StorageReader, node Node, search []byte) (Node, bool, er
 				return nil, true, nil
 			}
 			// The value is the only left, return a short node with it
-			return &ShortNode{key: []byte{0x10}, child: n.value}, true, nil
+			sn := nodePool.GetShortNode()
+			sn.key = append(sn.key[0:0], 0x10)
+			sn.child = n.value
+
+			return sn, true, nil
 		}
 
 		// Only one value left at indx
@@ -375,15 +405,16 @@ func deleteNode(storage StorageReader, node Node, search []byte) (Node, bool, er
 
 		obj, ok := nc.(*ShortNode)
 		if !ok {
-			obj := &ShortNode{}
-			obj.key = []byte{byte(indx)}
+			obj := nodePool.GetShortNode()
+			obj.key = append(obj.key[0:0], []byte{byte(indx)}...)
 			obj.child = nc
 
 			return obj, true, nil
 		}
 
-		ncc := &ShortNode{}
-		ncc.key = concat([]byte{byte(indx)}, obj.key)
+		ncc := nodePool.GetShortNode()
+
+		ncc.key = append(obj.key[0:0], concat([]byte{byte(indx)}, obj.key)...)
 		ncc.child = obj.child
 
 		return ncc, true, nil

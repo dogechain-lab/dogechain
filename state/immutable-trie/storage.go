@@ -158,10 +158,9 @@ func GetNode(root []byte, storage StorageReader) (Node, bool, error) {
 
 func decodeNode(v *fastrlp.Value) (Node, error) {
 	if v.Type() == fastrlp.TypeBytes {
-		vv := &ValueNode{
-			hash: true,
-		}
-		vv.buf = append(vv.buf[:0], v.Raw()...)
+		vv := nodePool.GetValueNode()
+		vv.hash = true
+		vv.buf = append(vv.buf[0:0], v.Raw()...)
 
 		return vv, nil
 	}
@@ -178,7 +177,7 @@ func decodeNode(v *fastrlp.Value) (Node, error) {
 
 		// this can be either an array (extension node)
 		// or bytes (leaf node)
-		nc := &ShortNode{}
+		nc := nodePool.GetShortNode()
 		nc.key = decodeCompact(key.Raw())
 
 		if hasTerminator(nc.key) {
@@ -187,7 +186,7 @@ func decodeNode(v *fastrlp.Value) (Node, error) {
 				return nil, fmt.Errorf("short leaf value expected to be bytes")
 			}
 
-			vv := &ValueNode{}
+			vv := nodePool.GetValueNode()
 			vv.buf = append(vv.buf, v.Get(1).Raw()...)
 			nc.child = vv
 		} else {
@@ -200,7 +199,7 @@ func decodeNode(v *fastrlp.Value) (Node, error) {
 		return nc, nil
 	} else if ll == 17 {
 		// full node
-		nc := &FullNode{}
+		nc := nodePool.GetFullNode()
 		for i := 0; i < 16; i++ {
 			if v.Get(i).Type() == fastrlp.TypeBytes && len(v.Get(i).Raw()) == 0 {
 				// empty
@@ -216,8 +215,8 @@ func decodeNode(v *fastrlp.Value) (Node, error) {
 			return nil, fmt.Errorf("full node value expected to be bytes")
 		}
 		if len(v.Get(16).Raw()) != 0 {
-			vv := &ValueNode{}
-			vv.buf = append(vv.buf[:0], v.Get(16).Raw()...)
+			vv := nodePool.GetValueNode()
+			vv.buf = append(vv.buf[0:0], v.Get(16).Raw()...)
 			nc.value = vv
 		}
 

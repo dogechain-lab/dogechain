@@ -164,12 +164,10 @@ func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte, error) {
 		observe()
 
 		// dont use st here, we need to use the original stateDB
-		nTrie = &Trie{
-			stateDB: t.stateDB,
-			root:    tt.root,
-			epoch:   tt.epoch,
-		}
+		nTrie = NewTrie()
 		nTrie.stateDB = t.stateDB
+		nTrie.root = tt.root
+		nTrie.epoch = tt.epoch
 
 		// Commit all the entries to db
 		return st.Commit()
@@ -204,7 +202,7 @@ func (t *Trie) hashRoot() ([]byte, Node, error) {
 }
 
 func (t *Trie) Txn() *Txn {
-	return &Txn{root: t.root, epoch: t.epoch + 1, reader: t.stateDB}
+	return &Txn{reader: t.stateDB, root: t.root, epoch: t.epoch + 1}
 }
 
 func prefixLen(k1, k2 []byte) int {

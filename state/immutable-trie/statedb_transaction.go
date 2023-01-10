@@ -40,8 +40,8 @@ var txnPairPool = sync.Pool{
 }
 
 func (pair *txnPair) Reset() {
-	pair.key = pair.key[:0]
-	pair.value = pair.value[:0]
+	pair.key = pair.key[0:0]
+	pair.value = pair.value[0:0]
 	pair.isCode = false
 }
 
@@ -64,8 +64,8 @@ func (tx *stateDBTxn) Set(k []byte, v []byte) error {
 		return errors.New("invalid type assertion")
 	}
 
-	pair.key = append(pair.key[:], k...)
-	pair.value = append(pair.value[:], v...)
+	pair.key = append(pair.key, k...)
+	pair.value = append(pair.value, v...)
 
 	tx.db[txnKey(hex.EncodeToString(k))] = pair
 
@@ -98,8 +98,8 @@ func (tx *stateDBTxn) SetCode(hash types.Hash, v []byte) error {
 		return errors.New("invalid type assertion")
 	}
 
-	pair.key = append(pair.key[:], perfix...)
-	pair.value = append(pair.value[:], v...)
+	pair.key = append(pair.key, perfix...)
+	pair.value = append(pair.value, v...)
 	pair.isCode = true
 
 	tx.db[txnKey(hex.EncodeToString(perfix))] = pair
@@ -147,10 +147,9 @@ func (tx *stateDBTxn) NewSnapshotAt(root types.Hash) (state.Snapshot, error) {
 		return nil, fmt.Errorf("state not found at hash %s", root)
 	}
 
-	t := &Trie{
-		root:    n,
-		stateDB: tx.stateDB,
-	}
+	t := NewTrie()
+	t.root = n
+	t.stateDB = tx.stateDB
 
 	return t, nil
 }

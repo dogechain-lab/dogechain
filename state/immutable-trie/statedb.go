@@ -156,10 +156,9 @@ func (db *stateDBImpl) NewSnapshotAt(root types.Hash) (state.Snapshot, error) {
 		return nil, fmt.Errorf("state not found at hash %s", root)
 	}
 
-	t := &Trie{
-		root:    n,
-		stateDB: db,
-	}
+	t := NewTrie()
+	t.root = n
+	t.stateDB = db
 
 	return t, nil
 }
