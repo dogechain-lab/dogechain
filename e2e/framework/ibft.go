@@ -62,9 +62,11 @@ func NewIBFTServersManager(
 
 		srvs = append(srvs, srv)
 		bootnodes = append(bootnodes, libp2pAddr)
+
 		if static {
 			staticnodes = append(staticnodes, libp2pAddr)
 		}
+
 		genesisValidators = append(genesisValidators, res.Address)
 	}
 

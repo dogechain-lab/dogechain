@@ -361,7 +361,6 @@ func TestJoinStaticNodeWhenAlreadyConnected(t *testing.T) {
 
 	// Server 1 has a static connection to Server 0, so it should not be disconnected
 	assert.True(t, true, servers[1].HasPeer(servers[0].host.ID()))
-
 }
 
 func TestNat(t *testing.T) {
