@@ -610,8 +610,8 @@ func (s *Server) Chain() *chain.Chain {
 }
 
 // JoinPeer attempts to add a new peer to the networking server
-func (s *Server) JoinPeer(rawPeerMultiaddr string) error {
-	return s.network.JoinPeer(rawPeerMultiaddr)
+func (s *Server) JoinPeer(rawPeerMultiaddr string, static bool) error {
+	return s.network.JoinPeer(rawPeerMultiaddr, static)
 }
 
 // Close closes the server

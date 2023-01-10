@@ -23,6 +23,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p-core/peerstore"
 	"github.com/libp2p/go-libp2p-core/protocol"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/multiformats/go-multiaddr"
@@ -87,6 +88,8 @@ type DefaultServer struct {
 	temporaryDials cmap.ConcurrentMap // map of temporary connections; peerID -> bool
 
 	bootnodes *bootnodesWrapper // reference of all bootnodes for the node
+
+	staticnodes *staticnodesWrapper // reference of all static nodes for the node
 }
 
 // NewServer returns a new instance of the networking server
@@ -167,7 +170,8 @@ func newServer(logger hclog.Logger, config *Config) (*DefaultServer, error) {
 	// start gossip protocol
 	ps, err := pubsub.NewGossipSub(
 		context.Background(),
-		host, pubsub.WithPeerOutboundQueueSize(peerOutboundBufferSize),
+		host,
+		pubsub.WithPeerOutboundQueueSize(peerOutboundBufferSize),
 		pubsub.WithValidateQueueSize(validateBufferSize),
 	)
 	if err != nil {
@@ -256,6 +260,11 @@ func (s *DefaultServer) Start() error {
 		return fmt.Errorf("unable to setup identity, %w", setupErr)
 	}
 
+	// Parse the static node data
+	if setupErr := s.setupStaticnodes(); setupErr != nil {
+		return fmt.Errorf("unable to parse static node data, %w", setupErr)
+	}
+
 	// Set up the peer discovery mechanism if needed
 	if !s.config.NoDiscover {
 		// Parse the bootnode data
@@ -271,6 +280,7 @@ func (s *DefaultServer) Start() error {
 
 	go s.runDial()
 	go s.keepAliveMinimumPeerConnections()
+	go s.keepAliveStaticPeerConnections()
 
 	// watch for disconnected peers
 	s.host.Network().Notify(&network.NotifyBundle{
@@ -281,6 +291,96 @@ func (s *DefaultServer) Start() error {
 	})
 
 	return nil
+}
+
+// setupStaticnodes setup the static node's connections
+func (s *DefaultServer) setupStaticnodes() error {
+	if s.staticnodes == nil {
+		s.staticnodes = &staticnodesWrapper{
+			staticnodesArr: make([]*peer.AddrInfo, 0),
+			staticnodesMap: make(map[peer.ID]*peer.AddrInfo),
+		}
+	}
+
+	if s.config.Chain.Staticnodes == nil || len(s.config.Chain.Staticnodes) == 0 {
+		return nil
+	}
+
+	for _, rawAddr := range s.config.Chain.Staticnodes {
+		staticnode, err := common.StringToAddrInfo(rawAddr)
+		if err != nil {
+			s.logger.Error("failed to parse staticnode", "rawAddr", rawAddr, "err", err)
+
+			continue
+		}
+
+		if staticnode.ID == s.host.ID() {
+			s.logger.Warn("staticnode is self", "rawAddr", rawAddr)
+
+			continue
+		}
+
+		s.staticnodes.addStaticnode(staticnode)
+	}
+
+	s.staticnodes.rangeAddrs(func(addr *peer.AddrInfo) bool {
+		s.logger.Info("static node", "addr", common.AddrInfoToString(addr))
+
+		s.markStaticPeer(addr)
+
+		return true
+	})
+
+	return nil
+}
+
+// keepAliveStaticPeerConnections keeps the static node connections alive
+func (s *DefaultServer) keepAliveStaticPeerConnections() {
+	if s.staticnodes == nil || len(s.staticnodes.staticnodesArr) == 0 {
+		return
+	}
+
+	const duration = 10 * time.Second
+
+	allConnected := false
+
+	delay := time.NewTimer(duration)
+	defer delay.Stop()
+
+	for {
+		// If all the static nodes are connected, double the delay
+		if allConnected {
+			delay.Reset(duration * 2)
+		} else {
+			delay.Reset(duration)
+		}
+
+		select {
+		case <-delay.C:
+		case <-s.closeCh:
+			return
+		}
+
+		if s.staticnodes == nil || len(s.staticnodes.staticnodesArr) == 0 {
+			return
+		}
+
+		allConnected = true
+
+		s.staticnodes.rangeAddrs(func(add *peer.AddrInfo) bool {
+			if s.host.Network().Connectedness(add.ID) == network.Connected {
+				return true
+			}
+
+			if allConnected {
+				allConnected = false
+			}
+
+			s.joinPeer(add)
+
+			return true
+		})
+	}
 }
 
 // setupBootnodes sets up the node's bootnode connections
@@ -511,6 +611,21 @@ func (s *DefaultServer) removePeerInfo(peerID peer.ID) *PeerConnInfo {
 	s.peersLock.Lock()
 	defer s.peersLock.Unlock()
 
+	// static nodes are not removed from the peers map
+	if s.staticnodes.isStaticnode(peerID) {
+		connectionInfo, ok := s.peers[peerID]
+		if !ok {
+			// Peer is not present in the peers map
+			s.logger.Warn(
+				fmt.Sprintf("Attempted removing missing peer info %s", peerID),
+			)
+
+			return nil
+		}
+
+		return connectionInfo
+	}
+
 	// Remove the peer from the peers map
 	connectionInfo, ok := s.peers[peerID]
 	if !ok {
@@ -558,6 +673,12 @@ func (s *DefaultServer) updateBootnodeConnCount(peerID peer.ID, delta int64) {
 //
 // Cauction: take care of using this to ignore peer from store, which may break peer discovery
 func (s *DefaultServer) ForgetPeer(peer peer.ID, reason string) {
+	if !s.staticnodes.isStaticnode(peer) {
+		s.logger.Debug("forget peer not works for static node", "id", peer, "reason", reason)
+
+		return
+	}
+
 	s.logger.Warn("forget peer", "id", peer, "reason", reason)
 
 	s.DisconnectFromPeer(peer, reason)
@@ -584,6 +705,10 @@ func (s *DefaultServer) DisconnectFromPeer(peer peer.ID, reason string) {
 		return
 	}
 
+	if !s.staticnodes.isStaticnode(peer) {
+		return
+	}
+
 	s.logger.Info("closing connection to peer", "id", peer, "reason", reason)
 
 	if closeErr := s.host.Network().ClosePeer(peer); closeErr != nil {
@@ -599,7 +724,7 @@ var (
 )
 
 // JoinPeer attempts to add a new peer to the networking server
-func (s *DefaultServer) JoinPeer(rawPeerMultiaddr string) error {
+func (s *DefaultServer) JoinPeer(rawPeerMultiaddr string, static bool) error {
 	// Parse the raw string to a MultiAddr format
 	parsedMultiaddr, err := multiaddr.NewMultiaddr(rawPeerMultiaddr)
 	if err != nil {
@@ -612,10 +737,22 @@ func (s *DefaultServer) JoinPeer(rawPeerMultiaddr string) error {
 		return err
 	}
 
+	if static {
+		s.markStaticPeer(peerInfo)
+		s.staticnodes.addStaticnode(peerInfo)
+	}
+
 	// Mark the peer as ripe for dialing (async)
 	s.joinPeer(peerInfo)
 
 	return nil
+}
+
+// markStaticPeer marks the peer as a static peer
+func (s *DefaultServer) markStaticPeer(peerInfo *peer.AddrInfo) {
+	s.host.Peerstore().AddAddrs(peerInfo.ID, peerInfo.Addrs, peerstore.PermanentAddrTTL)
+	s.host.ConnManager().TagPeer(peerInfo.ID, "staticnode", 1000)
+	s.host.ConnManager().Protect(peerInfo.ID, "staticnode")
 }
 
 // joinPeer creates a new dial task for the peer (for async joining)

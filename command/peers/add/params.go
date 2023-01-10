@@ -21,10 +21,12 @@ var (
 )
 
 const (
-	addrFlag = "addr"
+	addrFlag   = "addr"
+	staticFlag = "static"
 )
 
 type addParams struct {
+	isStatic      bool
 	peerAddresses []string
 
 	systemClient proto.SystemClient
@@ -60,7 +62,7 @@ func (p *addParams) initSystemClient(grpcAddress string) error {
 
 func (p *addParams) addPeers() {
 	for _, address := range p.peerAddresses {
-		if addErr := p.addPeer(address); addErr != nil {
+		if addErr := p.addPeer(address, p.isStatic); addErr != nil {
 			p.addErrors = append(p.addErrors, addErr.Error())
 
 			continue
@@ -70,11 +72,12 @@ func (p *addParams) addPeers() {
 	}
 }
 
-func (p *addParams) addPeer(peerAddress string) error {
+func (p *addParams) addPeer(peerAddress string, static bool) error {
 	if _, err := p.systemClient.PeersAdd(
 		context.Background(),
 		&proto.PeersAddRequest{
-			Id: peerAddress,
+			Id:     peerAddress,
+			Static: static,
 		},
 	); err != nil {
 		return err

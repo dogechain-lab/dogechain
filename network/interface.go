@@ -21,7 +21,7 @@ type Network interface {
 	// GetPeerInfo returns the peer info for the given peer ID
 	GetPeerInfo(peerID peer.ID) *peer.AddrInfo
 	// JoinPeer joins a peer to the network
-	JoinPeer(rawPeerMultiaddr string) error
+	JoinPeer(rawPeerMultiaddr string, static bool) error
 	// HasPeer returns true if the peer is connected
 	HasPeer(peerID peer.ID) bool
 	// IsConnected returns the node is connecting to the peer associated with the given ID

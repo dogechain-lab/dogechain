@@ -85,8 +85,8 @@ func (s *DefaultServer) NewDiscoveryClient(peerID peer.ID) (proto.DiscoveryClien
 
 	// Discovery protocol streams should be saved,
 	// since they are referenced later on,
-	// if they are not temporary
-	if !isTemporaryDial {
+	// if they are not temporary or static nodes
+	if !isTemporaryDial && s.staticnodes.isStaticnode(peerID) {
 		s.SaveProtocolStream(common.DiscProto, protoStream, peerID)
 	}
 
@@ -137,8 +137,12 @@ func (s *DefaultServer) AddToPeerStore(peerInfo *peer.AddrInfo) {
 	s.host.Peerstore().AddAddr(peerInfo.ID, peerInfo.Addrs[0], peerstore.AddressTTL)
 }
 
-// RemoveFromPeerStore removes peer information from the node's peer store
+// RemoveFromPeerStore removes peer information from the node's peer store, ignoring static nodes
 func (s *DefaultServer) RemoveFromPeerStore(peerInfo *peer.AddrInfo) {
+	if s.staticnodes.isStaticnode(peerInfo.ID) {
+		return
+	}
+
 	s.host.Peerstore().RemovePeer(peerInfo.ID)
 }
 

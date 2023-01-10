@@ -35,6 +35,7 @@ func JoinAndWait(
 	destination Server,
 	connectTimeout time.Duration,
 	joinTimeout time.Duration,
+	static bool,
 ) error {
 	if joinTimeout == 0 {
 		joinTimeout = DefaultJoinTimeout
@@ -46,7 +47,7 @@ func JoinAndWait(
 	}
 
 	// Mark the destination address as ready for dialing
-	source.JoinPeer(netcommon.AddrInfoToString(destination.AddrInfo()))
+	source.JoinPeer(netcommon.AddrInfoToString(destination.AddrInfo()), static)
 
 	connectCtx, cancelFn := context.WithTimeout(context.Background(), connectTimeout)
 	defer cancelFn()
@@ -80,7 +81,7 @@ func JoinAndWaitMultiple(
 		go func() {
 			defer wg.Done()
 
-			errCh <- JoinAndWait(s1, s2, timeout, timeout)
+			errCh <- JoinAndWait(s1, s2, timeout, timeout, false)
 		}()
 	}
 
@@ -356,6 +357,7 @@ func MeshJoin(servers ...*DefaultServer) []error {
 						servers[dest],
 						DefaultBufferTimeout,
 						DefaultJoinTimeout,
+						false,
 					); joinErr != nil {
 						appendJoinError(fmt.Errorf("unable to join peers, %w", joinErr))
 					}

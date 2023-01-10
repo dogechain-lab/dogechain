@@ -6,6 +6,7 @@ const (
 
 	IgnoreDiscoverCIDRFlag = "ignore-discover-cidr"
 
-	BootnodeFlag = "bootnode"
-	LogLevelFlag = "log-level"
+	BootnodeFlag   = "bootnode"
+	StaticnodeFlag = "staticnode"
+	LogLevelFlag   = "log-level"
 )

@@ -111,7 +111,7 @@ func (s *NonetworkServer) Close() error {
 	return nil
 }
 
-func (s *NonetworkServer) JoinPeer(rawPeerMultiaddr string) error { return nil }
+func (s *NonetworkServer) JoinPeer(rawPeerMultiaddr string, static bool) error { return nil }
 
 func (s *NonetworkServer) HasPeer(peerID peer.ID) bool { return false }
 

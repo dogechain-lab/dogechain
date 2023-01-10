@@ -27,6 +27,13 @@ func setFlags(cmd *cobra.Command) {
 		[]string{},
 		"the libp2p addresses of the peers",
 	)
+
+	cmd.Flags().BoolVar(
+		&params.isStatic,
+		staticFlag,
+		false,
+		"add the peers as static peers",
+	)
 }
 
 func runPreRun(_ *cobra.Command, _ []string) error {

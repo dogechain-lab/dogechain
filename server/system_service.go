@@ -85,7 +85,7 @@ func (s *systemService) Subscribe(req *empty.Empty, stream proto.System_Subscrib
 
 // PeersAdd implements the 'peers add' operator service
 func (s *systemService) PeersAdd(_ context.Context, req *proto.PeersAddRequest) (*proto.PeersAddResponse, error) {
-	if joinErr := s.server.JoinPeer(req.Id); joinErr != nil {
+	if joinErr := s.server.JoinPeer(req.Id, req.Static); joinErr != nil {
 		return &proto.PeersAddResponse{
 			Message: "Unable to successfully add peer",
 		}, joinErr

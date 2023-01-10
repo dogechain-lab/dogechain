@@ -65,6 +65,13 @@ func setFlags(cmd *cobra.Command) {
 		"multiAddr URL for p2p discovery bootstrap. This flag can be used multiple times",
 	)
 
+	cmd.Flags().StringArrayVar(
+		&params.staticnodes,
+		command.StaticnodeFlag,
+		[]string{},
+		"multiAddr URL for p2p static nodes. This flag can be used multiple times",
+	)
+
 	// IBFT Validators
 	{
 		cmd.Flags().StringVar(

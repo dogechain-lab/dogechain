@@ -54,6 +54,7 @@ type genesisParams struct {
 	validatorPrefixPath string
 	premine             []string
 	bootnodes           []string
+	staticnodes         []string
 	ibftValidators      []types.Address
 
 	ibftValidatorsRaw []string
@@ -251,7 +252,8 @@ func (p *genesisParams) initGenesisConfig() error {
 			Forks:   chain.AllForksEnabled,
 			Engine:  p.consensusEngineConfig,
 		},
-		Bootnodes: p.bootnodes,
+		Bootnodes:   p.bootnodes,
+		Staticnodes: p.staticnodes,
 	}
 
 	// Predeploy ValidatorSet smart contract if needed

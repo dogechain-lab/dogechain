@@ -68,7 +68,7 @@ func TestIdentityHandshake(t *testing.T) {
 				joinTimeout = time.Second * 5
 			}
 
-			joinErr := JoinAndWait(servers[0], servers[1], connectTimeout, joinTimeout)
+			joinErr := JoinAndWait(servers[0], servers[1], connectTimeout, joinTimeout, false)
 			if shouldSucceed && joinErr != nil {
 				t.Fatalf("Unable to join peer, %v", joinErr)
 			}
