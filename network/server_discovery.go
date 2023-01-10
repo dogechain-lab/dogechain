@@ -86,7 +86,7 @@ func (s *DefaultServer) NewDiscoveryClient(peerID peer.ID) (proto.DiscoveryClien
 	// Discovery protocol streams should be saved,
 	// since they are referenced later on,
 	// if they are not temporary or static nodes
-	if !isTemporaryDial && s.staticnodes.isStaticnode(peerID) {
+	if !isTemporaryDial || s.staticnodes.isStaticnode(peerID) {
 		s.SaveProtocolStream(common.DiscProto, protoStream, peerID)
 	}
 

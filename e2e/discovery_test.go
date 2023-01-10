@@ -18,16 +18,32 @@ func TestDiscovery(t *testing.T) {
 		numNodes int
 		// Number of nodes that connects to left node as default
 		numInitConnectNodes int
+		// static peers
+		static bool
 	}{
 		{
 			name:                "first 4 nodes should know each other",
 			numNodes:            5,
 			numInitConnectNodes: 4,
+			static:              false,
 		},
 		{
 			name:                "all should know each other",
 			numNodes:            5,
 			numInitConnectNodes: 5,
+			static:              false,
+		},
+		{
+			name:                "first 4 nodes should know each other (static node)",
+			numNodes:            5,
+			numInitConnectNodes: 4,
+			static:              true,
+		},
+		{
+			name:                "all should know each other (static node)",
+			numNodes:            5,
+			numInitConnectNodes: 5,
+			static:              true,
 		},
 	}
 
@@ -53,7 +69,8 @@ func TestDiscovery(t *testing.T) {
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer cancel()
 				_, err := srv.Operator().PeersAdd(ctx, &proto.PeersAddRequest{
-					Id: dest,
+					Id:     dest,
+					Static: tt.static,
 				})
 				if err != nil {
 					t.Fatal(err)

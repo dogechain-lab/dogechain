@@ -33,6 +33,7 @@ func TestSignedTransaction(t *testing.T) {
 		t,
 		IBFTMinNodes,
 		IBFTDirPrefix,
+		false,
 		func(i int, config *framework.TestServerConfig) {
 			config.Premine(senderAddr, preminedAmount)
 			config.SetSeal(true)
@@ -511,10 +512,12 @@ func Test_TransactionIBFTLoop(t *testing.T) {
 		t,
 		IBFTMinNodes,
 		IBFTDirPrefix,
+		false,
 		func(i int, config *framework.TestServerConfig) {
 			config.Premine(sender, defaultBalance)
 			config.SetSeal(true)
 			config.SetBlockLimit(20000000)
+			config.SetBlockTime(1)
 		})
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)

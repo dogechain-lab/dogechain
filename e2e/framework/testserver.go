@@ -295,6 +295,10 @@ func (t *TestServer) GenerateGenesis() error {
 		args = append(args, "--bootnode", bootnode)
 	}
 
+	for _, staticnode := range t.Config.Staticnodes {
+		args = append(args, "--staticnode", staticnode)
+	}
+
 	// Make sure the correct mechanism is selected
 	if t.Config.IsPos {
 		args = append(args, "--pos")

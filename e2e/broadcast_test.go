@@ -20,16 +20,32 @@ func TestBroadcast(t *testing.T) {
 		numNodes int
 		// Number of nodes that connects to left node
 		numConnectedNodes int
+		// static peers
+		static bool
 	}{
 		{
 			name:              "tx should not reach to last node",
 			numNodes:          10,
 			numConnectedNodes: 5,
+			static:            false,
 		},
 		{
 			name:              "tx should reach to last node",
 			numNodes:          10,
 			numConnectedNodes: 10,
+			static:            false,
+		},
+		{
+			name:              "tx should not reach to last node (static node)",
+			numNodes:          10,
+			numConnectedNodes: 5,
+			static:            true,
+		},
+		{
+			name:              "tx should reach to last node (static node)",
+			numNodes:          10,
+			numConnectedNodes: 10,
+			static:            true,
 		},
 	}
 
@@ -46,7 +62,7 @@ func TestBroadcast(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			srvs := framework.NewTestServers(t, tt.numNodes, conf)
-			framework.MultiJoinSerial(t, srvs[0:tt.numConnectedNodes])
+			framework.MultiJoinSerial(t, tt.static, srvs[0:tt.numConnectedNodes])
 
 			// Check the connections
 			for i, srv := range srvs {

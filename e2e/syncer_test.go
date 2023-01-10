@@ -21,7 +21,9 @@ func TestClusterBlockSync(t *testing.T) {
 	ibftManager := framework.NewIBFTServersManager(
 		t,
 		IBFTMinNodes+numNonValidators,
-		IBFTDirPrefix, func(i int, config *framework.TestServerConfig) {
+		IBFTDirPrefix,
+		false,
+		func(i int, config *framework.TestServerConfig) {
 			if i >= IBFTMinNodes {
 				// Other nodes should not be in the validator set
 				dirPrefix := "dogechain-non-validator-"
@@ -29,6 +31,7 @@ func TestClusterBlockSync(t *testing.T) {
 				config.SetIBFTDir(fmt.Sprintf("%s%d", dirPrefix, i))
 			}
 			config.SetSeal(i < IBFTMinNodes)
+			config.SetBlockTime(1)
 		})
 
 	startContext, startCancelFn := context.WithTimeout(context.Background(), time.Minute)

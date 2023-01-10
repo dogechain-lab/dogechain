@@ -673,7 +673,7 @@ func (s *DefaultServer) updateBootnodeConnCount(peerID peer.ID, delta int64) {
 //
 // Cauction: take care of using this to ignore peer from store, which may break peer discovery
 func (s *DefaultServer) ForgetPeer(peer peer.ID, reason string) {
-	if !s.staticnodes.isStaticnode(peer) {
+	if s.staticnodes.isStaticnode(peer) {
 		s.logger.Debug("forget peer not works for static node", "id", peer, "reason", reason)
 
 		return
@@ -705,7 +705,7 @@ func (s *DefaultServer) DisconnectFromPeer(peer peer.ID, reason string) {
 		return
 	}
 
-	if !s.staticnodes.isStaticnode(peer) {
+	if s.staticnodes.isStaticnode(peer) {
 		return
 	}
 
@@ -738,8 +738,8 @@ func (s *DefaultServer) JoinPeer(rawPeerMultiaddr string, static bool) error {
 	}
 
 	if static {
-		s.markStaticPeer(peerInfo)
 		s.staticnodes.addStaticnode(peerInfo)
+		s.markStaticPeer(peerInfo)
 	}
 
 	// Mark the peer as ripe for dialing (async)

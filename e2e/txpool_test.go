@@ -177,6 +177,7 @@ func TestTxPool_TransactionCoalescing(t *testing.T) {
 		t,
 		1,
 		IBFTDirPrefix,
+		false,
 		func(i int, config *framework.TestServerConfig) {
 			config.SetIBFTPoS(true)
 			config.SetValidatorSetOwner(fakeAddr)

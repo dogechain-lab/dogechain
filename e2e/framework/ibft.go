@@ -20,6 +20,7 @@ func NewIBFTServersManager(
 	t *testing.T,
 	numNodes int,
 	ibftDirPrefix string,
+	static bool,
 	callback IBFTServerConfigCallback,
 ) *IBFTServersManager {
 	t.Helper()
@@ -41,6 +42,7 @@ func NewIBFTServersManager(
 	})
 
 	bootnodes := make([]string, 0, numNodes)
+	staticnodes := make([]string, 0, numNodes)
 	genesisValidators := make([]string, 0, numNodes)
 
 	for i := 0; i < numNodes; i++ {
@@ -60,11 +62,16 @@ func NewIBFTServersManager(
 
 		srvs = append(srvs, srv)
 		bootnodes = append(bootnodes, libp2pAddr)
+		if static {
+			staticnodes = append(staticnodes, libp2pAddr)
+		}
 		genesisValidators = append(genesisValidators, res.Address)
 	}
 
 	srv := srvs[0]
 	srv.Config.SetBootnodes(bootnodes)
+	// Set static nodes
+	srv.Config.SetStaticnodes(staticnodes)
 	// Set genesis staking balance for genesis validators
 	for i, v := range genesisValidators {
 		addr := types.StringToAddress(v)

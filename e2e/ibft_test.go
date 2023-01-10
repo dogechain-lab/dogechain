@@ -22,6 +22,7 @@ func TestIbft_Transfer(t *testing.T) {
 		t,
 		IBFTMinNodes,
 		IBFTDirPrefix,
+		false,
 		func(i int, config *framework.TestServerConfig) {
 			config.Premine(senderAddr, framework.EthToWei(10))
 			config.SetSeal(true)
@@ -58,16 +59,31 @@ func TestIbft_TransactionFeeRecipient(t *testing.T) {
 		name         string
 		contractCall bool
 		txAmount     *big.Int
+		static       bool
 	}{
 		{
 			name:         "transfer transaction",
 			contractCall: false,
 			txAmount:     framework.EthToWei(1),
+			static:       false,
 		},
 		{
 			name:         "contract function execution",
 			contractCall: true,
 			txAmount:     big.NewInt(0),
+			static:       false,
+		},
+		{
+			name:         "transfer transaction (static node)",
+			contractCall: false,
+			txAmount:     framework.EthToWei(1),
+			static:       true,
+		},
+		{
+			name:         "contract function execution (static node)",
+			contractCall: true,
+			txAmount:     big.NewInt(0),
+			static:       true,
 		},
 	}
 
@@ -80,9 +96,11 @@ func TestIbft_TransactionFeeRecipient(t *testing.T) {
 				t,
 				IBFTMinNodes,
 				IBFTDirPrefix,
+				tc.static,
 				func(i int, config *framework.TestServerConfig) {
 					config.Premine(senderAddr, framework.EthToWei(10))
 					config.SetSeal(true)
+					config.SetBlockTime(1)
 				})
 
 			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)

@@ -121,7 +121,7 @@ func EcrecoverFromBlockhash(hash types.Hash, signature []byte) (types.Address, e
 	return crypto.PubKeyToAddress(pubKey), nil
 }
 
-func MultiJoinSerial(t *testing.T, srvs []*TestServer) {
+func MultiJoinSerial(t *testing.T, static bool, srvs []*TestServer) {
 	t.Helper()
 
 	dials := []*TestServer{}
@@ -130,10 +130,10 @@ func MultiJoinSerial(t *testing.T, srvs []*TestServer) {
 		srv, dst := srvs[i], srvs[i+1]
 		dials = append(dials, srv, dst)
 	}
-	MultiJoin(t, dials...)
+	MultiJoin(t, static, dials...)
 }
 
-func MultiJoin(t *testing.T, srvs ...*TestServer) {
+func MultiJoin(t *testing.T, static bool, srvs ...*TestServer) {
 	t.Helper()
 
 	if len(srvs)%2 != 0 {
@@ -157,7 +157,8 @@ func MultiJoin(t *testing.T, srvs ...*TestServer) {
 
 			dstAddr := strings.Split(dstStatus.P2PAddr, ",")[0]
 			_, err = srcClient.PeersAdd(context.Background(), &proto.PeersAddRequest{
-				Id: dstAddr,
+				Id:     dstAddr,
+				Static: static,
 			})
 
 			errCh <- err

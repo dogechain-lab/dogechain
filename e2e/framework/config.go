@@ -39,6 +39,7 @@ type TestServerConfig struct {
 	DevStakers        []types.Address
 	Consensus         ConsensusType        // Consensus MechanismType
 	Bootnodes         []string             // Bootnode Addresses
+	Staticnodes       []string             // Staticnode Addresses
 	PriceLimit        *uint64              // Minimum gas price limit to enforce for acceptance into the pool
 	DevInterval       int                  // Dev consensus update interval [s]
 	EpochSize         uint64               // The epoch size in blocks for the IBFT layer
@@ -139,6 +140,11 @@ func (t *TestServerConfig) SetSeal(state bool) {
 // SetBootnodes sets bootnodes
 func (t *TestServerConfig) SetBootnodes(bootnodes []string) {
 	t.Bootnodes = bootnodes
+}
+
+// SetStaticnodes sets bootnodes
+func (t *TestServerConfig) SetStaticnodes(staticnodes []string) {
+	t.Staticnodes = staticnodes
 }
 
 // SetPriceLimit sets the gas price limit
