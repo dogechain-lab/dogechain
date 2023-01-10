@@ -7,7 +7,6 @@ import (
 
 	"github.com/dogechain-lab/dogechain/chain"
 	"github.com/dogechain-lab/dogechain/crypto"
-	"github.com/dogechain-lab/dogechain/helper/keccak"
 	"github.com/dogechain-lab/dogechain/state/runtime"
 	"github.com/dogechain-lab/dogechain/types"
 )
@@ -28,7 +27,6 @@ type Txn struct {
 	state     State
 	snapshots []*iradix.Tree
 	txn       *iradix.Txn
-	hash      *keccak.Keccak
 }
 
 func NewTxn(state State, snapshot Snapshot) *Txn {
@@ -43,16 +41,11 @@ func newTxn(state State, snapshot Snapshot) *Txn {
 		state:     state,
 		snapshots: []*iradix.Tree{},
 		txn:       i.Txn(),
-		hash:      keccak.NewKeccak256(),
 	}
 }
 
 func (txn *Txn) hashit(src []byte) []byte {
-	txn.hash.Reset()
-	txn.hash.Write(src)
-	// hashit is used to make queries so we do not need to
-	// make copies of the result
-	return txn.hash.Read()
+	return crypto.Keccak256(src)
 }
 
 // Snapshot takes a snapshot at this point in time

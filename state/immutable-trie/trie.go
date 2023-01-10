@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"errors"
 
+	"github.com/dogechain-lab/dogechain/crypto"
 	"github.com/dogechain-lab/dogechain/state"
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/dogechain-lab/fastrlp"
-	"golang.org/x/crypto/sha3"
 )
 
 type Trie struct {
@@ -34,10 +34,7 @@ func (t *Trie) Get(k []byte) ([]byte, bool) {
 }
 
 func hashit(k []byte) []byte {
-	h := sha3.NewLegacyKeccak256()
-	h.Write(k)
-
-	return h.Sum(nil)
+	return crypto.Keccak256(k)
 }
 
 var accountArenaPool fastrlp.ArenaPool
