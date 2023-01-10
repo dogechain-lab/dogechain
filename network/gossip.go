@@ -92,6 +92,8 @@ func (t *topicImp) readLoop(sub *pubsub.Subscription, handler func(obj interface
 	t.wg.Add(1)
 	// work queue for less goroutine allocation
 	workqueue := make(chan *task, _workerNum*4)
+	defer close(workqueue)
+
 	// cancel context
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -114,7 +116,7 @@ func (t *topicImp) readLoop(sub *pubsub.Subscription, handler func(obj interface
 		timeoutCancel()
 
 		cancel()
-		close(workqueue)
+
 		t.wg.Done()
 	}()
 
