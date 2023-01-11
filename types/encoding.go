@@ -53,9 +53,11 @@ func ParseInt64orHex(val *string) (int64, error) {
 	return int64(i), err
 }
 
+var emptyBytes = []byte{}
+
 func ParseBytes(val *string) ([]byte, error) {
 	if val == nil {
-		return []byte{}, nil
+		return emptyBytes, nil
 	}
 
 	str := strings.TrimPrefix(*val, "0x")
@@ -70,7 +72,7 @@ func EncodeUint64(b uint64) *string {
 }
 
 func EncodeBytes(b []byte) *string {
-	res := "0x" + hex.EncodeToString(b)
+	res := hex.EncodeToHex(b)
 
 	return &res
 }
