@@ -8,7 +8,9 @@ import (
 )
 
 type staticnodesWrapper struct {
-	m sync.Map
+	mux sync.RWMutex
+
+	peers map[peer.ID]*peer.AddrInfo
 
 	// count add node
 	count atomic.Int64
@@ -16,7 +18,7 @@ type staticnodesWrapper struct {
 
 func newStaticnodesWrapper() *staticnodesWrapper {
 	return &staticnodesWrapper{
-		m:     sync.Map{},
+		peers: make(map[peer.ID]*peer.AddrInfo),
 		count: atomic.Int64{},
 	}
 }
@@ -27,28 +29,34 @@ func (sw *staticnodesWrapper) Len() int {
 
 // addStaticnode adds a staticnode to the staticnode list
 func (sw *staticnodesWrapper) addStaticnode(addr *peer.AddrInfo) {
+	sw.mux.Lock()
+	defer sw.mux.Unlock()
+
 	if addr == nil {
 		panic("addr is nil")
 	}
 
-	sw.m.Store(addr.ID, addr)
+	sw.peers[addr.ID] = addr
 	sw.count.Inc()
 }
 
 func (sw *staticnodesWrapper) rangeAddrs(f func(add *peer.AddrInfo) bool) {
-	sw.m.Range(func(_, value interface{}) bool {
-		if addr, ok := value.(*peer.AddrInfo); addr != nil && ok {
-			return f(addr)
-		}
+	sw.mux.RLock()
+	defer sw.mux.RUnlock()
 
-		// continue, skip this value
-		return true
-	})
+	for _, addr := range sw.peers {
+		if addr != nil {
+			f(addr)
+		}
+	}
 }
 
 // isStaticnode checks if the node ID belongs to a set staticnode
 func (sw *staticnodesWrapper) isStaticnode(nodeID peer.ID) bool {
-	_, ok := sw.m.Load(nodeID)
+	sw.mux.RLock()
+	defer sw.mux.RUnlock()
+
+	_, ok := sw.peers[nodeID]
 
 	return ok
 }
