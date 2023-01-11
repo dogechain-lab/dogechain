@@ -4,44 +4,51 @@ import (
 	"sync"
 
 	"github.com/libp2p/go-libp2p-core/peer"
+	"go.uber.org/atomic"
 )
 
 type staticnodesWrapper struct {
-	mux sync.RWMutex
+	m sync.Map
 
-	// staticnodeArr is the array that contains all the staticnode addresses
-	staticnodesArr []*peer.AddrInfo
+	// conter add node
+	count atomic.Int32
+}
 
-	// staticnodesMap is a map used for quick staticnode lookup
-	staticnodesMap map[peer.ID]*peer.AddrInfo
+func newStaticnodesWrapper() *staticnodesWrapper {
+	return &staticnodesWrapper{
+		m:     sync.Map{},
+		count: atomic.Int32{},
+	}
+}
+
+func (sw *staticnodesWrapper) Len() int {
+	return int(sw.count.Load())
 }
 
 // addStaticnode adds a staticnode to the staticnode list
 func (sw *staticnodesWrapper) addStaticnode(addr *peer.AddrInfo) {
-	sw.mux.Lock()
-	defer sw.mux.Unlock()
+	if addr == nil {
+		panic("addr is nil")
+	}
 
-	sw.staticnodesArr = append(sw.staticnodesArr, addr)
-	sw.staticnodesMap[addr.ID] = addr
+	sw.m.Store(addr.ID, addr)
+	sw.count.Inc()
 }
 
 func (sw *staticnodesWrapper) rangeAddrs(f func(add *peer.AddrInfo) bool) {
-	sw.mux.RLock()
-	defer sw.mux.RUnlock()
-
-	for _, addr := range sw.staticnodesArr {
-		if !f(addr) {
-			break
+	sw.m.Range(func(_, value interface{}) bool {
+		if addr, ok := value.(*peer.AddrInfo); addr != nil && ok {
+			return f(addr)
 		}
-	}
+
+		// continue, skip this value
+		return true
+	})
 }
 
 // isStaticnode checks if the node ID belongs to a set staticnode
 func (sw *staticnodesWrapper) isStaticnode(nodeID peer.ID) bool {
-	sw.mux.RLock()
-	defer sw.mux.RUnlock()
-
-	_, ok := sw.staticnodesMap[nodeID]
+	_, ok := sw.m.Load(nodeID)
 
 	return ok
 }

@@ -49,6 +49,8 @@ const (
 
 	MinimumBootNodes       int   = 1
 	MinimumPeerConnections int64 = 1
+
+	DefaultKeepAliveTimer = 10 * time.Second
 )
 
 var (
@@ -296,10 +298,7 @@ func (s *DefaultServer) Start() error {
 // setupStaticnodes setup the static node's connections
 func (s *DefaultServer) setupStaticnodes() error {
 	if s.staticnodes == nil {
-		s.staticnodes = &staticnodesWrapper{
-			staticnodesArr: make([]*peer.AddrInfo, 0),
-			staticnodesMap: make(map[peer.ID]*peer.AddrInfo),
-		}
+		s.staticnodes = newStaticnodesWrapper()
 	}
 
 	if s.config.Chain.Staticnodes == nil || len(s.config.Chain.Staticnodes) == 0 {
@@ -336,23 +335,21 @@ func (s *DefaultServer) setupStaticnodes() error {
 
 // keepAliveStaticPeerConnections keeps the static node connections alive
 func (s *DefaultServer) keepAliveStaticPeerConnections() {
-	if s.staticnodes == nil || len(s.staticnodes.staticnodesArr) == 0 {
+	if s.staticnodes == nil || s.staticnodes.Len() == 0 {
 		return
 	}
 
-	const duration = 10 * time.Second
-
 	allConnected := false
 
-	delay := time.NewTimer(duration)
+	delay := time.NewTimer(DefaultKeepAliveTimer)
 	defer delay.Stop()
 
 	for {
 		// If all the static nodes are connected, double the delay
 		if allConnected {
-			delay.Reset(duration * 2)
+			delay.Reset(DefaultKeepAliveTimer * 2)
 		} else {
-			delay.Reset(duration)
+			delay.Reset(DefaultKeepAliveTimer)
 		}
 
 		select {
@@ -361,7 +358,7 @@ func (s *DefaultServer) keepAliveStaticPeerConnections() {
 			return
 		}
 
-		if s.staticnodes == nil || len(s.staticnodes.staticnodesArr) == 0 {
+		if s.staticnodes == nil || s.staticnodes.Len() == 0 {
 			return
 		}
 
@@ -429,14 +426,11 @@ func (s *DefaultServer) setupBootnodes() error {
 // keepAliveMinimumPeerConnections will attempt to make new connections
 // if the active peer count is lesser than the specified limit.
 func (s *DefaultServer) keepAliveMinimumPeerConnections() {
-	const duration = 10 * time.Second
-
-	delay := time.NewTimer(duration)
+	delay := time.NewTimer(DefaultKeepAliveTimer)
 	defer delay.Stop()
 
 	for {
-		// TODO: not safe use case
-		delay.Reset(duration)
+		delay.Reset(DefaultKeepAliveTimer)
 
 		select {
 		case <-delay.C:
