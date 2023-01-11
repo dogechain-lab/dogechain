@@ -10,14 +10,14 @@ import (
 type staticnodesWrapper struct {
 	m sync.Map
 
-	// conter add node
-	count atomic.Int32
+	// count add node
+	count atomic.Int64
 }
 
 func newStaticnodesWrapper() *staticnodesWrapper {
 	return &staticnodesWrapper{
 		m:     sync.Map{},
-		count: atomic.Int32{},
+		count: atomic.Int64{},
 	}
 }
 
