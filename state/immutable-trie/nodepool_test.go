@@ -9,6 +9,8 @@ import (
 )
 
 // Test that the node pool is working as expected.
+// check get node from pool is new initialized
+
 func TestNodePool_Get(t *testing.T) {
 	np := NewNodePool()
 
@@ -18,12 +20,19 @@ func TestNodePool_Get(t *testing.T) {
 
 			assert.NotNil(t, node)
 			assert.Nil(t, node.value)
+
 			assert.Zero(t, len(node.hash))
 			assert.NotZero(t, cap(node.hash))
 
-			for j := 0; j < 16; j++ {
+			for j := 0; j < len(node.children); j++ {
 				assert.Nil(t, node.children[j])
+
+				// fill nil childrens reference
+				node.children[j] = node
 			}
+
+			// fill nil value reference
+			node.value = node
 		}
 
 		{
@@ -38,6 +47,11 @@ func TestNodePool_Get(t *testing.T) {
 
 			assert.NotZero(t, cap(node.hash))
 			assert.NotZero(t, cap(node.key))
+
+			// fill nil child reference
+			node.child = node
+			binary.BigEndian.PutUint64(node.hash[:8], uint64(i))
+			binary.BigEndian.PutUint64(node.key[:8], uint64(i))
 		}
 
 		{
@@ -47,6 +61,10 @@ func TestNodePool_Get(t *testing.T) {
 			assert.Zero(t, len(node.buf))
 			assert.NotZero(t, cap(node.buf))
 			assert.False(t, node.hash)
+
+			// fill object
+			node.hash = true
+			binary.BigEndian.PutUint64(node.buf[:8], uint64(i))
 		}
 	}
 }
@@ -54,14 +72,12 @@ func TestNodePool_Get(t *testing.T) {
 func TestNodePool_UniqueObject(t *testing.T) {
 	np := NewNodePool()
 
-	objs := make([]interface{}, 0, nodePoolBatchAlloc*2)
-	ptrMap := make(map[uintptr]bool)
-
+	ptrMap := make(map[uintptr]interface{})
 	ptrNoExist := func(obj interface{}) bool {
 		ptr := reflect.ValueOf(obj).Pointer()
 
 		_, exist := ptrMap[ptr]
-		ptrMap[ptr] = true
+		ptrMap[ptr] = obj
 
 		return !exist
 	}
@@ -75,7 +91,11 @@ func TestNodePool_UniqueObject(t *testing.T) {
 
 			binary.BigEndian.PutUint64(node.hash[:8], uint64(i))
 
-			objs = append(objs, node)
+			for j := 0; j < len(node.children); j++ {
+				assert.Nil(t, node.children[j])
+
+				node.children[j] = node
+			}
 		}
 
 		{
@@ -88,7 +108,7 @@ func TestNodePool_UniqueObject(t *testing.T) {
 			binary.BigEndian.PutUint64(node.hash[:8], uint64(i))
 			binary.BigEndian.PutUint64(node.key[:8], uint64(i))
 
-			objs = append(objs, node)
+			node.child = node
 		}
 
 		{
@@ -97,11 +117,9 @@ func TestNodePool_UniqueObject(t *testing.T) {
 			assert.True(t, ptrNoExist(node))
 			assert.True(t, ptrNoExist(node.buf))
 
+			// fill object
+			node.hash = true
 			binary.BigEndian.PutUint64(node.buf[:8], uint64(i))
-
-			objs = append(objs, node)
 		}
 	}
-
-	assert.True(t, len(objs) == (nodePoolBatchAlloc*2*3))
 }
