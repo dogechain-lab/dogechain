@@ -1139,13 +1139,13 @@ func (i *Ibft) updateMetrics(block *types.Block) {
 
 	//Update the block interval metric
 	if block.Number() > 1 {
-		i.metrics.BlockInterval.Set(
+		i.metrics.SetBlockInterval(
 			headerTime.Sub(parentTime).Seconds(),
 		)
 	}
 
 	//Update the Number of transactions in the block metric
-	i.metrics.NumTxs.Set(float64(len(block.Body().Transactions)))
+	i.metrics.SetNumTxs(float64(len(block.Body().Transactions)))
 }
 
 func gatherCanonicalCommittedSeals(

@@ -8,7 +8,6 @@ require (
 	//github.com/umbracle/fastrlp v0.0.0-20220529195328-c1416904ae17
 	github.com/dogechain-lab/fastrlp v0.0.0-20220523073019-b0c60fc6bb7a
 	github.com/elastic/gosigar v0.14.2 // indirect
-	github.com/go-kit/kit v0.12.0
 	github.com/golang/protobuf v1.5.2
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/websocket v1.5.0
@@ -107,7 +106,7 @@ require (
 	github.com/klauspost/cpuid/v2 v2.0.9 // indirect
 	github.com/koron/go-ssdp v0.0.2 // indirect
 	github.com/libp2p/go-buffer-pool v0.0.2 // indirect
-	github.com/libp2p/go-cidranger v1.1.0 // indirect
+	github.com/libp2p/go-cidranger v1.1.0
 	github.com/libp2p/go-conn-security-multistream v0.3.0 // indirect
 	github.com/libp2p/go-eventbus v0.2.1 // indirect
 	github.com/libp2p/go-flow-metrics v0.0.3 // indirect

@@ -3,11 +3,8 @@ package itrie
 import (
 	"time"
 
-	"github.com/go-kit/kit/metrics"
-	"github.com/go-kit/kit/metrics/discard"
-
-	prometheus "github.com/go-kit/kit/metrics/prometheus"
-	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	"github.com/dogechain-lab/dogechain/helper/metrics"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type MetricsTimeendRecord func()
@@ -29,16 +26,16 @@ type Metrics interface {
 	accountReadCountInc()
 
 	// Number of inserted nodes per transaction
-	transactionInsertCount(int)
+	transactionInsertObserve(int)
 
 	// Number of deleted nodes per transaction
-	transactionDeleteCount(int)
+	transactionDeleteObserve(int)
 
 	// Number of new accounts per transaction
-	transactionNewAccountCount(int)
+	transactionNewAccountObserve(int)
 
 	// Size of written nodes per transaction
-	transactionWriteNodeSize(int)
+	transactionWriteNodeSizeObserve(int)
 
 	// Account hash calculation time
 	transactionAccountHashSecondsObserve() MetricsTimeendRecord
@@ -60,61 +57,61 @@ type Metrics interface {
 type stateDBMetrics struct {
 	trackingIOTimer bool
 
-	codeCacheHit  metrics.Counter
-	codeCacheMiss metrics.Counter
+	codeCacheHit  prometheus.Counter
+	codeCacheMiss prometheus.Counter
 
-	accountCacheHit  metrics.Counter
-	accountCacheMiss metrics.Counter
-	accountReadCount metrics.Counter
+	accountCacheHit  prometheus.Counter
+	accountCacheMiss prometheus.Counter
+	accountReadCount prometheus.Counter
 
-	txnInsertCount   metrics.Histogram
-	txnDeleteCount   metrics.Histogram
-	txnNewAccount    metrics.Histogram
-	txnWriteNodeSize metrics.Histogram
+	txnInsertCount   prometheus.Histogram
+	txnDeleteCount   prometheus.Histogram
+	txnNewAccount    prometheus.Histogram
+	txnWriteNodeSize prometheus.Histogram
 
-	codeDiskReadSeconds    metrics.Histogram
-	accountDiskReadSeconds metrics.Histogram
+	codeDiskReadSeconds    prometheus.Histogram
+	accountDiskReadSeconds prometheus.Histogram
 
-	accountHashSeconds metrics.Histogram
-	rootHashSeconds    metrics.Histogram
+	accountHashSeconds prometheus.Histogram
+	rootHashSeconds    prometheus.Histogram
 
-	stateCommitSeconds metrics.Histogram
+	stateCommitSeconds prometheus.Histogram
 }
 
 func (m *stateDBMetrics) codeCacheHitInc() {
-	m.codeCacheHit.Add(1)
+	metrics.CounterInc(m.codeCacheHit)
 }
 
 func (m *stateDBMetrics) codeCacheMissInc() {
-	m.codeCacheMiss.Add(1)
+	metrics.CounterInc(m.codeCacheMiss)
 }
 
 func (m *stateDBMetrics) accountCacheHitInc() {
-	m.accountCacheHit.Add(1)
+	metrics.CounterInc(m.accountCacheHit)
 }
 
 func (m *stateDBMetrics) accountCacheMissInc() {
-	m.accountCacheMiss.Add(1)
+	metrics.CounterInc(m.accountCacheMiss)
 }
 
 func (m *stateDBMetrics) accountReadCountInc() {
-	m.accountReadCount.Add(1)
+	metrics.CounterInc(m.accountReadCount)
 }
 
-func (m *stateDBMetrics) transactionInsertCount(count int) {
-	m.txnInsertCount.Observe(float64(count))
+func (m *stateDBMetrics) transactionInsertObserve(count int) {
+	metrics.HistogramObserve(m.txnInsertCount, float64(count))
 }
 
-func (m *stateDBMetrics) transactionDeleteCount(count int) {
-	m.txnDeleteCount.Observe(float64(count))
+func (m *stateDBMetrics) transactionDeleteObserve(count int) {
+	metrics.HistogramObserve(m.txnDeleteCount, float64(count))
 }
 
-func (m *stateDBMetrics) transactionNewAccountCount(count int) {
-	m.txnNewAccount.Observe(float64(count))
+func (m *stateDBMetrics) transactionNewAccountObserve(count int) {
+	metrics.HistogramObserve(m.txnNewAccount, float64(count))
 }
 
-func (m *stateDBMetrics) transactionWriteNodeSize(size int) {
-	m.txnWriteNodeSize.Observe(float64(size))
+func (m *stateDBMetrics) transactionWriteNodeSizeObserve(size int) {
+	metrics.HistogramObserve(m.txnWriteNodeSize, float64(size))
 }
 
 func (m *stateDBMetrics) transactionAccountHashSecondsObserve() MetricsTimeendRecord {
@@ -125,7 +122,7 @@ func (m *stateDBMetrics) transactionAccountHashSecondsObserve() MetricsTimeendRe
 	begin := time.Now()
 
 	return func() {
-		m.accountHashSeconds.Observe(time.Since(begin).Seconds())
+		metrics.HistogramObserve(m.accountHashSeconds, time.Since(begin).Seconds())
 	}
 }
 
@@ -137,7 +134,7 @@ func (m *stateDBMetrics) transactionRootHashSecondsObserve() MetricsTimeendRecor
 	begin := time.Now()
 
 	return func() {
-		m.rootHashSeconds.Observe(time.Since(begin).Seconds())
+		metrics.HistogramObserve(m.rootHashSeconds, time.Since(begin).Seconds())
 	}
 }
 
@@ -149,7 +146,7 @@ func (m *stateDBMetrics) codeDiskReadSecondsObserve() MetricsTimeendRecord {
 	begin := time.Now()
 
 	return func() {
-		m.codeDiskReadSeconds.Observe(time.Since(begin).Seconds())
+		metrics.HistogramObserve(m.codeDiskReadSeconds, time.Since(begin).Seconds())
 	}
 }
 
@@ -161,7 +158,7 @@ func (m *stateDBMetrics) accountDiskReadSecondsObserve() MetricsTimeendRecord {
 	begin := time.Now()
 
 	return func() {
-		m.accountDiskReadSeconds.Observe(time.Since(begin).Seconds())
+		metrics.HistogramObserve(m.accountDiskReadSeconds, time.Since(begin).Seconds())
 	}
 }
 
@@ -173,129 +170,139 @@ func (m *stateDBMetrics) stateCommitSecondsObserve() MetricsTimeendRecord {
 	begin := time.Now()
 
 	return func() {
-		m.stateCommitSeconds.Observe(time.Since(begin).Seconds())
+		metrics.HistogramObserve(m.stateCommitSeconds, time.Since(begin).Seconds())
 	}
 }
 
 // GetPrometheusMetrics return the blockchain metrics instance
 func GetPrometheusMetrics(namespace string, trackingIOTimer bool, labelsWithValues ...string) Metrics {
-	labels := []string{}
+	constLabels := metrics.ParseLables(labelsWithValues...)
 
-	for i := 0; i < len(labelsWithValues); i += 2 {
-		labels = append(labels, labelsWithValues[i])
-	}
-
-	return &stateDBMetrics{
+	m := &stateDBMetrics{
 		trackingIOTimer: trackingIOTimer,
-		codeCacheHit: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "itrie",
-			Name:      "state_code_cache_hit",
-			Help:      "state code cache hit count",
-		}, labels).With(labelsWithValues...),
-		codeCacheMiss: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "itrie",
-			Name:      "state_code_cache_miss",
-			Help:      "state code cache miss count",
-		}, labels).With(labelsWithValues...),
-		accountCacheHit: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "itrie",
-			Name:      "state_account_cache_hit",
-			Help:      "state account cache hit count",
-		}, labels).With(labelsWithValues...),
-		accountCacheMiss: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "itrie",
-			Name:      "state_account_cache_miss",
-			Help:      "state account cache miss count",
-		}, labels).With(labelsWithValues...),
-		accountReadCount: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "itrie",
-			Name:      "state_account_read_count",
-			Help:      "state account read count",
-		}, labels).With(labelsWithValues...),
-		txnInsertCount: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: namespace,
-			Subsystem: "itrie",
-			Name:      "state_transaction_insert_count",
-			Help:      "state transaction insert count",
-		}, labels).With(labelsWithValues...),
-		txnDeleteCount: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: namespace,
-			Subsystem: "itrie",
-			Name:      "state_transaction_delete_count",
-			Help:      "state transaction delete count",
-		}, labels).With(labelsWithValues...),
-		txnNewAccount: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: namespace,
-			Subsystem: "itrie",
-			Name:      "state_transaction_new_account_count",
-			Help:      "state transaction new account count",
-		}, labels).With(labelsWithValues...),
-		txnWriteNodeSize: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+		codeCacheHit: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace:   namespace,
+			Subsystem:   "itrie",
+			Name:        "state_code_cache_hit",
+			Help:        "state code cache hit count",
+			ConstLabels: constLabels,
+		}),
+		codeCacheMiss: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace:   namespace,
+			Subsystem:   "itrie",
+			Name:        "state_code_cache_miss",
+			Help:        "state code cache miss count",
+			ConstLabels: constLabels,
+		}),
+		accountCacheHit: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace:   namespace,
+			Subsystem:   "itrie",
+			Name:        "state_account_cache_hit",
+			Help:        "state account cache hit count",
+			ConstLabels: constLabels,
+		}),
+		accountCacheMiss: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace:   namespace,
+			Subsystem:   "itrie",
+			Name:        "state_account_cache_miss",
+			Help:        "state account cache miss count",
+			ConstLabels: constLabels,
+		}),
+		accountReadCount: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace:   namespace,
+			Subsystem:   "itrie",
+			Name:        "state_account_read_count",
+			Help:        "state account read count",
+			ConstLabels: constLabels,
+		}),
+		txnInsertCount: prometheus.NewHistogram(prometheus.HistogramOpts{
+			Namespace:   namespace,
+			Subsystem:   "itrie",
+			Name:        "state_transaction_insert_count",
+			Help:        "state transaction insert count",
+			ConstLabels: constLabels,
+		}),
+		txnDeleteCount: prometheus.NewHistogram(prometheus.HistogramOpts{
+			Namespace:   namespace,
+			Subsystem:   "itrie",
+			Name:        "state_transaction_delete_count",
+			Help:        "state transaction delete count",
+			ConstLabels: constLabels,
+		}),
+		txnNewAccount: prometheus.NewHistogram(prometheus.HistogramOpts{
+			Namespace:   namespace,
+			Subsystem:   "itrie",
+			Name:        "state_transaction_new_account_count",
+			Help:        "state transaction new account count",
+			ConstLabels: constLabels,
+		}),
+		txnWriteNodeSize: prometheus.NewHistogram(prometheus.HistogramOpts{
 			Namespace: namespace,
 			Subsystem: "itrie",
 			Name:      "state_transaction_write_node_size",
 			Help:      "state transaction write node size",
-		}, labels).With(labelsWithValues...),
-		codeDiskReadSeconds: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: namespace,
-			Subsystem: "itrie",
-			Name:      "state_code_disk_read_seconds",
-			Help:      "state code disk read seconds",
-		}, labels).With(labelsWithValues...),
-		accountDiskReadSeconds: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: namespace,
-			Subsystem: "itrie",
-			Name:      "state_account_disk_read_seconds",
-			Help:      "state account disk read seconds",
-		}, labels).With(labelsWithValues...),
-		accountHashSeconds: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: namespace,
-			Subsystem: "itrie",
-			Name:      "account_hash_seconds",
-			Help:      "account hash seconds",
-		}, labels).With(labelsWithValues...),
-		rootHashSeconds: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: namespace,
-			Subsystem: "itrie",
-			Name:      "root_hash_seconds",
-			Help:      "root hash seconds",
-		}, labels).With(labelsWithValues...),
-		stateCommitSeconds: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: namespace,
-			Subsystem: "itrie",
-			Name:      "state_commit_seconds",
-			Help:      "state commit seconds",
-		}, labels).With(labelsWithValues...),
+		}),
+		codeDiskReadSeconds: prometheus.NewHistogram(prometheus.HistogramOpts{
+			Namespace:   namespace,
+			Subsystem:   "itrie",
+			Name:        "state_code_disk_read_seconds",
+			Help:        "state code disk read seconds",
+			ConstLabels: constLabels,
+		}),
+		accountDiskReadSeconds: prometheus.NewHistogram(prometheus.HistogramOpts{
+			Namespace:   namespace,
+			Subsystem:   "itrie",
+			Name:        "state_account_disk_read_seconds",
+			Help:        "state account disk read seconds",
+			ConstLabels: constLabels,
+		}),
+		accountHashSeconds: prometheus.NewHistogram(prometheus.HistogramOpts{
+			Namespace:   namespace,
+			Subsystem:   "itrie",
+			Name:        "account_hash_seconds",
+			Help:        "account hash seconds",
+			ConstLabels: constLabels,
+		}),
+		rootHashSeconds: prometheus.NewHistogram(prometheus.HistogramOpts{
+			Namespace:   namespace,
+			Subsystem:   "itrie",
+			Name:        "root_hash_seconds",
+			Help:        "root hash seconds",
+			ConstLabels: constLabels,
+		}),
+		stateCommitSeconds: prometheus.NewHistogram(prometheus.HistogramOpts{
+			Namespace:   namespace,
+			Subsystem:   "itrie",
+			Name:        "state_commit_seconds",
+			Help:        "state commit seconds",
+			ConstLabels: constLabels,
+		}),
 	}
+
+	prometheus.MustRegister(
+		m.codeCacheHit,
+		m.codeCacheMiss,
+		m.accountCacheHit,
+		m.accountCacheMiss,
+		m.accountReadCount,
+		m.txnInsertCount,
+		m.txnDeleteCount,
+		m.txnNewAccount,
+		m.txnWriteNodeSize,
+		m.codeDiskReadSeconds,
+		m.accountDiskReadSeconds,
+		m.accountHashSeconds,
+		m.rootHashSeconds,
+		m.stateCommitSeconds,
+	)
+
+	return m
 }
 
 // NilMetrics will return the non operational blockchain metrics
 func NilMetrics() Metrics {
 	return &stateDBMetrics{
 		trackingIOTimer: false,
-
-		codeCacheHit:     discard.NewCounter(),
-		codeCacheMiss:    discard.NewCounter(),
-		accountCacheHit:  discard.NewCounter(),
-		accountCacheMiss: discard.NewCounter(),
-		accountReadCount: discard.NewCounter(),
-
-		txnInsertCount:   discard.NewHistogram(),
-		txnDeleteCount:   discard.NewHistogram(),
-		txnNewAccount:    discard.NewHistogram(),
-		txnWriteNodeSize: discard.NewHistogram(),
-
-		codeDiskReadSeconds:    discard.NewHistogram(),
-		accountDiskReadSeconds: discard.NewHistogram(),
-
-		accountHashSeconds: discard.NewHistogram(),
-		rootHashSeconds:    discard.NewHistogram(),
-		stateCommitSeconds: discard.NewHistogram(),
 	}
 }
 

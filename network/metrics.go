@@ -1,83 +1,102 @@
 package network
 
 import (
-	"github.com/go-kit/kit/metrics"
-	"github.com/go-kit/kit/metrics/discard"
-	prometheus "github.com/go-kit/kit/metrics/prometheus"
-	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	"github.com/dogechain-lab/dogechain/helper/metrics"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 // Metrics represents the network metrics
 type Metrics struct {
 	// Number of connected peers
-	TotalPeerCount metrics.Gauge
+	totalPeerCount prometheus.Gauge
 
 	// Number of outbound connections
-	OutboundConnectionsCount metrics.Gauge
+	outboundConnectionsCount prometheus.Gauge
 
 	// Number of inbound connections
-	InboundConnectionsCount metrics.Gauge
+	inboundConnectionsCount prometheus.Gauge
 
 	// Number of pending outbound connections
-	PendingOutboundConnectionsCount metrics.Gauge
+	pendingOutboundConnectionsCount prometheus.Gauge
 
 	// Number of pending inbound connections
-	PendingInboundConnectionsCount metrics.Gauge
+	pendingInboundConnectionsCount prometheus.Gauge
+}
+
+func (m *Metrics) SetTotalPeerCount(v float64) {
+	metrics.SetGauge(m.totalPeerCount, v)
+}
+
+func (m *Metrics) SetOutboundConnectionsCount(v float64) {
+	metrics.SetGauge(m.outboundConnectionsCount, v)
+}
+
+func (m *Metrics) SetInboundConnectionsCount(v float64) {
+	metrics.SetGauge(m.inboundConnectionsCount, v)
+}
+
+func (m *Metrics) SetPendingOutboundConnectionsCount(v float64) {
+	metrics.SetGauge(m.pendingOutboundConnectionsCount, v)
+}
+
+func (m *Metrics) SetPendingInboundConnectionsCount(v float64) {
+	metrics.SetGauge(m.pendingInboundConnectionsCount, v)
 }
 
 // GetPrometheusMetrics return the network metrics instance
 func GetPrometheusMetrics(namespace string, labelsWithValues ...string) *Metrics {
-	labels := []string{}
+	constLabels := metrics.ParseLables(labelsWithValues...)
 
-	for i := 0; i < len(labelsWithValues); i += 2 {
-		labels = append(labels, labelsWithValues[i])
+	m := &Metrics{
+		totalPeerCount: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace:   namespace,
+			Subsystem:   "network",
+			Name:        "peers",
+			Help:        "Number of connected peers",
+			ConstLabels: constLabels,
+		}),
+		outboundConnectionsCount: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace:   namespace,
+			Subsystem:   "network",
+			Name:        "outbound_connections_count",
+			Help:        "Number of outbound connections",
+			ConstLabels: constLabels,
+		}),
+		inboundConnectionsCount: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace:   namespace,
+			Subsystem:   "network",
+			Name:        "inbound_connections_count",
+			Help:        "Number of inbound connections",
+			ConstLabels: constLabels,
+		}),
+		pendingOutboundConnectionsCount: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace:   namespace,
+			Subsystem:   "network",
+			Name:        "pending_outbound_connections_count",
+			Help:        "Number of pending outbound connections",
+			ConstLabels: constLabels,
+		}),
+		pendingInboundConnectionsCount: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace:   namespace,
+			Subsystem:   "network",
+			Name:        "pending_inbound_connections_count",
+			Help:        "Number of pending inbound connections",
+			ConstLabels: constLabels,
+		}),
 	}
 
-	return &Metrics{
-		TotalPeerCount: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
-			Namespace: namespace,
-			Subsystem: "network",
-			Name:      "peers",
-			Help:      "Number of connected peers",
-		}, labels).With(labelsWithValues...),
+	prometheus.MustRegister(
+		m.totalPeerCount,
+		m.outboundConnectionsCount,
+		m.inboundConnectionsCount,
+		m.pendingOutboundConnectionsCount,
+		m.pendingInboundConnectionsCount,
+	)
 
-		OutboundConnectionsCount: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
-			Namespace: namespace,
-			Subsystem: "network",
-			Name:      "outbound_connections_count",
-			Help:      "Number of outbound connections",
-		}, labels).With(labelsWithValues...),
-
-		InboundConnectionsCount: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
-			Namespace: namespace,
-			Subsystem: "network",
-			Name:      "inbound_connections_count",
-			Help:      "Number of inbound connections",
-		}, labels).With(labelsWithValues...),
-
-		PendingOutboundConnectionsCount: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
-			Namespace: namespace,
-			Subsystem: "network",
-			Name:      "pending_outbound_connections_count",
-			Help:      "Number of pending outbound connections",
-		}, labels).With(labelsWithValues...),
-
-		PendingInboundConnectionsCount: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
-			Namespace: namespace,
-			Subsystem: "network",
-			Name:      "pending_inbound_connections_count",
-			Help:      "Number of pending inbound connections",
-		}, labels).With(labelsWithValues...),
-	}
+	return m
 }
 
 // NilMetrics will return the non-operational metrics
 func NilMetrics() *Metrics {
-	return &Metrics{
-		TotalPeerCount:                  discard.NewGauge(),
-		OutboundConnectionsCount:        discard.NewGauge(),
-		InboundConnectionsCount:         discard.NewGauge(),
-		PendingOutboundConnectionsCount: discard.NewGauge(),
-		PendingInboundConnectionsCount:  discard.NewGauge(),
-	}
+	return &Metrics{}
 }

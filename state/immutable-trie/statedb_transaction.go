@@ -178,7 +178,7 @@ func (tx *stateDBTxn) Commit() error {
 		}
 
 		if !pair.isCode {
-			metrics.transactionWriteNodeSize(len(pair.value))
+			metrics.transactionWriteNodeSizeObserve(len(pair.value))
 		}
 	}
 

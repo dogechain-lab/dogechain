@@ -895,7 +895,7 @@ func (b *Blockchain) executeBlockTransactions(block *types.Block) (*BlockResult,
 
 	begin := time.Now()
 	defer func() {
-		b.metrics.BlockExecutionSeconds.Observe(time.Since(begin).Seconds())
+		b.metrics.BlockExecutionSecondsObserve(time.Since(begin).Seconds())
 	}()
 
 	header := block.Header
@@ -1056,11 +1056,11 @@ func (b *Blockchain) WriteBlock(block *types.Block, source string) error {
 		bigPrice := new(big.Float).SetInt(b.gpAverage.price)
 		price, _ := bigPrice.Float64()
 
-		b.metrics.GasPriceAverage.Observe(price)
+		b.metrics.GasPriceAverageObserve(price)
 
-		b.metrics.GasUsed.Observe(float64(header.GasUsed))
-		b.metrics.BlockHeight.Set(float64(header.Number))
-		b.metrics.TransactionNum.Observe(float64(len(block.Transactions)))
+		b.metrics.GasUsedObserve(float64(header.GasUsed))
+		b.metrics.SetBlockHeight(float64(header.Number))
+		b.metrics.TransactionNumObserve(float64(len(block.Transactions)))
 	}
 
 	return nil
@@ -1111,7 +1111,7 @@ func (b *Blockchain) updateGasPriceAvgWithBlock(block *types.Block) {
 func (b *Blockchain) writeBody(block *types.Block) error {
 	begin := time.Now()
 	defer func() {
-		b.metrics.BlockWrittenSeconds.Observe(time.Since(begin).Seconds())
+		b.metrics.BlockWrittenSecondsObserve(time.Since(begin).Seconds())
 	}()
 
 	body := block.Body()

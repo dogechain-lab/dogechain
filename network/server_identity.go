@@ -81,7 +81,7 @@ func (s *DefaultServer) addPeerInfo(id peer.ID, direction network.Direction) boo
 	s.updateBootnodeConnCount(id, 1)
 
 	// Update the metric stats
-	s.metrics.TotalPeerCount.Set(
+	s.metrics.SetTotalPeerCount(
 		float64(len(s.peers)),
 	)
 

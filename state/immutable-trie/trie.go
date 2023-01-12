@@ -171,9 +171,9 @@ func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte, error) {
 	})
 
 	if err == nil {
-		metrics.transactionInsertCount(insertCount)
-		metrics.transactionDeleteCount(deleteCount)
-		metrics.transactionNewAccountCount(newSetCodeCount)
+		metrics.transactionInsertObserve(insertCount)
+		metrics.transactionDeleteObserve(deleteCount)
+		metrics.transactionNewAccountObserve(newSetCodeCount)
 	}
 
 	return nTrie, root, err

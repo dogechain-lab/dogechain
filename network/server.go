@@ -534,7 +534,7 @@ func (s *DefaultServer) removePeerInfo(peerID peer.ID) *PeerConnInfo {
 		}
 	}
 
-	s.metrics.TotalPeerCount.Set(
+	s.metrics.SetTotalPeerCount(
 		float64(len(s.peers)),
 	)
 
@@ -815,11 +815,11 @@ func (s *DefaultServer) SubscribeCh(ctx context.Context) (<-chan *peerEvent.Peer
 func (s *DefaultServer) updateConnCountMetrics(direction network.Direction) {
 	switch direction {
 	case network.DirInbound:
-		s.metrics.InboundConnectionsCount.Set(
+		s.metrics.SetInboundConnectionsCount(
 			float64(s.connectionCounts.GetInboundConnCount()),
 		)
 	case network.DirOutbound:
-		s.metrics.OutboundConnectionsCount.Set(
+		s.metrics.SetOutboundConnectionsCount(
 			float64(s.connectionCounts.GetOutboundConnCount()),
 		)
 	}
@@ -829,11 +829,11 @@ func (s *DefaultServer) updateConnCountMetrics(direction network.Direction) {
 func (s *DefaultServer) updatePendingConnCountMetrics(direction network.Direction) {
 	switch direction {
 	case network.DirInbound:
-		s.metrics.PendingInboundConnectionsCount.Set(
+		s.metrics.SetPendingInboundConnectionsCount(
 			float64(s.connectionCounts.GetPendingInboundConnCount()),
 		)
 	case network.DirOutbound:
-		s.metrics.PendingOutboundConnectionsCount.Set(
+		s.metrics.SetPendingOutboundConnectionsCount(
 			float64(s.connectionCounts.GetPendingOutboundConnCount()),
 		)
 	}

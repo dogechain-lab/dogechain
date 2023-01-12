@@ -136,7 +136,7 @@ func (i *Ibft) runAcceptState(ctx context.Context) (shouldStop bool) { // start 
 	logger := i.logger.Named("acceptState")
 	logger.Info("Accept state", "sequence", i.state.Sequence(), "round", i.state.Round()+1)
 	// set consensus_rounds metric output
-	i.metrics.Rounds.Set(float64(i.state.Round() + 1))
+	i.metrics.SetRounds(float64(i.state.Round() + 1))
 
 	// This is the state in which we either propose a block or wait for the pre-prepare message
 	parent := i.blockchain.Header()
@@ -182,7 +182,7 @@ func (i *Ibft) runAcceptState(ctx context.Context) (shouldStop bool) { // start 
 	i.state.SetValidators(snap.Set)
 
 	//Update the No.of validator metric
-	i.metrics.Validators.Set(float64(len(snap.Set)))
+	i.metrics.SetValidators(float64(len(snap.Set)))
 	// reset round messages
 	i.state.ResetRoundMsgs()
 
@@ -509,7 +509,7 @@ func (i *Ibft) runRoundChangeState(ctx context.Context) (shouldStop bool) {
 		logger.Debug("local round change", "round", round+1)
 		// set the new round and update the round metric
 		i.startNewRound(round)
-		i.metrics.Rounds.Set(float64(round))
+		i.metrics.SetRounds(float64(round))
 		// clean the round
 		i.state.CleanRound(round)
 		// send the round change message
