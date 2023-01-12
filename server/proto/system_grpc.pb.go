@@ -41,6 +41,8 @@ type SystemClient interface {
 	WhitelistAddList(ctx context.Context, in *WhitelistAddListRequest, opts ...grpc.CallOption) (*WhitelistAddListResponse, error)
 	// whitelistDelete deletes some contracts from ddos white list
 	WhitelistDeleteList(ctx context.Context, in *WhitelistDeleteListRequest, opts ...grpc.CallOption) (*WhitelistDeleteListResponse, error)
+	// query ddos contract list
+	DDOSContractList(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*DDOSContractListResponse, error)
 }
 
 type systemClient struct {
@@ -178,6 +180,15 @@ func (c *systemClient) WhitelistDeleteList(ctx context.Context, in *WhitelistDel
 	return out, nil
 }
 
+func (c *systemClient) DDOSContractList(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*DDOSContractListResponse, error) {
+	out := new(DDOSContractListResponse)
+	err := c.cc.Invoke(ctx, "/v1.System/DDOSContractList", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SystemServer is the server API for System service.
 // All implementations must embed UnimplementedSystemServer
 // for forward compatibility
@@ -200,6 +211,8 @@ type SystemServer interface {
 	WhitelistAddList(context.Context, *WhitelistAddListRequest) (*WhitelistAddListResponse, error)
 	// whitelistDelete deletes some contracts from ddos white list
 	WhitelistDeleteList(context.Context, *WhitelistDeleteListRequest) (*WhitelistDeleteListResponse, error)
+	// query ddos contract list
+	DDOSContractList(context.Context, *emptypb.Empty) (*DDOSContractListResponse, error)
 	mustEmbedUnimplementedSystemServer()
 }
 
@@ -233,6 +246,9 @@ func (UnimplementedSystemServer) WhitelistAddList(context.Context, *WhitelistAdd
 }
 func (UnimplementedSystemServer) WhitelistDeleteList(context.Context, *WhitelistDeleteListRequest) (*WhitelistDeleteListResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method WhitelistDeleteList not implemented")
+}
+func (UnimplementedSystemServer) DDOSContractList(context.Context, *emptypb.Empty) (*DDOSContractListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DDOSContractList not implemented")
 }
 func (UnimplementedSystemServer) mustEmbedUnimplementedSystemServer() {}
 
@@ -415,6 +431,24 @@ func _System_WhitelistDeleteList_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _System_DDOSContractList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SystemServer).DDOSContractList(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/v1.System/DDOSContractList",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SystemServer).DDOSContractList(ctx, req.(*emptypb.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // System_ServiceDesc is the grpc.ServiceDesc for System service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -449,6 +483,10 @@ var System_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "WhitelistDeleteList",
 			Handler:    _System_WhitelistDeleteList_Handler,
+		},
+		{
+			MethodName: "DDOSContractList",
+			Handler:    _System_DDOSContractList_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

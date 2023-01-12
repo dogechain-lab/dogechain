@@ -33,6 +33,9 @@ service System {
 
   // whitelistDelete deletes some contracts from ddos white list
   rpc WhitelistDeleteList(WhitelistDeleteListRequest) returns (WhitelistDeleteListResponse);
+
+  // query ddos contract list
+  rpc DDOSContractList(google.protobuf.Empty) returns (DDOSContractListResponse);
 }
 
 message BlockchainEvent {
@@ -120,4 +123,9 @@ message WhitelistDeleteListRequest {
 message WhitelistDeleteListResponse {
   int64 count = 1;
   string message = 2;
+}
+
+message DDOSContractListResponse {
+  map<string, int64> blacklist = 1;
+  map<string, int64> whitelist = 2;
 }
