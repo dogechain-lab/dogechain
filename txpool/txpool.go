@@ -912,7 +912,11 @@ func (p *TxPool) pruneStaleAccounts() {
 	p.logger.Debug("pruned stale enqueued txs", "num", pruned)
 }
 
-func (p *TxPool) tranferQueueGauge(txs []*types.Transaction, enqueueGaugeAddFn, pendingGaugeAddFn func(v float64), event proto.EventType) {
+func (p *TxPool) tranferQueueGauge(
+	txs []*types.Transaction,
+	enqueueGaugeAddFn, pendingGaugeAddFn func(v float64),
+	event proto.EventType,
+) {
 	// metrics switching
 	enqueueGaugeAddFn(-1 * float64(len(txs)))
 	pendingGaugeAddFn(float64(len(txs)))
