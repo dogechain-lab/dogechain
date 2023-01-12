@@ -37,7 +37,7 @@ type syncPeerClient struct {
 	peerConnectionUpdateCh chan *event.PeerEvent   // peer connection update channel
 
 	shouldEmitBlocks bool // flag for emitting blocks in the topic
-	isClose          *atomic.Bool
+	isClosed         *atomic.Bool
 }
 
 func NewSyncPeerClient(
@@ -53,7 +53,7 @@ func NewSyncPeerClient(
 		peerStatusUpdateCh:     make(chan *NoForkPeer, 1),
 		peerConnectionUpdateCh: make(chan *event.PeerEvent, 1),
 		shouldEmitBlocks:       true,
-		isClose:                atomic.NewBool(false),
+		isClosed:               atomic.NewBool(false),
 	}
 }
 
@@ -71,11 +71,9 @@ func (client *syncPeerClient) Start() error {
 
 // Close terminates running processes for SyncPeerClient
 func (client *syncPeerClient) Close() {
-	if client.isClose.Load() {
+	if !client.isClosed.CAS(false, true) {
 		return
 	}
-
-	client.isClose.Store(true)
 
 	if client.subscription != nil {
 		client.subscription.Close()
@@ -208,7 +206,7 @@ func (client *syncPeerClient) handleStatusUpdate(obj interface{}, from peer.ID) 
 
 	client.logger.Debug("get connected peer status update", "from", from, "status", status.Number)
 
-	if client.isClose.Load() {
+	if client.isClosed.Load() {
 		client.logger.Debug("client is closed, ignore status update", "from", from, "status", status.Number)
 
 		return
@@ -254,7 +252,7 @@ func (client *syncPeerClient) startPeerEventProcess() {
 
 	for e := range peerEventCh {
 		if e.Type == event.PeerConnected || e.Type == event.PeerDisconnected {
-			if client.isClose.Load() {
+			if client.isClosed.Load() {
 				client.logger.Debug("client is closed, ignore peer connection update", "peer", e.PeerID, "type", e.Type)
 
 				return

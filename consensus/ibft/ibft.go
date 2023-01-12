@@ -1471,13 +1471,11 @@ func (i *Ibft) IsLastOfEpoch(number uint64) bool {
 
 // Close closes the IBFT consensus mechanism, and does write back to disk
 func (i *Ibft) Close() error {
-	if i.isClosed.Load() {
+	if !i.isClosed.CAS(false, true) {
 		i.logger.Error("IBFT consensus is Closed")
 
 		return nil
 	}
-
-	i.isClosed.Store(true)
 
 	close(i.closeCh)
 
