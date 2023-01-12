@@ -83,15 +83,15 @@ func (client *syncPeerClient) Close() {
 		client.subscription = nil
 	}
 
-	close(client.peerStatusUpdateCh)
-	close(client.peerConnectionUpdateCh)
-
 	if client.topic != nil {
 		// close topic when needed
 		client.topic.Close()
 
 		client.topic = nil
 	}
+
+	close(client.peerStatusUpdateCh)
+	close(client.peerConnectionUpdateCh)
 }
 
 // DisablePublishingPeerStatus disables publishing own status via gossip
