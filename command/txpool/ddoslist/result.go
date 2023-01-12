@@ -1,8 +1,8 @@
 package ddoslist
 
 import (
-	"bytes"
 	"fmt"
+	"strings"
 
 	"github.com/dogechain-lab/dogechain/command/helper"
 )
@@ -14,36 +14,38 @@ type Result struct {
 }
 
 func (r *Result) GetOutput() string {
-	var buffer bytes.Buffer
+	var builder strings.Builder
 
 	if len(r.Blacklist) > 0 {
-		buffer.WriteString("\n[CONTRACT BLACKLIST]\n")
+		builder.WriteString("\n[CONTRACT BLACKLIST - ADDR : ATTACK COUNT]\n")
 
+		blackAddrCounts := make([]string, 0, len(r.Whitelist))
 		for addr, count := range r.Blacklist {
-			buffer.WriteString(helper.FormatKV([]string{
-				fmt.Sprintf("%s|%d", addr, count),
-			}))
+			blackAddrCounts = append(blackAddrCounts, fmt.Sprintf("%s : %d", addr, count))
 		}
+
+		builder.WriteString(helper.FormatList(blackAddrCounts))
 	}
 
 	if len(r.Whitelist) > 0 {
-		buffer.WriteString("\n\n[CONTRACT WHITELIST]\n")
+		builder.WriteString("\n\n[CONTRACT WHITELIST]\n")
 
-		for addr, count := range r.Whitelist {
-			buffer.WriteString(helper.FormatKV([]string{
-				fmt.Sprintf("%s|%d", addr, count),
-			}))
+		whiteAddrs := make([]string, 0, len(r.Whitelist))
+		for addr := range r.Whitelist {
+			whiteAddrs = append(whiteAddrs, addr)
 		}
+
+		builder.WriteString(helper.FormatList(whiteAddrs))
 	}
 
 	if r.Error != nil {
-		buffer.WriteString("\n\n[ERROR]\n")
-		buffer.WriteString(helper.FormatKV([]string{
+		builder.WriteString("\n\n[ERROR]\n")
+		builder.WriteString(helper.FormatKV([]string{
 			fmt.Sprintf("Error|%s", r.Error.Error()),
 		}))
 	}
 
-	buffer.WriteString("\n")
+	builder.WriteString("\n")
 
-	return buffer.String()
+	return builder.String()
 }
