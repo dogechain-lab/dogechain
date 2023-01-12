@@ -229,7 +229,7 @@ func (s *mockTxPoolStore) GetCapacity() (uint64, uint64) {
 	return s.capacity, s.maxSlots
 }
 
-func (s *mockTxPoolStore) GetDDosContractList() map[string]map[types.Address]struct{} {
+func (s *mockTxPoolStore) GetDDosContractList() map[string]map[types.Address]int {
 	return nil
 }
 

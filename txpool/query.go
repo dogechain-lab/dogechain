@@ -59,11 +59,11 @@ const (
 )
 
 // GetDDosContractList shows current white list and black list contracts
-func (p *TxPool) GetDDosContractList() map[string]map[types.Address]struct{} {
+func (p *TxPool) GetDDosContractList() map[string]map[types.Address]int {
 	var (
-		ret    = make(map[string]map[types.Address]struct{}, 2)
-		blacks = make(map[types.Address]struct{})
-		whites = make(map[types.Address]struct{})
+		ret    = make(map[string]map[types.Address]int, 2)
+		blacks = make(map[types.Address]int)
+		whites = make(map[types.Address]int)
 	)
 
 	p.ddosContracts.Range(func(key, value interface{}) bool {
@@ -71,7 +71,7 @@ func (p *TxPool) GetDDosContractList() map[string]map[types.Address]struct{} {
 		count, _ := value.(int)
 
 		if isCountExceedDDOSLimit(count) {
-			blacks[addr] = struct{}{}
+			blacks[addr] = count
 		}
 
 		return true
@@ -79,8 +79,7 @@ func (p *TxPool) GetDDosContractList() map[string]map[types.Address]struct{} {
 
 	p.ddosWhiteList.Range(func(key, value interface{}) bool {
 		addr, _ := key.(types.Address)
-		whites[addr] = struct{}{}
-
+		whites[addr] = 0
 		return true
 	})
 

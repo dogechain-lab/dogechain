@@ -16,7 +16,7 @@ type txPoolStore interface {
 	GetCapacity() (uint64, uint64)
 
 	// GetDDosContractList shows current white list and black list contracts
-	GetDDosContractList() map[string]map[types.Address]struct{}
+	GetDDosContractList() map[string]map[types.Address]int
 }
 
 // TxPool is the txpool jsonrpc endpoint
