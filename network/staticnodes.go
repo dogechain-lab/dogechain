@@ -4,27 +4,25 @@ import (
 	"sync"
 
 	"github.com/libp2p/go-libp2p-core/peer"
-	"go.uber.org/atomic"
 )
 
 type staticnodesWrapper struct {
 	mux sync.RWMutex
 
 	peers map[peer.ID]*peer.AddrInfo
-
-	// count add node
-	count atomic.Int64
 }
 
 func newStaticnodesWrapper() *staticnodesWrapper {
 	return &staticnodesWrapper{
 		peers: make(map[peer.ID]*peer.AddrInfo),
-		count: atomic.Int64{},
 	}
 }
 
 func (sw *staticnodesWrapper) Len() int {
-	return int(sw.count.Load())
+	sw.mux.RLock()
+	defer sw.mux.RUnlock()
+
+	return len(sw.peers)
 }
 
 // addStaticnode adds a staticnode to the staticnode list
@@ -37,7 +35,6 @@ func (sw *staticnodesWrapper) addStaticnode(addr *peer.AddrInfo) {
 	}
 
 	sw.peers[addr.ID] = addr
-	sw.count.Inc()
 }
 
 func (sw *staticnodesWrapper) rangeAddrs(f func(add *peer.AddrInfo) bool) {
