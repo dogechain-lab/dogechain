@@ -2,6 +2,9 @@ package txpool
 
 import (
 	"github.com/dogechain-lab/dogechain/command/helper"
+	"github.com/dogechain-lab/dogechain/command/txpool/addwhite"
+	"github.com/dogechain-lab/dogechain/command/txpool/ddoslist"
+	"github.com/dogechain-lab/dogechain/command/txpool/delwhite"
 	"github.com/dogechain-lab/dogechain/command/txpool/status"
 	"github.com/dogechain-lab/dogechain/command/txpool/subscribe"
 	"github.com/spf13/cobra"
@@ -26,5 +29,11 @@ func registerSubcommands(baseCmd *cobra.Command) {
 		status.GetCommand(),
 		// txpool subscribe
 		subscribe.GetCommand(),
+		// txpool add ddos whitelist
+		addwhite.GetCommand(),
+		// txpool delete ddos whitelist
+		delwhite.GetCommand(),
+		// txpool ddos list
+		ddoslist.GetCommand(),
 	)
 }
