@@ -7,7 +7,7 @@ import "github.com/prometheus/client_golang/prometheus"
 func ParseLables(labelsWithValues ...string) prometheus.Labels {
 	constLabels := map[string]string{}
 
-	if len(labelsWithValues)%2 != 0 {
+	if len(labelsWithValues)%2 == 0 {
 		for i := 1; i < len(labelsWithValues); i += 2 {
 			constLabels[labelsWithValues[i-1]] = labelsWithValues[i]
 		}
