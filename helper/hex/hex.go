@@ -9,15 +9,17 @@ import (
 )
 
 const (
-	hexPrefix = "0x"
+	HexPrefix = "0x"
+	HexZero   = HexPrefix + "0"
+	HexOne    = HexPrefix + "1"
 )
 
 // EncodeToHex generates a hex string based on the byte representation, with the '0x' prefix
 func EncodeToHex(str []byte) string {
 	builder := new(strings.Builder)
-	builder.Grow(len(str)*2 + len(hexPrefix))
+	builder.Grow(len(str)*2 + len(HexPrefix))
 
-	builder.WriteString(hexPrefix)
+	builder.WriteString(HexPrefix)
 	builder.WriteString(hex.EncodeToString(str))
 
 	return builder.String()
@@ -35,7 +37,7 @@ func DecodeString(str string) ([]byte, error) {
 
 // DecodeHex converts a hex string to a byte array
 func DecodeHex(str string) ([]byte, error) {
-	str = strings.TrimPrefix(str, "0x")
+	str = strings.TrimPrefix(str, HexPrefix)
 
 	return hex.DecodeString(str)
 }
@@ -43,9 +45,9 @@ func DecodeHex(str string) ([]byte, error) {
 // EncodeUint64 encodes a number as a hex string with 0x prefix.
 func EncodeUint64(i uint64) string {
 	builder := new(strings.Builder)
-	builder.Grow(16 + len(hexPrefix))
+	builder.Grow(16 + len(HexPrefix))
 
-	builder.WriteString(hexPrefix)
+	builder.WriteString(HexPrefix)
 	builder.WriteString(strconv.FormatUint(i, 16))
 
 	return builder.String()
@@ -55,7 +57,7 @@ func EncodeUint64(i uint64) string {
 // The sign of the integer is ignored.
 func EncodeBig(bigint *big.Int) string {
 	if bigint.BitLen() == 0 {
-		return "0x0"
+		return HexZero
 	}
 
 	return fmt.Sprintf("%#x", bigint)

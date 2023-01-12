@@ -46,24 +46,28 @@ func TestDecodeHex(t *testing.T) {
 }
 
 func TestEncodeUint64(t *testing.T) {
-	if EncodeUint64(0) != "0x0" {
+	if EncodeUint64(0) != HexZero {
 		t.Error("EncodeUint64 failed")
 	}
-	if EncodeUint64(1) != "0x1" {
+
+	if EncodeUint64(1) != HexOne {
 		t.Error("EncodeUint64 failed")
 	}
+
 	if EncodeUint64(0x1234567890abcdef) != "0x1234567890abcdef" {
 		t.Error("EncodeUint64 failed")
 	}
 }
 
 func TestEncodeBig(t *testing.T) {
-	if EncodeBig(big.NewInt(0)) != "0x0" {
+	if EncodeBig(big.NewInt(0)) != HexZero {
 		t.Error("EncodeBig failed")
 	}
-	if EncodeBig(big.NewInt(1)) != "0x1" {
+
+	if EncodeBig(big.NewInt(1)) != HexOne {
 		t.Error("EncodeBig failed")
 	}
+
 	if EncodeBig(big.NewInt(0x1234567890abcdef)) != "0x1234567890abcdef" {
 		t.Error("EncodeBig failed")
 	}
@@ -81,7 +85,7 @@ func BenchmarkEncodeToHex(b *testing.B) {
 // EncodeToHex (use `+`) benchmark
 func BenchmarkEncodeToHexUsePlus(b *testing.B) {
 	plus := func(str []byte) string {
-		return hexPrefix + hex.EncodeToString(str)
+		return HexPrefix + hex.EncodeToString(str)
 	}
 
 	b.RunParallel(func(pb *testing.PB) {
@@ -102,7 +106,7 @@ func BenchmarkEncodeUint64(b *testing.B) {
 func BenchmarkEncodeUint64Old(b *testing.B) {
 	old := func(i uint64) string {
 		enc := make([]byte, 2, 16)
-		copy(enc, "0x")
+		copy(enc, []byte(HexPrefix))
 
 		return string(strconv.AppendUint(enc, i, 16))
 	}
