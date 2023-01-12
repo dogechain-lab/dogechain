@@ -229,6 +229,10 @@ func (s *mockTxPoolStore) GetCapacity() (uint64, uint64) {
 	return s.capacity, s.maxSlots
 }
 
+func (s *mockTxPoolStore) GetDDosContractList() map[string]map[types.Address]struct{} {
+	return nil
+}
+
 func newTestTransaction(nonce uint64, from types.Address) *types.Transaction {
 	txn := &types.Transaction{
 		Nonce:    nonce,

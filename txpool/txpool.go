@@ -200,6 +200,7 @@ type TxPool struct {
 	ddosProtection      bool         // enable ddos protection
 	ddosReductionTicker *time.Ticker // ddos reduction ticker for releasing from imprisonment
 	ddosContracts       sync.Map     // ddos contract caching
+	ddosWhiteList       sync.Map     // ddos contract white list escaping
 
 	// close flag
 	isClosed *atomic.Bool
@@ -715,13 +716,22 @@ func (p *TxPool) IsDDOSTx(tx *types.Transaction) bool {
 		return false
 	}
 
-	count, exists := p.ddosContracts.Load(*tx.To)
-	//nolint:forcetypeassert
-	if exists && count.(int) > _ddosThreshold {
+	return p.isDDOSContract(*tx.To)
+}
+
+func (p *TxPool) isDDOSContract(addr types.Address) bool {
+	v, exists := p.ddosContracts.Load(addr)
+	count, _ := v.(int)
+
+	if exists && isCountExceedDDOSLimit(count) {
 		return true
 	}
 
 	return false
+}
+
+func isCountExceedDDOSLimit(count int) bool {
+	return count > _ddosThreshold
 }
 
 // MarkDDOSTx marks resource consuming transaction as a might-be attack

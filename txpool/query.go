@@ -52,3 +52,40 @@ func (p *TxPool) GetTxs(inclQueued bool) (
 func (p *TxPool) Pending() map[types.Address][]*types.Transaction {
 	return p.accounts.poolPendings()
 }
+
+const (
+	DDosWhiteList = "whitelist"
+	DDosBlackList = "blacklist"
+)
+
+// GetDDosContractList shows current white list and black list contracts
+func (p *TxPool) GetDDosContractList() map[string]map[types.Address]struct{} {
+	var (
+		ret    = make(map[string]map[types.Address]struct{}, 2)
+		blacks = make(map[types.Address]struct{})
+		whites = make(map[types.Address]struct{})
+	)
+
+	p.ddosContracts.Range(func(key, value interface{}) bool {
+		addr, _ := key.(types.Address)
+		count, _ := value.(int)
+
+		if isCountExceedDDOSLimit(count) {
+			blacks[addr] = struct{}{}
+		}
+
+		return true
+	})
+
+	p.ddosWhiteList.Range(func(key, value interface{}) bool {
+		addr, _ := key.(types.Address)
+		whites[addr] = struct{}{}
+
+		return true
+	})
+
+	ret[DDosBlackList] = blacks
+	ret[DDosWhiteList] = whites
+
+	return ret
+}

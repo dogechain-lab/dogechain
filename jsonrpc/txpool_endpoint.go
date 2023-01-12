@@ -14,6 +14,9 @@ type txPoolStore interface {
 
 	// GetCapacity returns the current and max capacity of the pool in slots
 	GetCapacity() (uint64, uint64)
+
+	// GetDDosContractList shows current white list and black list contracts
+	GetDDosContractList() map[string]map[types.Address]struct{}
 }
 
 // TxPool is the txpool jsonrpc endpoint
@@ -181,4 +184,13 @@ func (t *TxPool) Status() (interface{}, error) {
 	}
 
 	return resp, nil
+}
+
+// DdosList Create response for txpool_ddosList request.
+//
+// it should go back some contract black/white list of current node.
+func (t *TxPool) DdosList() (interface{}, error) {
+	v := t.store.GetDDosContractList()
+
+	return v, nil
 }
