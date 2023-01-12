@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/dogechain-lab/dogechain/helper/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -164,10 +165,7 @@ func (m *JSONRPCStoreMetrics) SubscribeEventsInc() {
 
 // NewJSONRPCStoreMetrics return the JSONRPCStore metrics instance
 func NewJSONRPCStoreMetrics(namespace string, labelsWithValues ...string) *JSONRPCStoreMetrics {
-	constLabels := map[string]string{}
-	for i := 1; i < len(labelsWithValues); i += 2 {
-		constLabels[labelsWithValues[i-1]] = labelsWithValues[i]
-	}
+	constLabels := metrics.ParseLables(labelsWithValues...)
 
 	m := &JSONRPCStoreMetrics{
 		counter: prometheus.NewCounterVec(prometheus.CounterOpts{

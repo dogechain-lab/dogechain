@@ -139,10 +139,7 @@ func (m *Metrics) DebugAPICounterInc(label DebugAPILabels) {
 
 // GetPrometheusMetrics return the blockchain metrics instance
 func GetPrometheusMetrics(namespace string, labelsWithValues ...string) *Metrics {
-	constLabels := map[string]string{}
-	for i := 1; i < len(labelsWithValues); i += 2 {
-		constLabels[labelsWithValues[i-1]] = labelsWithValues[i]
-	}
+	constLabels := metrics.ParseLables(labelsWithValues...)
 
 	m := &Metrics{
 		requests: prometheus.NewCounter(prometheus.CounterOpts{
