@@ -716,7 +716,21 @@ func (p *TxPool) IsDDOSTx(tx *types.Transaction) bool {
 		return false
 	}
 
+	// skip white list
+	if p.isDDOSWhiteList(*tx.To) {
+		return true
+	}
+
+	// black list contract
 	return p.isDDOSContract(*tx.To)
+}
+
+func (p *TxPool) isDDOSWhiteList(addr types.Address) bool {
+	if _, ok := p.ddosWhiteList.Load(addr); !ok {
+		return false
+	}
+
+	return true
 }
 
 func (p *TxPool) isDDOSContract(addr types.Address) bool {
@@ -740,14 +754,15 @@ func (p *TxPool) MarkDDOSTx(tx *types.Transaction) {
 		return
 	}
 
+	contract := *tx.To
 	// update its ddos count
-	v, _ := p.ddosContracts.Load(*tx.To)
+	v, _ := p.ddosContracts.Load(contract)
 	count, _ := v.(int)
 	count++
-	p.ddosContracts.Store(*tx.To, count)
+	p.ddosContracts.Store(contract, count)
 
 	p.logger.Debug("increase ddos contract transaction count",
-		"address", tx.To,
+		"address", contract,
 		"count", count,
 	)
 }
