@@ -9,6 +9,7 @@ import (
 	"github.com/dogechain-lab/dogechain/blockchain"
 	"github.com/dogechain-lab/dogechain/network/common"
 	"github.com/dogechain-lab/dogechain/server/proto"
+	"github.com/dogechain-lab/dogechain/txpool"
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/libp2p/go-libp2p-core/peer"
 	empty "google.golang.org/protobuf/types/known/emptypb"
@@ -220,6 +221,54 @@ func (s *systemService) Export(req *proto.ExportRequest, stream proto.System_Exp
 	}
 
 	return nil
+}
+
+func (s *systemService) WhitelistAddList(
+	ctx context.Context,
+	req *proto.WhitelistAddListRequest,
+) (*proto.WhitelistAddListResponse, error) {
+	count := s.server.txpool.AddWhitelistContracts(req.Contracts)
+
+	return &proto.WhitelistAddListResponse{
+		Count:   int64(count),
+		Message: "OK",
+	}, nil
+}
+
+func (s *systemService) WhitelistDeleteList(
+	ctx context.Context,
+	req *proto.WhitelistDeleteListRequest,
+) (*proto.WhitelistDeleteListResponse, error) {
+	count := s.server.txpool.DeleteWhitelistContracts(req.Contracts)
+
+	return &proto.WhitelistDeleteListResponse{
+		Count:   int64(count),
+		Message: "OK",
+	}, nil
+}
+
+func (s *systemService) DDOSContractList(
+	ctx context.Context,
+	req *empty.Empty,
+) (*proto.DDOSContractListResponse, error) {
+	rsp := new(proto.DDOSContractListResponse)
+
+	rsp.Blacklist = make(map[string]int64)
+	rsp.Whitelist = make(map[string]int64)
+
+	ret := s.server.txpool.GetDDosContractList()
+
+	bl := ret[txpool.DDosBlackList]
+	for addr, count := range bl {
+		rsp.Blacklist[addr.String()] = int64(count)
+	}
+
+	wl := ret[txpool.DDosWhiteList]
+	for addr, count := range wl {
+		rsp.Whitelist[addr.String()] = int64(count)
+	}
+
+	return rsp, nil
 }
 
 const (
