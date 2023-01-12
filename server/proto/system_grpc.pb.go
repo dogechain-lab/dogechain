@@ -37,6 +37,10 @@ type SystemClient interface {
 	BlockByNumber(ctx context.Context, in *BlockByNumberRequest, opts ...grpc.CallOption) (*BlockResponse, error)
 	// Export returns blockchain data
 	Export(ctx context.Context, in *ExportRequest, opts ...grpc.CallOption) (System_ExportClient, error)
+	// WhitelistAdd adds some contracts to ddos white list
+	WhitelistAddList(ctx context.Context, in *WhitelistAddListRequest, opts ...grpc.CallOption) (*WhitelistAddListResponse, error)
+	// whitelistDelete deletes some contracts from ddos white list
+	WhitelistDeleteList(ctx context.Context, in *WhitelistDeleteListRequest, opts ...grpc.CallOption) (*WhitelistDeleteListResponse, error)
 }
 
 type systemClient struct {
@@ -156,6 +160,24 @@ func (x *systemExportClient) Recv() (*ExportEvent, error) {
 	return m, nil
 }
 
+func (c *systemClient) WhitelistAddList(ctx context.Context, in *WhitelistAddListRequest, opts ...grpc.CallOption) (*WhitelistAddListResponse, error) {
+	out := new(WhitelistAddListResponse)
+	err := c.cc.Invoke(ctx, "/v1.System/WhitelistAddList", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *systemClient) WhitelistDeleteList(ctx context.Context, in *WhitelistDeleteListRequest, opts ...grpc.CallOption) (*WhitelistDeleteListResponse, error) {
+	out := new(WhitelistDeleteListResponse)
+	err := c.cc.Invoke(ctx, "/v1.System/WhitelistDeleteList", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SystemServer is the server API for System service.
 // All implementations must embed UnimplementedSystemServer
 // for forward compatibility
@@ -174,6 +196,10 @@ type SystemServer interface {
 	BlockByNumber(context.Context, *BlockByNumberRequest) (*BlockResponse, error)
 	// Export returns blockchain data
 	Export(*ExportRequest, System_ExportServer) error
+	// WhitelistAdd adds some contracts to ddos white list
+	WhitelistAddList(context.Context, *WhitelistAddListRequest) (*WhitelistAddListResponse, error)
+	// whitelistDelete deletes some contracts from ddos white list
+	WhitelistDeleteList(context.Context, *WhitelistDeleteListRequest) (*WhitelistDeleteListResponse, error)
 	mustEmbedUnimplementedSystemServer()
 }
 
@@ -201,6 +227,12 @@ func (UnimplementedSystemServer) BlockByNumber(context.Context, *BlockByNumberRe
 }
 func (UnimplementedSystemServer) Export(*ExportRequest, System_ExportServer) error {
 	return status.Errorf(codes.Unimplemented, "method Export not implemented")
+}
+func (UnimplementedSystemServer) WhitelistAddList(context.Context, *WhitelistAddListRequest) (*WhitelistAddListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method WhitelistAddList not implemented")
+}
+func (UnimplementedSystemServer) WhitelistDeleteList(context.Context, *WhitelistDeleteListRequest) (*WhitelistDeleteListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method WhitelistDeleteList not implemented")
 }
 func (UnimplementedSystemServer) mustEmbedUnimplementedSystemServer() {}
 
@@ -347,6 +379,42 @@ func (x *systemExportServer) Send(m *ExportEvent) error {
 	return x.ServerStream.SendMsg(m)
 }
 
+func _System_WhitelistAddList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WhitelistAddListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SystemServer).WhitelistAddList(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/v1.System/WhitelistAddList",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SystemServer).WhitelistAddList(ctx, req.(*WhitelistAddListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _System_WhitelistDeleteList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WhitelistDeleteListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SystemServer).WhitelistDeleteList(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/v1.System/WhitelistDeleteList",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SystemServer).WhitelistDeleteList(ctx, req.(*WhitelistDeleteListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // System_ServiceDesc is the grpc.ServiceDesc for System service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -373,6 +441,14 @@ var System_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "BlockByNumber",
 			Handler:    _System_BlockByNumber_Handler,
+		},
+		{
+			MethodName: "WhitelistAddList",
+			Handler:    _System_WhitelistAddList_Handler,
+		},
+		{
+			MethodName: "WhitelistDeleteList",
+			Handler:    _System_WhitelistDeleteList_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
