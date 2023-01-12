@@ -710,7 +710,6 @@ func (p *TxPool) validateTx(tx *types.Transaction) error {
 	return nil
 }
 
-
 // addTx is the main entry point to the pool
 // for all new transactions. If the call is
 // successful, an account is created for this address

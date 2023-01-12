@@ -138,6 +138,7 @@ func (p *TxPool) GetDDosContractList() map[string]map[types.Address]int {
 	p.ddosWhiteList.Range(func(key, value interface{}) bool {
 		addr, _ := key.(types.Address)
 		whites[addr] = 1
+
 		return true
 	})
 

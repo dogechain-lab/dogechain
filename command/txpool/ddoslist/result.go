@@ -18,6 +18,7 @@ func (r *Result) GetOutput() string {
 
 	if len(r.Blacklist) > 0 {
 		buffer.WriteString("\n[CONTRACT BLACKLIST]\n")
+
 		for addr, count := range r.Blacklist {
 			buffer.WriteString(helper.FormatKV([]string{
 				fmt.Sprintf("%s|%d", addr, count),
@@ -27,6 +28,7 @@ func (r *Result) GetOutput() string {
 
 	if len(r.Whitelist) > 0 {
 		buffer.WriteString("\n\n[CONTRACT WHITELIST]\n")
+
 		for addr, count := range r.Whitelist {
 			buffer.WriteString(helper.FormatKV([]string{
 				fmt.Sprintf("%s|%d", addr, count),
