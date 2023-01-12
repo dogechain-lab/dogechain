@@ -102,13 +102,18 @@ func lookupNode(storage StorageReader, node interface{}, key []byte) (Node, []by
 				return nil, nil, nil
 			}
 
-			_, res, err := lookupNode(storage, nc, key)
+			child, res, err := lookupNode(storage, nc, key)
+			nodePool.PutNode(child)
 
 			return nc, res, err
 		}
 
 		if len(key) == 0 {
-			return nil, n.buf, nil
+			// only return clone buffer
+			bufClone := make([]byte, len(n.buf))
+			copy(bufClone, n.buf)
+
+			return nil, bufClone, nil
 		} else {
 			return nil, nil, nil
 		}

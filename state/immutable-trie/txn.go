@@ -8,7 +8,8 @@ type Txn struct {
 }
 
 func (t *Txn) Lookup(key []byte) ([]byte, error) {
-	_, res, err := lookupNode(t.reader, t.root, bytesToHexNibbles(key))
+	node, res, err := lookupNode(t.reader, t.root, bytesToHexNibbles(key))
+	nodePool.PutNode(node)
 
 	return res, err
 }
