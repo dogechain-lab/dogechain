@@ -206,5 +206,4 @@ func TestNodePool_RecycleObject(t *testing.T) {
 		assert.NotZero(t, cap(node.buf))
 		assert.False(t, node.hash)
 	}
-
 }
