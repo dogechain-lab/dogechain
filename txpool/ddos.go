@@ -12,7 +12,7 @@ func (p *TxPool) IsDDOSTx(tx *types.Transaction) bool {
 
 	// skip white list
 	if p.isDDOSWhiteList(*tx.To) {
-		return true
+		return false
 	}
 
 	// black list contract
