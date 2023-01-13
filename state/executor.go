@@ -369,7 +369,10 @@ func (t *Transition) Write(txn *types.Transaction) error {
 			return err
 		}
 
+		oldRoot := t.txn.snapshot
 		t.txn = NewTxn(t.auxState, ss)
+		t.auxState.RecycleSnapshot(oldRoot)
+
 		root = aux
 		receipt.Root = types.BytesToHash(root)
 	}

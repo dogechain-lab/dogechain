@@ -2,8 +2,10 @@ package itrie
 
 import (
 	"encoding/binary"
+	"math/rand"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -121,5 +123,90 @@ func TestNodePool_UniqueObject(t *testing.T) {
 			node.hash = true
 			binary.BigEndian.PutUint64(node.buf[:8], uint64(i))
 		}
+	}
+}
+
+func TestTracerNodeTreeCircularReference(t *testing.T) {
+	// long circular reference
+	nodeList := make([]*ShortNode, 100)
+	refMap := make(map[Node]bool)
+
+	for i := 0; i < len(nodeList); i++ {
+		nodeList[i] = nodePool.GetShortNode()
+		refMap[nodeList[i]] = true
+	}
+
+	// circular reference
+	for i := 0; i < len(nodeList); i++ {
+		if i == len(nodeList)-1 {
+			nodeList[i].child = nodeList[0]
+
+			continue
+		}
+
+		nodeList[i].child = nodeList[i+1]
+	}
+
+	nodes := tracerNodeTree(nodeList[0])
+	assert.Equal(t, len(nodeList), len(nodes))
+
+	for i := 0; i < len(nodes); i++ {
+		assert.True(t, refMap[nodes[i]])
+	}
+
+	// check allocation node number equal to trace node
+	{
+		// short -> full -> short -> value
+		root := nodePool.GetShortNode()
+
+		f1 := nodePool.GetFullNode()
+		for i := 0; i < len(f1.children); i++ {
+			s2 := nodePool.GetShortNode()
+			s2.child = nodePool.GetValueNode()
+
+			f1.children[i] = s2
+		}
+
+		root.child = f1
+
+		assert.Equal(t, 34, len(tracerNodeTree(root)))
+	}
+
+	{
+		// random full -> short -> value
+		random := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+		root := nodePool.GetFullNode()
+		allocCount := 1
+
+		var fillFullNode func(node *FullNode, depth int)
+
+		fillFullNode = func(node *FullNode, depth int) {
+			if depth <= 0 {
+				return
+			}
+
+			for i := 0; i < len(node.children); i++ {
+				c := random.Int31n(3)
+
+				switch c {
+				case 0:
+					child := nodePool.GetFullNode()
+					fillFullNode(child, depth-1)
+
+					node.children[i] = child
+				case 1:
+					node.children[i] = nodePool.GetShortNode()
+				case 2:
+					node.children[i] = nodePool.GetValueNode()
+				}
+
+				allocCount++
+			}
+		}
+
+		fillFullNode(root, 4)
+
+		assert.Equal(t, allocCount, len(tracerNodeTree(root)))
 	}
 }

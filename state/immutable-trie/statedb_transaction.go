@@ -154,6 +154,10 @@ func (tx *stateDBTxn) NewSnapshotAt(root types.Hash) (state.Snapshot, error) {
 	return t, nil
 }
 
+func (tx *stateDBTxn) RecycleSnapshot(snap state.Snapshot) {
+	tx.stateDB.RecycleSnapshot(snap)
+}
+
 func (tx *stateDBTxn) Commit() error {
 	if tx.cancel.Load() {
 		return ErrStateTransactionIsCancel

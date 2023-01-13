@@ -68,6 +68,8 @@ func (j *jsonRPCStore) getState(root types.Hash, slot []byte) ([]byte, error) {
 		return nil, err
 	}
 
+	defer j.state.RecycleSnapshot(snap)
+
 	result, ok := snap.Get(key)
 
 	if !ok {

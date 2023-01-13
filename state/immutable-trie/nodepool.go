@@ -1,6 +1,8 @@
 package itrie
 
-import "sync"
+import (
+	"sync"
+)
 
 const (
 	batchAlloc  = 1024
@@ -170,15 +172,80 @@ func (np *NodePool) PutFullNode(node *FullNode) {
 	np.fullNodes.Put(node)
 }
 
+func tracerNodeTree(node Node) []Node {
+	if node == nil {
+		return []Node{}
+	}
+
+	// traverse the node tree (DFS)
+	stack := make([]Node, 0, 64)
+	stack = append(stack, node)
+
+	// circular reference check
+	refMap := make(map[interface{}]bool)
+	existRefMap := func(n Node) bool {
+		_, ok := refMap[n]
+
+		return ok
+	}
+
+	stackIndex := 0
+
+	for {
+		if stackIndex >= len(stack) {
+			break
+		}
+
+		n := stack[stackIndex]
+		if existRefMap(n) {
+			// next node
+			stackIndex++
+
+			continue
+		}
+
+		refMap[n] = true
+
+		switch n := n.(type) {
+		case *ShortNode:
+			// if node is not nil and not exist in refMap, add to stack
+			if n.child != nil && !existRefMap(n.child) {
+				stack = append(stack, n.child)
+			}
+		case *FullNode:
+			for i := 0; i < len(n.children); i++ {
+				if n.children[i] != nil && !existRefMap(n.children[i]) {
+					stack = append(stack, n.children[i])
+				}
+			}
+
+			if n.value != nil && !existRefMap(n.value) {
+				stack = append(stack, n.value)
+			}
+		default:
+		}
+
+		stackIndex++
+	}
+
+	return stack
+}
+
 func (np *NodePool) PutNode(node Node) {
-	switch n := node.(type) {
-	case nil:
+	if node == nil {
 		return
-	case *ValueNode:
-		np.PutValueNode(n)
-	case *ShortNode:
-		np.PutShortNode(n)
-	case *FullNode:
-		np.PutFullNode(n)
+	}
+
+	for _, tn := range tracerNodeTree(node) {
+		switch n := tn.(type) {
+		case nil:
+			return
+		case *ValueNode:
+			np.PutValueNode(n)
+		case *ShortNode:
+			np.PutShortNode(n)
+		case *FullNode:
+			np.PutFullNode(n)
+		}
 	}
 }

@@ -35,6 +35,8 @@ func (m *mockState) GetCode(hash types.Hash) ([]byte, bool) {
 	panic("Not implemented in tests")
 }
 
+func (m *mockState) RecycleSnapshot(s Snapshot) {}
+
 type mockSnapshot struct {
 	data map[string][]byte
 }
