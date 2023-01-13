@@ -2454,3 +2454,40 @@ func TestAddTx_ReplaceSameNonce(t *testing.T) {
 		})
 	}
 }
+
+func Test_whitelistShouldEscapeDetection(t *testing.T) {
+	mockTx1 := &types.Transaction{
+		Nonce:    0,
+		GasPrice: big.NewInt(1000),
+		Gas:      100000,
+		To:       &addr1,
+		Value:    big.NewInt(100),
+		Input:    []byte{'m', 'o', 'k', 'e'},
+		From:     addr2,
+	}
+	mockTx2 := &types.Transaction{
+		Nonce:    0,
+		GasPrice: big.NewInt(2000),
+		Gas:      100000,
+		To:       &addr2,
+		Value:    big.NewInt(100),
+		Input:    []byte{'m', 'o', 'k', 'e'},
+		From:     addr1,
+	}
+
+	p, err := newTestPool()
+	assert.NoError(t, err)
+
+	// enable ddos protection
+	p.ddosProtection = true
+
+	// set ddos contracts
+	p.ddosContracts.Store(addr1, _ddosThreshold+1)
+	p.ddosContracts.Store(addr2, _ddosThreshold+100)
+
+	// set white list
+	p.ddosWhiteList.Store(addr1, 1)
+
+	assert.False(t, p.IsDDOSTx(mockTx1))
+	assert.True(t, p.IsDDOSTx(mockTx2))
+}

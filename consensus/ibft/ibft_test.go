@@ -874,37 +874,6 @@ func TestIBFT_WriteTransactions(t *testing.T) {
 	}
 }
 
-func Test_whitelistShouldEscapeDetection(t *testing.T) {
-	mockTx1 := &types.Transaction{
-		Nonce:    0,
-		GasPrice: big.NewInt(1000),
-		Gas:      defaultBlockGasLimit,
-		To:       &addr1,
-		Value:    big.NewInt(100),
-		Input:    []byte{'m', 'o', 'k', 'e'},
-		From:     addr2,
-	}
-	mockTx2 := &types.Transaction{
-		Nonce:    0,
-		GasPrice: big.NewInt(2000),
-		Gas:      defaultBlockGasLimit,
-		To:       &addr2,
-		Value:    big.NewInt(100),
-		Input:    []byte{'m', 'o', 'k', 'e'},
-		From:     addr1,
-	}
-
-	p := newMockTxPool([]*types.Transaction{mockTx1, mockTx2})
-	// set ddos contracts
-	p.ddosContracts[addr1] = true
-	p.ddosContracts[addr2] = true
-	// set white list
-	p.ddosWhitelist[addr1] = true
-
-	assert.False(t, p.IsDDOSTx(mockTx1))
-	assert.True(t, p.IsDDOSTx(mockTx2))
-}
-
 type mockTxPool struct {
 	transactions          []*types.Transaction
 	demoted               []*types.Transaction
@@ -912,7 +881,6 @@ type mockTxPool struct {
 	resetWithHeaderCalled bool
 	resetWithHeadersParam []*types.Header
 	ddosContracts         map[types.Address]bool
-	ddosWhitelist         map[types.Address]bool
 }
 
 func newMockTxPool(txs []*types.Transaction) *mockTxPool {
@@ -920,7 +888,6 @@ func newMockTxPool(txs []*types.Transaction) *mockTxPool {
 		transactions:   txs,
 		nonceDecreased: make(map[*types.Transaction]bool),
 		ddosContracts:  make(map[types.Address]bool),
-		ddosWhitelist:  make(map[types.Address]bool),
 	}
 }
 
@@ -965,13 +932,7 @@ func (p *mockTxPool) IsDDOSTx(tx *types.Transaction) bool {
 		return false
 	}
 
-	contract := *tx.To
-
-	if _, exists := p.ddosWhitelist[contract]; exists {
-		return false
-	}
-
-	_, exists := p.ddosContracts[contract]
+	_, exists := p.ddosContracts[*tx.To]
 
 	return exists
 }
