@@ -3,63 +3,69 @@ package itrie
 import "sync"
 
 const (
-	nodePoolBatchAlloc    = 1024
-	nodeBufferPreAllocLen = 32
+	batchAlloc  = 1024
+	preBuffSize = 32
 )
 
+type preAllocPool struct {
+	valueNodes []*ValueNode
+	shortNodes []*ShortNode
+	fullNodes  []*FullNode
+
+	valueNodeMux sync.Mutex
+	shortNodeMux sync.Mutex
+	fullNodeMux  sync.Mutex
+}
+
 type NodePool struct {
-	valueNodePool sync.Pool
-	shortNodePool sync.Pool
-	fullNodePool  sync.Pool
+	preAllocPool
 
-	valueNodePreAllocPool []*ValueNode
-	shortNodePreAllocPool []*ShortNode
-	fullNodePreAllocPool  []*FullNode
-
-	valueNodePreAllocMux sync.Mutex
-	shortNodePreAllocMux sync.Mutex
-	fullNodePreAllocMux  sync.Mutex
+	valueNodes sync.Pool
+	shortNodes sync.Pool
+	fullNodes  sync.Pool
 }
 
 func NewNodePool() *NodePool {
 	return &NodePool{
-		valueNodePreAllocPool: make([]*ValueNode, 0, nodePoolBatchAlloc),
-		shortNodePreAllocPool: make([]*ShortNode, 0, nodePoolBatchAlloc),
-		fullNodePreAllocPool:  make([]*FullNode, 0, nodePoolBatchAlloc),
+		preAllocPool: preAllocPool{
+			valueNodes: make([]*ValueNode, 0, batchAlloc),
+			shortNodes: make([]*ShortNode, 0, batchAlloc),
+			fullNodes:  make([]*FullNode, 0, batchAlloc),
+		},
 	}
 }
 
 //nolint:dupl
 func (np *NodePool) GetValueNode() *ValueNode {
-	if node, ok := np.valueNodePool.Get().(*ValueNode); ok && node != nil {
+	if node, ok := np.valueNodes.Get().(*ValueNode); ok && node != nil {
 		return node
 	}
 
-	np.valueNodePreAllocMux.Lock()
-	defer np.valueNodePreAllocMux.Unlock()
+	np.preAllocPool.valueNodeMux.Lock()
+	defer np.preAllocPool.valueNodeMux.Unlock()
 
-	if len(np.valueNodePreAllocPool) > 0 {
-		node := np.valueNodePreAllocPool[len(np.valueNodePreAllocPool)-1]
-		np.valueNodePreAllocPool = np.valueNodePreAllocPool[:len(np.valueNodePreAllocPool)-1]
+	if len(np.preAllocPool.valueNodes) > 0 {
+		node := np.preAllocPool.valueNodes[len(np.preAllocPool.valueNodes)-1]
+		np.preAllocPool.valueNodes = np.preAllocPool.valueNodes[:len(np.preAllocPool.valueNodes)-1]
 
 		return node
 	}
 
 	// pre-allocate 1024 value node
 	// clear pool and reset size
-	np.valueNodePreAllocPool = np.valueNodePreAllocPool[0:nodePoolBatchAlloc]
+	np.preAllocPool.valueNodes = np.preAllocPool.valueNodes[0:batchAlloc]
 
-	nodes := make([]ValueNode, nodePoolBatchAlloc)
-	bufs := make([][nodeBufferPreAllocLen]byte, nodePoolBatchAlloc)
+	nodes := make([]ValueNode, batchAlloc)
+	bufs := make([][preBuffSize]byte, batchAlloc)
 
-	for i := 0; i < nodePoolBatchAlloc; i++ {
+	for i := 0; i < batchAlloc; i++ {
 		nodes[i].buf = bufs[i][:0]
-		np.valueNodePreAllocPool[i] = &nodes[i]
+		np.preAllocPool.valueNodes[i] = &nodes[i]
 	}
 
 	// return last one
-	node := np.valueNodePreAllocPool[len(np.valueNodePreAllocPool)-1]
-	np.valueNodePreAllocPool = np.valueNodePreAllocPool[:len(np.valueNodePreAllocPool)-1]
+	node := np.preAllocPool.valueNodes[len(np.preAllocPool.valueNodes)-1]
+	np.preAllocPool.valueNodes = np.preAllocPool.valueNodes[:len(np.preAllocPool.valueNodes)-1]
 
 	return node
 }
@@ -68,42 +74,42 @@ func (np *NodePool) PutValueNode(node *ValueNode) {
 	node.buf = node.buf[0:0]
 	node.hash = false
 
-	np.valueNodePool.Put(node)
+	np.valueNodes.Put(node)
 }
 
 func (np *NodePool) GetShortNode() *ShortNode {
-	if node, ok := np.shortNodePool.Get().(*ShortNode); ok && node != nil {
+	if node, ok := np.shortNodes.Get().(*ShortNode); ok && node != nil {
 		return node
 	}
 
-	np.shortNodePreAllocMux.Lock()
-	defer np.shortNodePreAllocMux.Unlock()
+	np.preAllocPool.shortNodeMux.Lock()
+	defer np.preAllocPool.shortNodeMux.Unlock()
 
-	if len(np.shortNodePreAllocPool) > 0 {
-		node := np.shortNodePreAllocPool[len(np.shortNodePreAllocPool)-1]
-		np.shortNodePreAllocPool = np.shortNodePreAllocPool[:len(np.shortNodePreAllocPool)-1]
+	if len(np.preAllocPool.shortNodes) > 0 {
+		node := np.preAllocPool.shortNodes[len(np.preAllocPool.shortNodes)-1]
+		np.preAllocPool.shortNodes = np.preAllocPool.shortNodes[:len(np.preAllocPool.shortNodes)-1]
 
 		return node
 	}
 
 	// pre-allocate 1024 value node
 	// clear pool and reset size
-	np.shortNodePreAllocPool = np.shortNodePreAllocPool[0:nodePoolBatchAlloc]
+	np.preAllocPool.shortNodes = np.preAllocPool.shortNodes[0:batchAlloc]
 
-	nodes := make([]ShortNode, nodePoolBatchAlloc)
-	hash := make([][nodeBufferPreAllocLen]byte, nodePoolBatchAlloc)
-	keys := make([][nodeBufferPreAllocLen]byte, nodePoolBatchAlloc)
+	nodes := make([]ShortNode, batchAlloc)
+	hash := make([][preBuffSize]byte, batchAlloc)
+	keys := make([][preBuffSize]byte, batchAlloc)
 
-	for i := 0; i < nodePoolBatchAlloc; i++ {
+	for i := 0; i < batchAlloc; i++ {
 		nodes[i].hash = hash[i][:0]
 		nodes[i].key = keys[i][:0]
 
-		np.shortNodePreAllocPool[i] = &nodes[i]
+		np.preAllocPool.shortNodes[i] = &nodes[i]
 	}
 
 	// return last one
-	node := np.shortNodePreAllocPool[len(np.shortNodePreAllocPool)-1]
-	np.shortNodePreAllocPool = np.shortNodePreAllocPool[:len(np.shortNodePreAllocPool)-1]
+	node := np.preAllocPool.shortNodes[len(np.preAllocPool.shortNodes)-1]
+	np.preAllocPool.shortNodes = np.preAllocPool.shortNodes[:len(np.preAllocPool.shortNodes)-1]
 
 	return node
 }
@@ -115,41 +121,41 @@ func (np *NodePool) PutShortNode(node *ShortNode) {
 	np.PutNode(node.child)
 	node.child = nil
 
-	np.valueNodePool.Put(node)
+	np.valueNodes.Put(node)
 }
 
 //nolint:dupl
 func (np *NodePool) GetFullNode() *FullNode {
-	if node, ok := np.fullNodePool.Get().(*FullNode); ok && node != nil {
+	if node, ok := np.fullNodes.Get().(*FullNode); ok && node != nil {
 		return node
 	}
 
-	np.fullNodePreAllocMux.Lock()
-	defer np.fullNodePreAllocMux.Unlock()
+	np.preAllocPool.fullNodeMux.Lock()
+	defer np.preAllocPool.fullNodeMux.Unlock()
 
-	if len(np.fullNodePreAllocPool) > 0 {
-		node := np.fullNodePreAllocPool[len(np.fullNodePreAllocPool)-1]
-		np.fullNodePreAllocPool = np.fullNodePreAllocPool[:len(np.fullNodePreAllocPool)-1]
+	if len(np.preAllocPool.fullNodes) > 0 {
+		node := np.preAllocPool.fullNodes[len(np.preAllocPool.fullNodes)-1]
+		np.preAllocPool.fullNodes = np.preAllocPool.fullNodes[:len(np.preAllocPool.fullNodes)-1]
 
 		return node
 	}
 
 	// pre-allocate 1024 value node
 	// clear pool and reset size
-	np.fullNodePreAllocPool = np.fullNodePreAllocPool[0:nodePoolBatchAlloc]
+	np.preAllocPool.fullNodes = np.preAllocPool.fullNodes[0:batchAlloc]
 
-	nodes := make([]FullNode, nodePoolBatchAlloc)
-	hash := make([][nodeBufferPreAllocLen]byte, nodePoolBatchAlloc)
+	nodes := make([]FullNode, batchAlloc)
+	hash := make([][preBuffSize]byte, batchAlloc)
 
-	for i := 0; i < nodePoolBatchAlloc; i++ {
+	for i := 0; i < batchAlloc; i++ {
 		nodes[i].hash = hash[i][:0]
 
-		np.fullNodePreAllocPool[i] = &nodes[i]
+		np.preAllocPool.fullNodes[i] = &nodes[i]
 	}
 
 	// return last one
-	node := np.fullNodePreAllocPool[len(np.fullNodePreAllocPool)-1]
-	np.fullNodePreAllocPool = np.fullNodePreAllocPool[:len(np.fullNodePreAllocPool)-1]
+	node := np.preAllocPool.fullNodes[len(np.preAllocPool.fullNodes)-1]
+	np.preAllocPool.fullNodes = np.preAllocPool.fullNodes[:len(np.preAllocPool.fullNodes)-1]
 
 	return node
 }
@@ -166,7 +172,7 @@ func (np *NodePool) PutFullNode(node *FullNode) {
 		node.children[i] = nil
 	}
 
-	np.valueNodePool.Put(node)
+	np.valueNodes.Put(node)
 }
 
 func (np *NodePool) PutNode(node Node) {

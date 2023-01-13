@@ -14,7 +14,7 @@ import (
 func TestNodePool_Get(t *testing.T) {
 	np := NewNodePool()
 
-	for i := 0; i < (nodePoolBatchAlloc * 2); i++ {
+	for i := 0; i < (batchAlloc * 2); i++ {
 		{
 			node := np.GetFullNode()
 
@@ -82,7 +82,7 @@ func TestNodePool_UniqueObject(t *testing.T) {
 		return !exist
 	}
 
-	for i := 0; i < (nodePoolBatchAlloc * 2); i++ {
+	for i := 0; i < (batchAlloc * 2); i++ {
 		{
 			node := np.GetFullNode()
 
