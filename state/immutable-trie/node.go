@@ -41,8 +41,7 @@ func (c *common) Hash() ([]byte, bool) {
 
 // SetHash implements the node interface
 func (c *common) SetHash(b []byte) []byte {
-	c.hash = extendByteSlice(c.hash, len(b))
-	copy(c.hash, b)
+	c.hash = append(c.hash[0:0], b...)
 
 	return c.hash
 }
@@ -300,7 +299,7 @@ func deleteNode(storage StorageReader, node Node, search []byte) (Node, bool, er
 		if short, ok := child.(*ShortNode); ok {
 			// merge nodes
 			sn := nodePool.GetShortNode()
-			sn.key = append(sn.key[0:0], concat(n.key, short.key)...)
+			sn.key = append(sn.key[0:0], append(n.key, short.key...)...)
 			sn.child = short.child
 
 			return sn, true, nil
@@ -419,7 +418,7 @@ func deleteNode(storage StorageReader, node Node, search []byte) (Node, bool, er
 
 		ncc := nodePool.GetShortNode()
 
-		ncc.key = append(obj.key[0:0], concat([]byte{byte(indx)}, obj.key)...)
+		ncc.key = append(ncc.key[0:0], append([]byte{byte(indx)}, obj.key...)...)
 		ncc.child = obj.child
 
 		return ncc, true, nil

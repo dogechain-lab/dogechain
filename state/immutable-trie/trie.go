@@ -218,20 +218,3 @@ func prefixLen(k1, k2 []byte) int {
 
 	return i
 }
-
-func concat(a, b []byte) []byte {
-	c := make([]byte, len(a)+len(b))
-	copy(c, a)
-	copy(c[len(a):], b)
-
-	return c
-}
-
-func extendByteSlice(b []byte, needLen int) []byte {
-	b = b[:cap(b)]
-	if n := needLen - cap(b); n > 0 {
-		b = append(b, make([]byte, n)...)
-	}
-
-	return b[:needLen]
-}
