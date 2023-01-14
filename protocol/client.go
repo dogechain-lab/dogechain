@@ -223,7 +223,26 @@ func (client *syncPeerClient) handleStatusUpdate(obj interface{}, from peer.ID) 
 func (client *syncPeerClient) startNewBlockProcess() {
 	client.subscription = client.blockchain.SubscribeEvents()
 
-	for event := range client.subscription.GetEventCh() {
+	for {
+		if client.isClosed.Load() {
+			return
+		}
+
+		event := client.subscription.GetEvent()
+		if event == nil && !client.subscription.IsClosed() {
+			client.logger.Error("event is nil, but client is not closed")
+
+			continue
+		} else if event == nil && client.subscription.IsClosed() {
+			return
+		}
+
+		if event == nil {
+			client.logger.Debug("event is nil, skip")
+
+			continue
+		}
+
 		if !client.shouldEmitBlocks {
 			continue
 		}

@@ -1,25 +1,27 @@
 package blockchain
 
 import (
+	"context"
 	"math/big"
 	"sync"
 
 	"github.com/dogechain-lab/dogechain/types"
+	"go.uber.org/atomic"
 )
-
-type void struct{}
 
 // Subscription is the blockchain subscription interface
 type Subscription interface {
-	GetEventCh() chan *Event
 	GetEvent() *Event
+
+	IsClosed() bool
 	Close()
 }
 
 // FOR TESTING PURPOSES //
 
 type MockSubscription struct {
-	eventCh chan *Event
+	eventCh  chan *Event
+	isClosed atomic.Bool
 }
 
 func NewMockSubscription() *MockSubscription {
@@ -30,17 +32,20 @@ func (m *MockSubscription) Push(e *Event) {
 	m.eventCh <- e
 }
 
-func (m *MockSubscription) GetEventCh() chan *Event {
-	return m.eventCh
-}
-
 func (m *MockSubscription) GetEvent() *Event {
 	evnt := <-m.eventCh
 
 	return evnt
 }
 
+func (m *MockSubscription) IsClosed() bool {
+	return m.isClosed.Load()
+}
+
 func (m *MockSubscription) Close() {
+	if m.isClosed.CAS(false, true) {
+		close(m.eventCh)
+	}
 }
 
 /////////////////////////
@@ -48,24 +53,15 @@ func (m *MockSubscription) Close() {
 // subscription is the Blockchain event subscription object
 type subscription struct {
 	updateCh chan *Event // Channel for update information
-	closeCh  chan void   // Channel for close signals
-}
 
-// GetEventCh creates a new event channel, and returns it
-func (s *subscription) GetEventCh() chan *Event {
-	eventCh := make(chan *Event)
+	// context is the context for the event stream
+	ctx context.Context
 
-	go func() {
-		for {
-			evnt := s.GetEvent()
-			if evnt == nil {
-				return
-			}
-			eventCh <- evnt
-		}
-	}()
+	// contextCancel is the cancel function for the context
+	ctxCancel context.CancelFunc
 
-	return eventCh
+	// closed is a flag that indicates if the subscription is closed
+	closed *atomic.Bool
 }
 
 // GetEvent returns the event from the subscription (BLOCKING)
@@ -73,17 +69,24 @@ func (s *subscription) GetEvent() *Event {
 	for {
 		// Wait for an update
 		select {
+		case <-s.ctx.Done():
+			return nil
 		case ev := <-s.updateCh:
 			return ev
-		case <-s.closeCh:
-			return nil
 		}
 	}
 }
 
+// IsClosed returns true if the subscription is closed
+func (s *subscription) IsClosed() bool {
+	return s.closed.Load()
+}
+
 // Close closes the subscription
 func (s *subscription) Close() {
-	close(s.closeCh)
+	if s.closed.CAS(false, true) {
+		s.ctxCancel()
+	}
 }
 
 type EventType int
@@ -157,15 +160,38 @@ func (b *Blockchain) SubscribeEvents() Subscription {
 type eventStream struct {
 	lock sync.Mutex
 
+	// context is the context for the event stream
+	ctx context.Context
+
+	// contextCancel is the cancel function for the context
+	ctxCancel context.CancelFunc
+
 	// channel to notify updates
 	updateCh []chan *Event
 }
 
+func newEventStream(ctx context.Context) *eventStream {
+	streamCtx, cancel := context.WithCancel(ctx)
+
+	return &eventStream{
+		ctx:       streamCtx,
+		ctxCancel: cancel,
+	}
+}
+
+func (e *eventStream) Close() {
+	e.ctxCancel()
+}
+
 // subscribe Creates a new blockchain event subscription
 func (e *eventStream) subscribe() *subscription {
+	subCtx, cancel := context.WithCancel(e.ctx)
+
 	return &subscription{
-		updateCh: e.newUpdateCh(),
-		closeCh:  make(chan void),
+		updateCh:  e.newUpdateCh(),
+		ctx:       subCtx,
+		ctxCancel: cancel,
+		closed:    atomic.NewBool(false),
 	}
 }
 

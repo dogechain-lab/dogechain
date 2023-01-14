@@ -78,17 +78,28 @@ func (pw *ProgressionWrapper) StartProgression(
 		CurrentBlock:  current,
 	}
 
-	go pw.RunUpdateLoop(subscription)
+	go pw.runUpdateLoop(subscription)
 }
 
 // runUpdateLoop starts the blockchain event monitoring loop and
 // updates the currently written block in the batch sync
-func (pw *ProgressionWrapper) RunUpdateLoop(subscription blockchain.Subscription) {
-	eventCh := subscription.GetEventCh()
+func (pw *ProgressionWrapper) runUpdateLoop(subscription blockchain.Subscription) {
+	defer subscription.Close()
 
 	for {
 		select {
-		case event := <-eventCh:
+		case <-pw.stopCh:
+			return
+		default:
+			if subscription.IsClosed() {
+				return
+			}
+
+			event := subscription.GetEvent()
+			if event == nil {
+				continue
+			}
+
 			if event.Type == blockchain.EventFork {
 				continue
 			}
@@ -99,10 +110,6 @@ func (pw *ProgressionWrapper) RunUpdateLoop(subscription blockchain.Subscription
 
 			lastBlock := event.NewChain[len(event.NewChain)-1]
 			pw.UpdateCurrentProgression(lastBlock.Number)
-		case <-pw.stopCh:
-			subscription.Close()
-
-			return
 		}
 	}
 }

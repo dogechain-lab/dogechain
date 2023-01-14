@@ -494,16 +494,28 @@ func (i *Ibft) startConsensus() {
 		syncerBlockCh = make(chan struct{})
 	)
 
+	defer close(syncerBlockCh)
 	defer newBlockSub.Close()
 
 	// Receive a notification every time syncer manages
 	// to insert a valid block. Used for cancelling active consensus
 	// rounds for a specific height
 	go func() {
-		eventCh := newBlockSub.GetEventCh()
 
 		for {
-			if ev := <-eventCh; ev.Source == protocol.WriteBlockSource {
+			if newBlockSub.IsClosed() {
+				return
+			}
+
+			ev := newBlockSub.GetEvent()
+
+			if ev == nil {
+				i.logger.Debug("received nil event from blockchain subscription (ignoring)")
+
+				continue
+			}
+
+			if ev.Source == protocol.WriteBlockSource {
 				if ev.NewChain[0].Number < i.blockchain.Header().Number {
 					// The blockchain notification system can eventually deliver
 					// stale block notifications. These should be ignored

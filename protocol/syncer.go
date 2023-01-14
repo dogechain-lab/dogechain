@@ -136,8 +136,8 @@ func (s *noForkSyncer) GetSyncProgression() *progress.Progression {
 	return s.syncProgression.GetProgression()
 }
 
-// updateCurrentStatus taps into the blockchain event steam and updates the Syncer.status field
-func (s *noForkSyncer) updateCurrentStatus() {
+// runUpdateCurrentStatus taps into the blockchain event steam and updates the Syncer.status field
+func (s *noForkSyncer) runUpdateCurrentStatus() {
 	// Get the current status of the syncer
 	currentHeader := s.blockchain.Header()
 	diff, _ := s.blockchain.GetTD(currentHeader.Hash)
@@ -154,25 +154,33 @@ func (s *noForkSyncer) updateCurrentStatus() {
 	// watch the subscription and notify
 	for {
 		select {
-		case evnt := <-sub.GetEventCh():
-			// we do not want to notify forks
-			if evnt.Type == blockchain.EventFork {
-				continue
-			}
-
-			// this should not happen
-			if len(evnt.NewChain) == 0 {
-				continue
-			}
-
-			s.updateStatus(&Status{
-				Difficulty: evnt.Difficulty,
-				Hash:       evnt.NewChain[0].Hash,
-				Number:     evnt.NewChain[0].Number,
-			})
 		case <-s.stopCh:
 			return
+		default:
 		}
+
+		e := sub.GetEvent()
+		if e == nil {
+			s.logger.Error("event is nil")
+
+			continue
+		}
+
+		// we do not want to notify forks
+		if e.Type == blockchain.EventFork {
+			continue
+		}
+
+		// this should not happen
+		if len(e.NewChain) == 0 {
+			continue
+		}
+
+		s.updateStatus(&Status{
+			Difficulty: e.Difficulty,
+			Hash:       e.NewChain[0].Hash,
+			Number:     e.NewChain[0].Number,
+		})
 	}
 }
 
@@ -212,7 +220,7 @@ func (s *noForkSyncer) Start() error {
 
 	// Run the blockchain event listener loop
 	// deprecated, only for backward compatibility
-	go s.updateCurrentStatus()
+	go s.runUpdateCurrentStatus()
 
 	return nil
 }

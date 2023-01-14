@@ -1,6 +1,7 @@
 package blockchain
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math/big"
@@ -204,7 +205,7 @@ func NewMockBlockchain(
 		consensus: mockVerifier,
 		executor:  executor,
 		config:    config,
-		stream:    &eventStream{},
+		stream:    newEventStream(context.Background()),
 		gpAverage: &gasPriceAverage{
 			price: big.NewInt(0),
 			count: big.NewInt(0),
