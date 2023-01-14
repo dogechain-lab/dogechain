@@ -374,6 +374,7 @@ func (s *noForkSyncer) syncWithSkipList(
 	if err != nil {
 		s.logger.Warn("failed to complete bulk sync with peer", "peer ID", bestPeer.ID, "error", err)
 	}
+
 	s.logger.Debug("bulk sync with peer done", "peer ID", bestPeer.ID, "result", result)
 
 	// stop progression even it might be not done
@@ -384,6 +385,7 @@ func (s *noForkSyncer) syncWithSkipList(
 	for p := range result.SkipList {
 		skipList.Store(p, true)
 	}
+
 	s.logger.Debug("store result.SkipList")
 
 	return result.ShouldTerminate
