@@ -289,10 +289,15 @@ func (f *FilterManager) Run() {
 
 	go func() {
 		for {
-			evnt := f.subscription.GetEvent()
-			if evnt == nil {
+			if f.subscription.IsClosed() {
 				return
 			}
+
+			evnt := f.subscription.GetEvent()
+			if evnt == nil {
+				continue
+			}
+
 			watchCh <- evnt
 		}
 	}()

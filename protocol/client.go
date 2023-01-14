@@ -33,7 +33,7 @@ type syncPeerClient struct {
 	subscription blockchain.Subscription // reference to the blockchain subscription
 	topic        network.Topic           // reference to the network topic
 
-	id                     string                // node id
+	selfID                 string                // self node id
 	peerStatusUpdateCh     chan *NoForkPeer      // peer status update channel
 	peerConnectionUpdateCh chan *event.PeerEvent // peer connection update channel
 
@@ -50,7 +50,7 @@ func NewSyncPeerClient(
 		logger:                 logger.Named(SyncPeerClientLoggerName),
 		network:                network,
 		blockchain:             blockchain,
-		id:                     network.AddrInfo().ID.String(),
+		selfID:                 network.AddrInfo().ID.String(),
 		peerStatusUpdateCh:     make(chan *NoForkPeer, 1),
 		peerConnectionUpdateCh: make(chan *event.PeerEvent, 1),
 		shouldEmitBlocks:       true,
@@ -74,10 +74,6 @@ func (client *syncPeerClient) Start() error {
 func (client *syncPeerClient) Close() {
 	if !client.isClosed.CAS(false, true) {
 		return
-	}
-
-	if client.subscription != nil {
-		client.subscription.Close()
 	}
 
 	if client.topic != nil {
@@ -139,6 +135,9 @@ func (client *syncPeerClient) GetConnectedPeerStatuses() []*NoForkPeer {
 			defer wg.Done()
 
 			peerID := p.Info.ID
+			if peerID.String() == client.selfID {
+				return
+			}
 
 			status, err := client.GetPeerStatus(peerID)
 			if err != nil {
@@ -194,7 +193,7 @@ func (client *syncPeerClient) handleStatusUpdate(obj interface{}, from peer.ID) 
 	}
 
 	if !client.network.IsConnected(from) {
-		if client.id != from.String() {
+		if client.selfID != from.String() {
 			client.logger.Debug("received status from non-connected peer, ignore", "id", from)
 		}
 
@@ -209,10 +208,14 @@ func (client *syncPeerClient) handleStatusUpdate(obj interface{}, from peer.ID) 
 		return
 	}
 
-	client.peerStatusUpdateCh <- &NoForkPeer{
+	client.logger.Debug("send peerStatusUpdateCh")
+
+	select {
+	case client.peerStatusUpdateCh <- &NoForkPeer{
 		ID:     from,
 		Number: status.Number,
-		// Distance: m.network.GetPeerDistance(from),
+	}:
+	default:
 	}
 }
 
@@ -222,19 +225,11 @@ func (client *syncPeerClient) startNewBlockProcess() {
 	client.subscription = subscription
 
 	for {
-		if client.isClosed.Load() {
+		if client.isClosed.Load() || subscription.IsClosed() {
 			return
 		}
 
 		event := subscription.GetEvent()
-		if event == nil && !subscription.IsClosed() {
-			client.logger.Error("event is nil, but client is not closed")
-
-			continue
-		} else if event == nil && subscription.IsClosed() {
-			return
-		}
-
 		if event == nil {
 			client.logger.Debug("event is nil, skip")
 
@@ -245,7 +240,7 @@ func (client *syncPeerClient) startNewBlockProcess() {
 			continue
 		}
 
-		if l := len(event.NewChain); l > 0 && !client.isClosed.Load() {
+		if l := len(event.NewChain); l > 0 {
 			latest := event.NewChain[l-1]
 			client.logger.Debug("client try to publish status", "latest", latest.Number)
 			// Publish status

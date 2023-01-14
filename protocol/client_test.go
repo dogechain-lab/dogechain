@@ -41,7 +41,7 @@ func newTestSyncPeerClient(network network.Network, blockchain Blockchain) *sync
 		logger:                 hclog.NewNullLogger(),
 		network:                network,
 		blockchain:             blockchain,
-		id:                     network.AddrInfo().ID.String(),
+		selfID:                 network.AddrInfo().ID.String(),
 		peerStatusUpdateCh:     make(chan *NoForkPeer, 1),
 		peerConnectionUpdateCh: make(chan *event.PeerEvent, 1),
 		isClosed:               atomic.NewBool(false),

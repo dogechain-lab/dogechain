@@ -132,14 +132,18 @@ func NewTestSyncer(
 	mockProgression Progression,
 ) *noForkSyncer {
 	return &noForkSyncer{
-		logger:          hclog.NewNullLogger(),
-		blockchain:      blockchain,
+		logger: hclog.NewNullLogger(),
+
+		blockchain:           blockchain,
+		blockchainSubscriber: blockchain.SubscribeEvents(),
+
 		syncProgression: mockProgression,
 		syncPeerService: &mockSyncPeerService{},
 		syncPeerClient:  mockSyncPeerClient,
 		newStatusCh:     make(chan struct{}),
 		peerMap:         new(PeerMap),
 		syncing:         atomic.NewBool(false),
+		syncingPeer:     atomic.NewString(""),
 	}
 }
 

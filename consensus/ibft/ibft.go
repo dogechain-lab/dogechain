@@ -119,8 +119,11 @@ type Ibft struct {
 	blockTime time.Duration // Minimum block generation time in seconds
 
 	// Dynamic References for signing and validating
-	currentTxSigner   crypto.TxSigner      // Tx Signer at current sequence
-	currentValidators validator.Validators // Validator set at current sequence
+	currentTxSigner    crypto.TxSigner // Tx Signer at current sequence
+	currentTxSignerMux sync.RWMutex    // Mutex for currentTxSigner
+
+	currentValidators    validator.Validators // Validator set at current sequence
+	currentValidatorsMux sync.RWMutex         // Mutex for currentValidators
 	// Recording resource exhausting contracts
 	// but would not banish it until it became a real ddos attack
 	// not thread safe, but can be used sequentially
@@ -494,9 +497,6 @@ func (i *Ibft) startConsensus() {
 		syncerBlockCh = make(chan struct{})
 	)
 
-	defer close(syncerBlockCh)
-	defer newBlockSub.Close()
-
 	// Receive a notification every time syncer manages
 	// to insert a valid block. Used for cancelling active consensus
 	// rounds for a specific height
@@ -507,7 +507,6 @@ func (i *Ibft) startConsensus() {
 			}
 
 			ev := newBlockSub.GetEvent()
-
 			if ev == nil {
 				i.logger.Debug("received nil event from blockchain subscription (ignoring)")
 
@@ -891,6 +890,9 @@ func (i *Ibft) makeTransitionSlashTx(
 }
 
 func (i *Ibft) isActiveValidator(addr types.Address) bool {
+	i.currentValidatorsMux.RLock()
+	defer i.currentValidatorsMux.RUnlock()
+
 	return i.currentValidators.Includes(addr)
 }
 
@@ -901,6 +903,12 @@ func (i *Ibft) updateCurrentModules(height uint64) error {
 	if err != nil {
 		return err
 	}
+
+	i.currentValidatorsMux.Lock()
+	defer i.currentValidatorsMux.Unlock()
+
+	i.currentTxSignerMux.Lock()
+	defer i.currentTxSignerMux.Unlock()
 
 	i.currentValidators = snap.Set
 	i.currentTxSigner = i.getSigner(height)

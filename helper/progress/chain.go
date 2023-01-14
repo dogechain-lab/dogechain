@@ -50,7 +50,6 @@ type ProgressionWrapper struct {
 func NewProgressionWrapper(syncType ChainSyncType) *ProgressionWrapper {
 	return &ProgressionWrapper{
 		progression: nil,
-		stopCh:      make(chan struct{}),
 		syncType:    syncType,
 	}
 }
@@ -71,6 +70,7 @@ func (pw *ProgressionWrapper) StartProgression(
 		current = startingBlock - 1
 	}
 
+	pw.stopCh = make(chan struct{})
 	pw.progression = &Progression{
 		SyncType:      pw.syncType,
 		SyncingPeer:   syncingPeer,
@@ -84,15 +84,13 @@ func (pw *ProgressionWrapper) StartProgression(
 // runUpdateLoop starts the blockchain event monitoring loop and
 // updates the currently written block in the batch sync
 func (pw *ProgressionWrapper) runUpdateLoop(subscription blockchain.Subscription) {
-	defer subscription.Close()
-
 	for {
 		select {
 		case <-pw.stopCh:
 			return
 		default:
 			if subscription.IsClosed() {
-				return
+				continue
 			}
 
 			event := subscription.GetEvent()
@@ -116,11 +114,10 @@ func (pw *ProgressionWrapper) runUpdateLoop(subscription blockchain.Subscription
 
 // StopProgression stops the progression tracking
 func (pw *ProgressionWrapper) StopProgression() {
-	pw.stopCh <- struct{}{}
-
 	pw.lock.Lock()
 	defer pw.lock.Unlock()
 
+	close(pw.stopCh)
 	pw.progression = nil
 }
 

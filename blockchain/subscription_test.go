@@ -25,11 +25,12 @@ func TestSubscription(t *testing.T) {
 		}
 	)
 
-	defer sub.Close()
-
 	result := make(chan struct{}, 1)
 
-	t.Cleanup(func() { close(result) })
+	t.Cleanup(func() {
+		close(result)
+		e.Close()
+	})
 
 	go func() {
 		// Wait for the event to be parsed
