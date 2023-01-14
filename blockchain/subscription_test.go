@@ -28,6 +28,7 @@ func TestSubscription(t *testing.T) {
 	defer sub.Close()
 
 	result := make(chan struct{}, 1)
+
 	t.Cleanup(func() { close(result) })
 
 	go func() {

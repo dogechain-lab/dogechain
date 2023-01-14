@@ -30,11 +30,12 @@ type syncPeerClient struct {
 	connLock   sync.Mutex      // mutext for getting client connection
 	blockchain Blockchain      // reference to the blockchain module
 
-	subscription           blockchain.Subscription // reference to the blockchain subscription
-	topic                  network.Topic           // reference to the network topic
-	id                     string                  // node id
-	peerStatusUpdateCh     chan *NoForkPeer        // peer status update channel
-	peerConnectionUpdateCh chan *event.PeerEvent   // peer connection update channel
+	subscription blockchain.Subscription // reference to the blockchain subscription
+	topic        network.Topic           // reference to the network topic
+
+	id                     string                // node id
+	peerStatusUpdateCh     chan *NoForkPeer      // peer status update channel
+	peerConnectionUpdateCh chan *event.PeerEvent // peer connection update channel
 
 	shouldEmitBlocks bool // flag for emitting blocks in the topic
 	isClosed         *atomic.Bool
@@ -77,15 +78,11 @@ func (client *syncPeerClient) Close() {
 
 	if client.subscription != nil {
 		client.subscription.Close()
-
-		client.subscription = nil
 	}
 
 	if client.topic != nil {
 		// close topic when needed
 		client.topic.Close()
-
-		client.topic = nil
 	}
 
 	close(client.peerStatusUpdateCh)
@@ -221,19 +218,20 @@ func (client *syncPeerClient) handleStatusUpdate(obj interface{}, from peer.ID) 
 
 // startNewBlockProcess starts blockchain event subscription
 func (client *syncPeerClient) startNewBlockProcess() {
-	client.subscription = client.blockchain.SubscribeEvents()
+	subscription := client.blockchain.SubscribeEvents()
+	client.subscription = subscription
 
 	for {
 		if client.isClosed.Load() {
 			return
 		}
 
-		event := client.subscription.GetEvent()
-		if event == nil && !client.subscription.IsClosed() {
+		event := subscription.GetEvent()
+		if event == nil && !subscription.IsClosed() {
 			client.logger.Error("event is nil, but client is not closed")
 
 			continue
-		} else if event == nil && client.subscription.IsClosed() {
+		} else if event == nil && subscription.IsClosed() {
 			return
 		}
 
@@ -247,7 +245,7 @@ func (client *syncPeerClient) startNewBlockProcess() {
 			continue
 		}
 
-		if l := len(event.NewChain); l > 0 {
+		if l := len(event.NewChain); l > 0 && !client.isClosed.Load() {
 			latest := event.NewChain[l-1]
 			client.logger.Debug("client try to publish status", "latest", latest.Number)
 			// Publish status

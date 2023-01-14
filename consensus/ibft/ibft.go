@@ -501,7 +501,6 @@ func (i *Ibft) startConsensus() {
 	// to insert a valid block. Used for cancelling active consensus
 	// rounds for a specific height
 	go func() {
-
 		for {
 			if newBlockSub.IsClosed() {
 				return
