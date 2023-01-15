@@ -43,6 +43,7 @@ type MockNetworkingServer struct {
 	fetchAndSetTemporaryDialFn fetchAndSetTemporaryDialDelegate
 	removeTemporaryDialFn      removeTemporaryDialDelegate
 	temporaryDialPeerFn        temporaryDialPeerDelegate
+	hasStaticPeerFn            hasStaticPeerDelegate
 }
 
 func NewMockNetworkingServer() *MockNetworkingServer {
@@ -87,6 +88,7 @@ type getRandomPeerDelegate func() *peer.ID
 type fetchAndSetTemporaryDialDelegate func(peer.ID, bool) bool
 type removeTemporaryDialDelegate func(peer.ID)
 type temporaryDialPeerDelegate func(peerAddrInfo *peer.AddrInfo)
+type hasStaticPeerDelegate func(peer.ID) bool
 
 func (m *MockNetworkingServer) TemporaryDialPeer(peerAddrInfo *peer.AddrInfo) {
 	if m.temporaryDialPeerFn != nil {
@@ -155,7 +157,7 @@ func (m *MockNetworkingServer) IsTemporaryDial(peerID peer.ID) bool {
 		return m.isTemporaryDialFn(peerID)
 	}
 
-	return false
+	return true
 }
 
 func (m *MockNetworkingServer) HookIsTemporaryDial(fn isTemporaryDialDelegate) {
@@ -286,6 +288,18 @@ func (m *MockNetworkingServer) RemoveTemporaryDial(peerID peer.ID) {
 
 func (m *MockNetworkingServer) HookRemoveTemporaryDial(fn removeTemporaryDialDelegate) {
 	m.removeTemporaryDialFn = fn
+}
+
+func (m *MockNetworkingServer) HasStaticPeer(peerID peer.ID) bool {
+	if m.hasStaticPeerFn != nil {
+		return m.hasStaticPeerFn(peerID)
+	}
+
+	return false
+}
+
+func (m *MockNetworkingServer) HookHasStaticPeer(fn hasStaticPeerDelegate) {
+	m.hasStaticPeerFn = fn
 }
 
 // MockIdentityClient mocks an identity client (other peer in the communication)

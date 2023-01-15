@@ -35,15 +35,18 @@ func TestBackup(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
-	connection, err := helper.GetGRPCConnection(
+	conn, err := helper.GetGRPCConnection(
 		svr.GrpcAddr(),
 	)
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	assert.NoError(t, err)
 
 	for _, backupFile := range backupFiles {
 		resFrom, resTo, err := archive.CreateBackup(
-			connection,
+			conn,
 			hclog.NewNullLogger(),
 			0,
 			&toBlock,

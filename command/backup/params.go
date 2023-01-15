@@ -77,16 +77,20 @@ func (p *backupParams) getRequiredFlags() []string {
 }
 
 func (p *backupParams) createBackup(grpcAddress string) error {
-	connection, err := helper.GetGRPCConnection(
+	conn, err := helper.GetGRPCConnection(
 		grpcAddress,
 	)
 	if err != nil {
 		return err
 	}
 
+	defer func() {
+		_ = conn.Close()
+	}()
+
 	// resFrom and resTo represents the range of blocks that can be included in the file
 	resFrom, resTo, err := archive.CreateBackup(
-		connection,
+		conn,
 		hclog.New(&hclog.LoggerOptions{
 			Name:  "backup",
 			Level: hclog.LevelFromString("INFO"),

@@ -85,6 +85,9 @@ type networkingServer interface {
 
 	// HasFreeConnectionSlot checks if there is an available connection slot for the set direction [Thread safe]
 	HasFreeConnectionSlot(direction network.Direction) bool
+
+	// HasStaticPeer checks if the peer is a static node [Thread safe]
+	HasStaticPeer(peerID peer.ID) bool
 }
 
 // DiscoveryService is a service that finds other peers in the network
@@ -404,6 +407,10 @@ func (d *DiscoveryService) bootnodePeerDiscovery() {
 
 			// Mark the subsequent connection as temporary
 			isTemporaryDial = true
+
+			if d.baseServer.HasStaticPeer(bootnode.ID) {
+				isTemporaryDial = false
+			}
 		}
 	}
 

@@ -191,6 +191,11 @@ func (s *DefaultServer) HasFreeConnectionSlot(direction network.Direction) bool 
 	return s.connectionCounts.HasFreeConnectionSlot(direction)
 }
 
+// HasStaticPeer checks if the given peer is a static peer [Thread safe]
+func (s *DefaultServer) HasStaticPeer(peerID peer.ID) bool {
+	return s.staticnodes.isStaticnode(peerID)
+}
+
 // PeerConnInfo holds the connection information about the peer
 type PeerConnInfo struct {
 	Info peer.AddrInfo
