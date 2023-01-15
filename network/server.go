@@ -51,6 +51,7 @@ const (
 	MinimumPeerConnections int64 = 1
 
 	DefaultKeepAliveTimer = 10 * time.Second
+	DefaultDialTimeout    = 30 * time.Second
 )
 
 var (
@@ -519,13 +520,18 @@ func (s *DefaultServer) runDial() {
 			s.logger.Debug(fmt.Sprintf("Dialing peer [%s] as local [%s]", peerInfo.String(), s.host.ID()))
 
 			if !s.IsConnected(peerInfo.ID) {
-				// the connection process is async because it involves connection (here) +
-				// the handshake done in the identity service.
-				if err := s.host.Connect(context.Background(), *peerInfo); err != nil {
-					s.logger.Debug("failed to dial", "addr", peerInfo.String(), "err", err.Error())
+				func() {
+					connectCtx, cancel := context.WithTimeout(ctx, DefaultDialTimeout)
+					defer cancel()
 
-					s.emitEvent(peerInfo.ID, peerEvent.PeerFailedToConnect)
-				}
+					// the connection process is async because it involves connection (here) +
+					// the handshake done in the identity service.
+					if err := s.host.Connect(connectCtx, *peerInfo); err != nil {
+						s.logger.Debug("failed to dial", "addr", peerInfo.String(), "err", err.Error())
+
+						s.emitEvent(peerInfo.ID, peerEvent.PeerFailedToConnect)
+					}
+				}()
 			}
 		}
 
