@@ -497,9 +497,11 @@ func (s *noForkSyncer) bulkSyncWithPeer(
 		// bulk syncing is entirely done as the peer's status can change over time
 		// if block writes have a significant time impact on the node in question
 		progression := s.syncProgression.GetProgression()
-		if progression != nil && progression.HighestBlock > target {
-			target = progression.HighestBlock
-			s.logger.Debug("update syncing target", "target", target)
+		if progression != nil {
+			if highestBlock := progression.GetHighestBlock(); highestBlock > target {
+				target = highestBlock
+				s.logger.Debug("update syncing target", "target", target)
+			}
 		}
 
 		if from > target {

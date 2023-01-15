@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/dogechain-lab/dogechain/blockchain"
+	"go.uber.org/atomic"
 )
 
 type ChainSyncType string
@@ -30,7 +31,14 @@ type Progression struct {
 	CurrentBlock uint64
 
 	// HighestBlock is the target block in the sync batch
-	HighestBlock uint64
+	HighestBlock *atomic.Uint64
+
+	// stopCh is the channel for receiving stop signals
+	// in progression tracking
+	stopCh chan struct{}
+
+	// stop flag
+	stopped *atomic.Bool
 }
 
 type ProgressionWrapper struct {
@@ -38,10 +46,7 @@ type ProgressionWrapper struct {
 	// Nil if no batch sync is currently in progress
 	progression *Progression
 
-	// stopCh is the channel for receiving stop signals
-	// in progression tracking
-	stopCh chan struct{}
-
+	// sync lock
 	lock sync.RWMutex
 
 	syncType ChainSyncType
@@ -63,6 +68,11 @@ func (pw *ProgressionWrapper) StartProgression(
 	pw.lock.Lock()
 	defer pw.lock.Unlock()
 
+	if pw.progression != nil && pw.progression.stopped.CAS(false, true) {
+		close(pw.progression.stopCh)
+		pw.progression = nil
+	}
+
 	// set current block
 	var current uint64
 
@@ -70,23 +80,24 @@ func (pw *ProgressionWrapper) StartProgression(
 		current = startingBlock - 1
 	}
 
-	pw.stopCh = make(chan struct{})
 	pw.progression = &Progression{
 		SyncType:      pw.syncType,
 		SyncingPeer:   syncingPeer,
 		StartingBlock: startingBlock,
 		CurrentBlock:  current,
+		HighestBlock:  atomic.NewUint64(0),
+		stopped:       atomic.NewBool(false),
 	}
 
-	go pw.runUpdateLoop(subscription)
+	go pw.progression.runUpdateLoop(subscription)
 }
 
 // runUpdateLoop starts the blockchain event monitoring loop and
 // updates the currently written block in the batch sync
-func (pw *ProgressionWrapper) runUpdateLoop(subscription blockchain.Subscription) {
+func (p *Progression) runUpdateLoop(subscription blockchain.Subscription) {
 	for {
 		select {
-		case <-pw.stopCh:
+		case <-p.stopCh:
 			return
 		default:
 			if subscription.IsClosed() {
@@ -94,7 +105,7 @@ func (pw *ProgressionWrapper) runUpdateLoop(subscription blockchain.Subscription
 			}
 
 			event := subscription.GetEvent()
-			if event == nil {
+			if event == nil || p.stopped.Load() {
 				continue
 			}
 
@@ -107,9 +118,13 @@ func (pw *ProgressionWrapper) runUpdateLoop(subscription blockchain.Subscription
 			}
 
 			lastBlock := event.NewChain[len(event.NewChain)-1]
-			pw.UpdateCurrentProgression(lastBlock.Number)
+			p.HighestBlock.Store(lastBlock.Number)
 		}
 	}
+}
+
+func (p *Progression) GetHighestBlock() uint64 {
+	return p.HighestBlock.Load()
 }
 
 // StopProgression stops the progression tracking
@@ -117,8 +132,10 @@ func (pw *ProgressionWrapper) StopProgression() {
 	pw.lock.Lock()
 	defer pw.lock.Unlock()
 
-	close(pw.stopCh)
-	pw.progression = nil
+	if pw.progression.stopped.CAS(false, true) {
+		close(pw.progression.stopCh)
+		pw.progression = nil
+	}
 }
 
 // UpdateCurrentProgression sets the currently written block in the bulk sync
@@ -142,7 +159,7 @@ func (pw *ProgressionWrapper) UpdateHighestProgression(highestBlock uint64) {
 		return
 	}
 
-	pw.progression.HighestBlock = highestBlock
+	pw.progression.HighestBlock.Store(highestBlock)
 }
 
 // GetProgression returns the latest sync progression
