@@ -35,12 +35,13 @@ func TestBackup(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	t.Cleanup(cancel)
+
 	conn, err := helper.GetGRPCConnection(
+		ctx,
 		svr.GrpcAddr(),
 	)
-	defer func() {
-		_ = conn.Close()
-	}()
 
 	assert.NoError(t, err)
 

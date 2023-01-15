@@ -49,10 +49,14 @@ func newDiscoveryService(
 		return nil, routingErr
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+
 	return &DiscoveryService{
 		baseServer:   baseServer,
 		logger:       hclog.NewNullLogger(),
 		routingTable: routingTable,
+		ctx:          ctx,
+		ctxCancel:    cancel,
 	}, nil
 }
 
@@ -86,11 +90,7 @@ func TestDiscoveryService_BootnodePeerDiscovery(t *testing.T) {
 	randomPeers := getRandomPeers(t, 3)
 	expectedDisconnectReason := "Thank you"
 
-	isTemporaryDial := false
-	temporaryDials := map[peer.ID]bool{
-		"DummyTemp": true, // has one temporary dial for example
-	}
-	streamClosed := false
+	grpcClientClosed := false
 	disconnectReason := ""
 	peerStore := make([]*peer.AddrInfo, 0)
 
@@ -103,17 +103,9 @@ func TestDiscoveryService_BootnodePeerDiscovery(t *testing.T) {
 				return randomBootnode
 			})
 
-			// Define the temporary dial status hook
-			server.HookFetchAndSetTemporaryDial(func(id peer.ID, b bool) bool {
-				isTemporaryDial = b
-				temporaryDials[id] = b
-
-				return false
-			})
-
-			// Define the temporary dial removal
-			server.HookRemoveTemporaryDial(func(id peer.ID) {
-				delete(temporaryDials, id)
+			// Define IsTemporaryDial hook
+			server.HookIsTemporaryDial(func(peerID peer.ID) bool {
+				return randomBootnode.ID.String() == peerID.String()
 			})
 
 			// Define peer disconnect
@@ -126,11 +118,10 @@ func TestDiscoveryService_BootnodePeerDiscovery(t *testing.T) {
 				return 1 // > 0 to trigger a temporary connection
 			})
 
-			// Define the protocol stream closing hook
-			server.HookCloseProtocolStream(func(s string, id peer.ID) error {
+			server.HookCloseDiscoveryClient(func(id peer.ID) error {
 				if id == randomBootnode.ID {
 					// Make sure the correct temporary stream is closed
-					streamClosed = true
+					grpcClientClosed = true
 				}
 
 				return nil
@@ -170,15 +161,8 @@ func TestDiscoveryService_BootnodePeerDiscovery(t *testing.T) {
 	// Run the discovery service
 	discoveryService.bootnodePeerDiscovery()
 
-	// Make sure the dial was temporary
-	assert.True(t, isTemporaryDial)
-
-	// Make sure the temporary dial is removed from the server,
-	// and the only one left is the initial one
-	assert.Len(t, temporaryDials, 1)
-
 	// Make sure the stream is closed to the bootnode
-	assert.True(t, streamClosed)
+	assert.True(t, grpcClientClosed)
 
 	// Make sure the disconnect reason is matching
 	assert.Equal(t, expectedDisconnectReason, disconnectReason)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	cmap "github.com/dogechain-lab/dogechain/helper/concurrentmap"
 	"github.com/dogechain-lab/dogechain/network/event"
@@ -29,6 +30,9 @@ type networkingServer interface {
 
 	// NewIdentityClient returns an identity gRPC client connection
 	NewIdentityClient(peerID peer.ID) (proto.IdentityClient, error)
+
+	// NewIdentityClient returns an identity gRPC client connection
+	CloseIdentityClient(peerID peer.ID) error
 
 	// PEER MANIPULATION //
 
@@ -165,6 +169,9 @@ func (i *IdentityService) disconnectFromPeer(peerID peer.ID, reason string) {
 
 // handleConnected handles new network connections (handshakes)
 func (i *IdentityService) handleConnected(peerID peer.ID, direction network.Direction) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
 	clt, clientErr := i.baseServer.NewIdentityClient(peerID)
 	if clientErr != nil {
 		return fmt.Errorf(
@@ -173,6 +180,12 @@ func (i *IdentityService) handleConnected(peerID peer.ID, direction network.Dire
 		)
 	}
 
+	defer func() {
+		err := i.baseServer.CloseIdentityClient(peerID)
+
+		i.logger.Error("error closing identity client", "err", err)
+	}()
+
 	// self peer ID
 	selfPeerID := i.hostID.Pretty()
 
@@ -180,7 +193,7 @@ func (i *IdentityService) handleConnected(peerID peer.ID, direction network.Dire
 	status := i.constructStatus(peerID)
 
 	// Initiate the handshake
-	resp, err := clt.Hello(context.Background(), status)
+	resp, err := clt.Hello(ctx, status)
 	if err != nil {
 		return err
 	}
@@ -195,7 +208,7 @@ func (i *IdentityService) handleConnected(peerID peer.ID, direction network.Dire
 	}
 
 	// If this is a NOT temporary connection, save it
-	if !resp.TemporaryDial && !status.TemporaryDial {
+	if !resp.TemporaryDial {
 		i.baseServer.AddPeer(peerID, direction)
 	}
 

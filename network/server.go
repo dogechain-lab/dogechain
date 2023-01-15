@@ -14,7 +14,6 @@ import (
 	noise "github.com/libp2p/go-libp2p-noise"
 	rawGrpc "google.golang.org/grpc"
 
-	cmap "github.com/dogechain-lab/dogechain/helper/concurrentmap"
 	peerEvent "github.com/dogechain-lab/dogechain/network/event"
 	"github.com/dogechain-lab/dogechain/secrets"
 	"github.com/hashicorp/go-hclog"
@@ -87,8 +86,6 @@ type DefaultServer struct {
 	emitterPeerEvent event.Emitter // event emitter for listeners
 
 	connectionCounts *ConnectionInfo
-
-	temporaryDials cmap.ConcurrentMap // map of temporary connections; peerID -> bool
 
 	bootnodes *bootnodesWrapper // reference of all bootnodes for the node
 
@@ -167,7 +164,6 @@ func newServer(logger hclog.Logger, config *Config) (*DefaultServer, error) {
 			config.MaxInboundPeers,
 			config.MaxOutboundPeers,
 		),
-		temporaryDials: cmap.NewConcurrentMap(),
 	}
 
 	// start gossip protocol
@@ -189,11 +185,6 @@ func newServer(logger hclog.Logger, config *Config) (*DefaultServer, error) {
 // HasFreeConnectionSlot checks if there are free connection slots in the specified direction [Thread safe]
 func (s *DefaultServer) HasFreeConnectionSlot(direction network.Direction) bool {
 	return s.connectionCounts.HasFreeConnectionSlot(direction)
-}
-
-// HasStaticPeer checks if the given peer is a static peer [Thread safe]
-func (s *DefaultServer) HasStaticPeer(peerID peer.ID) bool {
-	return s.staticnodes.isStaticnode(peerID)
 }
 
 // PeerConnInfo holds the connection information about the peer
@@ -804,16 +795,12 @@ func (s *DefaultServer) NewProtoConnection(protocol string, peerID peer.ID) (*ra
 		return nil, err
 	}
 
-	return p.Client(stream), nil
+	// TODO: all connection use context background, need to be fixed
+	return p.Client(context.Background(), stream), nil
 }
 
 func (s *DefaultServer) NewStream(proto string, id peer.ID) (network.Stream, error) {
 	return s.host.NewStream(context.Background(), id, protocol.ID(proto))
-}
-
-type Protocol interface {
-	Client(network.Stream) *rawGrpc.ClientConn
-	Handler() func(network.Stream)
 }
 
 func (s *DefaultServer) RegisterProtocol(id string, p Protocol) {

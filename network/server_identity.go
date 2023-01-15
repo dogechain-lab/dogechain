@@ -17,14 +17,26 @@ import (
 
 // NewIdentityClient returns a new identity service client connection
 func (s *DefaultServer) NewIdentityClient(peerID peer.ID) (proto.IdentityClient, error) {
+	// Check if there is an active stream connection already
+	if protoStream := s.GetProtoStream(common.IdentityProto, peerID); protoStream != nil {
+		// Identity protocol connections are temporary and not saved anywhere
+		return proto.NewIdentityClient(protoStream), nil
+	}
+
 	// Create a new stream connection and return it
 	protoStream, err := s.NewProtoConnection(common.IdentityProto, peerID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Identity protocol connections are temporary and not saved anywhere
+	s.SaveProtocolStream(common.IdentityProto, protoStream, peerID)
+
 	return proto.NewIdentityClient(protoStream), nil
+}
+
+// CloseIdentityClient closes an identity service client connection
+func (s *DefaultServer) CloseIdentityClient(peerID peer.ID) error {
+	return s.CloseProtocolStream(common.DiscProto, peerID)
 }
 
 // AddPeer adds a new peer to the networking server's peer list,
@@ -102,9 +114,7 @@ func (s *DefaultServer) EmitEvent(event *peerEvent.PeerEvent) {
 
 // IsTemporaryDial checks if a peer connection is temporary [Thread safe]
 func (s *DefaultServer) IsTemporaryDial(peerID peer.ID) bool {
-	_, ok := s.temporaryDials.Load(peerID)
-
-	return ok
+	return s.bootnodes.isBootnode(peerID)
 }
 
 // setupIdentity sets up the identity service for the node

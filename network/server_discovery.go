@@ -61,13 +61,9 @@ func (s *DefaultServer) GetProtoStream(protocol string, peerID peer.ID) *rawGrpc
 
 // NewDiscoveryClient returns a new or existing discovery service client connection
 func (s *DefaultServer) NewDiscoveryClient(peerID peer.ID) (proto.DiscoveryClient, error) {
-	// Temporary dials are never added to the peer store,
-	// so they have a special status when doing discovery
-	isTemporaryDial := s.IsTemporaryDial(peerID)
-
 	// Check if there is a peer connection at this point in time,
 	// as there might have been a disconnection previously
-	if !s.IsConnected(peerID) && !isTemporaryDial {
+	if !s.IsConnected(peerID) {
 		return nil, fmt.Errorf("could not initialize new discovery client - peer [%s] not connected",
 			peerID.String())
 	}
@@ -83,14 +79,14 @@ func (s *DefaultServer) NewDiscoveryClient(peerID peer.ID) (proto.DiscoveryClien
 		return nil, err
 	}
 
-	// Discovery protocol streams should be saved,
-	// since they are referenced later on,
-	// if they are not temporary dials
-	if !isTemporaryDial {
-		s.SaveProtocolStream(common.DiscProto, protoStream, peerID)
-	}
+	s.SaveProtocolStream(common.DiscProto, protoStream, peerID)
 
 	return proto.NewDiscoveryClient(protoStream), nil
+}
+
+// CloseDiscoveryClient closes the discovery client connection
+func (s *DefaultServer) CloseDiscoveryClient(peerID peer.ID) error {
+	return s.CloseProtocolStream(common.DiscProto, peerID)
 }
 
 // SaveProtocolStream saves the protocol stream to the peer
@@ -181,19 +177,6 @@ func (s *DefaultServer) GetRandomPeer() *peer.ID {
 	return nil
 }
 
-// FetchOrSetTemporaryDial loads the temporary status of a peer connection, and
-// sets a new value [Thread safe]
-func (s *DefaultServer) FetchOrSetTemporaryDial(peerID peer.ID, newValue bool) bool {
-	_, loaded := s.temporaryDials.LoadOrStore(peerID, newValue)
-
-	return loaded
-}
-
-// RemoveTemporaryDial removes a peer connection as temporary [Thread safe]
-func (s *DefaultServer) RemoveTemporaryDial(peerID peer.ID) {
-	s.temporaryDials.Delete(peerID)
-}
-
 // setupDiscovery Sets up the discovery service for the node
 func (s *DefaultServer) setupDiscovery() error {
 	// Set up a fresh routing table
@@ -271,11 +254,6 @@ func (s *DefaultServer) setupDiscovery() error {
 	s.discovery = discoveryService
 
 	return nil
-}
-
-func (s *DefaultServer) TemporaryDialPeer(peerAddrInfo *peer.AddrInfo) {
-	s.logger.Debug("creating new temporary dial to peer", "peer", peerAddrInfo.ID)
-	s.addToDialQueue(peerAddrInfo, common.PriorityRandomDial)
 }
 
 // registerDiscoveryService registers the discovery protocol to be available

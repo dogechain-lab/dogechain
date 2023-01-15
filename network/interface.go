@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/dogechain-lab/dogechain/network/event"
+	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	rawGrpc "google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
@@ -54,6 +55,11 @@ type Network interface {
 	SaveProtocolStream(protocol string, stream *rawGrpc.ClientConn, peerID peer.ID)
 	// CloseProtocolStream closes stream
 	CloseProtocolStream(protocol string, peerID peer.ID) error
+}
+
+type Protocol interface {
+	Client(context.Context, network.Stream) *rawGrpc.ClientConn
+	Handler() func(network.Stream)
 }
 
 type Server interface {
