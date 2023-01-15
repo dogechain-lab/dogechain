@@ -37,6 +37,8 @@ func newTestNetwork(t *testing.T) network.Server {
 }
 
 func newTestSyncPeerClient(network network.Network, blockchain Blockchain) *syncPeerClient {
+	ctx, cancel := context.WithCancel(context.Background())
+
 	client := &syncPeerClient{
 		logger:                 hclog.NewNullLogger(),
 		network:                network,
@@ -45,6 +47,8 @@ func newTestSyncPeerClient(network network.Network, blockchain Blockchain) *sync
 		peerStatusUpdateCh:     make(chan *NoForkPeer, 1),
 		peerConnectionUpdateCh: make(chan *event.PeerEvent, 1),
 		isClosed:               atomic.NewBool(false),
+		ctx:                    ctx,
+		cancel:                 cancel,
 	}
 
 	// need to register protocol
@@ -73,6 +77,10 @@ func TestGetPeerStatus(t *testing.T) {
 
 	clientSrv := newTestNetwork(t)
 	client := newTestSyncPeerClient(clientSrv, nil)
+
+	t.Cleanup(func() {
+		client.Close()
+	})
 
 	peerLatest := uint64(10)
 	_, peerSrv := createTestSyncerService(t, &mockBlockchain{
@@ -105,6 +113,10 @@ func TestGetConnectedPeerStatuses(t *testing.T) {
 
 	clientSrv := newTestNetwork(t)
 	client := newTestSyncPeerClient(clientSrv, nil)
+
+	t.Cleanup(func() {
+		client.Close()
+	})
 
 	var (
 		peerLatests = []uint64{
@@ -169,6 +181,10 @@ func TestStatusPubSub(t *testing.T) {
 
 	clientSrv := newTestNetwork(t)
 	client := newTestSyncPeerClient(clientSrv, nil)
+
+	t.Cleanup(func() {
+		client.Close()
+	})
 
 	_, peerSrv := createTestSyncerService(t, &mockBlockchain{})
 	peerID := peerSrv.AddrInfo().ID
@@ -269,6 +285,8 @@ func TestPeerConnectionUpdateEventCh(t *testing.T) {
 		peerSrv3.Close()
 
 		// no need to call Close of Client because test closes it manually
+
+		client.Close()
 		peerClient1.Close()
 		peerClient2.Close()
 	})
@@ -481,6 +499,10 @@ func Test_syncPeerClient_GetBlocks(t *testing.T) {
 
 	clientSrv := newTestNetwork(t)
 	client := newTestSyncPeerClient(clientSrv, nil)
+
+	t.Cleanup(func() {
+		client.Close()
+	})
 
 	var (
 		peerLatest = uint64(10)

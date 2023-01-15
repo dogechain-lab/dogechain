@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dogechain-lab/dogechain/blockchain"
 	"github.com/dogechain-lab/dogechain/network"
 	"github.com/dogechain-lab/dogechain/network/event"
 	"github.com/dogechain-lab/dogechain/protocol/proto"
@@ -30,15 +29,17 @@ type syncPeerClient struct {
 	connLock   sync.Mutex      // mutext for getting client connection
 	blockchain Blockchain      // reference to the blockchain module
 
-	subscription blockchain.Subscription // reference to the blockchain subscription
-	topic        network.Topic           // reference to the network topic
-
+	topic                  network.Topic         // reference to the network topic
 	selfID                 string                // self node id
 	peerStatusUpdateCh     chan *NoForkPeer      // peer status update channel
 	peerConnectionUpdateCh chan *event.PeerEvent // peer connection update channel
 
 	shouldEmitBlocks bool // flag for emitting blocks in the topic
-	isClosed         *atomic.Bool
+
+	isClosed *atomic.Bool
+
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 func NewSyncPeerClient(
@@ -46,15 +47,19 @@ func NewSyncPeerClient(
 	network network.Network,
 	blockchain Blockchain,
 ) SyncPeerClient {
+	ctx, cancel := context.WithCancel(context.Background())
+
 	return &syncPeerClient{
 		logger:                 logger.Named(SyncPeerClientLoggerName),
 		network:                network,
 		blockchain:             blockchain,
 		selfID:                 network.AddrInfo().ID.String(),
-		peerStatusUpdateCh:     make(chan *NoForkPeer, 1),
-		peerConnectionUpdateCh: make(chan *event.PeerEvent, 1),
+		peerStatusUpdateCh:     make(chan *NoForkPeer, 32),
+		peerConnectionUpdateCh: make(chan *event.PeerEvent, 32),
 		shouldEmitBlocks:       true,
 		isClosed:               atomic.NewBool(false),
+		ctx:                    ctx,
+		cancel:                 cancel,
 	}
 }
 
@@ -76,13 +81,12 @@ func (client *syncPeerClient) Close() {
 		return
 	}
 
+	client.cancel()
+
 	if client.topic != nil {
 		// close topic when needed
 		client.topic.Close()
 	}
-
-	close(client.peerStatusUpdateCh)
-	close(client.peerConnectionUpdateCh)
 }
 
 // DisablePublishingPeerStatus disables publishing own status via gossip
@@ -210,11 +214,15 @@ func (client *syncPeerClient) handleStatusUpdate(obj interface{}, from peer.ID) 
 
 	client.logger.Debug("send peerStatusUpdateCh")
 
-	select {
-	case client.peerStatusUpdateCh <- &NoForkPeer{
+	peer := &NoForkPeer{
 		ID:     from,
 		Number: status.Number,
-	}:
+	}
+
+	select {
+	case <-client.ctx.Done():
+		return
+	case client.peerStatusUpdateCh <- peer:
 	default:
 	}
 }
@@ -222,7 +230,7 @@ func (client *syncPeerClient) handleStatusUpdate(obj interface{}, from peer.ID) 
 // startNewBlockProcess starts blockchain event subscription
 func (client *syncPeerClient) startNewBlockProcess() {
 	subscription := client.blockchain.SubscribeEvents()
-	client.subscription = subscription
+	defer subscription.Unsubscribe()
 
 	for {
 		if client.isClosed.Load() || subscription.IsClosed() {
@@ -255,22 +263,28 @@ func (client *syncPeerClient) startNewBlockProcess() {
 
 // startPeerEventProcess starts subscribing peer connection change events and process them
 func (client *syncPeerClient) startPeerEventProcess() {
-	peerEventCh, err := client.network.SubscribeCh(context.Background())
+	peerEventCh, err := client.network.SubscribeCh(client.ctx)
 	if err != nil {
 		client.logger.Error("failed to subscribe", "err", err)
 
 		return
 	}
 
+	defer close(client.peerConnectionUpdateCh)
+
 	for e := range peerEventCh {
+		if client.isClosed.Load() {
+			client.logger.Debug("client is closed, ignore peer connection update", "peer", e.PeerID, "type", e.Type)
+
+			return
+		}
+
 		if e.Type == event.PeerConnected || e.Type == event.PeerDisconnected {
-			if client.isClosed.Load() {
-				client.logger.Debug("client is closed, ignore peer connection update", "peer", e.PeerID, "type", e.Type)
-
+			select {
+			case <-client.ctx.Done():
 				return
+			case client.peerConnectionUpdateCh <- e:
 			}
-
-			client.peerConnectionUpdateCh <- e
 		}
 	}
 }

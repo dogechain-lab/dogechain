@@ -161,6 +161,7 @@ func (s *noForkSyncer) runUpdateCurrentStatus() {
 		Difficulty: diff,
 	}
 
+	// new block event subscription
 	sub := s.blockchain.SubscribeEvents()
 
 	updateStatusCh := make(chan *Status, 1)
@@ -491,6 +492,15 @@ func (s *noForkSyncer) bulkSyncWithPeer(
 
 		// update range
 		from = result.LastReceivedNumber + 1
+
+		// Update the target. This entire outer loop is there in order to make sure
+		// bulk syncing is entirely done as the peer's status can change over time
+		// if block writes have a significant time impact on the node in question
+		progression := s.syncProgression.GetProgression()
+		if progression != nil && progression.HighestBlock > target {
+			target = progression.HighestBlock
+			s.logger.Debug("update syncing target", "target", target)
+		}
 
 		if from > target {
 			s.logger.Info("sync target reached", "target", target)

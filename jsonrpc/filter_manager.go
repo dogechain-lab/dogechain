@@ -248,7 +248,6 @@ type FilterManager struct {
 	timeout time.Duration
 
 	store           filterManagerStore
-	subscription    blockchain.Subscription
 	blockStream     *blockStream
 	blockRangeLimit uint64
 
@@ -276,24 +275,25 @@ func NewFilterManager(logger hclog.Logger, store filterManagerStore, blockRangeL
 	header := store.Header()
 	m.blockStream.push(header)
 
-	// start the head watcher
-	m.subscription = store.SubscribeEvents()
-
 	return m
 }
 
 // Run starts worker process to handle events
 func (f *FilterManager) Run() {
+	// subscribe for new blockchain events
+	sub := f.store.SubscribeEvents()
+	defer sub.Unsubscribe()
+
 	// watch for new events in the blockchain
 	watchCh := make(chan *blockchain.Event)
 
 	go func() {
 		for {
-			if f.subscription.IsClosed() {
+			if sub.IsClosed() {
 				return
 			}
 
-			evnt := f.subscription.GetEvent()
+			evnt := sub.GetEvent()
 			if evnt == nil {
 				continue
 			}

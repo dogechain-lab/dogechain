@@ -46,6 +46,7 @@ func (s *systemService) GetStatus(ctx context.Context, req *empty.Empty) (*proto
 // Subscribe implements the blockchain event subscription service
 func (s *systemService) Subscribe(req *empty.Empty, stream proto.System_SubscribeServer) error {
 	sub := s.server.blockchain.SubscribeEvents()
+	defer sub.Unsubscribe()
 
 	for {
 		if sub.IsClosed() {

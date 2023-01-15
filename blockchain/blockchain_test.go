@@ -459,6 +459,9 @@ func TestInsertHeaders(t *testing.T) {
 
 			// we need to subscribe just after the genesis and history
 			sub := b.SubscribeEvents()
+			t.Cleanup(func() {
+				sub.Unsubscribe()
+			})
 
 			// run the history
 			for i := 1; i < len(cc.History); i++ {

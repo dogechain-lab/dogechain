@@ -497,6 +497,8 @@ func (i *Ibft) startConsensus() {
 		syncerBlockCh = make(chan struct{})
 	)
 
+	defer newBlockSub.Unsubscribe()
+
 	// Receive a notification every time syncer manages
 	// to insert a valid block. Used for cancelling active consensus
 	// rounds for a specific height
