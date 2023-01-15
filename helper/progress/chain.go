@@ -86,6 +86,7 @@ func (pw *ProgressionWrapper) StartProgression(
 		StartingBlock: startingBlock,
 		CurrentBlock:  current,
 		HighestBlock:  atomic.NewUint64(0),
+		stopCh:        make(chan struct{}),
 		stopped:       atomic.NewBool(false),
 	}
 
