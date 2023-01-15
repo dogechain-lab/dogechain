@@ -1,6 +1,7 @@
 package backup
 
 import (
+	"context"
 	"errors"
 
 	"github.com/dogechain-lab/dogechain/archive"
@@ -77,16 +78,16 @@ func (p *backupParams) getRequiredFlags() []string {
 }
 
 func (p *backupParams) createBackup(grpcAddress string) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	conn, err := helper.GetGRPCConnection(
+		ctx,
 		grpcAddress,
 	)
 	if err != nil {
 		return err
 	}
-
-	defer func() {
-		_ = conn.Close()
-	}()
 
 	// resFrom and resTo represents the range of blocks that can be included in the file
 	resFrom, resTo, err := archive.CreateBackup(

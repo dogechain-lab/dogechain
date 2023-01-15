@@ -2,6 +2,7 @@ package ddoslist
 
 import (
 	"context"
+	"time"
 
 	"github.com/dogechain-lab/dogechain/command"
 	"github.com/dogechain-lab/dogechain/command/helper"
@@ -21,7 +22,10 @@ type inoutParam struct {
 }
 
 func (p *inoutParam) initSystemClient(grpcAddress string) error {
-	systemClient, err := helper.GetSystemClientConnection(grpcAddress)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	systemClient, err := helper.GetSystemClientConnection(ctx, grpcAddress)
 	if err != nil {
 		return err
 	}

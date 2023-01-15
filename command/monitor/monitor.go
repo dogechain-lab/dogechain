@@ -62,7 +62,7 @@ func getMonitorStream(
 	ctx context.Context,
 	grpcAddress string,
 ) (proto.System_SubscribeClient, error) {
-	client, err := helper.GetSystemClientConnection(grpcAddress)
+	client, err := helper.GetSystemClientConnection(ctx, grpcAddress)
 	if err != nil {
 		return nil, err
 	}

@@ -3,6 +3,7 @@ package propose
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/dogechain-lab/dogechain/command"
 	"github.com/dogechain-lab/dogechain/command/helper"
@@ -65,7 +66,10 @@ func isValidVoteType(vote string) bool {
 }
 
 func (p *proposeParams) proposeCandidate(grpcAddress string) error {
-	ibftClient, err := helper.GetIBFTOperatorClientConnection(grpcAddress)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	ibftClient, err := helper.GetIBFTOperatorClientConnection(ctx, grpcAddress)
 	if err != nil {
 		return err
 	}

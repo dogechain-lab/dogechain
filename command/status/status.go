@@ -2,6 +2,7 @@ package status
 
 import (
 	"context"
+	"time"
 
 	"github.com/dogechain-lab/dogechain/command"
 	"github.com/golang/protobuf/ptypes/empty"
@@ -44,7 +45,11 @@ func runCommand(cmd *cobra.Command, _ []string) {
 }
 
 func getSystemStatus(grpcAddress string) (*proto.ServerStatus, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
 	client, err := helper.GetSystemClientConnection(
+		ctx,
 		grpcAddress,
 	)
 	if err != nil {

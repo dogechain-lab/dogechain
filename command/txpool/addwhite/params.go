@@ -3,6 +3,7 @@ package addwhite
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/dogechain-lab/dogechain/command"
 	"github.com/dogechain-lab/dogechain/command/helper"
@@ -45,7 +46,10 @@ func (p *inoutParam) validateFlags() error {
 }
 
 func (p *inoutParam) initSystemClient(grpcAddress string) error {
-	systemClient, err := helper.GetSystemClientConnection(grpcAddress)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	systemClient, err := helper.GetSystemClientConnection(ctx, grpcAddress)
 	if err != nil {
 		return err
 	}

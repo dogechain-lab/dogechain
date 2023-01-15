@@ -3,6 +3,7 @@ package add
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/dogechain-lab/dogechain/command"
 	"github.com/dogechain-lab/dogechain/command/helper"
@@ -50,7 +51,10 @@ func (p *addParams) validateFlags() error {
 }
 
 func (p *addParams) initSystemClient(grpcAddress string) error {
-	systemClient, err := helper.GetSystemClientConnection(grpcAddress)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	systemClient, err := helper.GetSystemClientConnection(ctx, grpcAddress)
 	if err != nil {
 		return err
 	}

@@ -2,6 +2,7 @@ package status
 
 import (
 	"context"
+	"time"
 
 	"github.com/dogechain-lab/dogechain/command"
 	"github.com/dogechain-lab/dogechain/command/helper"
@@ -35,7 +36,11 @@ func runCommand(cmd *cobra.Command, _ []string) {
 }
 
 func getIBFTStatus(grpcAddress string) (*ibftOp.IbftStatusResp, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
 	client, err := helper.GetIBFTOperatorClientConnection(
+		ctx,
 		grpcAddress,
 	)
 	if err != nil {
