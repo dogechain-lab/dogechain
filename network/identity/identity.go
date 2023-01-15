@@ -31,9 +31,6 @@ type networkingServer interface {
 	// NewIdentityClient returns an identity gRPC client connection
 	NewIdentityClient(peerID peer.ID) (proto.IdentityClient, error)
 
-	// NewIdentityClient returns an identity gRPC client connection
-	CloseIdentityClient(peerID peer.ID) error
-
 	// PEER MANIPULATION //
 
 	// DisconnectFromPeer attempts to disconnect from the specified peer
@@ -169,7 +166,7 @@ func (i *IdentityService) disconnectFromPeer(peerID peer.ID, reason string) {
 
 // handleConnected handles new network connections (handshakes)
 func (i *IdentityService) handleConnected(peerID peer.ID, direction network.Direction) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 
 	clt, clientErr := i.baseServer.NewIdentityClient(peerID)
@@ -179,12 +176,6 @@ func (i *IdentityService) handleConnected(peerID peer.ID, direction network.Dire
 			clientErr,
 		)
 	}
-
-	defer func() {
-		err := i.baseServer.CloseIdentityClient(peerID)
-
-		i.logger.Error("error closing identity client", "err", err)
-	}()
 
 	// self peer ID
 	selfPeerID := i.hostID.Pretty()

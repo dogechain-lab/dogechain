@@ -200,20 +200,19 @@ func (pci *PeerConnInfo) addProtocolStream(protocol string, stream *rawGrpc.Clie
 	pci.protocolStreams[protocol] = stream
 }
 
-// removeProtocolStream removes and closes a protocol stream
-func (pci *PeerConnInfo) removeProtocolStream(protocol string) error {
-	stream, ok := pci.protocolStreams[protocol]
-	if !ok {
-		return nil
+// cleanProtocolStreams clean and closes all protocol stream
+func (pci *PeerConnInfo) cleanProtocolStreams() []error {
+	errs := []error{}
+
+	for _, stream := range pci.protocolStreams {
+		if stream != nil {
+			errs = append(errs, stream.Close())
+		}
 	}
 
-	delete(pci.protocolStreams, protocol)
+	pci.protocolStreams = make(map[string]*rawGrpc.ClientConn)
 
-	if stream != nil {
-		return stream.Close()
-	}
-
-	return nil
+	return errs
 }
 
 // getProtocolStream fetches the protocol stream, if any
@@ -595,6 +594,10 @@ func (s *DefaultServer) removePeer(peerID peer.ID) {
 		// The peer wasn't present in the local peers info table
 		// so no action should be taken further
 		return
+	}
+
+	if errs := connectionInfo.cleanProtocolStreams(); len(errs) > 0 {
+		s.logger.Error("clean peer all protocol streams", "errs", errs)
 	}
 
 	// Emit the event alerting listeners

@@ -606,8 +606,6 @@ func (s *noForkSyncer) removeFromPeerMap(peerID peer.ID) {
 	s.logger.Info("remove from peer map", "id", peerID)
 
 	s.peerMap.Remove(peerID)
-	// remove its stream
-	s.syncPeerClient.CloseStream(peerID)
 }
 
 // notifyNewStatusEvent emits signal to newStatusCh

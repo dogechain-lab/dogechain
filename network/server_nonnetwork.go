@@ -80,10 +80,6 @@ func (s *NonetworkServer) NewProtoConnection(protocol string, peerID peer.ID) (*
 func (s *NonetworkServer) SaveProtocolStream(protocol string, stream *rawGrpc.ClientConn, peerID peer.ID) {
 }
 
-func (s *NonetworkServer) CloseProtocolStream(protocol string, peerID peer.ID) error {
-	return nil
-}
-
 func (s *NonetworkServer) ForgetPeer(peer peer.ID, reason string) {}
 
 func (s *NonetworkServer) Start() error {

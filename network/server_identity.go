@@ -34,11 +34,6 @@ func (s *DefaultServer) NewIdentityClient(peerID peer.ID) (proto.IdentityClient,
 	return proto.NewIdentityClient(protoStream), nil
 }
 
-// CloseIdentityClient closes an identity service client connection
-func (s *DefaultServer) CloseIdentityClient(peerID peer.ID) error {
-	return s.CloseProtocolStream(common.DiscProto, peerID)
-}
-
 // AddPeer adds a new peer to the networking server's peer list,
 // and updates relevant counters and metrics
 func (s *DefaultServer) AddPeer(id peer.ID, direction network.Direction) {

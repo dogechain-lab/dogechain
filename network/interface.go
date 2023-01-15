@@ -53,8 +53,6 @@ type Network interface {
 	NewProtoConnection(protocol string, peerID peer.ID) (*rawGrpc.ClientConn, error)
 	// SaveProtocolStream saves stream
 	SaveProtocolStream(protocol string, stream *rawGrpc.ClientConn, peerID peer.ID)
-	// CloseProtocolStream closes stream
-	CloseProtocolStream(protocol string, peerID peer.ID) error
 }
 
 type Protocol interface {

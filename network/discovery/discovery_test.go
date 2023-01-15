@@ -110,21 +110,17 @@ func TestDiscoveryService_BootnodePeerDiscovery(t *testing.T) {
 
 			// Define peer disconnect
 			server.HookDisconnectFromPeer(func(id peer.ID, s string) {
+				if id == randomBootnode.ID {
+					// Make sure the correct temporary stream is closed
+					grpcClientClosed = true
+				}
+
 				disconnectReason = s
 			})
 
 			// Define the bootnode conn count hook
 			server.HookGetBootnodeConnCount(func() int64 {
 				return 1 // > 0 to trigger a temporary connection
-			})
-
-			server.HookCloseDiscoveryClient(func(id peer.ID) error {
-				if id == randomBootnode.ID {
-					// Make sure the correct temporary stream is closed
-					grpcClientClosed = true
-				}
-
-				return nil
 			})
 
 			// Define the discovery client find peers hook

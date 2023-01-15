@@ -139,7 +139,9 @@ func WrapClient(ctx context.Context, s network.Stream) *grpc.ClientConn {
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultCallOptions(
 			grpc.MaxCallRecvMsgSize(common.MaxGrpcMsgSize),
-			grpc.MaxCallSendMsgSize(common.MaxGrpcMsgSize)),
+			grpc.MaxCallSendMsgSize(common.MaxGrpcMsgSize),
+		),
+		grpc.WithBlock(),
 		opts)
 
 	if err != nil {

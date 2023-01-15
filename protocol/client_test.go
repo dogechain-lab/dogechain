@@ -585,7 +585,6 @@ func Test_newSyncPeerClient_forgetNonProtocolPeer(t *testing.T) {
 	srvID := peerSrv.AddrInfo().ID
 
 	t.Cleanup(func() {
-		client.CloseStream(srvID)
 		client.Close()
 		peerSrv.Close()
 	})

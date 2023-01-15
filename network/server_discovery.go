@@ -84,11 +84,6 @@ func (s *DefaultServer) NewDiscoveryClient(peerID peer.ID) (proto.DiscoveryClien
 	return proto.NewDiscoveryClient(protoStream), nil
 }
 
-// CloseDiscoveryClient closes the discovery client connection
-func (s *DefaultServer) CloseDiscoveryClient(peerID peer.ID) error {
-	return s.CloseProtocolStream(common.DiscProto, peerID)
-}
-
 // SaveProtocolStream saves the protocol stream to the peer
 // protocol stream reference [Thread safe]
 func (s *DefaultServer) SaveProtocolStream(
@@ -113,19 +108,6 @@ func (s *DefaultServer) SaveProtocolStream(
 	}
 
 	connectionInfo.addProtocolStream(protocol, stream)
-}
-
-// CloseProtocolStream closes a protocol stream to the specified peer
-func (s *DefaultServer) CloseProtocolStream(protocol string, peerID peer.ID) error {
-	s.peersLock.Lock()
-	defer s.peersLock.Unlock()
-
-	connectionInfo, ok := s.peers[peerID]
-	if !ok {
-		return nil
-	}
-
-	return connectionInfo.removeProtocolStream(protocol)
 }
 
 // AddToPeerStore adds peer information to the node's peer store

@@ -289,11 +289,6 @@ func (client *syncPeerClient) startPeerEventProcess() {
 	}
 }
 
-// CloseStream closes stream
-func (client *syncPeerClient) CloseStream(peerID peer.ID) error {
-	return client.network.CloseProtocolStream(_syncerV1, peerID)
-}
-
 // GetBlocks returns a stream of blocks from given height to peer's latest
 func (client *syncPeerClient) GetBlocks(
 	ctx context.Context,

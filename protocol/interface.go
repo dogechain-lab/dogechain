@@ -86,8 +86,6 @@ type SyncPeerClient interface {
 	GetPeerStatusUpdateCh() <-chan *NoForkPeer
 	// GetPeerConnectionUpdateEventCh returns peer's connection change event
 	GetPeerConnectionUpdateEventCh() <-chan *event.PeerEvent
-	// CloseStream close a stream
-	CloseStream(peerID peer.ID) error
 	// DisablePublishingPeerStatus disables publishing status in syncer topic
 	DisablePublishingPeerStatus()
 	// EnablePublishingPeerStatus enables publishing status in syncer topic

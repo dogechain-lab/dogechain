@@ -24,7 +24,6 @@ type MockNetworkingServer struct {
 	// Hooks that the test can set //
 	// Identity Hooks
 	newIdentityClientFn      newIdentityClientDelegate
-	closeIdentityClientFn    closeIdentityClientDelegate
 	disconnectFromPeerFn     disconnectFromPeerDelegate
 	addPeerFn                addPeerDelegate
 	updatePendingConnCountFn updatePendingConnCountDelegate
@@ -34,10 +33,8 @@ type MockNetworkingServer struct {
 
 	// Discovery Hooks
 	newDiscoveryClientFn   newDiscoveryClientDelegate
-	closeDiscoveryClientFn closeDiscoveryClientDelegate
 	getRandomBootnodeFn    getRandomBootnodeDelegate
 	getBootnodeConnCountFn getBootnodeConnCountDelegate
-	closeProtocolStreamFn  closeProtocolStreamDelegate
 	addToPeerStoreFn       addToPeerStoreDelegate
 	removeFromPeerStoreFn  removeFromPeerStoreDelegate
 	getPeerInfoFn          getPeerInfoDelegate
@@ -68,7 +65,6 @@ func (m *MockNetworkingServer) GetMockPeerMetrics() *MockPeerMetrics {
 // Define the mock hooks //
 // Required for Identity
 type newIdentityClientDelegate func(peer.ID) (proto.IdentityClient, error)
-type closeIdentityClientDelegate func(peer.ID) error
 type disconnectFromPeerDelegate func(peer.ID, string)
 type addPeerDelegate func(peer.ID, network.Direction)
 type updatePendingConnCountDelegate func(int64, network.Direction)
@@ -80,8 +76,6 @@ type hasFreeConnectionSlotDelegate func(network.Direction) bool
 type getRandomBootnodeDelegate func() *peer.AddrInfo
 type getBootnodeConnCountDelegate func() int64
 type newDiscoveryClientDelegate func(peer.ID) (proto.DiscoveryClient, error)
-type closeDiscoveryClientDelegate func(peer.ID) error
-type closeProtocolStreamDelegate func(string, peer.ID) error
 type addToPeerStoreDelegate func(*peer.AddrInfo)
 type removeFromPeerStoreDelegate func(peerInfo *peer.AddrInfo)
 type getPeerInfoDelegate func(peer.ID) *peer.AddrInfo
@@ -108,18 +102,6 @@ func (m *MockNetworkingServer) NewIdentityClient(peerID peer.ID) (proto.Identity
 
 func (m *MockNetworkingServer) HookNewIdentityClient(fn newIdentityClientDelegate) {
 	m.newIdentityClientFn = fn
-}
-
-func (m *MockNetworkingServer) CloseIdentityClient(peerID peer.ID) error {
-	if m.closeIdentityClientFn != nil {
-		return m.closeIdentityClientFn(peerID)
-	}
-
-	return nil
-}
-
-func (m *MockNetworkingServer) HookCloseIdentityClient(fn closeIdentityClientDelegate) {
-	m.closeIdentityClientFn = fn
 }
 
 func (m *MockNetworkingServer) DisconnectFromPeer(peerID peer.ID, reason string) {
@@ -220,30 +202,6 @@ func (m *MockNetworkingServer) NewDiscoveryClient(peerID peer.ID) (proto.Discove
 
 func (m *MockNetworkingServer) HookNewDiscoveryClient(fn newDiscoveryClientDelegate) {
 	m.newDiscoveryClientFn = fn
-}
-
-func (m *MockNetworkingServer) CloseDiscoveryClient(peerID peer.ID) error {
-	if m.closeDiscoveryClientFn != nil {
-		m.closeDiscoveryClientFn(peerID)
-	}
-
-	return nil
-}
-
-func (m *MockNetworkingServer) HookCloseDiscoveryClient(fn closeDiscoveryClientDelegate) {
-	m.closeDiscoveryClientFn = fn
-}
-
-func (m *MockNetworkingServer) CloseProtocolStream(protocol string, peerID peer.ID) error {
-	if m.closeProtocolStreamFn != nil {
-		return m.closeProtocolStreamFn(protocol, peerID)
-	}
-
-	return nil
-}
-
-func (m *MockNetworkingServer) HookCloseProtocolStream(fn closeProtocolStreamDelegate) {
-	m.closeProtocolStreamFn = fn
 }
 
 func (m *MockNetworkingServer) AddToPeerStore(peerInfo *peer.AddrInfo) {

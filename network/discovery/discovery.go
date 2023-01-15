@@ -51,9 +51,6 @@ type networkingServer interface {
 	// NewDiscoveryClient returns a discovery gRPC client connection
 	NewDiscoveryClient(peerID peer.ID) (proto.DiscoveryClient, error)
 
-	// CloseDiscoveryClient closes a discovery gRPC client connection
-	CloseDiscoveryClient(peerID peer.ID) error
-
 	// PEER MANIPULATION //
 
 	// DisconnectFromPeer attempts to disconnect from the specified peer
@@ -300,10 +297,6 @@ func (d *DiscoveryService) findPeersCall(
 		}
 	}
 
-	if d.baseServer.IsTemporaryDial(peerID) {
-		d.baseServer.CloseDiscoveryClient(peerID)
-	}
-
 	return filterNode, nil
 }
 
@@ -359,6 +352,14 @@ func (d *DiscoveryService) regularPeerDiscovery() {
 			err,
 		)
 	}
+
+	isTemporaryDial := d.baseServer.IsTemporaryDial(*peerID)
+
+	defer func() {
+		if isTemporaryDial {
+			d.baseServer.DisconnectFromPeer(*peerID, "Thank you")
+		}
+	}()
 }
 
 // bootnodePeerDiscovery queries a random (unconnected) bootnode for new peers
