@@ -71,10 +71,6 @@ func TestBackup(t *testing.T) {
 
 	blockHash := block.Hash
 
-	for _, svr := range svrs {
-		svr.Stop()
-	}
-
 	for _, backupFile := range backupFiles {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		t.Cleanup(cancel)
@@ -90,6 +86,10 @@ func TestBackup(t *testing.T) {
 		err := restoreSvr.Start(ctx)
 		assert.NoError(t, err)
 
+		t.Cleanup(func() {
+			restoreSvr.Stop()
+		})
+
 		_, err = framework.WaitUntilBlockMined(ctx, restoreSvr, toBlock)
 		assert.NoError(t, err)
 
@@ -99,7 +99,5 @@ func TestBackup(t *testing.T) {
 		restoreHash := block.Hash
 
 		assert.Equal(t, blockHash, restoreHash)
-
-		restoreSvr.Stop()
 	}
 }

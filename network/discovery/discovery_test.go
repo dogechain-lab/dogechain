@@ -162,6 +162,10 @@ func TestDiscoveryService_BootnodePeerDiscovery(t *testing.T) {
 		t.Fatalf("Unable to setup the discovery service")
 	}
 
+	t.Cleanup(func() {
+		discoveryService.Close()
+	})
+
 	// Run the discovery service
 	discoveryService.bootnodePeerDiscovery()
 
@@ -240,6 +244,10 @@ func TestDiscoveryService_AddToTable(t *testing.T) {
 				t.Fatalf("Unable to setup the discovery service")
 			}
 
+			t.Cleanup(func() {
+				discoveryService.Close()
+			})
+
 			// Run the main method
 			additionErr := discoveryService.addToTable(randomPeer)
 
@@ -284,6 +292,10 @@ func TestDiscoveryService_RegularPeerDiscoveryUnconnected(t *testing.T) {
 	if setupErr != nil {
 		t.Fatalf("Unable to setup the discovery service")
 	}
+
+	t.Cleanup(func() {
+		discoveryService.Close()
+	})
 
 	// Run the regular peer discovery method
 	discoveryService.regularPeerDiscovery()
@@ -362,6 +374,10 @@ func TestDiscoveryService_IgnorePeer(t *testing.T) {
 	if setupErr != nil {
 		t.Fatalf("Unable to setup the discovery service")
 	}
+
+	t.Cleanup(func() {
+		discoveryService.Close()
+	})
 
 	// add ignore cidr
 	_, network, _ := net.ParseCIDR("192.168.1.0/24")

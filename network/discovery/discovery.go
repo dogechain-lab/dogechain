@@ -368,6 +368,7 @@ func (d *DiscoveryService) bootnodePeerDiscovery() {
 		// No need to attempt bootnode dialing, since no
 		// open outbound slots are left
 		d.logger.Warn("no free connection slot, bootnode discovery failed")
+
 		return
 	}
 

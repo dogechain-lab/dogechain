@@ -89,6 +89,7 @@ func TestReverify(t *testing.T) {
 
 	err = resvr.Start(ctx)
 	assert.NoError(t, err)
+
 	t.Cleanup(func() {
 		resvr.Stop()
 	})

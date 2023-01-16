@@ -48,9 +48,8 @@ func execCommand(workdir, name string, args ...string) *exec.Cmd {
 }
 
 func processKill(cmd *exec.Cmd) error {
-	// kill the whole process group
-	err := syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-	if errors.Is(syscall.ESRCH, err) {
+	err := cmd.Process.Kill()
+	if errors.Is(os.ErrProcessDone, err) {
 		return nil
 	}
 
