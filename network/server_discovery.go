@@ -84,32 +84,6 @@ func (s *DefaultServer) NewDiscoveryClient(peerID peer.ID) (proto.DiscoveryClien
 	return proto.NewDiscoveryClient(protoStream), nil
 }
 
-// SaveProtocolStream saves the protocol stream to the peer
-// protocol stream reference [Thread safe]
-func (s *DefaultServer) SaveProtocolStream(
-	protocol string,
-	stream *rawGrpc.ClientConn,
-	peerID peer.ID,
-) {
-	s.peersLock.Lock()
-	defer s.peersLock.Unlock()
-
-	connectionInfo, ok := s.peers[peerID]
-	if !ok {
-		s.logger.Warn(
-			fmt.Sprintf(
-				"Attempted to save protocol %s stream for non-existing peer %s",
-				protocol,
-				peerID,
-			),
-		)
-
-		return
-	}
-
-	connectionInfo.addProtocolStream(protocol, stream)
-}
-
 // AddToPeerStore adds peer information to the node's peer store
 func (s *DefaultServer) AddToPeerStore(peerInfo *peer.AddrInfo) {
 	s.host.Peerstore().AddAddr(peerInfo.ID, peerInfo.Addrs[0], peerstore.AddressTTL)

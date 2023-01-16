@@ -98,6 +98,14 @@ func TestDiscoveryService_BootnodePeerDiscovery(t *testing.T) {
 	discoveryService, setupErr := newDiscoveryService(
 		// Set the relevant hook responses from the mock server
 		func(server *networkTesting.MockNetworkingServer) {
+			server.HookIsConnected(func(peerID peer.ID) bool {
+				return true
+			})
+
+			server.HookPeerCount(func() int64 {
+				return 0
+			})
+
 			// Define the random bootnode hook
 			server.HookGetRandomBootnode(func() *peer.AddrInfo {
 				return randomBootnode
@@ -311,6 +319,14 @@ func TestDiscoveryService_IgnorePeer(t *testing.T) {
 	discoveryService, setupErr := newDiscoveryService(
 		// Set the relevant hook responses from the mock server
 		func(server *networkTesting.MockNetworkingServer) {
+			server.HookIsConnected(func(peerID peer.ID) bool {
+				return true
+			})
+
+			server.HookPeerCount(func() int64 {
+				return 0
+			})
+
 			// Define the random bootnode hook
 			server.HookGetRandomBootnode(func() *peer.AddrInfo {
 				return bootnode

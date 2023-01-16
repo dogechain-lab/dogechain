@@ -391,21 +391,20 @@ func (client *syncPeerClient) newSyncPeerClient(peerID peer.ID) (proto.V1Client,
 	client.connLock.Lock()
 	defer client.connLock.Unlock()
 
-	var err error
-
-	conn := client.network.GetProtoStream(_syncerV1, peerID)
-	if conn == nil {
-		// create new connection
-		conn, err = client.network.NewProtoConnection(_syncerV1, peerID)
-		if err != nil {
-			client.network.ForgetPeer(peerID, "not support syncer v1 protocol")
-
-			return nil, fmt.Errorf("failed to open a stream, err %w", err)
-		}
-
-		// save protocol stream
-		client.network.SaveProtocolStream(_syncerV1, conn, peerID)
+	if conn := client.network.GetProtoStream(_syncerV1, peerID); conn != nil {
+		return proto.NewV1Client(conn), nil
 	}
+
+	// create new connection
+	conn, err := client.network.NewProtoConnection(_syncerV1, peerID)
+	if err != nil {
+		client.network.ForgetPeer(peerID, "not support syncer v1 protocol")
+
+		return nil, fmt.Errorf("failed to open a stream, err %w", err)
+	}
+
+	// save protocol stream
+	client.network.SaveProtocolStream(_syncerV1, conn, peerID)
 
 	return proto.NewV1Client(conn), nil
 }

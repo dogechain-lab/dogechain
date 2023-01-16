@@ -68,7 +68,7 @@ type DefaultServer struct {
 	addrs []multiaddr.Multiaddr // the list of supported (bound) addresses
 
 	peers     map[peer.ID]*PeerConnInfo // map of all peer connections
-	peersLock sync.Mutex                // lock for the peer map
+	peersLock sync.RWMutex              // lock for the peer map
 
 	metrics *Metrics // reference for metrics tracking
 
@@ -542,8 +542,8 @@ func (s *DefaultServer) runDial() {
 
 // PeerCount returns the number of connected peers [Thread safe]
 func (s *DefaultServer) PeerCount() int64 {
-	s.peersLock.Lock()
-	defer s.peersLock.Unlock()
+	s.peersLock.RLock()
+	defer s.peersLock.RUnlock()
 
 	return int64(len(s.peers))
 }
@@ -551,8 +551,8 @@ func (s *DefaultServer) PeerCount() int64 {
 // Peers returns a copy of the networking server's peer connection info set.
 // Only one (initial) connection (inbound OR outbound) per peer is contained [Thread safe]
 func (s *DefaultServer) Peers() []*PeerConnInfo {
-	s.peersLock.Lock()
-	defer s.peersLock.Unlock()
+	s.peersLock.RLock()
+	defer s.peersLock.RUnlock()
 
 	peers := make([]*PeerConnInfo, 0)
 	for _, connectionInfo := range s.peers {
@@ -564,8 +564,8 @@ func (s *DefaultServer) Peers() []*PeerConnInfo {
 
 // hasPeer checks if the peer is present in the peers list [Thread safe]
 func (s *DefaultServer) HasPeer(peerID peer.ID) bool {
-	s.peersLock.Lock()
-	defer s.peersLock.Unlock()
+	s.peersLock.RLock()
+	defer s.peersLock.RUnlock()
 
 	_, ok := s.peers[peerID]
 
@@ -597,7 +597,11 @@ func (s *DefaultServer) removePeer(peerID peer.ID) {
 	}
 
 	if errs := connectionInfo.cleanProtocolStreams(); len(errs) > 0 {
-		s.logger.Error("clean peer all protocol streams", "errs", errs)
+		for _, err := range errs {
+			if err != nil {
+				s.logger.Error("close protocol streams failed", "err", err)
+			}
+		}
 	}
 
 	// Emit the event alerting listeners
@@ -782,11 +786,39 @@ func (s *DefaultServer) Close() error {
 	return err
 }
 
+// SaveProtocolStream saves the protocol stream to the peer
+// protocol stream reference [Thread safe]
+func (s *DefaultServer) SaveProtocolStream(
+	protocol string,
+	stream *rawGrpc.ClientConn,
+	peerID peer.ID,
+) {
+	s.peersLock.Lock()
+	defer s.peersLock.Unlock()
+
+	connectionInfo, ok := s.peers[peerID]
+	if !ok {
+		s.logger.Warn(
+			fmt.Sprintf(
+				"Attempted to save protocol %s stream for non-existing peer %s",
+				protocol,
+				peerID,
+			),
+		)
+
+		return
+	}
+
+	connectionInfo.addProtocolStream(protocol, stream)
+}
+
 // NewProtoConnection opens up a new stream on the set protocol to the peer,
 // and returns a reference to the connection
 func (s *DefaultServer) NewProtoConnection(protocol string, peerID peer.ID) (*rawGrpc.ClientConn, error) {
 	s.protocolsLock.Lock()
 	defer s.protocolsLock.Unlock()
+
+	s.logger.Debug("NewProtoConnection", "protocol", protocol, "peer", peerID)
 
 	p, ok := s.protocols[protocol]
 	if !ok {

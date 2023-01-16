@@ -198,10 +198,7 @@ func (i *IdentityService) handleConnected(peerID peer.ID, direction network.Dire
 		return ErrSelfConnection
 	}
 
-	// If this is a NOT temporary connection, save it
-	if !resp.TemporaryDial {
-		i.baseServer.AddPeer(peerID, direction)
-	}
+	i.baseServer.AddPeer(peerID, direction)
 
 	return nil
 }

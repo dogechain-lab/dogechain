@@ -182,8 +182,6 @@ func (c *streamConn) RemoteAddr() net.Addr {
 	return &wrapLibp2pAddr{Addr: addr, id: c.Stream.Conn().RemotePeer()}
 }
 
-var _ net.Conn = &streamConn{}
-
 // fakeLocalAddr returns a dummy local address.
 func fakeLocalAddr() net.Addr {
 	return &net.TCPAddr{
