@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/dogechain-lab/dogechain/network/common"
@@ -49,6 +50,9 @@ type networkingServer interface {
 	NewDiscoveryClient(peerID peer.ID) (proto.DiscoveryClient, error)
 
 	// PEER MANIPULATION //
+
+	// IsStaticPeer returns true if the peer is a static peer
+	IsStaticPeer(peerID peer.ID) bool
 
 	// isConnected checks if the networking server is connected to a peer
 	IsConnected(peerID peer.ID) bool
@@ -193,12 +197,6 @@ func (d *DiscoveryService) addToTable(node *peer.AddrInfo) error {
 // addPeersToTable adds the passed in peers to the peer store and the routing table
 func (d *DiscoveryService) addPeersToTable(nodeAddrStrs []string) {
 	for _, nodeAddrStr := range nodeAddrStrs {
-		// ignore the peer if it is in the ignore CIDR range
-		// this is used to ignore peers like only lan network address peer
-		if d.checkPeerInIgnoreCIDR(nodeAddrStr) {
-			continue
-		}
-
 		// Convert the string address info to a working type
 		nodeInfo, err := common.StringToAddrInfo(nodeAddrStr)
 		if err != nil {
@@ -208,6 +206,13 @@ func (d *DiscoveryService) addPeersToTable(nodeAddrStrs []string) {
 				err,
 			)
 
+			continue
+		}
+
+		// ignore the peer if it is in the ignore CIDR range
+		// this is used to ignore peers like only lan network address peer
+		// but if the peer is a static peer, we should not ignore it
+		if d.checkPeerInIgnoreCIDR(nodeAddrStr) && !d.baseServer.IsStaticPeer(nodeInfo.ID) {
 			continue
 		}
 
@@ -313,6 +318,9 @@ func (d *DiscoveryService) startDiscovery() {
 	peerDiscoveryTicker := time.NewTicker(peerDiscoveryInterval)
 	bootnodeDiscoveryTicker := time.NewTicker(bootnodeDiscoveryInterval)
 
+	seed := time.Now().UnixNano()
+	r := rand.New(rand.NewSource(seed))
+
 	defer func() {
 		peerDiscoveryTicker.Stop()
 		bootnodeDiscoveryTicker.Stop()
@@ -323,8 +331,18 @@ func (d *DiscoveryService) startDiscovery() {
 		case <-d.ctx.Done():
 			return
 		case <-peerDiscoveryTicker.C:
+			// random delay to avoid all nodes querying at the same time
+			peerDiscoveryTicker.Reset(
+				peerDiscoveryInterval + time.Duration(r.Int63n(int64(peerDiscoveryInterval/2))),
+			)
+
 			go d.regularPeerDiscovery()
 		case <-bootnodeDiscoveryTicker.C:
+			// ditto
+			bootnodeDiscoveryTicker.Reset(
+				bootnodeDiscoveryInterval + time.Duration(r.Int63n(int64(bootnodeDiscoveryInterval/2))),
+			)
+
 			go d.bootnodePeerDiscovery()
 		}
 	}

@@ -599,9 +599,14 @@ func (s *DefaultServer) HasPeer(peerID peer.ID) bool {
 	return ok
 }
 
-// isConnected checks if the networking server is connected to a peer
+// IsConnected checks if the networking server is connected to a peer
 func (s *DefaultServer) IsConnected(peerID peer.ID) bool {
 	return s.host.Network().Connectedness(peerID) == network.Connected
+}
+
+// IsStaticPeer checks if the peer is a static peer
+func (s *DefaultServer) IsStaticPeer(peerID peer.ID) bool {
+	return s.staticnodes.isStaticnode(peerID)
 }
 
 // GetProtocols fetches the list of node-supported protocols
@@ -642,7 +647,7 @@ func (s *DefaultServer) removePeerInfo(peerID peer.ID) *PeerConnInfo {
 	defer s.peersLock.Unlock()
 
 	// static nodes are not removed from the peers map
-	if s.staticnodes.isStaticnode(peerID) {
+	if s.IsStaticPeer(peerID) {
 		connectionInfo, ok := s.peers[peerID]
 		if !ok {
 			// Peer is not present in the peers map
@@ -703,7 +708,7 @@ func (s *DefaultServer) updateBootnodeConnCount(peerID peer.ID, delta int64) {
 //
 // Cauction: take care of using this to ignore peer from store, which may break peer discovery
 func (s *DefaultServer) ForgetPeer(peer peer.ID, reason string) {
-	if s.staticnodes.isStaticnode(peer) {
+	if s.IsStaticPeer(peer) {
 		s.logger.Debug("forget peer not works for static node", "id", peer, "reason", reason)
 
 		return
@@ -735,7 +740,7 @@ func (s *DefaultServer) DisconnectFromPeer(peer peer.ID, reason string) {
 		return
 	}
 
-	if s.staticnodes.isStaticnode(peer) {
+	if s.IsStaticPeer(peer) {
 		return
 	}
 

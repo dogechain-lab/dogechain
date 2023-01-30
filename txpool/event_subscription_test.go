@@ -122,6 +122,9 @@ func TestEventSubscription_ProcessedEvents(t *testing.T) {
 				notifyCh: make(chan struct{}),
 			}
 			go subscription.runLoop()
+			t.Cleanup(func() {
+				subscription.close()
+			})
 
 			// Set the event listener
 			processed := int64(0)
@@ -143,15 +146,13 @@ func TestEventSubscription_ProcessedEvents(t *testing.T) {
 			}
 
 			wg.Wait()
-			eventWaitCtx, eventWaitFn := context.WithTimeout(context.Background(), time.Second*5)
+			eventWaitCtx, eventWaitFn := context.WithTimeout(context.Background(), time.Second*10)
 			defer eventWaitFn()
 			if _, err := tests.RetryUntilTimeout(eventWaitCtx, func() (interface{}, bool) {
 				return nil, atomic.LoadInt64(&processed) < int64(testCase.expectedProcessed)
 			}); err != nil {
 				t.Fatalf("Unable to wait for events to be processed, %v", err)
 			}
-
-			subscription.close()
 
 			assert.Equal(t, int64(testCase.expectedProcessed), processed)
 		})

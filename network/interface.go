@@ -25,6 +25,8 @@ type Network interface {
 	JoinPeer(rawPeerMultiaddr string, static bool) error
 	// HasPeer returns true if the peer is connected
 	HasPeer(peerID peer.ID) bool
+	// IsStaticPeer returns true if the peer is a static peer
+	IsStaticPeer(peerID peer.ID) bool
 	// IsConnected returns the node is connecting to the peer associated with the given ID
 	IsConnected(peerID peer.ID) bool
 	// DisconnectFromPeer disconnects the networking server from the specified peer

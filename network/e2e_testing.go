@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"sync"
 	"testing"
@@ -263,6 +264,18 @@ func initBootnodes(server *DefaultServer, bootnodes ...string) {
 	server.config.Chain.Bootnodes = savedBootnodes
 }
 
+// Avoid interference between parallel tests on a single machine
+var (
+	randomChainID int
+)
+
+func init() {
+	seed := time.Now().UnixNano()
+	r := rand.New(rand.NewSource(seed))
+
+	randomChainID = r.Int()
+}
+
 func CreateServer(params *CreateServerParams) (*DefaultServer, error) {
 	cfg := DefaultConfig()
 	port, portErr := tests.GetFreePort()
@@ -274,7 +287,7 @@ func CreateServer(params *CreateServerParams) (*DefaultServer, error) {
 	cfg.Addr.Port = port
 	cfg.Chain = &chain.Chain{
 		Params: &chain.Params{
-			ChainID: 1,
+			ChainID: randomChainID,
 		},
 	}
 

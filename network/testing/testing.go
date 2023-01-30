@@ -39,6 +39,7 @@ type MockNetworkingServer struct {
 	getPeerInfoFn          getPeerInfoDelegate
 	getRandomPeerFn        getRandomPeerDelegate
 	peerCountFn            peerCountDelegate
+	isStaticPeerFn         isStaticPeerDelegate
 	isConnectedFn          isConnectedDelegate
 }
 
@@ -80,6 +81,7 @@ type removeFromPeerStoreDelegate func(peerInfo *peer.AddrInfo)
 type getPeerInfoDelegate func(peer.ID) *peer.AddrInfo
 type getRandomPeerDelegate func() *peer.ID
 type peerCountDelegate func() int64
+type isStaticPeerDelegate func(peer.ID) bool
 type isConnectedDelegate func(peer.ID) bool
 
 func (m *MockNetworkingServer) NewIdentityClient(peerID peer.ID) (proto.IdentityClient, error) {
@@ -236,6 +238,18 @@ func (m *MockNetworkingServer) PeerCount() int64 {
 
 func (m *MockNetworkingServer) HookPeerCount(fn peerCountDelegate) {
 	m.peerCountFn = fn
+}
+
+func (m *MockNetworkingServer) IsStaticPeer(peerID peer.ID) bool {
+	if m.isStaticPeerFn != nil {
+		return m.isStaticPeerFn(peerID)
+	}
+
+	return false
+}
+
+func (m *MockNetworkingServer) HookIsStaticPeer(fn isStaticPeerDelegate) {
+	m.isStaticPeerFn = fn
 }
 
 func (m *MockNetworkingServer) IsConnected(peerID peer.ID) bool {
