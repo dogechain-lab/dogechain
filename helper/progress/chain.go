@@ -68,10 +68,8 @@ func (pw *ProgressionWrapper) StartProgression(
 	pw.lock.Lock()
 	defer pw.lock.Unlock()
 
-	if pw.progression != nil && pw.progression.stopped.CAS(false, true) {
-		close(pw.progression.stopCh)
-		pw.progression = nil
-	}
+	// clear previous progression
+	pw.clearProgression()
 
 	// set current block
 	var current uint64
@@ -128,15 +126,20 @@ func (p *Progression) GetHighestBlock() uint64 {
 	return p.HighestBlock.Load()
 }
 
+// clearProgression clear progression object (non-thread safe)
+func (pw *ProgressionWrapper) clearProgression() {
+	if pw.progression != nil && pw.progression.stopped.CAS(false, true) {
+		close(pw.progression.stopCh)
+		pw.progression = nil
+	}
+}
+
 // StopProgression stops the progression tracking
 func (pw *ProgressionWrapper) StopProgression() {
 	pw.lock.Lock()
 	defer pw.lock.Unlock()
 
-	if pw.progression.stopped.CAS(false, true) {
-		close(pw.progression.stopCh)
-		pw.progression = nil
-	}
+	pw.clearProgression()
 }
 
 // UpdateCurrentProgression sets the currently written block in the bulk sync

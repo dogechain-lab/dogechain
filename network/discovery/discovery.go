@@ -75,9 +75,6 @@ type networkingServer interface {
 
 	// PeerCount connection peer number
 	PeerCount() int64
-
-	// IsTemporaryDial checks if the peer is a temporary dial [Thread safe]
-	IsTemporaryDial(peerID peer.ID) bool
 }
 
 // DiscoveryService is a service that finds other peers in the network
@@ -196,6 +193,8 @@ func (d *DiscoveryService) addToTable(node *peer.AddrInfo) error {
 // addPeersToTable adds the passed in peers to the peer store and the routing table
 func (d *DiscoveryService) addPeersToTable(nodeAddrStrs []string) {
 	for _, nodeAddrStr := range nodeAddrStrs {
+		// ignore the peer if it is in the ignore CIDR range
+		// this is used to ignore peers like only lan network address peer
 		if d.checkPeerInIgnoreCIDR(nodeAddrStr) {
 			continue
 		}
@@ -372,11 +371,6 @@ func (d *DiscoveryService) bootnodePeerDiscovery() {
 		return
 	}
 
-	// if exist connect peer, skip bootnode discovery
-	if d.baseServer.PeerCount() > 0 {
-		return
-	}
-
 	var bootnode *peer.AddrInfo // the reference bootnode
 
 	// Try to find a suitable bootnode to use as a reference peer
@@ -389,6 +383,8 @@ func (d *DiscoveryService) bootnodePeerDiscovery() {
 	}
 
 	// If bootnode is not connected try add it
+	// but skip this time the FindPeers call, wait for next discovery
+	// exist regular peer exchange, so we can get peer from regular peer
 	if !d.baseServer.IsConnected(bootnode.ID) {
 		d.addToTable(bootnode)
 
@@ -408,16 +404,6 @@ func (d *DiscoveryService) bootnodePeerDiscovery() {
 
 	// Save the peers for subsequent dialing
 	d.addPeersToTable(foundNodes)
-
-	isTemporaryDial := d.baseServer.IsTemporaryDial(bootnode.ID)
-
-	defer func() {
-		if isTemporaryDial {
-			// Since temporary dials are short-lived, the connection
-			// needs to be turned off the moment it's not needed anymore
-			d.baseServer.DisconnectFromPeer(bootnode.ID, "Thank you")
-		}
-	}()
 }
 
 // FindPeers implements the proto service for finding the target's peers

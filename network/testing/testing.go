@@ -28,7 +28,6 @@ type MockNetworkingServer struct {
 	addPeerFn                addPeerDelegate
 	updatePendingConnCountFn updatePendingConnCountDelegate
 	emitEventFn              emitEventDelegate
-	isTemporaryDialFn        isTemporaryDialDelegate
 	hasFreeConnectionSlotFn  hasFreeConnectionSlotDelegate
 
 	// Discovery Hooks
@@ -70,7 +69,6 @@ type disconnectFromPeerDelegate func(peer.ID, string)
 type addPeerDelegate func(peer.ID, network.Direction)
 type updatePendingConnCountDelegate func(int64, network.Direction)
 type emitEventDelegate func(*event.PeerEvent)
-type isTemporaryDialDelegate func(peer.ID) bool
 type hasFreeConnectionSlotDelegate func(network.Direction) bool
 
 // Required for Discovery
@@ -134,18 +132,6 @@ func (m *MockNetworkingServer) EmitEvent(event *event.PeerEvent) {
 
 func (m *MockNetworkingServer) HookEmitEvent(fn emitEventDelegate) {
 	m.emitEventFn = fn
-}
-
-func (m *MockNetworkingServer) IsTemporaryDial(peerID peer.ID) bool {
-	if m.isTemporaryDialFn != nil {
-		return m.isTemporaryDialFn(peerID)
-	}
-
-	return true
-}
-
-func (m *MockNetworkingServer) HookIsTemporaryDial(fn isTemporaryDialDelegate) {
-	m.isTemporaryDialFn = fn
 }
 
 func (m *MockNetworkingServer) HasFreeConnectionSlot(direction network.Direction) bool {

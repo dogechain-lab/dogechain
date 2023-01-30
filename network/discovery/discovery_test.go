@@ -88,10 +88,6 @@ func TestDiscoveryService_BootnodePeerDiscovery(t *testing.T) {
 		ID: "RandomBootnode",
 	}
 	randomPeers := getRandomPeers(t, 3)
-	expectedDisconnectReason := "Thank you"
-
-	grpcClientClosed := false
-	disconnectReason := ""
 	peerStore := make([]*peer.AddrInfo, 0)
 
 	// Create an instance of the identity service
@@ -109,21 +105,6 @@ func TestDiscoveryService_BootnodePeerDiscovery(t *testing.T) {
 			// Define the random bootnode hook
 			server.HookGetRandomBootnode(func() *peer.AddrInfo {
 				return randomBootnode
-			})
-
-			// Define IsTemporaryDial hook
-			server.HookIsTemporaryDial(func(peerID peer.ID) bool {
-				return randomBootnode.ID.String() == peerID.String()
-			})
-
-			// Define peer disconnect
-			server.HookDisconnectFromPeer(func(id peer.ID, s string) {
-				if id == randomBootnode.ID {
-					// Make sure the correct temporary stream is closed
-					grpcClientClosed = true
-				}
-
-				disconnectReason = s
 			})
 
 			// Define the bootnode conn count hook
@@ -168,12 +149,6 @@ func TestDiscoveryService_BootnodePeerDiscovery(t *testing.T) {
 
 	// Run the discovery service
 	discoveryService.bootnodePeerDiscovery()
-
-	// Make sure the stream is closed to the bootnode
-	assert.True(t, grpcClientClosed)
-
-	// Make sure the disconnect reason is matching
-	assert.Equal(t, expectedDisconnectReason, disconnectReason)
 
 	// Make sure the bootnode peers are added to the peer store
 	assert.Len(t, peerStore, len(randomPeers))

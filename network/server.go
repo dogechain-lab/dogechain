@@ -10,13 +10,19 @@ import (
 	"github.com/dogechain-lab/dogechain/network/common"
 	"github.com/dogechain-lab/dogechain/network/dial"
 	"github.com/dogechain-lab/dogechain/network/discovery"
-	"github.com/libp2p/go-libp2p"
-	noise "github.com/libp2p/go-libp2p-noise"
-	rawGrpc "google.golang.org/grpc"
+	"github.com/dogechain-lab/dogechain/secrets"
 
 	peerEvent "github.com/dogechain-lab/dogechain/network/event"
-	"github.com/dogechain-lab/dogechain/secrets"
+
 	"github.com/hashicorp/go-hclog"
+	"github.com/libp2p/go-libp2p"
+	"github.com/multiformats/go-multiaddr"
+
+	noise "github.com/libp2p/go-libp2p-noise"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	connmgr "github.com/libp2p/go-libp2p/p2p/net/connmgr"
+	rawGrpc "google.golang.org/grpc"
+
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/event"
 	"github.com/libp2p/go-libp2p-core/host"
@@ -24,8 +30,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/peerstore"
 	"github.com/libp2p/go-libp2p-core/protocol"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	"github.com/multiformats/go-multiaddr"
 )
 
 const (
@@ -127,12 +131,23 @@ func newServer(logger hclog.Logger, config *Config) (*DefaultServer, error) {
 		return addrs
 	}
 
+	// use libp2p connection manager to manage the number of connections
+	cm, err := connmgr.NewConnManager(
+		len(config.Chain.Bootnodes)+1,          // minimum number of connections
+		int(config.MaxPeers),                   // maximum number of connections
+		connmgr.WithGracePeriod(2*time.Minute), // grace period before pruning connections
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create libp2p stack: %w", err)
+	}
+
 	host, err := libp2p.New(
 		// Use noise as the encryption protocol
 		libp2p.Security(noise.ID, noise.New),
 		libp2p.ListenAddrs(listenAddr),
 		libp2p.AddrsFactory(addrsFactory),
 		libp2p.Identity(key),
+		libp2p.ConnectionManager(cm),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create libp2p stack: %w", err)

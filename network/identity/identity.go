@@ -45,11 +45,6 @@ type networkingServer interface {
 	// EmitEvent emits the specified peer event on the base networking server
 	EmitEvent(event *event.PeerEvent)
 
-	// TEMPORARY DIALING //
-
-	// IsTemporaryDial checks if the peer connection is a temporary dial [Thread safe]
-	IsTemporaryDial(peerID peer.ID) bool
-
 	// CONNECTION INFORMATION //
 
 	// HasFreeConnectionSlot checks if there are available outbound connection slots [Thread safe]
@@ -218,11 +213,12 @@ func (i *IdentityService) Hello(_ context.Context, req *proto.Status) (*proto.St
 
 // constructStatus constructs a status response of the current node
 func (i *IdentityService) constructStatus(peerID peer.ID) *proto.Status {
+	// deprecated TemporaryDial
 	return &proto.Status{
 		Metadata: map[string]string{
 			PeerID: i.hostID.Pretty(),
 		},
 		Chain:         i.chainID,
-		TemporaryDial: i.baseServer.IsTemporaryDial(peerID),
+		TemporaryDial: false,
 	}
 }

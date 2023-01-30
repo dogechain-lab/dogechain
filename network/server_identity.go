@@ -107,11 +107,6 @@ func (s *DefaultServer) EmitEvent(event *peerEvent.PeerEvent) {
 	s.emitEvent(event.PeerID, event.Type)
 }
 
-// IsTemporaryDial checks if a peer connection is temporary [Thread safe]
-func (s *DefaultServer) IsTemporaryDial(peerID peer.ID) bool {
-	return s.bootnodes.isBootnode(peerID)
-}
-
 // setupIdentity sets up the identity service for the node
 func (s *DefaultServer) setupIdentity() error {
 	// Create an instance of the identity service

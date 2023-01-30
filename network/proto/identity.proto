@@ -17,7 +17,7 @@ message Status {
 
   string genesis = 4;
 
-  bool temporaryDial = 5;
+  bool temporaryDial = 5 [deprecated=true];
 
   message Key {
     string signature = 1;

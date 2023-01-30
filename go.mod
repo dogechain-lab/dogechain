@@ -17,7 +17,7 @@ require (
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/hashicorp/hcl v1.0.0
 	github.com/hashicorp/vault/api v1.8.0
-	github.com/libp2p/go-libp2p v0.18.0-rc2
+	github.com/libp2p/go-libp2p v0.18.0
 	github.com/libp2p/go-libp2p-core v0.14.0
 	github.com/libp2p/go-libp2p-kbucket v0.4.7
 	github.com/libp2p/go-libp2p-noise v0.4.0
@@ -112,18 +112,19 @@ require (
 	github.com/libp2p/go-flow-metrics v0.0.3 // indirect
 	github.com/libp2p/go-libp2p-asn-util v0.1.0 // indirect
 	github.com/libp2p/go-libp2p-blankhost v0.3.0 // indirect
+	github.com/libp2p/go-libp2p-connmgr v0.4.0 // indirect
 	github.com/libp2p/go-libp2p-discovery v0.6.0 // indirect
-	github.com/libp2p/go-libp2p-mplex v0.5.0 // indirect
+	github.com/libp2p/go-libp2p-mplex v0.6.0 // indirect
 	github.com/libp2p/go-libp2p-nat v0.1.0 // indirect
 	github.com/libp2p/go-libp2p-peerstore v0.6.0 // indirect
 	github.com/libp2p/go-libp2p-pnet v0.2.0 // indirect
-	github.com/libp2p/go-libp2p-quic-transport v0.16.0 // indirect
-	github.com/libp2p/go-libp2p-resource-manager v0.1.2 // indirect
-	github.com/libp2p/go-libp2p-swarm v0.10.1 // indirect
+	github.com/libp2p/go-libp2p-quic-transport v0.16.1 // indirect
+	github.com/libp2p/go-libp2p-resource-manager v0.1.5 // indirect
+	github.com/libp2p/go-libp2p-swarm v0.10.2 // indirect
 	github.com/libp2p/go-libp2p-tls v0.3.1 // indirect
-	github.com/libp2p/go-libp2p-transport-upgrader v0.7.0 // indirect
-	github.com/libp2p/go-libp2p-yamux v0.8.1 // indirect
-	github.com/libp2p/go-mplex v0.4.0 // indirect
+	github.com/libp2p/go-libp2p-transport-upgrader v0.7.1 // indirect
+	github.com/libp2p/go-libp2p-yamux v0.8.2 // indirect
+	github.com/libp2p/go-mplex v0.6.0 // indirect
 	github.com/libp2p/go-msgio v0.1.0 // indirect
 	github.com/libp2p/go-nat v0.1.0 // indirect
 	github.com/libp2p/go-netroute v0.2.0 // indirect
@@ -131,7 +132,7 @@ require (
 	github.com/libp2p/go-reuseport v0.1.0 // indirect
 	github.com/libp2p/go-reuseport-transport v0.1.0 // indirect
 	github.com/libp2p/go-stream-muxer-multistream v0.4.0 // indirect
-	github.com/libp2p/go-tcp-transport v0.5.0 // indirect
+	github.com/libp2p/go-tcp-transport v0.5.1 // indirect
 	github.com/libp2p/go-ws-transport v0.6.0 // indirect
 	github.com/libp2p/go-yamux/v3 v3.0.2 // indirect
 	github.com/lucas-clemente/quic-go v0.25.0 // indirect

@@ -118,10 +118,6 @@ type Ibft struct {
 
 	blockTime time.Duration // Minimum block generation time in seconds
 
-	// Dynamic References for signing and validating
-	currentTxSigner    crypto.TxSigner // Tx Signer at current sequence
-	currentTxSignerMux sync.RWMutex    // Mutex for currentTxSigner
-
 	currentValidators    validator.Validators // Validator set at current sequence
 	currentValidatorsMux sync.RWMutex         // Mutex for currentValidators
 	// Recording resource exhausting contracts
@@ -909,11 +905,7 @@ func (i *Ibft) updateCurrentModules(height uint64) error {
 	i.currentValidatorsMux.Lock()
 	defer i.currentValidatorsMux.Unlock()
 
-	i.currentTxSignerMux.Lock()
-	defer i.currentTxSignerMux.Unlock()
-
 	i.currentValidators = snap.Set
-	i.currentTxSigner = i.getSigner(height)
 
 	i.logger.Info("update current module",
 		"height", height,
