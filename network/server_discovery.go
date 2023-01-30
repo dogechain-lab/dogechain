@@ -17,7 +17,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/peerstore"
 	kb "github.com/libp2p/go-libp2p-kbucket"
-	rawGrpc "google.golang.org/grpc"
 )
 
 // GetRandomBootnode fetches a random bootnode that's currently
@@ -45,20 +44,6 @@ func (s *DefaultServer) GetBootnodeConnCount() int64 {
 	return s.bootnodes.getBootnodeConnCount()
 }
 
-// GetProtoStream returns an active protocol stream if present, otherwise
-// it returns nil
-func (s *DefaultServer) GetProtoStream(protocol string, peerID peer.ID) *rawGrpc.ClientConn {
-	s.peersLock.Lock()
-	defer s.peersLock.Unlock()
-
-	connectionInfo, ok := s.peers[peerID]
-	if !ok {
-		return nil
-	}
-
-	return connectionInfo.getProtocolStream(protocol)
-}
-
 // NewDiscoveryClient returns a new or existing discovery service client connection
 func (s *DefaultServer) NewDiscoveryClient(peerID peer.ID) (proto.DiscoveryClient, error) {
 	// Check if there is a peer connection at this point in time,
@@ -73,7 +58,8 @@ func (s *DefaultServer) NewDiscoveryClient(peerID peer.ID) (proto.DiscoveryClien
 		return proto.NewDiscoveryClient(protoStream), nil
 	}
 
-	// Create a new stream connection and return it
+	// Create a new stream connection and save, only single object
+	// close and clear only when the peer is disconnected
 	protoStream, err := s.NewProtoConnection(common.DiscProto, peerID)
 	if err != nil {
 		return nil, err

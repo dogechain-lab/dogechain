@@ -865,6 +865,20 @@ func (s *DefaultServer) NewStream(proto string, id peer.ID) (network.Stream, err
 	return s.host.NewStream(context.Background(), id, protocol.ID(proto))
 }
 
+// GetProtoStream returns an active protocol stream if present, otherwise
+// it returns nil
+func (s *DefaultServer) GetProtoStream(protocol string, peerID peer.ID) *rawGrpc.ClientConn {
+	s.peersLock.Lock()
+	defer s.peersLock.Unlock()
+
+	connectionInfo, ok := s.peers[peerID]
+	if !ok {
+		return nil
+	}
+
+	return connectionInfo.getProtocolStream(protocol)
+}
+
 func (s *DefaultServer) RegisterProtocol(id string, p Protocol) {
 	s.protocolsLock.Lock()
 	defer s.protocolsLock.Unlock()

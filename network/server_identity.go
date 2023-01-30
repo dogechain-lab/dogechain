@@ -23,7 +23,8 @@ func (s *DefaultServer) NewIdentityClient(peerID peer.ID) (proto.IdentityClient,
 		return proto.NewIdentityClient(protoStream), nil
 	}
 
-	// Create a new stream connection and return it
+	// Create a new stream connection and save, only single object
+	// close and clear only when the peer is disconnected
 	protoStream, err := s.NewProtoConnection(common.IdentityProto, peerID)
 	if err != nil {
 		return nil, err
