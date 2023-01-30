@@ -271,6 +271,7 @@ var (
 
 func init() {
 	seed := time.Now().UnixNano()
+	//#nosec G404
 	r := rand.New(rand.NewSource(seed))
 
 	randomChainID = r.Int()

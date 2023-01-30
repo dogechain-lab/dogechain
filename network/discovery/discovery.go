@@ -319,6 +319,7 @@ func (d *DiscoveryService) startDiscovery() {
 	bootnodeDiscoveryTicker := time.NewTicker(bootnodeDiscoveryInterval)
 
 	seed := time.Now().UnixNano()
+	//#nosec G404
 	r := rand.New(rand.NewSource(seed))
 
 	defer func() {
