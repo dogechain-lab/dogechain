@@ -181,7 +181,7 @@ func (d *DiscoveryService) addToTable(node *peer.AddrInfo) error {
 	if _, err := d.routingTable.TryAddPeer(
 		node.ID,
 		false,
-		false,
+		true, // allow replacing existing peers
 	); err != nil {
 		// Since the routing table addition failed,
 		// the peer can be removed from the libp2p peer store
@@ -453,7 +453,7 @@ func (d *DiscoveryService) FindPeers(
 
 	nearestPeers := d.routingTable.NearestPeers(
 		kb.ConvertKey(req.GetKey()),
-		int(req.Count),
+		int(req.Count)+1,
 	)
 
 	// The peer that's initializing this request
