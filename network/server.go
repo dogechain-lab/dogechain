@@ -131,6 +131,18 @@ func newServer(logger hclog.Logger, config *Config) (*DefaultServer, error) {
 		return addrs
 	}
 
+	if config.MaxPeers == 0 {
+		return nil, fmt.Errorf("max peers is 0, please set MaxInboundPeers and MaxOutboundPeers greater than 0")
+	}
+
+	if int(config.MaxPeers) < len(config.Chain.Bootnodes) {
+		return nil, fmt.Errorf(
+			"max peers (%d) is less than bootnodes (%d)",
+			config.MaxPeers,
+			len(config.Chain.Bootnodes),
+		)
+	}
+
 	// use libp2p connection manager to manage the number of connections
 	cm, err := connmgr.NewConnManager(
 		len(config.Chain.Bootnodes)+1,          // minimum number of connections
