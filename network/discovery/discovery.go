@@ -51,11 +51,17 @@ type networkingServer interface {
 
 	// PEER MANIPULATION //
 
+	// IsBootnode returns true if the peer is a bootnode
+	IsBootnode(peerID peer.ID) bool
+
 	// IsStaticPeer returns true if the peer is a static peer
 	IsStaticPeer(peerID peer.ID) bool
 
 	// isConnected checks if the networking server is connected to a peer
 	IsConnected(peerID peer.ID) bool
+
+	// Connect attempts to connect to the specified peer
+	Connect(context.Context, peer.AddrInfo) error
 
 	// DisconnectFromPeer attempts to disconnect from the specified peer
 	DisconnectFromPeer(peerID peer.ID, reason string)
@@ -159,7 +165,9 @@ func (d *DiscoveryService) HandleNetworkEvent(peerEvent *event.PeerEvent) {
 // and add them to the peer / routing table
 func (d *DiscoveryService) ConnectToBootnodes(bootnodes []*peer.AddrInfo) {
 	for _, nodeInfo := range bootnodes {
-		if err := d.addToTable(nodeInfo); err != nil {
+		d.baseServer.AddToPeerStore(nodeInfo)
+
+		if _, err := d.routingTable.TryAddPeer(nodeInfo.ID, true, false); err != nil {
 			d.logger.Error(
 				"Failed to add new peer to routing table",
 				"peer",
@@ -401,13 +409,21 @@ func (d *DiscoveryService) bootnodePeerDiscovery() {
 		}
 	}
 
-	// If bootnode is not connected try add it
-	// but skip this time the FindPeers call, wait for next discovery
-	// exist regular peer exchange, so we can get peer from regular peer
+	// If bootnode is not connected try reonnect
 	if !d.baseServer.IsConnected(bootnode.ID) {
-		d.addToTable(bootnode)
+		d.logger.Debug("bootnode is not connected, try to reconnect")
 
-		return
+		connectCtx, cancel := context.WithTimeout(d.ctx, bootnodeDiscoveryInterval/2)
+		defer cancel()
+
+		if err := d.baseServer.Connect(connectCtx, *bootnode); err != nil {
+			d.logger.Error("Unable to connect to bootnode",
+				"bootnode", bootnode.ID.String(),
+				"err", err.Error(),
+			)
+
+			return
+		}
 	}
 
 	// Find peers from the referenced bootnode

@@ -26,6 +26,7 @@ type MockNetworkingServer struct {
 	newIdentityClientFn      newIdentityClientDelegate
 	disconnectFromPeerFn     disconnectFromPeerDelegate
 	addPeerFn                addPeerDelegate
+	connectFn                connectDelegate
 	updatePendingConnCountFn updatePendingConnCountDelegate
 	emitEventFn              emitEventDelegate
 	hasFreeConnectionSlotFn  hasFreeConnectionSlotDelegate
@@ -39,6 +40,7 @@ type MockNetworkingServer struct {
 	getPeerInfoFn          getPeerInfoDelegate
 	getRandomPeerFn        getRandomPeerDelegate
 	peerCountFn            peerCountDelegate
+	isBootnodeFn           isBootnodeDelegate
 	isStaticPeerFn         isStaticPeerDelegate
 	isConnectedFn          isConnectedDelegate
 }
@@ -66,6 +68,7 @@ func (m *MockNetworkingServer) GetMockPeerMetrics() *MockPeerMetrics {
 // Define the mock hooks //
 // Required for Identity
 type newIdentityClientDelegate func(peer.ID) (proto.IdentityClient, error)
+type connectDelegate func(ctx context.Context, addrInfo peer.AddrInfo) error
 type disconnectFromPeerDelegate func(peer.ID, string)
 type addPeerDelegate func(peer.ID, network.Direction)
 type updatePendingConnCountDelegate func(int64, network.Direction)
@@ -81,6 +84,7 @@ type removeFromPeerStoreDelegate func(peerInfo *peer.AddrInfo)
 type getPeerInfoDelegate func(peer.ID) *peer.AddrInfo
 type getRandomPeerDelegate func() *peer.ID
 type peerCountDelegate func() int64
+type isBootnodeDelegate func(peer.ID) bool
 type isStaticPeerDelegate func(peer.ID) bool
 type isConnectedDelegate func(peer.ID) bool
 
@@ -114,6 +118,18 @@ func (m *MockNetworkingServer) AddPeer(id peer.ID, direction network.Direction) 
 
 func (m *MockNetworkingServer) HookAddPeer(fn addPeerDelegate) {
 	m.addPeerFn = fn
+}
+
+func (m *MockNetworkingServer) Connect(ctx context.Context, addrInfo peer.AddrInfo) error {
+	if m.connectFn != nil {
+		return m.connectFn(ctx, addrInfo)
+	}
+
+	return nil
+}
+
+func (m *MockNetworkingServer) HookConnect(fn connectDelegate) {
+	m.connectFn = fn
 }
 
 func (m *MockNetworkingServer) UpdatePendingConnCount(delta int64, direction network.Direction) {
@@ -243,6 +259,18 @@ func (m *MockNetworkingServer) HookPeerCount(fn peerCountDelegate) {
 func (m *MockNetworkingServer) IsStaticPeer(peerID peer.ID) bool {
 	if m.isStaticPeerFn != nil {
 		return m.isStaticPeerFn(peerID)
+	}
+
+	return false
+}
+
+func (m *MockNetworkingServer) HookIsBootnode(fn isBootnodeDelegate) {
+	m.isBootnodeFn = fn
+}
+
+func (m *MockNetworkingServer) IsBootnode(peerID peer.ID) bool {
+	if m.isBootnodeFn != nil {
+		return m.isBootnodeFn(peerID)
 	}
 
 	return false

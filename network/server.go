@@ -28,7 +28,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/libp2p/go-libp2p-core/peerstore"
 	"github.com/libp2p/go-libp2p-core/protocol"
 )
 
@@ -66,7 +65,8 @@ type DefaultServer struct {
 	logger hclog.Logger // the logger
 	config *Config      // the base networking server configuration
 
-	closeCh chan struct{} // the channel used for closing the networking server
+	closeCh chan struct{}  // the channel used for closing the networking server
+	closeWg sync.WaitGroup // the waitgroup used for closing the networking server
 
 	host  host.Host             // the libp2p host reference
 	addrs []multiaddr.Multiaddr // the list of supported (bound) addresses
@@ -343,21 +343,17 @@ func (s *DefaultServer) setupStaticnodes() error {
 		}
 
 		s.staticnodes.addStaticnode(staticnode)
+		s.markStaticPeer(staticnode)
 	}
-
-	s.staticnodes.rangeAddrs(func(addr *peer.AddrInfo) bool {
-		s.logger.Info("static node", "addr", common.AddrInfoToString(addr))
-
-		s.markStaticPeer(addr)
-
-		return true
-	})
 
 	return nil
 }
 
 // keepAliveStaticPeerConnections keeps the static node connections alive
 func (s *DefaultServer) keepAliveStaticPeerConnections() {
+	s.closeWg.Add(1)
+	defer s.closeWg.Done()
+
 	if s.staticnodes == nil || s.staticnodes.Len() == 0 {
 		return
 	}
@@ -449,6 +445,9 @@ func (s *DefaultServer) setupBootnodes() error {
 // keepAliveMinimumPeerConnections will attempt to make new connections
 // if the active peer count is lesser than the specified limit.
 func (s *DefaultServer) keepAliveMinimumPeerConnections() {
+	s.closeWg.Add(1)
+	defer s.closeWg.Done()
+
 	delay := time.NewTimer(DefaultKeepAliveTimer)
 	defer delay.Stop()
 
@@ -482,6 +481,9 @@ func (s *DefaultServer) keepAliveMinimumPeerConnections() {
 // Essentially, the networking server monitors for any open connection slots
 // and attempts to fill them as soon as they open up
 func (s *DefaultServer) runDial() {
+	s.closeWg.Add(1)
+	defer s.closeWg.Done()
+
 	// The notification channel needs to be buffered to avoid
 	// having events go missing, as they're crucial to the functioning
 	// of the runDial mechanism
@@ -541,20 +543,13 @@ func (s *DefaultServer) runDial() {
 
 			s.logger.Debug(fmt.Sprintf("Dialing peer [%s] as local [%s]", peerInfo.String(), s.host.ID()))
 
-			if !s.IsConnected(peerInfo.ID) {
-				func() {
-					connectCtx, cancel := context.WithTimeout(ctx, DefaultDialTimeout)
-					defer cancel()
+			// Attempt to connect to the peer
+			func() {
+				connectCtx, cancel := context.WithTimeout(ctx, DefaultDialTimeout)
+				defer cancel()
 
-					// the connection process is async because it involves connection (here) +
-					// the handshake done in the identity service.
-					if err := s.host.Connect(connectCtx, *peerInfo); err != nil {
-						s.logger.Debug("failed to dial", "addr", peerInfo.String(), "err", err.Error())
-
-						s.emitEvent(peerInfo.ID, peerEvent.PeerFailedToConnect)
-					}
-				}()
-			}
+				s.Connect(connectCtx, *peerInfo)
+			}()
 		}
 
 		// wait until there is a change in the state of a peer that
@@ -565,6 +560,20 @@ func (s *DefaultServer) runDial() {
 			return
 		}
 	}
+}
+
+func (s *DefaultServer) Connect(ctx context.Context, peerInfo peer.AddrInfo) error {
+	if !s.IsConnected(peerInfo.ID) {
+		// the connection process is async because it involves connection (here) +
+		// the handshake done in the identity service.
+		if err := s.host.Connect(ctx, peerInfo); err != nil {
+			s.logger.Debug("failed to dial", "addr", peerInfo.String(), "err", err.Error())
+
+			s.emitEvent(peerInfo.ID, peerEvent.PeerFailedToConnect)
+		}
+	}
+
+	return nil
 }
 
 // PeerCount returns the number of connected peers [Thread safe]
@@ -602,6 +611,11 @@ func (s *DefaultServer) HasPeer(peerID peer.ID) bool {
 // IsConnected checks if the networking server is connected to a peer
 func (s *DefaultServer) IsConnected(peerID peer.ID) bool {
 	return s.host.Network().Connectedness(peerID) == network.Connected
+}
+
+// IsBootnode checks if the peer is a bootnode
+func (s *DefaultServer) IsBootnode(peerID peer.ID) bool {
+	return s.bootnodes.isBootnode(peerID)
 }
 
 // IsStaticPeer checks if the peer is a static peer
@@ -694,7 +708,7 @@ func (s *DefaultServer) removePeerInfo(peerID peer.ID) *PeerConnInfo {
 // updateBootnodeConnCount attempts to update the bootnode connection count
 // by delta if the action is valid [Thread safe]
 func (s *DefaultServer) updateBootnodeConnCount(peerID peer.ID, delta int64) {
-	if s.config.NoDiscover || !s.bootnodes.isBootnode(peerID) {
+	if s.config.NoDiscover || !s.IsBootnode(peerID) {
 		// If the discovery service is not running
 		// or the peer is not a bootnode, there is no need
 		// to update bootnode connection counters
@@ -789,7 +803,9 @@ func (s *DefaultServer) JoinPeer(rawPeerMultiaddr string, static bool) error {
 
 // markStaticPeer marks the peer as a static peer
 func (s *DefaultServer) markStaticPeer(peerInfo *peer.AddrInfo) {
-	s.host.Peerstore().AddAddrs(peerInfo.ID, peerInfo.Addrs, peerstore.PermanentAddrTTL)
+	s.logger.Info("Marking peer as static", "peer", peerInfo.ID)
+
+	s.AddToPeerStore(peerInfo)
 	s.host.ConnManager().TagPeer(peerInfo.ID, "staticnode", 1000)
 	s.host.ConnManager().Protect(peerInfo.ID, "staticnode")
 }
@@ -806,16 +822,21 @@ func (s *DefaultServer) joinPeer(peerInfo *peer.AddrInfo) {
 }
 
 func (s *DefaultServer) Close() error {
-	err := s.host.Close()
+	// close dial queue
 	s.dialQueue.Close()
 
 	if s.discovery != nil {
 		s.discovery.Close()
 	}
 
+	// send close signal to all goroutines
 	close(s.closeCh)
 
-	return err
+	// wait for all goroutines to finish
+	s.closeWg.Wait()
+
+	// close libp2p network layer
+	return s.host.Close()
 }
 
 // SaveProtocolStream saves the protocol stream to the peer
@@ -974,8 +995,10 @@ func (s *DefaultServer) SubscribeFn(ctx context.Context, handler func(evnt *peer
 	if err != nil {
 		return err
 	}
+	s.closeWg.Add(1)
 
 	go func() {
+		defer s.closeWg.Done()
 		defer sub.Close()
 
 		for {
@@ -991,38 +1014,6 @@ func (s *DefaultServer) SubscribeFn(ctx context.Context, handler func(evnt *peer
 	}()
 
 	return nil
-}
-
-// SubscribeCh returns an event of of subscription events
-func (s *DefaultServer) SubscribeCh(ctx context.Context) (<-chan *peerEvent.PeerEvent, error) {
-	ch := make(chan *peerEvent.PeerEvent)
-	ctx, cancel := context.WithCancel(ctx)
-
-	cleanup := func() {
-		// note the necessary order
-		cancel()
-		close(ch)
-	}
-
-	if err := s.SubscribeFn(ctx, func(evnt *peerEvent.PeerEvent) {
-		select {
-		case <-ctx.Done():
-			return
-		case ch <- evnt:
-		}
-	}); err != nil {
-		cleanup()
-
-		return nil, err
-	}
-
-	go func() {
-		<-s.closeCh
-
-		cleanup()
-	}()
-
-	return ch, nil
 }
 
 // updateConnCountMetrics updates the connection count metrics

@@ -70,14 +70,22 @@ func (s *DefaultServer) NewDiscoveryClient(peerID peer.ID) (proto.DiscoveryClien
 	return proto.NewDiscoveryClient(protoStream), nil
 }
 
-// AddToPeerStore adds peer information to the node's peer store
+// AddToPeerStore adds peer information to the node's peer store, static node and bootnode addresses are added with permanent TTL
 func (s *DefaultServer) AddToPeerStore(peerInfo *peer.AddrInfo) {
-	s.host.Peerstore().AddAddr(peerInfo.ID, peerInfo.Addrs[0], peerstore.AddressTTL)
+	ttl := peerstore.AddressTTL
+
+	if s.IsStaticPeer(peerInfo.ID) || s.IsBootnode(peerInfo.ID) {
+		ttl = peerstore.PermanentAddrTTL
+	}
+
+	// add all addresses to the peer store
+	s.host.Peerstore().AddAddrs(peerInfo.ID, peerInfo.Addrs, ttl)
 }
 
-// RemoveFromPeerStore removes peer information from the node's peer store, ignoring static nodes
+// RemoveFromPeerStore removes peer information from the node's peer store, ignoring static nodes and bootnodes
 func (s *DefaultServer) RemoveFromPeerStore(peerInfo *peer.AddrInfo) {
-	if s.staticnodes.isStaticnode(peerInfo.ID) {
+	// ignore static nodes and bootnodes, they are not removed from the peer store
+	if s.IsStaticPeer(peerInfo.ID) || s.IsBootnode(peerInfo.ID) {
 		return
 	}
 

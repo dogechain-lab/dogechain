@@ -57,14 +57,8 @@ func (s *NonetworkServer) IsConnected(peerID peer.ID) bool {
 	return false
 }
 
-func (s *NonetworkServer) SubscribeCh(context.Context) (<-chan *event.PeerEvent, error) {
-	s.sublock.Lock()
-	defer s.sublock.Unlock()
-
-	sub := make(chan *event.PeerEvent)
-	s.sub = append(s.sub, sub)
-
-	return sub, nil
+func (s *NonetworkServer) SubscribeFn(context.Context, func(evnt *event.PeerEvent)) error {
+	return nil
 }
 
 func (s *NonetworkServer) NewTopic(protoID string, obj proto.Message) (Topic, error) {

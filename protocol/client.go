@@ -66,7 +66,10 @@ func NewSyncPeerClient(
 // Start processes for SyncPeerClient
 func (client *syncPeerClient) Start() error {
 	go client.startNewBlockProcess()
-	go client.startPeerEventProcess()
+
+	if err := client.subscribeEventProcess(); err != nil {
+		return err
+	}
 
 	if err := client.startGossip(); err != nil {
 		return err
@@ -261,18 +264,9 @@ func (client *syncPeerClient) startNewBlockProcess() {
 	}
 }
 
-// startPeerEventProcess starts subscribing peer connection change events and process them
-func (client *syncPeerClient) startPeerEventProcess() {
-	peerEventCh, err := client.network.SubscribeCh(client.ctx)
-	if err != nil {
-		client.logger.Error("failed to subscribe", "err", err)
-
-		return
-	}
-
-	defer close(client.peerConnectionUpdateCh)
-
-	for e := range peerEventCh {
+// subscribeEventProcess starts subscribing peer connection change events and process them
+func (client *syncPeerClient) subscribeEventProcess() error {
+	err := client.network.SubscribeFn(client.ctx, func(e *event.PeerEvent) {
 		if client.isClosed.Load() {
 			client.logger.Debug("client is closed, ignore peer connection update", "peer", e.PeerID, "type", e.Type)
 
@@ -286,7 +280,9 @@ func (client *syncPeerClient) startPeerEventProcess() {
 			case client.peerConnectionUpdateCh <- e:
 			}
 		}
-	}
+	})
+
+	return err
 }
 
 // GetBlocks returns a stream of blocks from given height to peer's latest

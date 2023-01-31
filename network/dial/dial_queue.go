@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/dogechain-lab/dogechain/network/common"
+	"go.uber.org/atomic"
 
 	"github.com/libp2p/go-libp2p-core/peer"
 )
@@ -17,7 +18,9 @@ type DialQueue struct {
 	tasks map[peer.ID]*DialTask
 
 	updateCh chan struct{}
-	closeCh  chan struct{}
+
+	closed  *atomic.Bool
+	closeCh chan struct{}
 }
 
 // NewDialQueue creates a new DialQueue instance
@@ -26,23 +29,35 @@ func NewDialQueue() *DialQueue {
 		heap:     dialQueueImpl{},
 		tasks:    map[peer.ID]*DialTask{},
 		updateCh: make(chan struct{}),
+		closed:   atomic.NewBool(false),
 		closeCh:  make(chan struct{}),
 	}
 }
 
 // Close closes the running DialQueue
 func (d *DialQueue) Close() {
-	close(d.closeCh)
+	d.closed.CAS(false, true)
+
+	// return PopTask call
+	select {
+	case d.closeCh <- struct{}{}:
+	default:
+	}
 }
 
 // PopTask is a loop that handles update and close events [BLOCKING]
 func (d *DialQueue) PopTask() *DialTask {
 	for {
+		if d.closed.Load() {
+			return nil
+		}
+
 		task := d.popTaskImpl() // Blocking pop
 		if task != nil {
 			return task
 		}
 
+		// if task is nil, wait next update or close event
 		select {
 		case <-d.updateCh:
 		case <-d.closeCh:
@@ -73,6 +88,10 @@ func (d *DialQueue) popTaskImpl() *DialTask {
 
 // DeleteTask deletes a task from the dial queue for the specified peer
 func (d *DialQueue) DeleteTask(peer peer.ID) {
+	if d.closed.Load() {
+		return
+	}
+
 	d.Lock()
 	defer d.Unlock()
 
@@ -92,6 +111,10 @@ func (d *DialQueue) AddTask(
 	addrInfo *peer.AddrInfo,
 	priority common.DialPriority,
 ) {
+	if d.closed.Load() {
+		return
+	}
+
 	d.Lock()
 	defer d.Unlock()
 

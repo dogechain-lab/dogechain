@@ -189,7 +189,7 @@ func TestStatusPubSub(t *testing.T) {
 	_, peerSrv := createTestSyncerService(t, &mockBlockchain{})
 	peerID := peerSrv.AddrInfo().ID
 
-	go client.startPeerEventProcess()
+	client.subscribeEventProcess()
 
 	// run goroutine to collect events
 	var (

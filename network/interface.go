@@ -38,8 +38,8 @@ type Network interface {
 
 	// NewTopic Creates New Topic for gossip
 	NewTopic(protoID string, obj proto.Message) (Topic, error)
-	// SubscribeCh returns a channel of peer event
-	SubscribeCh(context.Context) (<-chan *event.PeerEvent, error)
+	// SubscribeFn subscribe of peer event
+	SubscribeFn(ctx context.Context, handler func(evnt *event.PeerEvent)) error
 
 	// **Protocol**
 
