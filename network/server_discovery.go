@@ -70,7 +70,8 @@ func (s *DefaultServer) NewDiscoveryClient(peerID peer.ID) (proto.DiscoveryClien
 	return proto.NewDiscoveryClient(protoStream), nil
 }
 
-// AddToPeerStore adds peer information to the node's peer store, static node and bootnode addresses are added with permanent TTL
+// AddToPeerStore adds peer information to the node's peer store,
+// static node and bootnode addresses are added with permanent TTL
 func (s *DefaultServer) AddToPeerStore(peerInfo *peer.AddrInfo) {
 	ttl := peerstore.AddressTTL
 

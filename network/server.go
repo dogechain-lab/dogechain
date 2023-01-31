@@ -995,6 +995,7 @@ func (s *DefaultServer) SubscribeFn(ctx context.Context, handler func(evnt *peer
 	if err != nil {
 		return err
 	}
+
 	s.closeWg.Add(1)
 
 	go func() {
