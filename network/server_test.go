@@ -45,14 +45,14 @@ func TestConnLimit_Inbound(t *testing.T) {
 
 	// One slot left, Server 0 can connect to Server 1
 	if joinErr := JoinAndWait(servers[0], servers[1], DefaultBufferTimeout, DefaultJoinTimeout, false); joinErr != nil {
-		t.Fatalf("Unable to join servers, %v", joinErr)
+		t.Fatalf("Unable to join servers (servers[0], servers[1]), %v", joinErr)
 	}
 
 	// Server 2 tries to connect to Server 1
 	// but Server 1 is already connected to max inbound peers
 	smallTimeout := time.Second * 5
 	if joinErr := JoinAndWait(servers[2], servers[1], smallTimeout, smallTimeout, false); joinErr == nil {
-		t.Fatal("Peer join should've failed", joinErr)
+		t.Fatalf("Peer join should've failed (servers[2], servers[1]), %v", joinErr)
 	}
 
 	// Disconnect Server 0 from Server 1 so Server 1 will have free slots
@@ -71,7 +71,7 @@ func TestConnLimit_Inbound(t *testing.T) {
 
 	// Attempt a connection between Server 2 and Server 1 again
 	if joinErr := JoinAndWait(servers[2], servers[1], DefaultBufferTimeout, DefaultJoinTimeout, false); joinErr != nil {
-		t.Fatalf("Unable to join servers, %v", joinErr)
+		t.Fatalf("Unable to join servers (servers[2], servers[1]), %v", joinErr)
 	}
 }
 
@@ -100,14 +100,14 @@ func TestConnLimit_Outbound(t *testing.T) {
 
 	// One slot left, Server 0 can connect to Server 1
 	if joinErr := JoinAndWait(servers[0], servers[1], DefaultBufferTimeout, DefaultJoinTimeout, false); joinErr != nil {
-		t.Fatalf("Unable to join servers, %v", joinErr)
+		t.Fatalf("Unable to join servers (servers[0], servers[1]), %v", joinErr)
 	}
 
 	// Attempt to connect Server 0 to Server 2, but it should fail since
 	// Server 0 already has 1 peer (Server 1)
 	smallTimeout := time.Second * 5
 	if joinErr := JoinAndWait(servers[0], servers[2], smallTimeout, smallTimeout, false); joinErr == nil {
-		t.Fatalf("Unable to join servers, %v", joinErr)
+		t.Fatalf("Unable to join servers (servers[0], servers[2), %v", joinErr)
 	}
 
 	// Disconnect Server 0 from Server 1
@@ -311,13 +311,13 @@ func TestJoinWhenAlreadyConnected(t *testing.T) {
 
 	// Server 0 should connect to Server 1
 	if joinErr := JoinAndWait(servers[0], servers[1], DefaultBufferTimeout, DefaultJoinTimeout, false); joinErr != nil {
-		t.Fatalf("Unable to join servers, %v", joinErr)
+		t.Fatalf("Unable to join servers (servers[0], servers[1]), %v", joinErr)
 	}
 
 	// Server 1 should attempt to connect to Server 0, but shouldn't error out
 	// if since it's already connected
 	if joinErr := JoinAndWait(servers[1], servers[0], DefaultBufferTimeout, DefaultJoinTimeout, false); joinErr != nil {
-		t.Fatalf("Unable to join servers, %v", joinErr)
+		t.Fatalf("Unable to join servers (servers[1], servers[0]), %v", joinErr)
 	}
 }
 
@@ -345,12 +345,12 @@ func TestJoinStaticNodeWhenAlreadyConnected(t *testing.T) {
 
 	// Server 0 should connect to Server 1 as a static node
 	if joinErr := JoinAndWait(servers[0], servers[1], DefaultBufferTimeout, DefaultJoinTimeout, true); joinErr != nil {
-		t.Fatalf("Unable to join servers, %v", joinErr)
+		t.Fatalf("Unable to join servers (servers[0], servers[1]), %v", joinErr)
 	}
 
 	// Server 1 joins Server 0 as a static node
 	if joinErr := JoinAndWait(servers[1], servers[0], DefaultBufferTimeout, DefaultJoinTimeout, true); joinErr != nil {
-		t.Fatalf("Unable to join servers, %v", joinErr)
+		t.Fatalf("Unable to join servers (servers[1], servers[0]), %v", joinErr)
 	}
 
 	servers[0].ForgetPeer(servers[1].host.ID(), "bye")
@@ -489,17 +489,17 @@ func TestPeerReconnection(t *testing.T) {
 
 	// connect with the first boot node
 	if joinErr := JoinAndWait(servers[0], bootnodes[0], DefaultBufferTimeout, DefaultJoinTimeout, false); joinErr != nil {
-		t.Fatalf("Unable to join servers, %v", joinErr)
+		t.Fatalf("Unable to join servers (servers[0], bootnodes[0]), %v", joinErr)
 	}
 
 	// connect with the second boot node
 	if joinErr := JoinAndWait(servers[0], bootnodes[1], DefaultBufferTimeout, DefaultJoinTimeout, false); joinErr != nil {
-		t.Fatalf("Unable to join servers, %v", joinErr)
+		t.Fatalf("Unable to join servers (servers[0], bootnodes[1]), %v", joinErr)
 	}
 
 	// Connect with the second server
 	if joinErr := JoinAndWait(servers[0], servers[1], DefaultBufferTimeout, DefaultJoinTimeout, false); joinErr != nil {
-		t.Fatalf("Unable to join servers, %v", joinErr)
+		t.Fatalf("Unable to join servers (servers[0], servers[1]), %v", joinErr)
 	}
 
 	// disconnect from the first boot node
@@ -511,7 +511,7 @@ func TestPeerReconnection(t *testing.T) {
 	// disconnect from the other server
 	closePeerServer(servers[0], servers[1])
 
-	waitCtx, cancelWait := context.WithTimeout(context.Background(), DefaultJoinTimeout*3)
+	waitCtx, cancelWait := context.WithTimeout(context.Background(), DefaultJoinTimeout)
 	defer cancelWait()
 
 	reconnected, err := WaitUntilPeerConnectsTo(waitCtx, servers[0], bootnodes[0].host.ID(), bootnodes[1].host.ID())
@@ -566,7 +566,7 @@ func TestReconnectionWithNewIP(t *testing.T) {
 
 	// Server 0 should connect to Server 1
 	if joinErr := JoinAndWait(servers[0], servers[1], DefaultBufferTimeout, DefaultJoinTimeout, false); joinErr != nil {
-		t.Fatalf("Unable to join servers, %v", joinErr)
+		t.Fatalf("Unable to join servers (servers[0], servers[1]), %v", joinErr)
 	}
 
 	// Server 1 terminates, so Server 0 should disconnect from it
@@ -586,7 +586,7 @@ func TestReconnectionWithNewIP(t *testing.T) {
 	// servers[0] connects to servers[2]
 	// Server 0 should connect to Server 2 (that has the NAT address set)
 	if joinErr := JoinAndWait(servers[0], servers[2], DefaultBufferTimeout, DefaultJoinTimeout, false); joinErr != nil {
-		t.Fatalf("Unable to join servers, %v", joinErr)
+		t.Fatalf("Unable to join servers (servers[0], servers[2]), %v", joinErr)
 	}
 
 	// Wait until Server 2 also has a connection to Server 0 before asserting
@@ -685,7 +685,7 @@ func TestRunDial(t *testing.T) {
 
 		for _, p := range peers {
 			if joinErr := JoinAndWait(srv, p, DefaultBufferTimeout, DefaultJoinTimeout, false); joinErr != nil {
-				t.Fatalf("Unable to join peer, %v", joinErr)
+				t.Fatalf("Unable to join peer (srv, p), %v", joinErr)
 			}
 		}
 		closeServers(servers...)
@@ -719,12 +719,12 @@ func TestRunDial(t *testing.T) {
 		// Server 1 can't connect to any peers, so this join should fail
 		smallTimeout := time.Second * 5
 		if joinErr := JoinAndWait(srv, peers[0], smallTimeout, smallTimeout, false); joinErr == nil {
-			t.Fatalf("Shouldn't be able to join peer, %v", joinErr)
+			t.Fatalf("Shouldn't be able to join peer (srv, peers[0]), %v", joinErr)
 		}
 
 		// Server 0 and Server 2 should connect
 		if joinErr := JoinAndWait(srv, peers[1], DefaultBufferTimeout, DefaultJoinTimeout, false); joinErr != nil {
-			t.Fatalf("Couldn't join peer, %v", joinErr)
+			t.Fatalf("Couldn't join peer (srv, peers[1]), %v", joinErr)
 		}
 
 		closeServers(srv, peers[1])
