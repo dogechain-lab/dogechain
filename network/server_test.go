@@ -146,10 +146,17 @@ func TestPeerEvent_EmitAndSubscribe(t *testing.T) {
 		assert.NoError(t, server.Close())
 	})
 
-	sub, err := server.Subscribe()
-	assert.NoError(t, err)
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultJoinTimeout)
+	defer cancel()
 
 	count := 10
+	sub := make(chan *peerEvent.PeerEvent, count)
+
+	err := server.SubscribeFn(ctx, func(event *peerEvent.PeerEvent) {
+		sub <- event
+	})
+	assert.NoError(t, err)
+
 	events := []peerEvent.PeerEventType{
 		peerEvent.PeerConnected,
 		peerEvent.PeerFailedToConnect,
@@ -168,28 +175,39 @@ func TestPeerEvent_EmitAndSubscribe(t *testing.T) {
 	t.Run("Serial event emit and read", func(t *testing.T) {
 		for i := 0; i < count; i++ {
 			id, event := getIDAndEventType(i)
-			server.emitEvent(id, event)
+			go server.emitEvent(id, event)
 
-			received := sub.Get()
-			assert.Equal(t, &peerEvent.PeerEvent{
-				PeerID: id,
-				Type:   event,
-			}, received)
+			select {
+			case <-ctx.Done():
+				t.Fatal("Context timed out")
+			case received := <-sub:
+				assert.Equal(t, &peerEvent.PeerEvent{
+					PeerID: id,
+					Type:   event,
+				}, received)
+			}
 		}
 	})
 
 	t.Run("Async event emit and read", func(t *testing.T) {
+		go func() {
+			for i := 0; i < count; i++ {
+				id, event := getIDAndEventType(i)
+				server.emitEvent(id, event)
+			}
+		}()
+
 		for i := 0; i < count; i++ {
-			id, event := getIDAndEventType(i)
-			server.emitEvent(id, event)
-		}
-		for i := 0; i < count; i++ {
-			received := sub.Get()
-			id, event := getIDAndEventType(i)
-			assert.Equal(t, &peerEvent.PeerEvent{
-				PeerID: id,
-				Type:   event,
-			}, received)
+			select {
+			case <-ctx.Done():
+				t.Fatal("Context timed out")
+			case received := <-sub:
+				id, event := getIDAndEventType(i)
+				assert.Equal(t, &peerEvent.PeerEvent{
+					PeerID: id,
+					Type:   event,
+				}, received)
+			}
 		}
 	})
 }
