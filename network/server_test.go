@@ -354,7 +354,6 @@ func TestJoinStaticNodeWhenAlreadyConnected(t *testing.T) {
 	}
 
 	servers[0].ForgetPeer(servers[1].host.ID(), "bye")
-	servers[0].DisconnectFromPeer(servers[1].host.ID(), "bye")
 
 	// Server 0 has a static connection to Server 1, so it should not be disconnected
 	assert.True(t, true, servers[0].HasPeer(servers[1].host.ID()))

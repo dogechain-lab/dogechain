@@ -632,47 +632,15 @@ func (s *DefaultServer) GetProtocols(peerID peer.ID) ([]string, error) {
 // and updates relevant counters and metrics. It is called from the
 // disconnection callback of the libp2p network bundle (when the connection is closed)
 func (s *DefaultServer) removePeer(peerID peer.ID) {
-	s.logger.Info("Peer disconnected", "id", peerID.String())
-
-	// Remove the peer from the peers map
-	connectionInfo := s.removePeerInfo(peerID)
-	if connectionInfo == nil {
-		// The peer wasn't present in the local peers info table
-		// so no action should be taken further
-		return
-	}
-
-	if errs := connectionInfo.cleanProtocolStreams(); len(errs) > 0 {
-		for _, err := range errs {
-			if err != nil {
-				s.logger.Error("close protocol streams failed", "err", err)
-			}
-		}
-	}
-
-	// Emit the event alerting listeners
-	s.emitEvent(peerID, peerEvent.PeerDisconnected)
-}
-
-// removePeerInfo removes (pops) peer connection info from the networking
-// server's peer map. Returns nil if no peer was removed
-func (s *DefaultServer) removePeerInfo(peerID peer.ID) *PeerConnInfo {
 	s.peersLock.Lock()
 	defer s.peersLock.Unlock()
 
-	// static nodes are not removed from the peers map
+	s.logger.Info("remove peer", "id", peerID.String())
+
 	if s.IsStaticPeer(peerID) {
-		connectionInfo, ok := s.peers[peerID]
-		if !ok {
-			// Peer is not present in the peers map
-			s.logger.Warn(
-				fmt.Sprintf("Attempted removing missing peer info %s", peerID),
-			)
+		s.logger.Info("peer is static node, ignore", "id", peerID.String())
 
-			return nil
-		}
-
-		return connectionInfo
+		return
 	}
 
 	// Remove the peer from the peers map
@@ -683,7 +651,7 @@ func (s *DefaultServer) removePeerInfo(peerID peer.ID) *PeerConnInfo {
 			fmt.Sprintf("Attempted removing missing peer info %s", peerID),
 		)
 
-		return nil
+		return
 	}
 
 	// Delete the peer from the peers map
@@ -702,7 +670,16 @@ func (s *DefaultServer) removePeerInfo(peerID peer.ID) *PeerConnInfo {
 		float64(len(s.peers)),
 	)
 
-	return connectionInfo
+	if errs := connectionInfo.cleanProtocolStreams(); len(errs) > 0 {
+		for _, err := range errs {
+			if err != nil {
+				s.logger.Error("close protocol streams failed", "err", err)
+			}
+		}
+	}
+
+	// Emit the event alerting listeners
+	s.emitEvent(peerID, peerEvent.PeerDisconnected)
 }
 
 // updateBootnodeConnCount attempts to update the bootnode connection count
@@ -731,7 +708,6 @@ func (s *DefaultServer) ForgetPeer(peer peer.ID, reason string) {
 	s.logger.Warn("forget peer", "id", peer, "reason", reason)
 
 	s.DisconnectFromPeer(peer, reason)
-	s.removePeer(peer)
 	s.forgetPeer(peer)
 }
 
@@ -745,7 +721,16 @@ func (s *DefaultServer) forgetPeer(peer peer.ID) {
 
 	s.logger.Info("remove peer from store", "id", peer)
 
+	if s.discovery != nil {
+		// remove peer from routing table
+		s.discovery.RemovePeerFromRoutingTable(peer)
+	}
+
+	// remove peer from peer store
 	s.RemoveFromPeerStore(p)
+
+	// remove peer from peer list
+	s.removePeer(peer)
 }
 
 // DisconnectFromPeer disconnects the networking server from the specified peer
@@ -760,6 +745,10 @@ func (s *DefaultServer) DisconnectFromPeer(peer peer.ID, reason string) {
 
 	s.logger.Info("closing connection to peer", "id", peer, "reason", reason)
 
+	// Remove the peer from the dial queue
+	s.dialQueue.DeleteTask(peer)
+
+	// Close the peer connection
 	if closeErr := s.host.Network().ClosePeer(peer); closeErr != nil {
 		s.logger.Error("unable to gracefully close peer connection", "err", closeErr)
 	}

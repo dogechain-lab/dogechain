@@ -202,6 +202,10 @@ func (d *DiscoveryService) addToTable(node *peer.AddrInfo) error {
 	return nil
 }
 
+func (d *DiscoveryService) RemovePeerFromRoutingTable(peerID peer.ID) {
+	d.routingTable.RemovePeer(peerID)
+}
+
 // addPeersToTable adds the passed in peers to the peer store and the routing table
 func (d *DiscoveryService) addPeersToTable(nodeAddrStrs []string) {
 	for _, nodeAddrStr := range nodeAddrStrs {

@@ -91,6 +91,7 @@ func (s *DefaultServer) RemoveFromPeerStore(peerInfo *peer.AddrInfo) {
 	}
 
 	s.host.Peerstore().RemovePeer(peerInfo.ID)
+	s.host.Peerstore().ClearAddrs(peerInfo.ID)
 }
 
 // GetPeerInfo fetches the information of a peer
