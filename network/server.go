@@ -485,15 +485,11 @@ func (s *DefaultServer) runDial() {
 	defer s.closeWg.Done()
 
 	// Create a channel to notify the dial loop of any new dial requests
-	// not need close the channel, this channel is non-blocking,
-	// and
+	// not need close the channel, this channel is write non-blocking
 	notifyCh := make(chan struct{}, 1)
 
 	ctx, cancel := context.WithCancel(context.Background())
-
-	defer func() {
-		cancel()
-	}()
+	defer cancel()
 
 	if err := s.SubscribeFn(ctx, func(event *peerEvent.PeerEvent) {
 		// Only concerned about the listed event types
@@ -509,8 +505,6 @@ func (s *DefaultServer) runDial() {
 		}
 
 		select {
-		case <-ctx.Done():
-			return
 		case notifyCh <- struct{}{}:
 		default:
 		}
