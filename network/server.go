@@ -484,16 +484,15 @@ func (s *DefaultServer) runDial() {
 	s.closeWg.Add(1)
 	defer s.closeWg.Done()
 
-	// The notification channel needs to be buffered to avoid
-	// having events go missing, as they're crucial to the functioning
-	// of the runDial mechanism
+	// Create a channel to notify the dial loop of any new dial requests
+	// not need close the channel, this channel is non-blocking,
+	// and
 	notifyCh := make(chan struct{}, 1)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
 	defer func() {
 		cancel()
-		close(notifyCh)
 	}()
 
 	if err := s.SubscribeFn(ctx, func(event *peerEvent.PeerEvent) {
@@ -556,6 +555,7 @@ func (s *DefaultServer) runDial() {
 		// might involve a new dial slot available
 		select {
 		case <-notifyCh:
+			s.logger.Debug("new peerEvent, next dial loop")
 		case <-s.closeCh:
 			return
 		}
