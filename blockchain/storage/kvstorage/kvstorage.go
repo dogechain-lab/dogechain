@@ -2,10 +2,11 @@
 package kvstorage
 
 import (
-	"encoding/binary"
 	"math/big"
 
+	"github.com/VictoriaMetrics/fastcache"
 	"github.com/dogechain-lab/dogechain/blockchain/storage"
+	"github.com/dogechain-lab/dogechain/helper/common"
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/dogechain-lab/fastrlp"
 	"github.com/hashicorp/go-hclog"
@@ -60,38 +61,47 @@ type KV interface {
 type KeyValueStorage struct {
 	logger hclog.Logger
 	db     KV
+
+	canonicalHashCached *fastcache.Cache
 }
 
 func newKeyValueStorage(logger hclog.Logger, db KV) storage.Storage {
-	return &KeyValueStorage{logger: logger, db: db}
-}
-
-func (s *KeyValueStorage) encodeUint(n uint64) []byte {
-	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b[:], n)
-
-	return b[:]
-}
-
-func (s *KeyValueStorage) decodeUint(b []byte) uint64 {
-	return binary.BigEndian.Uint64(b[:])
+	return &KeyValueStorage{
+		logger:              logger,
+		db:                  db,
+		canonicalHashCached: fastcache.New(64 * 1024 * 1024),
+	}
 }
 
 // -- canonical hash --
 
 // ReadCanonicalHash gets the hash from the number of the canonical chain
 func (s *KeyValueStorage) ReadCanonicalHash(n uint64) (types.Hash, bool) {
-	data, ok := s.get(CANONICAL, s.encodeUint(n))
-	if !ok {
-		return types.Hash{}, false
+	key := append(CANONICAL, common.Uint64ToBytes(n)...)
+
+	if cacheData := s.canonicalHashCached.Get(nil, key); cacheData != nil {
+		return types.BytesToHash(cacheData), true
 	}
+
+	data, ok := s.get(CANONICAL, common.Uint64ToBytes(n))
+	if !ok {
+		return types.ZeroHash(), false
+	}
+
+	s.canonicalHashCached.Set(key, data)
 
 	return types.BytesToHash(data), true
 }
 
 // WriteCanonicalHash writes a hash for a number block in the canonical chain
 func (s *KeyValueStorage) WriteCanonicalHash(n uint64, hash types.Hash) error {
-	return s.set(CANONICAL, s.encodeUint(n), hash.Bytes())
+	err := s.set(CANONICAL, common.Uint64ToBytes(n), hash.Bytes())
+	if err == nil {
+		key := append(CANONICAL, common.Uint64ToBytes(n)...)
+		s.canonicalHashCached.Set(key, hash.Bytes())
+	}
+
+	return err
 }
 
 // HEAD //
@@ -100,7 +110,7 @@ func (s *KeyValueStorage) WriteCanonicalHash(n uint64, hash types.Hash) error {
 func (s *KeyValueStorage) ReadHeadHash() (types.Hash, bool) {
 	data, ok := s.get(HEAD, HASH)
 	if !ok {
-		return types.Hash{}, false
+		return types.ZeroHash(), false
 	}
 
 	return types.BytesToHash(data), true
@@ -117,7 +127,7 @@ func (s *KeyValueStorage) ReadHeadNumber() (uint64, bool) {
 		return 0, false
 	}
 
-	return s.decodeUint(data), true
+	return common.BytesToUint64(data), true
 }
 
 // WriteHeadHash writes the hash of the head
@@ -127,7 +137,7 @@ func (s *KeyValueStorage) WriteHeadHash(h types.Hash) error {
 
 // WriteHeadNumber writes the number of the head
 func (s *KeyValueStorage) WriteHeadNumber(n uint64) error {
-	return s.set(HEAD, NUMBER, s.encodeUint(n))
+	return s.set(HEAD, NUMBER, common.Uint64ToBytes(n))
 }
 
 // FORK //
@@ -238,21 +248,28 @@ func (s *KeyValueStorage) ReadReceipts(hash types.Hash) ([]*types.Receipt, error
 
 // TX LOOKUP //
 
+var txLookupArenaPool fastrlp.ArenaPool
+
 // WriteTxLookup maps the transaction hash to the block hash
 func (s *KeyValueStorage) WriteTxLookup(hash types.Hash, blockHash types.Hash) error {
-	ar := &fastrlp.Arena{}
+	ar := txLookupArenaPool.Get()
+	defer txLookupArenaPool.Put(ar)
+
 	vr := ar.NewBytes(blockHash.Bytes())
 
 	return s.write2(TX_LOOKUP_PREFIX, hash.Bytes(), vr)
 }
 
+var txLookupParserPool fastrlp.ParserPool
+
 // ReadTxLookup reads the block hash using the transaction hash
 func (s *KeyValueStorage) ReadTxLookup(hash types.Hash) (types.Hash, bool) {
-	parser := &fastrlp.Parser{}
+	parser := txLookupParserPool.Get()
+	defer txLookupParserPool.Put(parser)
 
 	v := s.read2(TX_LOOKUP_PREFIX, hash.Bytes(), parser)
 	if v == nil {
-		return types.Hash{}, false
+		return types.ZeroHash(), false
 	}
 
 	blockHash := []byte{}

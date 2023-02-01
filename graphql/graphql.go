@@ -44,7 +44,7 @@ func (a *Account) getStateRoot(ctx context.Context) (types.Hash, error) {
 
 	header, err := a.getHeaderFromBlockNumberOrHash(&a.blockNrOrHash)
 	if err != nil {
-		return types.ZeroHash, errFetchingHeader
+		return types.ZeroHash(), errFetchingHeader
 	}
 
 	return header.StateRoot, nil
@@ -167,33 +167,36 @@ func (a *Account) Code(ctx context.Context) (argtype.Bytes, error) {
 	return argtype.Bytes(code), nil
 }
 
+var parserPool fastrlp.ParserPool
+
 func (a *Account) Storage(ctx context.Context, args struct{ Slot types.Hash }) (types.Hash, error) {
 	root, err := a.getStateRoot(ctx)
 	if err != nil {
-		return types.ZeroHash, err
+		return types.ZeroHash(), err
 	}
 
 	// Get the storage for the passed in location
 	result, err := a.backend.GetStorage(root, a.address, args.Slot)
 	if err != nil {
 		if errors.Is(err, rpc.ErrStateNotFound) {
-			return types.ZeroHash, nil
+			return types.ZeroHash(), nil
 		}
 
-		return types.ZeroHash, err
+		return types.ZeroHash(), err
 	}
 
 	// Parse the RLP value
-	p := &fastrlp.Parser{}
+	p := parserPool.Get()
+	defer parserPool.Put(p)
 
 	v, err := p.Parse(result)
 	if err != nil {
-		return types.ZeroHash, nil
+		return types.ZeroHash(), nil
 	}
 
 	data, err := v.Bytes()
 	if err != nil {
-		return types.ZeroHash, nil
+		return types.ZeroHash(), nil
 	}
 
 	return types.BytesToHash(data), nil
@@ -646,7 +649,7 @@ func (b *Block) resolve(ctx context.Context) (*types.Block, error) {
 	if b.block != nil && b.header == nil {
 		b.header = b.block.Header
 
-		if b.hash == types.ZeroHash {
+		if b.hash.IsZero() {
 			b.hash = b.block.Hash()
 		}
 	}
@@ -658,14 +661,14 @@ func (b *Block) resolve(ctx context.Context) (*types.Block, error) {
 // if necessary. Call this function instead of `resolve` unless you need the
 // additional data (transactions and uncles).
 func (b *Block) resolveHeader(ctx context.Context) (*types.Header, error) {
-	if b.numberOrHash == nil && b.hash == types.ZeroHash {
+	if b.numberOrHash == nil && b.hash.IsZero() {
 		return nil, errBlockInvariant
 	}
 
 	if b.header == nil {
 		var exists bool
 
-		if b.hash != types.ZeroHash {
+		if !b.hash.IsZero() {
 			b.header, exists = b.backend.GetHeaderByHash(b.hash)
 			if !exists {
 				return nil, errBlockNotExists
@@ -713,7 +716,7 @@ func (b *Block) resolveReceipts(ctx context.Context) ([]*types.Receipt, error) {
 	if b.receipts == nil {
 		hash := b.hash
 
-		if hash == types.ZeroHash {
+		if hash.IsZero() {
 			header, err := b.resolveHeader(ctx)
 			if err != nil {
 				return nil, err
@@ -743,7 +746,7 @@ func (b *Block) Number(ctx context.Context) (argtype.Long, error) {
 
 func (b *Block) Hash(ctx context.Context) (types.Hash, error) {
 	if _, err := b.resolveHeader(ctx); err != nil {
-		return types.ZeroHash, err
+		return types.ZeroHash(), err
 	}
 
 	return b.hash, nil
@@ -814,7 +817,7 @@ func (b *Block) Nonce(ctx context.Context) (argtype.Bytes, error) {
 
 func (b *Block) MixHash(ctx context.Context) (types.Hash, error) {
 	if _, err := b.resolveHeader(ctx); err != nil {
-		return types.ZeroHash, err
+		return types.ZeroHash(), err
 	}
 
 	return b.header.MixHash, nil
@@ -822,7 +825,7 @@ func (b *Block) MixHash(ctx context.Context) (types.Hash, error) {
 
 func (b *Block) TransactionsRoot(ctx context.Context) (types.Hash, error) {
 	if _, err := b.resolveHeader(ctx); err != nil {
-		return types.ZeroHash, err
+		return types.ZeroHash(), err
 	}
 
 	return b.header.TxRoot, nil
@@ -830,7 +833,7 @@ func (b *Block) TransactionsRoot(ctx context.Context) (types.Hash, error) {
 
 func (b *Block) StateRoot(ctx context.Context) (types.Hash, error) {
 	if _, err := b.resolveHeader(ctx); err != nil {
-		return types.ZeroHash, err
+		return types.ZeroHash(), err
 	}
 
 	return b.header.StateRoot, nil
@@ -838,7 +841,7 @@ func (b *Block) StateRoot(ctx context.Context) (types.Hash, error) {
 
 func (b *Block) ReceiptsRoot(ctx context.Context) (types.Hash, error) {
 	if _, err := b.resolveHeader(ctx); err != nil {
-		return types.ZeroHash, err
+		return types.ZeroHash(), err
 	}
 
 	return b.header.ReceiptsRoot, nil

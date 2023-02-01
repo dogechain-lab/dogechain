@@ -707,7 +707,7 @@ func (f *FilterManager) appendLogsToFilters(header *types.Header) error {
 					continue
 				}
 
-				if receipt.TxHash == types.ZeroHash {
+				if receipt.TxHash.IsZero() {
 					// Extract tx Hash
 					receipt.TxHash = block.Transactions[indx].Hash()
 				}

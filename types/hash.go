@@ -9,9 +9,6 @@ import (
 )
 
 var (
-	// ZeroHash is all zero hash
-	ZeroHash = Hash{}
-
 	// EmptyRootHash is the root when there are no transactions
 	EmptyRootHash = StringToHash("0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
 
@@ -24,6 +21,13 @@ const (
 )
 
 type Hash [HashLength]byte
+
+// ZeroHash is the zero value of a hash.
+// global var is not readonly, need golang implement readonly array feature
+// PR: https://github.com/golang/go/issues/6386, https://github.com/golang/go/issues/46620
+func ZeroHash() Hash {
+	return Hash{}
+}
 
 func StringToHash(str string) Hash {
 	return BytesToHash(StringToBytes(str))
@@ -42,6 +46,10 @@ func BytesToHash(b []byte) Hash {
 
 func (h Hash) Bytes() []byte {
 	return h[:]
+}
+
+func (h Hash) IsZero() bool {
+	return h == Hash{}
 }
 
 func (h Hash) String() string {

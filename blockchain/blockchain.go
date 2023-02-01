@@ -23,7 +23,7 @@ import (
 
 const (
 	BlockGasTargetDivisor uint64 = 1024 // The bound divisor of the gas limit, used in update calculations
-	defaultCacheSize      int    = 100  // The default size for Blockchain LRU cache structures
+	defaultCacheSize      int    = 256  // The default size for Blockchain LRU cache structures
 )
 
 var (
@@ -55,8 +55,10 @@ type Blockchain struct {
 	config  *chain.Chain // Config containing chain information
 	genesis types.Hash   // The hash of the genesis block
 
-	headersCache    *lru.Cache // LRU cache for the headers
-	difficultyCache *lru.Cache // LRU cache for the difficulty
+	headersCache        *lru.Cache // LRU cache for the headers
+	hashToBlocksCache   *lru.Cache // LRU cache for the blocks (hash index, full block data)
+	numberToBlocksCache *lru.Cache // LRU cache for the blocks (number index, full block data)
+	difficultyCache     *lru.Cache // LRU cache for the difficulty
 
 	// We need to keep track of block receipts between the verification phase
 	// and the insertion phase of a new block coming in. To avoid having to
@@ -255,6 +257,16 @@ func (b *Blockchain) initCaches(size int) error {
 	b.receiptsCache, err = lru.New(size)
 	if err != nil {
 		return fmt.Errorf("unable to create receipts cache, %w", err)
+	}
+
+	b.hashToBlocksCache, err = lru.New(size)
+	if err != nil {
+		return fmt.Errorf("unable to create hash to blocks cache, %w", err)
+	}
+
+	b.numberToBlocksCache, err = lru.New(size)
+	if err != nil {
+		return fmt.Errorf("unable to create number to blocks cache, %w", err)
 	}
 
 	return nil
@@ -780,7 +792,7 @@ func (b *Blockchain) verifyBlockParent(childBlock *types.Block) error {
 	}
 
 	// Make sure the hash is valid
-	if parent.Hash == types.ZeroHash {
+	if parent.Hash.IsZero() {
 		return ErrInvalidParentHash
 	}
 
@@ -1135,7 +1147,7 @@ func (b *Blockchain) writeBody(block *types.Block) error {
 // ReadTxLookup returns the block hash using the transaction hash
 func (b *Blockchain) ReadTxLookup(hash types.Hash) (types.Hash, bool) {
 	if b.isStopped() {
-		return types.ZeroHash, false
+		return types.ZeroHash(), false
 	}
 
 	v, ok := b.db.ReadTxLookup(hash)
@@ -1215,12 +1227,12 @@ func (b *Blockchain) GetHashHelper(header *types.Header) func(i uint64) (res typ
 // GetHashByNumber returns the block hash using the block number
 func (b *Blockchain) GetHashByNumber(blockNumber uint64) types.Hash {
 	if b.isStopped() {
-		return types.ZeroHash
+		return types.ZeroHash()
 	}
 
 	block, ok := b.GetBlockByNumber(blockNumber, false)
 	if !ok {
-		return types.ZeroHash
+		return types.ZeroHash()
 	}
 
 	return block.Hash()
@@ -1436,6 +1448,15 @@ func (b *Blockchain) GetBlockByHash(hash types.Hash, full bool) (*types.Block, b
 		return block, true
 	}
 
+	// full block requested, check the cache
+	blk, ok := b.hashToBlocksCache.Get(hash)
+	if ok {
+		block, ok := blk.(*types.Block)
+		if ok {
+			return block, true
+		}
+	}
+
 	// Load the entire block body
 	body, ok := b.readBody(hash)
 	if !ok {
@@ -1445,6 +1466,8 @@ func (b *Blockchain) GetBlockByHash(hash types.Hash, full bool) (*types.Block, b
 	// Set the transactions and uncles
 	block.Transactions = body.Transactions
 	block.Uncles = body.Uncles
+
+	b.hashToBlocksCache.Add(hash, block)
 
 	return block, true
 }
@@ -1468,7 +1491,22 @@ func (b *Blockchain) GetBlockByNumber(blockNumber uint64, full bool) (*types.Blo
 		full = false
 	}
 
-	return b.GetBlockByHash(blockHash, full)
+	if full {
+		blk, ok := b.numberToBlocksCache.Get(blockNumber)
+		if ok {
+			block, ok := blk.(*types.Block)
+			if ok {
+				return block, true
+			}
+		}
+	}
+
+	block, isFind := b.GetBlockByHash(blockHash, full)
+	if isFind && block != nil && full {
+		b.numberToBlocksCache.Add(blockNumber, block)
+	}
+
+	return block, isFind
 }
 
 // Close closes the DB connection

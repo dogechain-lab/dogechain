@@ -1,6 +1,7 @@
 package common
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -62,6 +63,19 @@ func Max(a, b uint64) uint64 {
 	}
 
 	return b
+}
+
+// Uint64ToBytes converts a uint64 to a byte array (BigEndian)
+func Uint64ToBytes(i uint64) []byte {
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint64(b[:], i)
+
+	return b[:]
+}
+
+// BytesToUint64 converts a byte array to a uint64 (BigEndian)
+func BytesToUint64(b []byte) uint64 {
+	return binary.BigEndian.Uint64(b[:])
 }
 
 func ConvertUnmarshalledInt(x interface{}) (int64, error) {

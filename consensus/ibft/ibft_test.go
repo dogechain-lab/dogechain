@@ -105,7 +105,7 @@ func (m *MockBlockchain) SetGenesis(validators []types.Address) *types.Block {
 	header := &types.Header{
 		Number:     0,
 		Difficulty: 0,
-		ParentHash: types.ZeroHash,
+		ParentHash: types.ZeroHash(),
 		MixHash:    IstanbulDigest,
 		Sha3Uncles: types.EmptyUncleHash,
 		GasLimit:   defaultBlockGasLimit,
@@ -527,10 +527,10 @@ func TestTransition_AcceptState_Reject_WrongHeight_Block(t *testing.T) {
 		proposeBlockHeight uint64 = 3
 
 		// The latest block in the chain
-		latestBlock = blockchain.MockBlock(nextSequence-1, types.ZeroHash, pool.get("B").priv, pool.ValidatorSet())
+		latestBlock = blockchain.MockBlock(nextSequence-1, types.ZeroHash(), pool.get("B").priv, pool.ValidatorSet())
 
 		// The next proposed block in the network
-		proposedBlock = blockchain.MockBlock(proposeBlockHeight, types.ZeroHash, pool.get("C").priv, pool.ValidatorSet())
+		proposedBlock = blockchain.MockBlock(proposeBlockHeight, types.ZeroHash(), pool.get("C").priv, pool.ValidatorSet())
 	)
 
 	i.state.SetView(proto.ViewMsg(nextSequence, 0))

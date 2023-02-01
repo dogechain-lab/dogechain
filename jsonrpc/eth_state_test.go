@@ -20,6 +20,7 @@ var (
 	addr0                = types.Address{0x1}
 	uninitializedAddress = types.Address{0x99}
 	code0                = []byte{0x1, 0x2, 0x3}
+	zeroHash             = types.ZeroHash()
 )
 
 func TestEth_State_GetBalance(t *testing.T) {
@@ -33,7 +34,7 @@ func TestEth_State_GetBalance(t *testing.T) {
 		},
 		block: &types.Block{
 			Header: &types.Header{
-				Hash:      types.ZeroHash,
+				Hash:      types.ZeroHash(),
 				Number:    0,
 				StateRoot: types.EmptyRootHash,
 			},
@@ -99,7 +100,7 @@ func TestEth_State_GetBalance(t *testing.T) {
 			addr0,
 			false,
 			nil,
-			&types.ZeroHash,
+			&zeroHash,
 			100,
 		},
 		{
@@ -166,7 +167,7 @@ func TestEth_State_GetTransactionCount(t *testing.T) {
 		},
 		block: &types.Block{
 			Header: &types.Header{
-				Hash:      types.ZeroHash,
+				Hash:      types.ZeroHash(),
 				Number:    0,
 				StateRoot: types.EmptyRootHash,
 			},
@@ -231,7 +232,7 @@ func TestEth_State_GetTransactionCount(t *testing.T) {
 			"should return valid nonce for valid block hash",
 			addr0,
 			nil,
-			&types.ZeroHash,
+			&zeroHash,
 			false,
 			100,
 		},
@@ -285,7 +286,7 @@ func TestEth_State_GetCode(t *testing.T) {
 		},
 		block: &types.Block{
 			Header: &types.Header{
-				Hash:      types.ZeroHash,
+				Hash:      types.ZeroHash(),
 				Number:    0,
 				StateRoot: types.EmptyRootHash,
 			},
@@ -352,7 +353,7 @@ func TestEth_State_GetCode(t *testing.T) {
 			"should return a valid code for valid block hash",
 			addr0,
 			nil,
-			&types.ZeroHash,
+			&zeroHash,
 			false,
 			code0,
 		},
@@ -409,7 +410,7 @@ func TestEth_State_GetStorageAt(t *testing.T) {
 		},
 		block: &types.Block{
 			Header: &types.Header{
-				Hash:      types.ZeroHash,
+				Hash:      types.ZeroHash(),
 				Number:    0,
 				StateRoot: types.EmptyRootHash,
 			},
@@ -458,7 +459,7 @@ func TestEth_State_GetStorageAt(t *testing.T) {
 			blockNumber:  &blockNumberLatest,
 			blockHash:    nil,
 			succeeded:    true,
-			expectedData: argBytesPtr(types.ZeroHash[:]),
+			expectedData: argBytesPtr(zeroHash.Bytes()),
 		},
 		{
 			name: "should return 32 bytes filled with zero for non-existing account",
@@ -471,7 +472,7 @@ func TestEth_State_GetStorageAt(t *testing.T) {
 			index:        hash2,
 			blockNumber:  &blockNumberLatest,
 			succeeded:    true,
-			expectedData: argBytesPtr(types.ZeroHash[:]),
+			expectedData: argBytesPtr(zeroHash.Bytes()),
 		},
 		{
 			name: "should return error for invalid block number",
@@ -511,7 +512,7 @@ func TestEth_State_GetStorageAt(t *testing.T) {
 			address:      addr0,
 			index:        hash1,
 			blockNumber:  nil,
-			blockHash:    &types.ZeroHash,
+			blockHash:    &zeroHash,
 			succeeded:    true,
 			expectedData: argBytesPtr(hash1[:]),
 		},

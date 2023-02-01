@@ -411,6 +411,8 @@ func (e *Eth) GetTransactionReceipt(hash types.Hash) (interface{}, error) {
 	return res, nil
 }
 
+var parserPool fastrlp.ParserPool
+
 // GetStorageAt returns the contract storage at the index position
 func (e *Eth) GetStorageAt(
 	address types.Address,
@@ -438,23 +440,25 @@ func (e *Eth) GetStorageAt(
 	result, err := e.store.GetStorage(header.StateRoot, address, index)
 	if err != nil {
 		if errors.Is(err, ErrStateNotFound) {
-			return argBytesPtr(types.ZeroHash[:]), nil
+			return argBytesPtr(types.ZeroHash().Bytes()), nil
 		}
 
 		return nil, err
 	}
+
 	// Parse the RLP value
-	p := &fastrlp.Parser{}
+	p := parserPool.Get()
+	defer parserPool.Put(p)
 
 	v, err := p.Parse(result)
 	if err != nil {
-		return argBytesPtr(types.ZeroHash[:]), nil
+		return argBytesPtr(types.ZeroHash().Bytes()), nil
 	}
 
 	data, err := v.Bytes()
 
 	if err != nil {
-		return argBytesPtr(types.ZeroHash[:]), nil
+		return argBytesPtr(types.ZeroHash().Bytes()), nil
 	}
 
 	// Pad to return 32 bytes data

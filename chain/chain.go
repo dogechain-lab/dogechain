@@ -55,7 +55,7 @@ type Genesis struct {
 func (g *Genesis) GenesisHeader() *types.Header {
 	stateRoot := types.EmptyRootHash
 
-	if g.StateRoot != types.ZeroHash {
+	if !g.StateRoot.IsZero() {
 		stateRoot = g.StateRoot
 	}
 

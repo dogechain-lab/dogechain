@@ -80,7 +80,7 @@ func (e *Executor) WriteGenesis(alloc map[types.Address]*chain.GenesisAccount) (
 
 	_, root, err := snap.Commit(objs)
 	if err != nil {
-		return types.ZeroHash, nil
+		return types.ZeroHash(), nil
 	}
 
 	return types.BytesToHash(root), nil
@@ -450,7 +450,7 @@ func (t *Transition) Commit() (Snapshot, types.Hash, error) {
 
 	s2, root, err := t.txn.snapshot.Commit(objs)
 	if err != nil {
-		return nil, types.ZeroHash, err
+		return nil, types.ZeroHash(), err
 	}
 
 	return s2, types.BytesToHash(root), nil

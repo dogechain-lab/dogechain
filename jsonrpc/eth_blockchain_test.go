@@ -450,7 +450,7 @@ func (m *mockBlockStore) ReadTxLookup(txnHash types.Hash) (types.Hash, bool) {
 		}
 	}
 
-	return types.ZeroHash, false
+	return types.ZeroHash(), false
 }
 
 func (m *mockBlockStore) GetPendingTx(txHash types.Hash) (*types.Transaction, bool) {

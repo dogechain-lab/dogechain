@@ -67,7 +67,7 @@ func toTxPoolTransaction(t *types.Transaction) *txpoolTransaction {
 		Input:       t.Input,
 		Hash:        t.Hash(),
 		From:        t.From,
-		BlockHash:   types.ZeroHash,
+		BlockHash:   types.ZeroHash(),
 		BlockNumber: nil,
 		TxIndex:     nil,
 	}
