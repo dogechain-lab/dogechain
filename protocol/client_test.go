@@ -250,8 +250,6 @@ func TestStatusPubSub(t *testing.T) {
 }
 
 func TestPeerConnectionUpdateEventCh(t *testing.T) {
-	t.Parallel()
-
 	var (
 		// network layer
 		clientSrv = newTestNetwork(t)
@@ -296,13 +294,17 @@ func TestPeerConnectionUpdateEventCh(t *testing.T) {
 
 	// client <-> peer1
 	// peer1  <-> peer2
+	// peer2  <-> peer3
 	err := network.JoinAndWaitMultiple(
 		t,
 		network.DefaultJoinTimeout,
+		// client <-> peer1
 		clientSrv,
 		peerSrv1,
+		// peer1 <-> peer2
 		peerSrv1,
 		peerSrv2,
+		// peer2 <-> peer3
 		peerSrv2,
 		peerSrv3,
 	)
