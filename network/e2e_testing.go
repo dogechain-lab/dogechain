@@ -39,6 +39,8 @@ func JoinAndWait(
 	joinTimeout time.Duration,
 	static bool,
 ) error {
+	t.Helper()
+
 	if joinTimeout == 0 {
 		joinTimeout = DefaultJoinTimeout
 	}
@@ -68,6 +70,8 @@ func JoinAndWaitMultiple(
 	timeout time.Duration,
 	servers ...Server,
 ) error {
+	t.Helper()
+
 	if len(servers)%2 != 0 {
 		return errors.New("number of servers must be even")
 	}
@@ -343,6 +347,8 @@ func CreateServer(params *CreateServerParams) (*DefaultServer, error) {
 
 // MeshJoin is a helper method for joining all the passed in servers into a mesh
 func MeshJoin(t *testing.T, servers ...*DefaultServer) []error {
+	t.Helper()
+
 	if len(servers) < 2 {
 		return nil
 	}

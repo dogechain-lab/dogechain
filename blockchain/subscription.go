@@ -66,8 +66,8 @@ func (s *subscription) IsClosed() bool {
 
 // Unsubscribe closes the subscription
 func (s *subscription) Unsubscribe() {
-	s.closed.CAS(false, true)
 	// don't close updateCh, it's closed from eventStream
+	s.closed.CAS(false, true)
 }
 
 type EventType int
