@@ -32,6 +32,7 @@ const (
 // JoinAndWait is a helper method for joining a destination server
 // and waiting for the connection to be successful (destination node is a peer of source)
 func JoinAndWait(
+	t *testing.T,
 	source,
 	destination Server,
 	connectTimeout time.Duration,
@@ -55,11 +56,15 @@ func JoinAndWait(
 	// Wait for the peer to be connected
 	_, connectErr := WaitUntilPeerConnectsTo(connectCtx, source, destination.AddrInfo().ID)
 
+	t.Logf("JoinAndWait: source server peers: %v\n", source.Peers())
+	t.Logf("JoinAndWait: destination server peers: %v\n", source.Peers())
+
 	return connectErr
 }
 
 // JoinAndWait is a helper method to make multiple servers connect to corresponding peer
 func JoinAndWaitMultiple(
+	t *testing.T,
 	timeout time.Duration,
 	servers ...Server,
 ) error {
@@ -82,7 +87,7 @@ func JoinAndWaitMultiple(
 		go func() {
 			defer wg.Done()
 
-			errCh <- JoinAndWait(s1, s2, timeout, timeout, false)
+			errCh <- JoinAndWait(t, s1, s2, timeout, timeout, false)
 		}()
 	}
 
@@ -337,7 +342,7 @@ func CreateServer(params *CreateServerParams) (*DefaultServer, error) {
 }
 
 // MeshJoin is a helper method for joining all the passed in servers into a mesh
-func MeshJoin(servers ...*DefaultServer) []error {
+func MeshJoin(t *testing.T, servers ...*DefaultServer) []error {
 	if len(servers) < 2 {
 		return nil
 	}
@@ -367,6 +372,7 @@ func MeshJoin(servers ...*DefaultServer) []error {
 					defer wg.Done()
 
 					if joinErr := JoinAndWait(
+						t,
 						servers[src],
 						servers[dest],
 						DefaultBufferTimeout,

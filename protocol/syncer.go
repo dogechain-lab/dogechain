@@ -194,8 +194,8 @@ func (s *noForkSyncer) runUpdateCurrentStatus() {
 			return
 		}
 
-		e := sub.GetEvent()
-		if e == nil {
+		e, ok := <-sub.GetEvent()
+		if e == nil || !ok {
 			continue
 		}
 

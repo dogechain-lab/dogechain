@@ -293,8 +293,8 @@ func (f *FilterManager) Run() {
 				return
 			}
 
-			evnt := sub.GetEvent()
-			if evnt == nil {
+			evnt, ok := <-sub.GetEvent()
+			if evnt == nil || !ok {
 				continue
 			}
 

@@ -88,6 +88,7 @@ func TestGetPeerStatus(t *testing.T) {
 	})
 
 	err := network.JoinAndWait(
+		t,
 		clientSrv,
 		peerSrv,
 		network.DefaultBufferTimeout,
@@ -150,6 +151,7 @@ func TestGetConnectedPeerStatuses(t *testing.T) {
 			defer mutex.Unlock()
 
 			peerJoinErrs[idx] = network.JoinAndWait(
+				t,
 				clientSrv,
 				peerSrv,
 				network.DefaultBufferTimeout,
@@ -209,6 +211,7 @@ func TestStatusPubSub(t *testing.T) {
 
 	// connect
 	err := network.JoinAndWait(
+		t,
 		clientSrv,
 		peerSrv,
 		network.DefaultBufferTimeout,
@@ -294,6 +297,7 @@ func TestPeerConnectionUpdateEventCh(t *testing.T) {
 	// client <-> peer1
 	// peer1  <-> peer2
 	err := network.JoinAndWaitMultiple(
+		t,
 		network.DefaultJoinTimeout,
 		clientSrv,
 		peerSrv1,
@@ -418,6 +422,7 @@ func Test_shouldEmitBlocks(t *testing.T) {
 	})
 
 	err := network.JoinAndWaitMultiple(
+		t,
 		network.DefaultJoinTimeout,
 		clientSrv,
 		peerSrv,
@@ -525,6 +530,7 @@ func Test_syncPeerClient_GetBlocks(t *testing.T) {
 	})
 
 	err := network.JoinAndWait(
+		t,
 		clientSrv,
 		peerSrv,
 		network.DefaultBufferTimeout,
@@ -590,6 +596,7 @@ func Test_newSyncPeerClient_forgetNonProtocolPeer(t *testing.T) {
 	})
 
 	err := network.JoinAndWait(
+		t,
 		clientSrv,
 		peerSrv,
 		network.DefaultBufferTimeout,

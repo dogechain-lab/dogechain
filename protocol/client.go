@@ -240,8 +240,8 @@ func (client *syncPeerClient) startNewBlockProcess() {
 			return
 		}
 
-		event := subscription.GetEvent()
-		if event == nil {
+		event, ok := <-subscription.GetEvent()
+		if event == nil || !ok {
 			client.logger.Debug("event is nil, skip")
 
 			continue

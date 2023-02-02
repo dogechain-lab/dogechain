@@ -59,7 +59,7 @@ func TestSimpleGossip(t *testing.T) {
 		closeTestServers(t, servers)
 	})
 
-	joinErrors := MeshJoin(servers...)
+	joinErrors := MeshJoin(t, servers...)
 	if len(joinErrors) != 0 {
 		t.Fatalf("Unable to join servers [%d], %v", len(joinErrors), joinErrors)
 	}
@@ -142,7 +142,7 @@ func TestTopicBackpressure(t *testing.T) {
 		closeTestServers(t, servers)
 	})
 
-	joinErrors := MeshJoin(servers...)
+	joinErrors := MeshJoin(t, servers...)
 	if len(joinErrors) != 0 {
 		t.Fatalf("Unable to join servers [%d], %v", len(joinErrors), joinErrors)
 	}
@@ -205,7 +205,7 @@ func TestTopicClose(t *testing.T) {
 		closeTestServers(t, servers)
 	})
 
-	joinErrors := MeshJoin(servers...)
+	joinErrors := MeshJoin(t, servers...)
 	if len(joinErrors) != 0 {
 		t.Fatalf("Unable to join servers [%d], %v", len(joinErrors), joinErrors)
 	}

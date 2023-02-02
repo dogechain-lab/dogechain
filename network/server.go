@@ -11,7 +11,6 @@ import (
 	"github.com/dogechain-lab/dogechain/network/dial"
 	"github.com/dogechain-lab/dogechain/network/discovery"
 	"github.com/dogechain-lab/dogechain/secrets"
-	"go.uber.org/atomic"
 
 	peerEvent "github.com/dogechain-lab/dogechain/network/event"
 
@@ -935,28 +934,11 @@ func (s *DefaultServer) SubscribeFn(ctx context.Context, handler func(evnt *peer
 		return err
 	}
 
-	isClosed := atomic.NewBool(false)
-	ch := make(chan *peerEvent.PeerEvent)
-
-	go func() {
-		defer close(ch)
-
-		for !isClosed.Load() {
-			evnt := <-raw.Out()
-
-			// double check closed
-			if obj, ok := evnt.(peerEvent.PeerEvent); ok && !isClosed.Load() {
-				ch <- &obj
-			}
-		}
-	}()
-
 	s.closeWg.Add(1)
 
 	go func() {
 		defer s.closeWg.Done()
 		defer raw.Close()
-		defer isClosed.Store(true)
 
 		for {
 			select {
@@ -964,9 +946,9 @@ func (s *DefaultServer) SubscribeFn(ctx context.Context, handler func(evnt *peer
 				return
 			case <-s.closeCh:
 				return
-			case evnt := <-ch:
-				if evnt != nil {
-					handler(evnt)
+			case evnt := <-raw.Out():
+				if e, ok := evnt.(peerEvent.PeerEvent); ok {
+					handler(&e)
 				}
 			}
 		}

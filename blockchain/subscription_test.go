@@ -34,7 +34,7 @@ func TestSubscription(t *testing.T) {
 
 	go func() {
 		// Wait for the event to be parsed
-		evnt := sub.GetEvent()
+		evnt := <-sub.GetEvent()
 		caughtEventNum = evnt.NewChain[0].Number
 		result <- struct{}{}
 	}()

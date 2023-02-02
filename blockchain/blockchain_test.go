@@ -470,7 +470,7 @@ func TestInsertHeaders(t *testing.T) {
 				}
 
 				// get the event
-				evnt := sub.GetEvent()
+				evnt := <-sub.GetEvent()
 				checkEvents(cc.History[i].event.NewChain, evnt.NewChain)
 				checkEvents(cc.History[i].event.OldChain, evnt.OldChain)
 

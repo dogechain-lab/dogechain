@@ -103,8 +103,8 @@ func (p *Progression) runUpdateLoop(subscription blockchain.Subscription) {
 				continue
 			}
 
-			event := subscription.GetEvent()
-			if event == nil || p.stopped.Load() {
+			event, ok := <-subscription.GetEvent()
+			if event == nil || p.stopped.Load() || !ok {
 				continue
 			}
 

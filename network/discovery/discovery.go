@@ -31,7 +31,7 @@ const (
 
 	// bootnodeDiscoveryInterval is the interval at which
 	// random bootnodes are dialed for their peer sets
-	bootnodeDiscoveryInterval = 60 * time.Second
+	bootnodeDiscoveryInterval = 30 * time.Second
 
 	maxDiscoveryPeerReqTimeout = 10 * time.Second
 )

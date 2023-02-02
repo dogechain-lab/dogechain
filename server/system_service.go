@@ -53,8 +53,8 @@ func (s *systemService) Subscribe(req *empty.Empty, stream proto.System_Subscrib
 			break
 		}
 
-		blockEvent := sub.GetEvent()
-		if blockEvent == nil {
+		blockEvent, ok := <-sub.GetEvent()
+		if blockEvent == nil || !ok {
 			continue
 		}
 

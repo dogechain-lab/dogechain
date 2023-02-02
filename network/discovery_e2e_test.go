@@ -26,7 +26,7 @@ func TestDiscovery_ConnectedPopulatesRoutingTable(t *testing.T) {
 		closeTestServers(t, servers)
 	})
 
-	joinErr := JoinAndWait(servers[0], servers[1], DefaultBufferTimeout, DefaultJoinTimeout, false)
+	joinErr := JoinAndWait(t, servers[0], servers[1], DefaultBufferTimeout, DefaultJoinTimeout, false)
 	if joinErr != nil {
 		t.Fatalf("Unable to join peers, %v", joinErr)
 	}
@@ -56,7 +56,7 @@ func TestRoutingTable_Connected(t *testing.T) {
 		closeTestServers(t, servers)
 	})
 
-	if joinErr := JoinAndWait(servers[0], servers[1], DefaultBufferTimeout, DefaultJoinTimeout, false); joinErr != nil {
+	if joinErr := JoinAndWait(t, servers[0], servers[1], DefaultBufferTimeout, DefaultJoinTimeout, false); joinErr != nil {
 		t.Fatalf("Unable to join peers, %v", joinErr)
 	}
 
@@ -101,7 +101,7 @@ func TestRoutingTable_Disconnected(t *testing.T) {
 	})
 
 	// connect to peer and make sure peer is in routing table
-	if joinErr := JoinAndWait(servers[0], servers[1], DefaultBufferTimeout, DefaultJoinTimeout, false); joinErr != nil {
+	if joinErr := JoinAndWait(t, servers[0], servers[1], DefaultBufferTimeout, DefaultJoinTimeout, false); joinErr != nil {
 		t.Fatalf("Unable to join peers, %v", joinErr)
 	}
 
@@ -166,7 +166,7 @@ func TestRoutingTable_ConnectionFailure(t *testing.T) {
 
 	// Set a small join timeout, no need to wait ~40s for the connection to fail
 	smallTimeout := time.Second * 10
-	if joinErr := JoinAndWait(servers[0], servers[1], smallTimeout+time.Second*5, smallTimeout, false); joinErr == nil {
+	if joinErr := JoinAndWait(t, servers[0], servers[1], smallTimeout+time.Second*5, smallTimeout, false); joinErr == nil {
 		t.Fatalf("should fail to connect to server[1], but connected")
 	}
 
@@ -196,12 +196,12 @@ func TestDiscovery_FullNetwork(t *testing.T) {
 	})
 
 	// Server 0 -> Server 1
-	if joinErr := JoinAndWait(servers[0], servers[1], DefaultBufferTimeout, DefaultJoinTimeout, false); joinErr != nil {
+	if joinErr := JoinAndWait(t, servers[0], servers[1], DefaultBufferTimeout, DefaultJoinTimeout, false); joinErr != nil {
 		t.Fatalf("Unable to join peers, %v", joinErr)
 	}
 
 	// Server 1 -> Server 2
-	if joinErr := JoinAndWait(servers[1], servers[2], DefaultBufferTimeout, DefaultJoinTimeout, false); joinErr != nil {
+	if joinErr := JoinAndWait(t, servers[1], servers[2], DefaultBufferTimeout, DefaultJoinTimeout, false); joinErr != nil {
 		t.Fatalf("Unable to join peers, %v", joinErr)
 	}
 
@@ -216,6 +216,10 @@ func TestDiscovery_FullNetwork(t *testing.T) {
 		servers[0],
 		servers[2].AddrInfo().ID,
 	); connectErr != nil {
+		for i, server := range servers {
+			t.Logf("servers[%d] peers: %v\n", i, server.host.Peerstore().Peers())
+		}
+
 		t.Fatalf("Unable to connect to peer, %v", connectErr)
 	}
 

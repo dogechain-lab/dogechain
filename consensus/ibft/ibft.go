@@ -504,8 +504,8 @@ func (i *Ibft) startConsensus() {
 				return
 			}
 
-			ev := newBlockSub.GetEvent()
-			if ev == nil {
+			ev, ok := <-newBlockSub.GetEvent()
+			if ev == nil || !ok {
 				i.logger.Debug("received nil event from blockchain subscription (ignoring)")
 
 				continue
