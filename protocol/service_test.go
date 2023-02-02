@@ -133,7 +133,7 @@ func Test_syncPeerService_GetBlocks(t *testing.T) {
 					count++
 				}
 			} else {
-				assert.Contains(t, err.Error(), errVal)
+				assert.Contains(t, err.Error(), errVal.Error())
 			}
 		})
 	}
