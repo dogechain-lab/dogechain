@@ -88,6 +88,7 @@ func (p *backupParams) createBackup(grpcAddress string) error {
 	if err != nil {
 		return err
 	}
+	defer connection.Close()
 
 	// resFrom and resTo represents the range of blocks that can be included in the file
 	resFrom, resTo, err := archive.CreateBackup(

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"io"
 	"testing"
 
 	"github.com/dogechain-lab/dogechain/server/proto"
@@ -15,28 +14,6 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-type recvData struct {
-	event *proto.ExportEvent
-	err   error
-}
-
-type mockSystemExportClient struct {
-	proto.System_ExportClient
-	recvs []recvData
-	cur   int
-}
-
-func (m *mockSystemExportClient) Recv() (*proto.ExportEvent, error) {
-	if m.cur >= len(m.recvs) {
-		return nil, io.EOF
-	}
-
-	recv := m.recvs[m.cur]
-	m.cur++
-
-	return recv.event, recv.err
-}
-
 var (
 	genesis = &types.Block{
 		Header: &types.Header{
@@ -45,6 +22,7 @@ var (
 		},
 	}
 	blocks = []*types.Block{
+		genesis,
 		{
 			Header: &types.Header{
 				Number: 1,
@@ -75,7 +53,7 @@ type systemClientMock struct {
 	proto.SystemClient
 	status       *proto.ServerStatus
 	errForStatus error
-	block        *proto.BlockResponse
+	blocks       []*types.Block
 	errForBlock  error
 }
 
@@ -84,10 +62,20 @@ func (m *systemClientMock) GetStatus(context.Context, *emptypb.Empty, ...grpc.Ca
 }
 
 func (m *systemClientMock) BlockByNumber(
-	context.Context,
-	*proto.BlockByNumberRequest, ...grpc.CallOption,
+	_ctx context.Context,
+	req *proto.BlockByNumberRequest,
+	_opts ...grpc.CallOption,
 ) (*proto.BlockResponse, error) {
-	return m.block, m.errForBlock
+	// find block by request number
+	for _, b := range m.blocks {
+		if b.Header.Number == req.Number {
+			return &proto.BlockResponse{
+				Data: b.MarshalRLP(),
+			}, m.errForBlock
+		}
+	}
+
+	return nil, m.errForBlock
 }
 
 func Test_determineTo(t *testing.T) {
@@ -116,9 +104,7 @@ func Test_determineTo(t *testing.T) {
 						Number: 10,
 					},
 				},
-				block: &proto.BlockResponse{
-					Data: blocks[1].MarshalRLP(),
-				},
+				blocks: blocks,
 			},
 			resTo:     2,
 			resToHash: blocks[1].Hash(),
@@ -135,6 +121,7 @@ func Test_determineTo(t *testing.T) {
 						Hash:   blocks[1].Hash().String(),
 					},
 				},
+				blocks: blocks,
 			},
 			resTo:     1,
 			resToHash: blocks[1].Hash(),
@@ -167,87 +154,108 @@ func Test_determineTo(t *testing.T) {
 
 func Test_processExportStream(t *testing.T) {
 	tests := []struct {
-		name                   string
-		mockSystemExportClient *mockSystemExportClient
+		name             string
+		systemClientMock proto.SystemClient
 		// result
-		from uint64
-		to   uint64
-		err  error
+		from  uint64
+		to    uint64
+		err   error
+		recvs []*proto.BlockResponse
 	}{
 		{
-			name: "should be succeed with event",
-			mockSystemExportClient: &mockSystemExportClient{
-				recvs: []recvData{
-					{
-						event: &proto.ExportEvent{
-							From: 1,
-							To:   2,
-							Data: append(blocks[0].MarshalRLP(), blocks[1].MarshalRLP()...),
-						},
+			name: "should be succeed with single block",
+			systemClientMock: &systemClientMock{
+				status: &proto.ServerStatus{
+					Current: &proto.ServerStatus_Block{
+						// greater than targetTo
+						Number: int64(blocks[2].Number()),
 					},
 				},
+				blocks: blocks,
 			},
-			from: 1,
-			to:   2,
+			from: blocks[1].Number(),
+			to:   blocks[1].Number(),
 			err:  nil,
+			recvs: []*proto.BlockResponse{
+				{
+					Data: blocks[1].MarshalRLP(),
+				},
+			},
 		},
 		{
-			name: "should succeed with multiple events",
-			mockSystemExportClient: &mockSystemExportClient{
-				recvs: []recvData{
-					{
-						event: &proto.ExportEvent{
-							From: 1,
-							To:   2,
-							Data: append(blocks[0].MarshalRLP(), blocks[1].MarshalRLP()...),
-						},
-					},
-					{
-						event: &proto.ExportEvent{
-							From: 3,
-							To:   3,
-							Data: blocks[2].MarshalRLP(),
-						},
+			name: "should be succeed multiple blocks",
+			systemClientMock: &systemClientMock{
+				status: &proto.ServerStatus{
+					Current: &proto.ServerStatus_Block{
+						// greater than targetTo
+						Number: int64(blocks[2].Number()),
 					},
 				},
+				blocks: blocks,
 			},
-			from: 1,
-			to:   3,
+			from: blocks[0].Number(),
+			to:   blocks[2].Number(),
 			err:  nil,
+			recvs: []*proto.BlockResponse{
+				{
+					Data: blocks[0].MarshalRLP(),
+				},
+				{
+					Data: blocks[1].MarshalRLP(),
+				},
+				{
+					Data: blocks[2].MarshalRLP(),
+				},
+			},
 		},
 		{
-			name: "should fail when received error",
-			mockSystemExportClient: &mockSystemExportClient{
-				recvs: []recvData{
-					{
-						event: &proto.ExportEvent{
-							From: 1,
-							To:   2,
-							Data: append(blocks[0].MarshalRLP(), blocks[1].MarshalRLP()...),
-						},
-					},
-					{
-						err: errors.New("failed to send"),
-					},
-					{
-						event: &proto.ExportEvent{
-							From: 3,
-							To:   3,
-							Data: blocks[2].MarshalRLP(),
-						},
+			name: "should be succeed select range of 2-3 blocks",
+			systemClientMock: &systemClientMock{
+				status: &proto.ServerStatus{
+					Current: &proto.ServerStatus_Block{
+						// greater than targetTo
+						Number: int64(blocks[2].Number()),
 					},
 				},
+				blocks: blocks,
 			},
-			from: 0,
-			to:   0,
-			err:  errors.New("failed to send"),
+			from: blocks[1].Number(),
+			to:   blocks[2].Number(),
+			err:  nil,
+			recvs: []*proto.BlockResponse{
+				{
+					Data: blocks[1].MarshalRLP(),
+				},
+				{
+					Data: blocks[2].MarshalRLP(),
+				},
+			},
+		},
+		{
+			name: "should be failed with error range",
+			systemClientMock: &systemClientMock{
+				status: &proto.ServerStatus{
+					Current: &proto.ServerStatus_Block{
+						// greater than targetTo
+						Number: int64(blocks[2].Number()),
+					},
+				},
+				blocks: blocks,
+			},
+			from:  blocks[2].Number(),
+			to:    blocks[1].Number(),
+			err:   ErrBlockRange,
+			recvs: []*proto.BlockResponse{},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var buffer bytes.Buffer
-			from, to, err := processExportStream(tt.mockSystemExportClient, hclog.NewNullLogger(), &buffer, 0, 0)
+			var ctx, cancel = context.WithCancel(context.Background())
+			defer cancel()
+
+			from, to, err := processExport(ctx, tt.systemClientMock, hclog.NewNullLogger(), &buffer, tt.from, tt.to)
 
 			assert.Equal(t, tt.err, err)
 			if err != nil {
@@ -259,11 +267,10 @@ func Test_processExportStream(t *testing.T) {
 
 			// create expected data
 			expectedData := make([]byte, 0)
-			for _, rv := range tt.mockSystemExportClient.recvs {
-				if rv.err != nil {
-					break
+			for _, rv := range tt.recvs {
+				if rv != nil {
+					expectedData = append(expectedData, rv.Data...)
 				}
-				expectedData = append(expectedData, rv.event.Data...)
 			}
 			assert.Equal(t, expectedData, buffer.Bytes())
 		})
