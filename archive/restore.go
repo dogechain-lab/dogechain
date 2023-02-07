@@ -8,11 +8,11 @@ import (
 	"io"
 	"math/big"
 	"os"
+	"runtime"
 
-	"github.com/dogechain-lab/dogechain/blockchain"
 	"github.com/dogechain-lab/dogechain/helper/common"
-	"github.com/dogechain-lab/dogechain/helper/progress"
 	"github.com/dogechain-lab/dogechain/types"
+	"github.com/hashicorp/go-hclog"
 	"github.com/klauspost/compress/zstd"
 )
 
@@ -23,8 +23,8 @@ const (
 var zstdMagic = []byte{0x28, 0xb5, 0x2f, 0xfd} // zstd Magic number
 
 type blockchainInterface interface {
-	SubscribeEvents() blockchain.Subscription
 	Genesis() types.Hash
+	GetHeaderNumber() (uint64, bool)
 	GetBlockByNumber(uint64, bool) (*types.Block, bool)
 	GetHashByNumber(uint64) types.Hash
 	WriteBlock(block *types.Block, source string) error
@@ -32,14 +32,14 @@ type blockchainInterface interface {
 }
 
 // RestoreChain reads blocks from the archive and write to the chain
-func RestoreChain(chain blockchainInterface, filePath string, progression *progress.ProgressionWrapper) error {
+func RestoreChain(log hclog.Logger, chain blockchainInterface, filePath string) error {
 	fp, err := os.OpenFile(filePath, os.O_RDONLY, 0)
 	if err != nil {
 		return err
 	}
 	defer fp.Close()
 
-	fbuf := bufio.NewReaderSize(fp, 1*1024*1024) // 1MB buffer
+	fbuf := bufio.NewReaderSize(fp, 8*1024*1024) // 8MB buffer
 
 	// check whether the file is compressed
 	fileMagic, err := fbuf.Peek(len(zstdMagic))
@@ -56,6 +56,8 @@ func RestoreChain(chain blockchainInterface, filePath string, progression *progr
 		}
 		defer zstdReader.Close()
 
+		log.Info("archive is compressed with zstd")
+
 		readBuf = zstdReader
 	} else {
 		readBuf = fbuf
@@ -63,11 +65,11 @@ func RestoreChain(chain blockchainInterface, filePath string, progression *progr
 
 	blockStream := newBlockStream(readBuf)
 
-	return importBlocks(chain, blockStream, progression)
+	return importBlocks(log, chain, blockStream)
 }
 
 // import blocks scans all blocks from stream and write them to chain
-func importBlocks(chain blockchainInterface, blockStream *blockStream, progression *progress.ProgressionWrapper) error {
+func importBlocks(log hclog.Logger, chain blockchainInterface, blockStream *blockStream) error {
 	shutdownCh := common.GetTerminationSignalCh()
 
 	metadata, err := blockStream.getMetadata()
@@ -85,44 +87,95 @@ func importBlocks(chain blockchainInterface, blockStream *blockStream, progressi
 		return nil
 	}
 
-	// skip existing blocks
-	firstBlock, err := consumeCommonBlocks(chain, blockStream, shutdownCh)
-	if err != nil {
-		return err
+	maxFetchBlockNum := runtime.NumCPU() * 2
+
+	// create channel to next block stream
+	nextBlockCh := make(chan *types.Block, maxFetchBlockNum)
+
+	storeLatestBlkNumber, exist := chain.GetHeaderNumber()
+	if !exist {
+		storeLatestBlkNumber = 0
 	}
 
-	if firstBlock == nil {
-		return nil
-	}
-
-	// Create a blockchain subscription for the sync progression and start tracking
-	progression.StartProgression("", firstBlock.Number(), chain.SubscribeEvents())
-	// Stop monitoring the sync progression upon exit
-	defer progression.StopProgression()
-
-	// Set the goal
-	progression.UpdateHighestProgression(metadata.Latest)
-
-	nextBlock := firstBlock
-
+	// skip genesis block
 	for {
-		if err := chain.VerifyFinalizedBlock(nextBlock); err != nil {
-			return err
-		}
-
-		if err := chain.WriteBlock(nextBlock, WriteBlockSource); err != nil {
-			return err
-		}
-
-		progression.UpdateCurrentProgression(nextBlock.Number())
-
-		nextBlock, err = blockStream.nextBlock()
+		firstBlock, err := blockStream.nextBlock()
 		if err != nil {
 			return err
 		}
 
+		if firstBlock == nil {
+			return nil
+		}
+
+		if firstBlock.Number() > 0 && firstBlock.Number() > storeLatestBlkNumber {
+			nextBlockCh <- firstBlock
+
+			break
+		}
+
+		log.Info("block exist, skip", "block", firstBlock.Number())
+	}
+
+	go func() {
+		for {
+			// check shutdown signal
+			select {
+			case <-shutdownCh:
+				return
+			default:
+			}
+
+			nextBlock, err := blockStream.nextBlock()
+			if err != nil {
+				log.Error("failed to read block", "err", err)
+			}
+
+			// end of stream
+			if nextBlock == nil {
+				nextBlockCh <- nil
+
+				return
+			}
+
+			nextBlockCh <- nextBlock
+		}
+	}()
+
+	for {
+		nextBlock := <-nextBlockCh
+
+		// end of stream
 		if nextBlock == nil {
 			break
+		}
+
+		storageBlk, exist := chain.GetBlockByNumber(nextBlock.Number(), false)
+
+		if exist &&
+			storageBlk.Number() == nextBlock.Number() &&
+			storageBlk.Hash() != nextBlock.Hash() {
+			return fmt.Errorf(
+				"block %d has different hash in storage (%s) and archive (%s)",
+				nextBlock.Number(),
+				storageBlk.Hash(),
+				nextBlock.Hash(),
+			)
+		}
+
+		// skip existing blocks
+		if !exist {
+			if err := chain.VerifyFinalizedBlock(nextBlock); err != nil {
+				return err
+			}
+
+			if err := chain.WriteBlock(nextBlock, WriteBlockSource); err != nil {
+				return err
+			}
+
+			log.Info("block imported", "block", nextBlock.Number())
+		} else {
+			log.Info("block exist, skip", "block", nextBlock.Number())
 		}
 
 		select {
@@ -133,47 +186,6 @@ func importBlocks(chain blockchainInterface, blockStream *blockStream, progressi
 	}
 
 	return nil
-}
-
-// consumeCommonBlocks consumes blocks in blockstream to latest block in chain or different hash
-// returns the first block to be written into chain
-func consumeCommonBlocks(
-	chain blockchainInterface,
-	blockStream *blockStream,
-	shutdownCh <-chan os.Signal,
-) (*types.Block, error) {
-	for {
-		block, err := blockStream.nextBlock()
-		if err != nil {
-			return nil, err
-		}
-
-		if block == nil {
-			return nil, nil
-		}
-
-		if block.Number() == 0 {
-			if block.Hash() != chain.Genesis() {
-				return nil, fmt.Errorf(
-					"the hash of genesis block (%s) does not match blockchain genesis (%s)",
-					block.Hash(),
-					chain.Genesis(),
-				)
-			}
-
-			continue
-		}
-
-		if hash := chain.GetHashByNumber(block.Number()); hash != block.Hash() {
-			return block, nil
-		}
-
-		select {
-		case <-shutdownCh:
-			return nil, nil
-		default:
-		}
-	}
 }
 
 // blockStream parse RLP-encoded block from stream and consumed the used bytes
@@ -247,7 +259,7 @@ func (b *blockStream) loadRLPArray() (uint64, error) {
 // loadRLPPrefix loads first byte of RLP encoded data from input
 func (b *blockStream) loadRLPPrefix() (byte, error) {
 	buf := b.buffer[:1]
-	if _, err := b.input.Read(buf); err != nil {
+	if _, err := io.ReadFull(b.input, buf); err != nil {
 		return 0, err
 	}
 
@@ -269,7 +281,11 @@ func (b *blockStream) loadPrefixSize(offset uint64, prefix byte) (uint64, uint64
 
 		b.reserveCap(offset + payloadSizeSize)
 		payloadSizeBytes := b.buffer[offset : offset+payloadSizeSize]
-		n, err := b.input.Read(payloadSizeBytes)
+
+		n, err := io.ReadFull(b.input, payloadSizeBytes)
+		if errors.Is(io.EOF, err) {
+			return 0, 0, io.EOF
+		}
 
 		if err != nil {
 			return 0, 0, err
@@ -277,7 +293,7 @@ func (b *blockStream) loadPrefixSize(offset uint64, prefix byte) (uint64, uint64
 
 		if uint64(n) < payloadSizeSize {
 			// couldn't load required amount of bytes
-			return 0, 0, io.EOF
+			return 0, 0, io.ErrUnexpectedEOF
 		}
 
 		payloadSize := new(big.Int).SetBytes(payloadSizeBytes).Int64()
@@ -293,7 +309,7 @@ func (b *blockStream) loadPayload(offset uint64, size uint64) error {
 	b.reserveCap(offset + size)
 	buf := b.buffer[offset : offset+size]
 
-	if _, err := b.input.Read(buf); err != nil {
+	if _, err := io.ReadFull(b.input, buf); err != nil {
 		return err
 	}
 

@@ -354,7 +354,7 @@ func (s *Server) restoreChain() error {
 		return nil
 	}
 
-	if err := archive.RestoreChain(s.blockchain, *s.config.RestoreFile, s.restoreProgression); err != nil {
+	if err := archive.RestoreChain(s.logger, s.blockchain, *s.config.RestoreFile); err != nil {
 		return err
 	}
 

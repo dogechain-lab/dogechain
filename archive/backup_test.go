@@ -96,7 +96,7 @@ func Test_determineTo(t *testing.T) {
 	}{
 		{
 			name:     "should return expected 'to'",
-			targetTo: toPtr(2),
+			targetTo: toPtr(blocks[2].Number()),
 			systemClientMock: &systemClientMock{
 				status: &proto.ServerStatus{
 					Current: &proto.ServerStatus_Block{
@@ -106,24 +106,24 @@ func Test_determineTo(t *testing.T) {
 				},
 				blocks: blocks,
 			},
-			resTo:     2,
-			resToHash: blocks[1].Hash(),
+			resTo:     blocks[2].Number(),
+			resToHash: blocks[2].Hash(),
 			err:       nil,
 		},
 		{
 			name:     "should return latest if target to is greater than the latest in node",
-			targetTo: toPtr(2),
+			targetTo: toPtr(blocks[2].Number()),
 			systemClientMock: &systemClientMock{
 				status: &proto.ServerStatus{
 					Current: &proto.ServerStatus_Block{
 						// less than targetTo
-						Number: 1,
+						Number: int64(blocks[1].Number()),
 						Hash:   blocks[1].Hash().String(),
 					},
 				},
 				blocks: blocks,
 			},
-			resTo:     1,
+			resTo:     blocks[1].Number(),
 			resToHash: blocks[1].Hash(),
 			err:       nil,
 		},

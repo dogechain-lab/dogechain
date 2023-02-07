@@ -2,14 +2,11 @@ package archive
 
 import (
 	"bytes"
-	"fmt"
 	"io"
-	"os"
 	"testing"
 
-	"github.com/dogechain-lab/dogechain/blockchain"
-	"github.com/dogechain-lab/dogechain/helper/progress"
 	"github.com/dogechain-lab/dogechain/types"
+	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -27,6 +24,14 @@ type mockChain struct {
 
 func (m *mockChain) Genesis() types.Hash {
 	return m.genesis.Hash()
+}
+
+func (m *mockChain) GetHeaderNumber() (uint64, bool) {
+	if l := len(m.blocks); l != 0 {
+		return m.blocks[l-1].Number(), true
+	}
+
+	return 0, false
 }
 
 func (m *mockChain) GetBlockByNumber(num uint64, full bool) (*types.Block, bool) {
@@ -56,10 +61,6 @@ func (m *mockChain) WriteBlock(block *types.Block, source string) error {
 
 func (m *mockChain) VerifyFinalizedBlock(block *types.Block) error {
 	return nil
-}
-
-func (m *mockChain) SubscribeEvents() blockchain.Subscription {
-	return blockchain.NewMockSubscription()
 }
 
 func getLatestBlockFromMockChain(m *mockChain) *types.Block {
@@ -112,83 +113,12 @@ func Test_importBlocks(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			progression := progress.NewProgressionWrapper(progress.ChainSyncRestore)
 			blockStream := newTestBlockStream(tt.metadata, tt.archiveBlocks...)
-			err := importBlocks(tt.chain, blockStream, progression)
+			err := importBlocks(hclog.NewNullLogger(), tt.chain, blockStream)
 
 			assert.Equal(t, tt.err, err)
 			latestBlock := getLatestBlockFromMockChain(tt.chain)
 			assert.Equal(t, tt.latestBlock, latestBlock)
-		})
-	}
-}
-
-func Test_consumeCommonBlocks(t *testing.T) {
-	newTestArchiveStream := func(blocks ...*types.Block) *blockStream {
-		var buf bytes.Buffer
-		for _, b := range blocks {
-			buf.Write(b.MarshalRLP())
-		}
-
-		return newBlockStream(&buf)
-	}
-
-	tests := []struct {
-		name        string
-		blockStream *blockStream
-		chain       blockchainInterface
-		// result
-		block *types.Block
-		err   error
-	}{
-		{
-			name:        "should consume common blocks",
-			blockStream: newTestArchiveStream(genesis, blocks[0], blocks[1], blocks[2]),
-			chain: &mockChain{
-				genesis: genesis,
-				blocks:  []*types.Block{blocks[0], blocks[1]},
-			},
-			block: blocks[2],
-			err:   nil,
-		},
-		{
-			name:        "should consume all blocks",
-			blockStream: newTestArchiveStream(genesis, blocks[0], blocks[1]),
-			chain: &mockChain{
-				genesis: genesis,
-				blocks:  []*types.Block{blocks[0], blocks[1]},
-			},
-			block: nil,
-			err:   nil,
-		},
-		{
-			name:        "should return error in case of genesis mismatch",
-			blockStream: newTestArchiveStream(genesis, blocks[0], blocks[1]),
-			chain: &mockChain{
-				genesis: &types.Block{
-					Header: &types.Header{
-						Hash:   types.StringToHash("wrong genesis"),
-						Number: 0,
-					},
-				},
-				blocks: []*types.Block{blocks[0], blocks[1]},
-			},
-			block: nil,
-			err: fmt.Errorf(
-				"the hash of genesis block (%s) does not match blockchain genesis (%s)",
-				genesis.Hash(),
-				types.StringToHash("wrong genesis"),
-			),
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			osSignal := make(<-chan os.Signal)
-			resultBlock, err := consumeCommonBlocks(tt.chain, tt.blockStream, osSignal)
-
-			assert.Equal(t, tt.block, resultBlock)
-			assert.Equal(t, tt.err, err)
 		})
 	}
 }
@@ -311,7 +241,7 @@ func Test_loadPrefixSize(t *testing.T) {
 			prefix:      0xf9, // 2 bytes
 			size:        0,
 			consumed:    0,
-			err:         io.EOF,
+			err:         io.ErrUnexpectedEOF,
 		},
 	}
 
