@@ -59,6 +59,30 @@ func NewStateDB(storage Storage, logger hclog.Logger, metrics Metrics) StateDB {
 	}
 }
 
+func (db *stateDBImpl) newTrie() *Trie {
+	return NewTrie()
+}
+
+func (db *stateDBImpl) newTrieAt(root types.Hash) (*Trie, error) {
+	if root == types.EmptyRootHash {
+		// empty state
+		return db.newTrie(), nil
+	}
+
+	n, ok, err := GetNode(root.Bytes(), db)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get storage root %s: %w", root, err)
+	} else if !ok {
+		return nil, fmt.Errorf("state not found at hash %s", root)
+	}
+
+	t := db.newTrie()
+	t.root = n
+	t.stateDB = db
+
+	return t, nil
+}
+
 func (db *stateDBImpl) GetMetrics() Metrics {
 	return db.metrics
 }
@@ -137,30 +161,16 @@ func (db *stateDBImpl) NewSnapshot() state.Snapshot {
 	t := NewTrie()
 	t.stateDB = db
 
-	return t
+	return &Snapshot{state: db, trie: t}
 }
 
 func (db *stateDBImpl) NewSnapshotAt(root types.Hash) (state.Snapshot, error) {
-	if root == types.EmptyRootHash {
-		// empty state
-		return db.NewSnapshot(), nil
-	}
-
-	n, ok, err := GetNode(root.Bytes(), db)
-
+	t, err := db.newTrieAt(root)
 	if err != nil {
 		return nil, err
 	}
 
-	if !ok {
-		return nil, fmt.Errorf("state not found at hash %s", root)
-	}
-
-	t := NewTrie()
-	t.root = n
-	t.stateDB = db
-
-	return t, nil
+	return &Snapshot{state: db, trie: t}, nil
 }
 
 var stateTxnPool = sync.Pool{

@@ -155,7 +155,8 @@ func (l *StructLogger) CaptureState(
 
 			// capture SLOAD opcodes and record the read entry in the local storage
 			address = types.BytesToHash(stackData[stackLen-1].Bytes())
-			value = l.txn.GetState(contractAddress, address)
+			// error happen outside, don't worry how to handle it
+			value, _ = l.txn.GetState(contractAddress, address)
 			l.storage[contractAddress][address] = value
 			storage = l.storage[contractAddress].Copy()
 		case evm.SSTORE:

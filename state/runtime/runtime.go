@@ -34,6 +34,8 @@ const (
 	StorageAdded
 	// StorageDeleted if the storage was deleted
 	StorageDeleted
+	// StorageReadFailed if the storage read failed
+	StorageReadFailed
 )
 
 func (s StorageStatus) String() string {
@@ -56,7 +58,7 @@ func (s StorageStatus) String() string {
 // Host is the execution host
 type Host interface {
 	AccountExists(addr types.Address) bool
-	GetStorage(addr types.Address, key types.Hash) types.Hash
+	GetStorage(addr types.Address, key types.Hash) (types.Hash, error)
 	SetStorage(addr types.Address, key types.Hash, value types.Hash, config *chain.ForksInTime) StorageStatus
 	GetBalance(addr types.Address) *big.Int
 	GetCodeSize(addr types.Address) int

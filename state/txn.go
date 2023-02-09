@@ -21,24 +21,29 @@ var (
 	refundIndex = types.BytesToHash([]byte{3}).Bytes()
 )
 
+// snapshotReader is snapshot read only APIs
+type snapshotReader interface {
+	GetStorage(addr types.Address, root types.Hash, key types.Hash) (types.Hash, error)
+	GetAccount(addr types.Address) (*Account, error)
+	GetCode(hash types.Hash) ([]byte, bool)
+}
+
 // Txn is a reference of the state
 type Txn struct {
-	snapshot  Snapshot
-	state     State
+	snapshot  snapshotReader
 	snapshots []*iradix.Tree
 	txn       *iradix.Txn
 }
 
-func NewTxn(state State, snapshot Snapshot) *Txn {
-	return newTxn(state, snapshot)
+func NewTxn(snapshot Snapshot) *Txn {
+	return newTxn(snapshot)
 }
 
-func newTxn(state State, snapshot Snapshot) *Txn {
+func newTxn(snapshot snapshotReader) *Txn {
 	i := iradix.New()
 
 	return &Txn{
 		snapshot:  snapshot,
-		state:     state,
 		snapshots: []*iradix.Tree{},
 		txn:       i.Txn(),
 	}
@@ -92,26 +97,11 @@ func (txn *Txn) getStateObject(addr types.Address) (*StateObject, bool) {
 		return obj.Copy(), true
 	}
 
-	data, ok := txn.snapshot.Get(txn.hashit(addr.Bytes()))
-	if !ok {
+	account, err := txn.snapshot.GetAccount(addr)
+	if err != nil {
 		return nil, false
-	}
-
-	var err error
-
-	var account Account
-	if err = account.UnmarshalRlp(data); err != nil {
+	} else if account == nil {
 		return nil, false
-	}
-
-	// Load trie from memory if there is some state
-	if account.Root == emptyStateHash {
-		account.Trie = txn.state.NewSnapshot()
-	} else {
-		account.Trie, err = txn.state.NewSnapshotAt(account.Root)
-		if err != nil {
-			return nil, false
-		}
 	}
 
 	obj := &StateObject{
@@ -127,7 +117,6 @@ func (txn *Txn) upsertAccount(addr types.Address, create bool, f func(object *St
 		object = &StateObject{
 			Account: &Account{
 				Balance:  big.NewInt(0),
-				Trie:     txn.state.NewSnapshot(),
 				CodeHash: emptyCodeHash,
 				Root:     emptyStateHash,
 			},
@@ -242,13 +231,18 @@ func (txn *Txn) SetStorage(
 	value types.Hash,
 	config *chain.ForksInTime,
 ) runtime.StorageStatus {
-	oldValue := txn.GetState(addr, key)
-	if oldValue == value {
+	oldValue, err := txn.GetState(addr, key)
+	if err != nil {
+		return runtime.StorageReadFailed
+	} else if oldValue == value {
 		return runtime.StorageUnchanged
 	}
 
-	current := oldValue                          // current - storage dirtied by previous lines of this contract
-	original := txn.GetCommittedState(addr, key) // storage slot before this transaction started
+	current := oldValue                               // current - storage dirtied by previous lines of this contract
+	original, err := txn.GetCommittedState(addr, key) // storage slot before this transaction started
+	if err != nil {
+		return runtime.StorageReadFailed
+	}
 
 	txn.SetState(addr, key, value)
 
@@ -328,29 +322,27 @@ func (txn *Txn) SetState(
 }
 
 // GetState returns the state of the address at a given key
-func (txn *Txn) GetState(addr types.Address, key types.Hash) types.Hash {
+func (txn *Txn) GetState(addr types.Address, slot types.Hash) (types.Hash, error) {
 	object, exists := txn.getStateObject(addr)
 	if !exists {
-		return types.Hash{}
+		return types.Hash{}, nil
 	}
 
 	// Try to get account state from radix tree first
 	// Because the latest account state should be in in-memory radix tree
 	// if account state update happened in previous transactions of same block
 	if object.Txn != nil {
-		if val, ok := object.Txn.Get(key.Bytes()); ok {
+		if val, ok := object.Txn.Get(slot.Bytes()); ok {
 			if val == nil {
-				return types.Hash{}
+				return types.Hash{}, nil
 			}
 			//nolint:forcetypeassert
-			return types.BytesToHash(val.([]byte))
+			return types.BytesToHash(val.([]byte)), nil
 		}
 	}
 
-	// If the object was not found in the radix trie due to no state update, we fetch it from the trie tre
-	k := txn.hashit(key.Bytes())
-
-	return object.GetCommitedState(types.BytesToHash(k))
+	// get it from storage
+	return txn.snapshot.GetStorage(addr, object.Account.Root, slot)
 }
 
 // Nonce
@@ -401,7 +393,7 @@ func (txn *Txn) GetCode(addr types.Address) []byte {
 	}
 
 	// TODO: handle error
-	code, _ := txn.state.GetCode(types.BytesToHash(object.Account.CodeHash))
+	code, _ := txn.snapshot.GetCode(types.BytesToHash(object.Account.CodeHash))
 
 	return code
 }
@@ -478,13 +470,13 @@ func (txn *Txn) GetRefund() uint64 {
 }
 
 // GetCommittedState returns the state of the address in the trie
-func (txn *Txn) GetCommittedState(addr types.Address, key types.Hash) types.Hash {
+func (txn *Txn) GetCommittedState(addr types.Address, key types.Hash) (types.Hash, error) {
 	obj, ok := txn.getStateObject(addr)
 	if !ok {
-		return types.Hash{}
+		return types.Hash{}, nil
 	}
 
-	return obj.GetCommitedState(types.BytesToHash(txn.hashit(key.Bytes())))
+	return txn.snapshot.GetStorage(addr, obj.Account.Root, key)
 }
 
 func (txn *Txn) TouchAccount(addr types.Address) {
@@ -514,7 +506,6 @@ func newStateObject(txn *Txn) *StateObject {
 	return &StateObject{
 		Account: &Account{
 			Balance:  big.NewInt(0),
-			Trie:     txn.state.NewSnapshot(),
 			CodeHash: emptyCodeHash,
 			Root:     emptyStateHash,
 		},
@@ -525,7 +516,6 @@ func (txn *Txn) CreateAccount(addr types.Address) {
 	obj := &StateObject{
 		Account: &Account{
 			Balance:  big.NewInt(0),
-			Trie:     txn.state.NewSnapshot(),
 			CodeHash: emptyCodeHash,
 			Root:     emptyStateHash,
 		},

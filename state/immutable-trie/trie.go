@@ -2,7 +2,6 @@ package itrie
 
 import (
 	"bytes"
-	"errors"
 
 	"github.com/dogechain-lab/dogechain/crypto"
 	"github.com/dogechain-lab/dogechain/state"
@@ -11,7 +10,7 @@ import (
 )
 
 type Trie struct {
-	stateDB StateDB
+	stateDB *stateDBImpl
 	root    Node
 
 	epoch uint32
@@ -21,16 +20,10 @@ func NewTrie() *Trie {
 	return &Trie{}
 }
 
-func (t *Trie) Get(k []byte) ([]byte, bool) {
+func (t *Trie) Get(k []byte) ([]byte, error) {
 	txn := t.Txn()
 
-	res, err := txn.Lookup(k)
-	if err != nil {
-		// maby return error? interface need changed, big change
-		t.stateDB.Logger().Error("Failed to lookup key", "key", k, "err", err)
-	}
-
-	return res, res != nil
+	return txn.Lookup(k)
 }
 
 func hashit(k []byte) []byte {
@@ -41,7 +34,7 @@ var accountArenaPool fastrlp.ArenaPool
 
 var stateArenaPool fastrlp.ArenaPool // TODO, Remove once we do update in fastrlp
 
-func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte, error) {
+func (t *Trie) Commit(objs []*state.Object) (*Trie, []byte, error) {
 	var root []byte = nil
 
 	var nTrie *Trie = nil
@@ -83,14 +76,9 @@ func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte, error) {
 				}
 
 				if len(obj.Storage) != 0 {
-					localSnapshot, err := t.stateDB.NewSnapshotAt(obj.Root)
+					trie, err := t.stateDB.newTrieAt(obj.Root)
 					if err != nil {
 						return err
-					}
-
-					trie, ok := localSnapshot.(*Trie)
-					if !ok {
-						return errors.New("invalid type assertion")
 					}
 
 					localTxn := trie.Txn()

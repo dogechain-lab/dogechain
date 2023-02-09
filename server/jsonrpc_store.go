@@ -8,7 +8,6 @@ import (
 	"github.com/dogechain-lab/dogechain/blockchain"
 	"github.com/dogechain-lab/dogechain/chain"
 	"github.com/dogechain-lab/dogechain/consensus"
-	"github.com/dogechain-lab/dogechain/helper/keccak"
 	"github.com/dogechain-lab/dogechain/helper/progress"
 	"github.com/dogechain-lab/dogechain/jsonrpc"
 	"github.com/dogechain-lab/dogechain/network"
@@ -57,26 +56,6 @@ func NewJSONRPCStore(
 	}
 }
 
-// helper methods
-
-func (j *jsonRPCStore) getState(root types.Hash, slot []byte) ([]byte, error) {
-	// the values in the trie are the hashed objects of the keys
-	key := keccak.Keccak256(nil, slot)
-
-	snap, err := j.state.NewSnapshotAt(root)
-	if err != nil {
-		return nil, err
-	}
-
-	result, ok := snap.Get(key)
-
-	if !ok {
-		return nil, jsonrpc.ErrStateNotFound
-	}
-
-	return result, nil
-}
-
 // jsonrpc.ethTxPoolStore interface
 
 // GetNonce returns the next nonce for this address
@@ -104,34 +83,29 @@ func (j *jsonRPCStore) GetPendingTx(txHash types.Hash) (*types.Transaction, bool
 func (j *jsonRPCStore) GetAccount(root types.Hash, addr types.Address) (*state.Account, error) {
 	j.metrics.GetAccountInc()
 
-	obj, err := j.getState(root, addr.Bytes())
-	if err != nil {
-		return nil, err
-	}
-
-	var account state.Account
-	if err := account.UnmarshalRlp(obj); err != nil {
-		return nil, err
-	}
-
-	return &account, nil
+	return getAccountImpl(j.state, root, addr)
 }
 
 func (j *jsonRPCStore) GetStorage(root types.Hash, addr types.Address, slot types.Hash) ([]byte, error) {
 	j.metrics.GetStorageInc()
-	account, err := j.GetAccount(root, addr)
 
+	account, err := getAccountImpl(j.state, root, addr)
 	if err != nil {
 		return nil, err
 	}
 
-	obj, err := j.getState(account.Root, slot.Bytes())
-
+	// make a snapshot at root
+	snap, err := j.state.NewSnapshotAt(root)
 	if err != nil {
 		return nil, err
 	}
 
-	return obj, nil
+	resp, err := snap.GetStorage(addr, account.Root, slot)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.Bytes(), nil
 }
 
 // GetForksInTime returns the active forks at the given block height

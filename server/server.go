@@ -19,7 +19,6 @@ import (
 	"github.com/dogechain-lab/dogechain/crypto"
 	"github.com/dogechain-lab/dogechain/graphql"
 	"github.com/dogechain-lab/dogechain/helper/common"
-	"github.com/dogechain-lab/dogechain/helper/keccak"
 	"github.com/dogechain-lab/dogechain/helper/kvdb"
 	"github.com/dogechain-lab/dogechain/helper/progress"
 	"github.com/dogechain-lab/dogechain/jsonrpc"
@@ -368,19 +367,8 @@ type txpoolHub struct {
 }
 
 func (t *txpoolHub) GetNonce(root types.Hash, addr types.Address) uint64 {
-	snap, err := t.state.NewSnapshotAt(root)
+	account, err := getAccountImpl(t.state, root, addr)
 	if err != nil {
-		return 0
-	}
-
-	result, ok := snap.Get(keccak.Keccak256(nil, addr.Bytes()))
-	if !ok {
-		return 0
-	}
-
-	var account state.Account
-
-	if err := account.UnmarshalRlp(result); err != nil {
 		return 0
 	}
 
@@ -388,19 +376,14 @@ func (t *txpoolHub) GetNonce(root types.Hash, addr types.Address) uint64 {
 }
 
 func (t *txpoolHub) GetBalance(root types.Hash, addr types.Address) (*big.Int, error) {
-	snap, err := t.state.NewSnapshotAt(root)
+	account, err := getAccountImpl(t.state, root, addr)
 	if err != nil {
-		return nil, fmt.Errorf("unable to get snapshot for root, %w", err)
-	}
+		if errors.Is(err, jsonrpc.ErrStateNotFound) {
+			// not exists, stop error propagation
+			return big.NewInt(0), nil
+		}
 
-	result, ok := snap.Get(keccak.Keccak256(nil, addr.Bytes()))
-	if !ok {
-		return big.NewInt(0), nil
-	}
-
-	var account state.Account
-	if err = account.UnmarshalRlp(result); err != nil {
-		return nil, fmt.Errorf("unable to unmarshal account from snapshot, %w", err)
+		return big.NewInt(0), err
 	}
 
 	return account.Balance, nil
@@ -712,6 +695,8 @@ func (s *Server) startPrometheusServer(listenAddr *net.TCPAddr) *http.Server {
 	return srv
 }
 
+// helper functions
+
 // createDir creates a file system directory if it doesn't exist
 func createDir(path string) error {
 	_, err := os.Stat(path)
@@ -726,4 +711,21 @@ func createDir(path string) error {
 	}
 
 	return nil
+}
+
+// getAccountImpl is used for fetching account state from both TxPool and JSON-RPC
+func getAccountImpl(state state.State, root types.Hash, addr types.Address) (*state.Account, error) {
+	snap, err := state.NewSnapshotAt(root)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get snapshot for root '%s': %w", root, err)
+	}
+
+	account, err := snap.GetAccount(addr)
+	if err != nil {
+		return nil, err
+	} else if account == nil {
+		return nil, jsonrpc.ErrStateNotFound
+	}
+
+	return account, nil
 }

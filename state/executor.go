@@ -56,7 +56,7 @@ func NewExecutor(config *chain.Params, s State, logger hclog.Logger) *Executor {
 
 func (e *Executor) WriteGenesis(alloc map[types.Address]*chain.GenesisAccount) (types.Hash, error) {
 	snap := e.state.NewSnapshot()
-	txn := NewTxn(e.state, snap)
+	txn := NewTxn(snap)
 
 	for addr, account := range alloc {
 		if account.Balance != nil {
@@ -80,7 +80,7 @@ func (e *Executor) WriteGenesis(alloc map[types.Address]*chain.GenesisAccount) (
 
 	_, root, err := snap.Commit(objs)
 	if err != nil {
-		return types.ZeroHash, nil
+		return types.Hash{}, err
 	}
 
 	return types.BytesToHash(root), nil
@@ -195,7 +195,7 @@ func (e *Executor) BeginTxn(
 		return nil, err
 	}
 
-	newTxn := NewTxn(e.state, auxSnap2)
+	newTxn := NewTxn(auxSnap2)
 
 	env2 := runtime.TxContext{
 		Coinbase:   coinbaseReceiver,
@@ -213,6 +213,7 @@ func (e *Executor) BeginTxn(
 		txn:      newTxn,
 		getHash:  e.GetHash(header),
 		auxState: e.state,
+		snapshot: auxSnap2,
 		config:   config,
 		gasPool:  uint64(env2.GasLimit),
 
@@ -230,6 +231,7 @@ type Transition struct {
 
 	// dummy
 	auxState State
+	snapshot Snapshot
 
 	r       *Executor
 	config  chain.ForksInTime
@@ -320,11 +322,12 @@ func (t *Transition) WriteFailedReceipt(txn *types.Transaction) error {
 
 // Write writes another transaction to the executor
 func (t *Transition) Write(txn *types.Transaction) error {
-	signer := crypto.NewSigner(t.config, uint64(t.r.config.ChainID))
-
 	var err error
+
 	if txn.From == emptyFrom {
 		// Decrypt the from address
+		signer := crypto.NewSigner(t.config, uint64(t.r.config.ChainID))
+
 		txn.From, err = signer.Sender(txn)
 		if err != nil {
 			return NewTransitionApplicationError(err, false)
@@ -345,33 +348,21 @@ func (t *Transition) Write(txn *types.Transaction) error {
 
 	logs := t.txn.Logs()
 
-	var root []byte
-
 	receipt := &types.Receipt{
 		CumulativeGasUsed: t.totalGas,
 		TxHash:            txn.Hash(),
 		GasUsed:           result.GasUsed,
 	}
 
-	if t.config.Byzantium {
-		// The suicided accounts are set as deleted for the next iteration
-		t.txn.CleanDeleteObjects(true)
+	// Byzantium is always on now, otherwise it is not EVM-conpatable.
 
-		if result.Failed() {
-			receipt.SetStatus(types.ReceiptFailed)
-		} else {
-			receipt.SetStatus(types.ReceiptSuccess)
-		}
+	// The suicided accounts are set as deleted for the next iteration
+	t.txn.CleanDeleteObjects(true)
+
+	if result.Failed() {
+		receipt.SetStatus(types.ReceiptFailed)
 	} else {
-		objs := t.txn.Commit(t.config.EIP155)
-		ss, aux, err := t.txn.snapshot.Commit(objs)
-		if err != nil {
-			return err
-		}
-
-		t.txn = NewTxn(t.auxState, ss)
-		root = aux
-		receipt.Root = types.BytesToHash(root)
+		receipt.SetStatus(types.ReceiptSuccess)
 	}
 
 	// if the transaction created a contract, store the creation address in the receipt.
@@ -448,9 +439,9 @@ func (t *Transition) handleBridgeLogs(msg *types.Transaction, logs []*types.Log)
 func (t *Transition) Commit() (Snapshot, types.Hash, error) {
 	objs := t.txn.Commit(t.config.EIP155)
 
-	s2, root, err := t.txn.snapshot.Commit(objs)
+	s2, root, err := t.snapshot.Commit(objs)
 	if err != nil {
-		return nil, types.ZeroHash, err
+		return nil, types.Hash{}, err
 	}
 
 	return s2, types.BytesToHash(root), nil
@@ -969,7 +960,7 @@ func (t *Transition) GetBalance(addr types.Address) *big.Int {
 	return t.txn.GetBalance(addr)
 }
 
-func (t *Transition) GetStorage(addr types.Address, key types.Hash) types.Hash {
+func (t *Transition) GetStorage(addr types.Address, key types.Hash) (types.Hash, error) {
 	return t.txn.GetState(addr, key)
 }
 

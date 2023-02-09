@@ -478,7 +478,13 @@ func opSload(c *state) {
 		return
 	}
 
-	val := c.host.GetStorage(c.msg.Address, bigToHash(loc))
+	val, err := c.host.GetStorage(c.msg.Address, bigToHash(loc))
+	if err != nil {
+		c.exit(err)
+
+		return
+	}
+
 	loc.SetBytes(val.Bytes())
 }
 

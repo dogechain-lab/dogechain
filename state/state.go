@@ -19,7 +19,8 @@ type State interface {
 }
 
 type Snapshot interface {
-	Get(k []byte) ([]byte, bool)
+	snapshotReader
+
 	Commit(objs []*Object) (Snapshot, []byte, error)
 }
 
@@ -34,7 +35,6 @@ type Account struct {
 	Balance  *big.Int
 	Root     types.Hash
 	CodeHash []byte
-	Trie     accountTrie
 }
 
 func (a *Account) MarshalWith(ar *fastrlp.Arena) *fastrlp.Value {
@@ -100,11 +100,10 @@ func (a *Account) String() string {
 func (a *Account) Copy() *Account {
 	aa := new(Account)
 
-	aa.Balance = big.NewInt(1).SetBytes(a.Balance.Bytes())
+	aa.Balance = new(big.Int).SetBytes(a.Balance.Bytes())
 	aa.Nonce = a.Nonce
 	aa.CodeHash = a.CodeHash
 	aa.Root = a.Root
-	aa.Trie = a.Trie
 
 	return aa
 }
@@ -123,30 +122,6 @@ type StateObject struct {
 
 func (s *StateObject) Empty() bool {
 	return s.Account.Nonce == 0 && s.Account.Balance.Sign() == 0 && bytes.Equal(s.Account.CodeHash, emptyCodeHash)
-}
-
-var stateStateParserPool fastrlp.ParserPool
-
-func (s *StateObject) GetCommitedState(key types.Hash) types.Hash {
-	val, ok := s.Account.Trie.Get(key.Bytes())
-	if !ok {
-		return types.Hash{}
-	}
-
-	p := stateStateParserPool.Get()
-	defer stateStateParserPool.Put(p)
-
-	v, err := p.Parse(val)
-	if err != nil {
-		return types.Hash{}
-	}
-
-	res := []byte{}
-	if res, err = v.GetBytes(res[:0]); err != nil {
-		return types.Hash{}
-	}
-
-	return types.BytesToHash(res)
 }
 
 // Copy makes a copy of the state object

@@ -3,7 +3,6 @@ package itrie
 import (
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"sync"
 
 	"github.com/dogechain-lab/dogechain/state"
@@ -130,28 +129,7 @@ func (tx *stateDBTxn) NewSnapshot() state.Snapshot {
 }
 
 func (tx *stateDBTxn) NewSnapshotAt(root types.Hash) (state.Snapshot, error) {
-	if root == types.EmptyRootHash {
-		// empty state
-		return tx.NewSnapshot(), nil
-	}
-
-	// user exclusive transaction to get state
-	// use non-commit state
-	n, ok, err := GetNode(root.Bytes(), tx)
-
-	if err != nil {
-		return nil, err
-	}
-
-	if !ok {
-		return nil, fmt.Errorf("state not found at hash %s", root)
-	}
-
-	t := NewTrie()
-	t.root = n
-	t.stateDB = tx.stateDB
-
-	return t, nil
+	return tx.stateDB.NewSnapshotAt(root)
 }
 
 func (tx *stateDBTxn) Commit() error {

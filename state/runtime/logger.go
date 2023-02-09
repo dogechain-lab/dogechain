@@ -9,7 +9,7 @@ import (
 
 // Txn is used to get an txn in current transition
 type Txn interface {
-	GetState(addr types.Address, key types.Hash) types.Hash
+	GetState(addr types.Address, key types.Hash) (types.Hash, error)
 	GetRefund() uint64
 }
 
