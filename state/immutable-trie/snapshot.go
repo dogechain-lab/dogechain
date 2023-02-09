@@ -1,10 +1,12 @@
 package itrie
 
 import (
+	"bytes"
+
 	"github.com/dogechain-lab/dogechain/crypto"
 	"github.com/dogechain-lab/dogechain/state"
 	"github.com/dogechain-lab/dogechain/types"
-	"github.com/umbracle/fastrlp"
+	"github.com/dogechain-lab/fastrlp"
 )
 
 type Snapshot struct {
@@ -77,10 +79,135 @@ func (s *Snapshot) GetCode(hash types.Hash) ([]byte, bool) {
 }
 
 func (s *Snapshot) Commit(objs []*state.Object) (state.Snapshot, []byte, error) {
-	trie, root, err := s.trie.Commit(objs)
-	if err != nil {
-		return nil, nil, err
+	var (
+		root  []byte = nil
+		nTrie *Trie  = nil
+
+		// metrics logger
+		metrics         = s.state.GetMetrics()
+		insertCount     = 0
+		deleteCount     = 0
+		newSetCodeCount = 0
+	)
+
+	// Create an insertion batch for all the entries
+	err := s.state.Transaction(func(st StateDBTransaction) error {
+		defer st.Rollback()
+
+		tt := s.trie.Txn()
+		tt.reader = st
+
+		arena := fastrlp.DefaultArenaPool.Get()
+		defer fastrlp.DefaultArenaPool.Put(arena)
+
+		ar1 := fastrlp.DefaultArenaPool.Get()
+		defer fastrlp.DefaultArenaPool.Put(ar1)
+
+		for _, obj := range objs {
+			if obj.Deleted {
+				err := tt.Delete(hashit(obj.Address.Bytes()))
+				if err != nil {
+					return err
+				}
+
+				deleteCount++
+			} else {
+				account := state.Account{
+					Balance:  obj.Balance,
+					Nonce:    obj.Nonce,
+					CodeHash: obj.CodeHash.Bytes(),
+					Root:     obj.Root, // old root
+				}
+
+				if len(obj.Storage) != 0 {
+					trie, err := s.state.newTrieAt(obj.Root)
+					if err != nil {
+						return err
+					}
+
+					localTxn := trie.Txn()
+
+					for _, entry := range obj.Storage {
+						k := hashit(entry.Key)
+						if entry.Deleted {
+							err := localTxn.Delete(k)
+							if err != nil {
+								return err
+							}
+
+							deleteCount++
+						} else {
+							vv := ar1.NewBytes(bytes.TrimLeft(entry.Val, "\x00"))
+							err := localTxn.Insert(k, vv.MarshalTo(nil))
+							if err != nil {
+								return err
+							}
+
+							insertCount++
+						}
+					}
+
+					// observe account hash time
+					observe := metrics.transactionAccountHashSecondsObserve()
+
+					// write local trie to the storage
+					accountStateRoot, _ := localTxn.Hash(st)
+
+					// end observe account hash time
+					observe()
+
+					account.Root = types.BytesToHash(accountStateRoot)
+				}
+
+				if obj.DirtyCode {
+					// write code to memory object, never failed
+					// if failed, can't alloc memory, it will panic
+					err := st.SetCode(obj.CodeHash, obj.Code)
+					if err != nil {
+						return err
+					}
+
+					newSetCodeCount++
+				}
+
+				vv := account.MarshalWith(arena)
+				data := vv.MarshalTo(nil)
+
+				tt.Insert(hashit(obj.Address.Bytes()), data)
+				insertCount++
+
+				arena.Reset()
+			}
+		}
+
+		var err error
+
+		// observe root hash time
+		observe := metrics.transactionAccountHashSecondsObserve()
+
+		root, err = tt.Hash(st)
+		if err != nil {
+			return err
+		}
+
+		// end observe root hash time
+		observe()
+
+		// dont use st here, we need to use the original stateDB
+		nTrie = NewTrie()
+		nTrie.stateDB = s.state
+		nTrie.root = tt.root
+		nTrie.epoch = tt.epoch
+
+		// Commit all the entries to db
+		return st.Commit()
+	})
+
+	if err == nil {
+		metrics.transactionInsertObserve(insertCount)
+		metrics.transactionDeleteObserve(deleteCount)
+		metrics.transactionNewAccountObserve(newSetCodeCount)
 	}
 
-	return &Snapshot{trie: trie, state: s.state}, root, nil
+	return &Snapshot{trie: nTrie, state: s.state}, root, err
 }

@@ -422,3 +422,37 @@ func deleteNode(storage StorageReader, node Node, search []byte) (Node, bool, er
 
 	panic("it should not happen")
 }
+
+func prefixLen(k1, k2 []byte) int {
+	max := len(k1)
+	if l := len(k2); l < max {
+		max = l
+	}
+
+	var i int
+
+	for i = 0; i < max; i++ {
+		if k1[i] != k2[i] {
+			break
+		}
+	}
+
+	return i
+}
+
+func concat(a, b []byte) []byte {
+	c := make([]byte, len(a)+len(b))
+	copy(c, a)
+	copy(c[len(a):], b)
+
+	return c
+}
+
+func extendByteSlice(b []byte, needLen int) []byte {
+	b = b[:cap(b)]
+	if n := needLen - cap(b); n > 0 {
+		b = append(b, make([]byte, n)...)
+	}
+
+	return b[:needLen]
+}

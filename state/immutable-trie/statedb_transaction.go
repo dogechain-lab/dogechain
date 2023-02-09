@@ -97,8 +97,9 @@ func (tx *stateDBTxn) SetCode(hash types.Hash, v []byte) error {
 		return errors.New("invalid type assertion")
 	}
 
-	pair.key = append(pair.key, perfix...)
-	pair.value = append(pair.value, v...)
+	// overwrite them
+	pair.key = append(pair.key[:0], perfix...)
+	pair.value = append(pair.value[:0], v...)
 	pair.isCode = true
 
 	tx.db[txnKey(hex.EncodeToString(perfix))] = pair
