@@ -113,8 +113,9 @@ func testVMCase(t *testing.T, name string, c *VMCase) {
 	// check state
 	for addr, alloc := range c.Post {
 		for key, val := range alloc.Storage {
-			if have := txn.GetState(addr, key); have != val {
-				t.Fatalf("wrong storage value at %s:\n  got  %s\n  want %s\n at address %s", key, have, val, addr)
+			if have, err := txn.GetState(addr, key); err != nil || have != val {
+				t.Fatalf("wrong storage value at %s:\n  got  %s\n  want %s\n at address %s\n err: %v",
+					key, have, val, addr, err)
 			}
 		}
 	}

@@ -30,7 +30,7 @@ func (m *mockHost) AccountExists(addr types.Address) bool {
 	panic("Not implemented in tests")
 }
 
-func (m *mockHost) GetStorage(addr types.Address, key types.Hash) types.Hash {
+func (m *mockHost) GetStorage(addr types.Address, key types.Hash) (types.Hash, error) {
 	panic("Not implemented in tests")
 }
 

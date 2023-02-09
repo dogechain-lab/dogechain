@@ -60,8 +60,6 @@ func (txn *Txn) Snapshot() int {
 	id := len(txn.snapshots)
 	txn.snapshots = append(txn.snapshots, t)
 
-	// fmt.Printf("take snapshot ========> %d\n", id)
-
 	return id
 }
 
@@ -170,7 +168,6 @@ func (txn *Txn) SubBalance(addr types.Address, amount *big.Int) error {
 
 // SetBalance sets the balance
 func (txn *Txn) SetBalance(addr types.Address, balance *big.Int) {
-	//fmt.Printf("SET BALANCE: %s %s\n", addr.String(), balance.String())
 	txn.upsertAccount(addr, true, func(object *StateObject) {
 		object.Account.Balance.SetBytes(balance.Bytes())
 	})
@@ -238,7 +235,8 @@ func (txn *Txn) SetStorage(
 		return runtime.StorageUnchanged
 	}
 
-	current := oldValue                               // current - storage dirtied by previous lines of this contract
+	current := oldValue // current - storage dirtied by previous lines of this contract
+
 	original, err := txn.GetCommittedState(addr, key) // storage slot before this transaction started
 	if err != nil {
 		return runtime.StorageReadFailed

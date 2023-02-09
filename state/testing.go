@@ -113,6 +113,8 @@ func testDeleteCommonStateRoot(t *testing.T, buildPreState buildPreState) {
 }
 
 func getState(t *testing.T, txn *Txn, addr types.Address, slot types.Hash) types.Hash {
+	t.Helper()
+
 	hash, err := txn.GetState(addr, slot)
 	assert.NoError(t, err)
 
