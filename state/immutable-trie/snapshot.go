@@ -44,7 +44,7 @@ func (s *Snapshot) GetStorage(addr types.Address, root types.Hash, rawkey types.
 func (s *Snapshot) GetAccount(addr types.Address) (*state.Account, error) {
 	key := crypto.Keccak256(addr.Bytes())
 
-	data, err := s.trie.Get(key)
+	data, err := s.trie.Get(key, s.state)
 	if err != nil {
 		return nil, err
 	} else if data == nil {
@@ -80,8 +80,7 @@ func (s *Snapshot) Commit(objs []*state.Object) (state.Snapshot, []byte, error) 
 	err := s.state.Transaction(func(st StateDBTransaction) error {
 		defer st.Rollback()
 
-		tt := s.trie.Txn()
-		tt.reader = st
+		tt := s.trie.Txn(st)
 
 		arena := fastrlp.DefaultArenaPool.Get()
 		defer fastrlp.DefaultArenaPool.Put(arena)
@@ -115,7 +114,7 @@ func (s *Snapshot) Commit(objs []*state.Object) (state.Snapshot, []byte, error) 
 					// tricky, but neccessary here
 					loadSnap, _ := rootsnap.(*Snapshot)
 					// create a new Txn since we don't know whether there is any cache in it
-					localTxn := loadSnap.trie.Txn()
+					localTxn := loadSnap.trie.Txn(loadSnap.state)
 
 					for _, entry := range obj.Storage {
 						k := hashit(entry.Key)

@@ -14,8 +14,8 @@ func NewTrie() *Trie {
 	return &Trie{}
 }
 
-func (t *Trie) Get(k []byte) ([]byte, error) {
-	txn := t.Txn()
+func (t *Trie) Get(k []byte, reader StateDBReader) ([]byte, error) {
+	txn := t.Txn(reader)
 
 	return txn.Lookup(k)
 }
@@ -43,6 +43,9 @@ func (t *Trie) hashRoot() ([]byte, Node, error) {
 	return hash, t.root, nil
 }
 
-func (t *Trie) Txn() *Txn {
-	return &Txn{root: t.root, epoch: t.epoch + 1}
+// Txn returns a txn using current db instance
+//
+// Trie will not hold this db instance
+func (t *Trie) Txn(reader StateDBReader) *Txn {
+	return &Txn{reader: reader, root: t.root, epoch: t.epoch + 1}
 }
