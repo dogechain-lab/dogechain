@@ -151,17 +151,12 @@ func (a *Account) Code(ctx context.Context) (argtype.Bytes, error) {
 		return argtype.Bytes{}, err
 	}
 
-	acc, err := a.backend.GetAccount(root, a.address)
+	code, err := a.backend.GetCode(root, a.address)
 	if errors.Is(err, rpc.ErrStateNotFound) {
 		// Account not found, return default value
 		return argtype.Bytes{}, nil
 	} else if err != nil {
 		return argtype.Bytes{}, err
-	}
-
-	code, err := a.backend.GetCode(types.BytesToHash(acc.CodeHash))
-	if err != nil {
-		return argtype.Bytes{}, nil
 	}
 
 	return argtype.Bytes(code), nil

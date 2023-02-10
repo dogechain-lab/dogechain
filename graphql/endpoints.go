@@ -26,7 +26,7 @@ type ethStateStore interface {
 	GetAccount(root types.Hash, addr types.Address) (*state.Account, error)
 	GetStorage(root types.Hash, addr types.Address, slot types.Hash) ([]byte, error)
 	GetForksInTime(blockNumber uint64) chain.ForksInTime
-	GetCode(hash types.Hash) ([]byte, error)
+	GetCode(stateRoot types.Hash, account types.Address) ([]byte, error)
 }
 
 type ethBlockchainStore interface {

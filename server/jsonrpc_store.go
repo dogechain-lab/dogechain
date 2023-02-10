@@ -115,16 +115,21 @@ func (j *jsonRPCStore) GetForksInTime(blockNumber uint64) chain.ForksInTime {
 	return j.executor.GetForksInTime(blockNumber)
 }
 
-func (j *jsonRPCStore) GetCode(hash types.Hash) ([]byte, error) {
+// func (j *jsonRPCStore) GetCode(root types.Hash) ([]byte, error) {
+func (j *jsonRPCStore) GetCode(root types.Hash, addr types.Address) ([]byte, error) {
 	j.metrics.GetCodeInc()
 
-	res, ok := j.state.GetCode(hash)
+	account, err := getAccountImpl(j.state, root, addr)
+	if err != nil {
+		return nil, err
+	}
 
+	code, ok := j.state.GetCode(types.BytesToHash(account.CodeHash))
 	if !ok {
 		return nil, fmt.Errorf("unable to fetch code")
 	}
 
-	return res, nil
+	return code, nil
 }
 
 // jsonrpc.ethBlockchainStore interface
