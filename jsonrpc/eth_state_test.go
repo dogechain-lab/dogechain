@@ -1,7 +1,6 @@
 package jsonrpc
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"math/big"
@@ -387,7 +386,7 @@ func TestEth_State_GetCode(t *testing.T) {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
-				if tt.target.String() == uninitializedAddress.String() {
+				if tt.target == uninitializedAddress {
 					assert.Equal(t, "0x", code)
 				} else {
 					assert.Equal(t, argBytesPtr(tt.expectedCode), code)
@@ -775,7 +774,7 @@ type mockSpecialStore struct {
 }
 
 func (m *mockSpecialStore) GetBlockByHash(hash types.Hash, full bool) (*types.Block, bool) {
-	if m.block.Header.Hash.String() != hash.String() {
+	if m.block.Header.Hash != hash {
 		return nil, false
 	}
 
@@ -783,7 +782,7 @@ func (m *mockSpecialStore) GetBlockByHash(hash types.Hash, full bool) (*types.Bl
 }
 
 func (m *mockSpecialStore) GetAccount(root types.Hash, addr types.Address) (*state.Account, error) {
-	if m.account.address.String() != addr.String() {
+	if m.account.address != addr {
 		return nil, ErrStateNotFound
 	}
 
@@ -807,7 +806,7 @@ func (m *mockSpecialStore) GetNonce(addr types.Address) uint64 {
 }
 
 func (m *mockSpecialStore) GetStorage(root types.Hash, addr types.Address, slot types.Hash) ([]byte, error) {
-	if m.account.address.String() != addr.String() {
+	if m.account.address != addr {
 		return nil, ErrStateNotFound
 	}
 
@@ -821,12 +820,12 @@ func (m *mockSpecialStore) GetStorage(root types.Hash, addr types.Address, slot 
 	return val, nil
 }
 
-func (m *mockSpecialStore) GetCode(hash types.Hash) ([]byte, error) {
-	if bytes.Equal(m.account.account.CodeHash, hash.Bytes()) {
-		return m.account.code, nil
+func (m *mockSpecialStore) GetCode(stateRoot types.Hash, addr types.Address) ([]byte, error) {
+	if m.account.address != addr {
+		return nil, ErrStateNotFound
 	}
 
-	return nil, fmt.Errorf("code not found")
+	return m.account.code, nil
 }
 
 func (m *mockSpecialStore) GetForksInTime(blockNumber uint64) chain.ForksInTime {
