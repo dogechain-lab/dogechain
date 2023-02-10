@@ -131,6 +131,7 @@ var (
 	ErrExecutionReverted        = errors.New("execution was reverted")
 	ErrCodeStoreOutOfGas        = errors.New("contract creation code storage out of gas")
 	ErrCodeEmpty                = errors.New("contract code empty")
+	ErrStorageReadFailed        = errors.New("storage read failed")
 )
 
 type CallType int

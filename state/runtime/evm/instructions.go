@@ -538,6 +538,11 @@ func opSStore(c *state) {
 
 	case runtime.StorageDeleted:
 		cost = 5000
+
+	case runtime.StorageReadFailed:
+		c.exit(errStorageReadFailed)
+
+		return
 	}
 
 	if !c.consumeGas(cost) {

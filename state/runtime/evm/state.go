@@ -46,6 +46,7 @@ var (
 	errInvalidJump           = errors.New("invalid jump destination")
 	errOpCodeNotFound        = errors.New("opcode not found")
 	errReturnDataOutOfBounds = errors.New("return data out of bounds")
+	errStorageReadFailed     = runtime.ErrStorageReadFailed
 )
 
 // Instructions is the code of instructions
