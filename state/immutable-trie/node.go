@@ -231,6 +231,7 @@ func insertNode(storage StorageReader, epoch uint32, node Node, search, value []
 		}
 
 	case *FullNode:
+		// copy full node if it is another txn epoch
 		nc := n
 		if epoch != n.epoch {
 			nc = nodePool.GetFullNode()

@@ -6,9 +6,8 @@ import (
 )
 
 type Trie struct {
-	stateDB *stateDBImpl
-	root    Node
-	epoch   uint32
+	root  Node
+	epoch uint32
 }
 
 func NewTrie() *Trie {
@@ -45,5 +44,5 @@ func (t *Trie) hashRoot() ([]byte, Node, error) {
 }
 
 func (t *Trie) Txn() *Txn {
-	return &Txn{reader: t.stateDB, root: t.root, epoch: t.epoch + 1}
+	return &Txn{root: t.root, epoch: t.epoch + 1}
 }

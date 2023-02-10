@@ -10,28 +10,26 @@ import (
 )
 
 type Snapshot struct {
-	state *stateDBImpl
+	state StateDB
 	trie  *Trie
 }
 
 func (s *Snapshot) GetStorage(addr types.Address, root types.Hash, rawkey types.Hash) (types.Hash, error) {
 	var (
 		err  error
-		trie *Trie
+		trie state.Snapshot
 	)
 
 	if root == types.EmptyRootHash {
-		trie = s.state.newTrie()
+		trie = s.state.NewSnapshot()
 	} else {
-		trie, err = s.state.newTrieAt(root)
+		trie, err = s.state.NewSnapshotAt(root)
 		if err != nil {
 			return types.Hash{}, err
 		}
 	}
 
-	key := crypto.Keccak256(rawkey.Bytes())
-
-	val, err := trie.Get(key)
+	val, err := trie.GetStorage(addr, root, rawkey)
 	if err != nil {
 		// something bad happen, should not continue
 		return types.Hash{}, err
@@ -40,19 +38,7 @@ func (s *Snapshot) GetStorage(addr types.Address, root types.Hash, rawkey types.
 		return types.Hash{}, nil
 	}
 
-	p := &fastrlp.Parser{}
-
-	v, err := p.Parse(val)
-	if err != nil {
-		return types.Hash{}, err
-	}
-
-	res := []byte{}
-	if res, err = v.GetBytes(res[:0]); err != nil {
-		return types.Hash{}, err
-	}
-
-	return types.BytesToHash(res), nil
+	return val, nil
 }
 
 func (s *Snapshot) GetAccount(addr types.Address) (*state.Account, error) {
@@ -120,12 +106,16 @@ func (s *Snapshot) Commit(objs []*state.Object) (state.Snapshot, []byte, error) 
 				}
 
 				if len(obj.Storage) != 0 {
-					trie, err := s.state.newTrieAt(obj.Root)
+					rootsnap, err := st.NewSnapshotAt(obj.Root)
+					// s.state.newTrieAt(obj.Root)
 					if err != nil {
 						return err
 					}
 
-					localTxn := trie.Txn()
+					// tricky, but neccessary here
+					loadSnap, _ := rootsnap.(*Snapshot)
+					// create a new Txn since we don't know whether there is any cache in it
+					localTxn := loadSnap.trie.Txn()
 
 					for _, entry := range obj.Storage {
 						k := hashit(entry.Key)
@@ -195,7 +185,6 @@ func (s *Snapshot) Commit(objs []*state.Object) (state.Snapshot, []byte, error) 
 
 		// dont use st here, we need to use the original stateDB
 		nTrie = NewTrie()
-		nTrie.stateDB = s.state
 		nTrie.root = tt.root
 		nTrie.epoch = tt.epoch
 

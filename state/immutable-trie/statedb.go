@@ -78,7 +78,6 @@ func (db *stateDBImpl) newTrieAt(root types.Hash) (*Trie, error) {
 
 	t := db.newTrie()
 	t.root = n
-	t.stateDB = db
 
 	return t, nil
 }
@@ -158,10 +157,7 @@ func (db *stateDBImpl) GetCode(hash types.Hash) ([]byte, bool) {
 }
 
 func (db *stateDBImpl) NewSnapshot() state.Snapshot {
-	t := NewTrie()
-	t.stateDB = db
-
-	return &Snapshot{state: db, trie: t}
+	return &Snapshot{state: db, trie: db.newTrie()}
 }
 
 func (db *stateDBImpl) NewSnapshotAt(root types.Hash) (state.Snapshot, error) {

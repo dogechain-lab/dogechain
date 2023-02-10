@@ -7,6 +7,11 @@ type Txn struct {
 	epoch uint32
 }
 
+// Commit returns a committed Trie with the root
+func (t *Txn) Commit() *Trie {
+	return &Trie{epoch: t.epoch, root: t.root}
+}
+
 func (t *Txn) Lookup(key []byte) ([]byte, error) {
 	_, res, err := lookupNode(t.reader, t.root, bytesToHexNibbles(key))
 
