@@ -133,7 +133,7 @@ func (s *Snapshot) Commit(objs []*state.Object) (state.Snapshot, []byte, error) 
 						return err
 					}
 
-					// tricky, but neccessary here
+					// tricky, but necessary here
 					loadSnap, _ := rootsnap.(*Snapshot)
 					// create a new Txn since we don't know whether there is any cache in it
 					localTxn := loadSnap.trie.Txn(loadSnap.state)

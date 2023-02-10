@@ -830,6 +830,7 @@ func (e *Eth) GetCode(address types.Address, filter BlockNumberOrHash) (interfac
 	}
 
 	emptySlice := []byte{}
+
 	code, err := e.store.GetCode(header.StateRoot, address)
 	if errors.Is(err, ErrStateNotFound) {
 		// If the account doesn't exist / is not initialized yet,
