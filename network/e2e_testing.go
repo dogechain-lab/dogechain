@@ -267,6 +267,10 @@ func CreateServer(params *CreateServerParams) (*DefaultServer, error) {
 	cfg := DefaultConfig()
 	port, portErr := tests.GetFreePort()
 
+	// fix join timeout, but allow for tests to override
+	cfg.MaxInboundPeers = 1024
+	cfg.MaxOutboundPeers = 1024
+
 	if portErr != nil {
 		return nil, fmt.Errorf("unable to fetch free port, %w", portErr)
 	}
