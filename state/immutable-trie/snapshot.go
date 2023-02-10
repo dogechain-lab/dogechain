@@ -2,6 +2,7 @@ package itrie
 
 import (
 	"bytes"
+	"fmt"
 
 	"github.com/dogechain-lab/dogechain/crypto"
 	"github.com/dogechain-lab/dogechain/state"
@@ -16,20 +17,29 @@ type Snapshot struct {
 
 func (s *Snapshot) GetStorage(addr types.Address, root types.Hash, rawkey types.Hash) (types.Hash, error) {
 	var (
-		err  error
-		trie state.Snapshot
+		err error
+		ss  state.Snapshot
 	)
 
 	if root == types.EmptyRootHash {
-		trie = s.state.NewSnapshot()
+		ss = s.state.NewSnapshot()
 	} else {
-		trie, err = s.state.NewSnapshotAt(root)
+		ss, err = s.state.NewSnapshotAt(root)
 		if err != nil {
 			return types.Hash{}, err
 		}
 	}
 
-	val, err := trie.GetStorage(addr, root, rawkey)
+	// tricky downcast, but break out recursion
+	snapshot, ok := ss.(*Snapshot)
+	if !ok {
+		return types.Hash{}, fmt.Errorf("invalid type assertion to Snapshot at %s", root)
+	}
+
+	// slot to hash
+	key := crypto.Keccak256(rawkey.Bytes())
+
+	val, err := snapshot.trie.Get(key, s.state)
 	if err != nil {
 		// something bad happen, should not continue
 		return types.Hash{}, err
@@ -38,7 +48,19 @@ func (s *Snapshot) GetStorage(addr types.Address, root types.Hash, rawkey types.
 		return types.Hash{}, nil
 	}
 
-	return val, nil
+	p := &fastrlp.Parser{}
+
+	v, err := p.Parse(val)
+	if err != nil {
+		return types.Hash{}, err
+	}
+
+	res := []byte{}
+	if res, err = v.GetBytes(res[:0]); err != nil {
+		return types.Hash{}, err
+	}
+
+	return types.BytesToHash(res), nil
 }
 
 func (s *Snapshot) GetAccount(addr types.Address) (*state.Account, error) {
