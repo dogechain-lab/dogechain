@@ -1,7 +1,7 @@
 package blockchain
 
 import (
-	"sync"
+	"context"
 	"testing"
 	"time"
 
@@ -13,7 +13,7 @@ func TestSubscription(t *testing.T) {
 	t.Parallel()
 
 	var (
-		e              = &eventStream{}
+		e              = newEventStream(context.Background())
 		sub            = e.subscribe()
 		caughtEventNum = uint64(0)
 		event          = &Event{
@@ -23,31 +23,30 @@ func TestSubscription(t *testing.T) {
 				},
 			},
 		}
-
-		wg sync.WaitGroup
 	)
 
-	defer sub.Close()
+	result := make(chan struct{}, 1)
 
-	updateCh := sub.GetEventCh()
-
-	wg.Add(1)
+	t.Cleanup(func() {
+		close(result)
+		e.Close()
+	})
 
 	go func() {
-		defer wg.Done()
-
-		select {
-		case ev := <-updateCh:
-			caughtEventNum = ev.NewChain[0].Number
-		case <-time.After(5 * time.Second):
-		}
+		// Wait for the event to be parsed
+		evnt := <-sub.GetEvent()
+		caughtEventNum = evnt.NewChain[0].Number
+		result <- struct{}{}
 	}()
 
 	// Send the event to the channel
 	e.push(event)
 
-	// Wait for the event to be parsed
-	wg.Wait()
+	select {
+	case <-result:
+	case <-time.After(5 * time.Second):
+		t.Failed()
+	}
 
 	assert.Equal(t, event.NewChain[0].Number, caughtEventNum)
 }

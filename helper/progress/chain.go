@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/dogechain-lab/dogechain/blockchain"
+	"go.uber.org/atomic"
 )
 
 type ChainSyncType string
@@ -30,7 +31,14 @@ type Progression struct {
 	CurrentBlock uint64
 
 	// HighestBlock is the target block in the sync batch
-	HighestBlock uint64
+	HighestBlock *atomic.Uint64
+
+	// stopCh is the channel for receiving stop signals
+	// in progression tracking
+	stopCh chan struct{}
+
+	// stop flag
+	stopped *atomic.Bool
 }
 
 type ProgressionWrapper struct {
@@ -38,10 +46,7 @@ type ProgressionWrapper struct {
 	// Nil if no batch sync is currently in progress
 	progression *Progression
 
-	// stopCh is the channel for receiving stop signals
-	// in progression tracking
-	stopCh chan struct{}
-
+	// sync lock
 	lock sync.RWMutex
 
 	syncType ChainSyncType
@@ -50,7 +55,6 @@ type ProgressionWrapper struct {
 func NewProgressionWrapper(syncType ChainSyncType) *ProgressionWrapper {
 	return &ProgressionWrapper{
 		progression: nil,
-		stopCh:      make(chan struct{}),
 		syncType:    syncType,
 	}
 }
@@ -64,6 +68,9 @@ func (pw *ProgressionWrapper) StartProgression(
 	pw.lock.Lock()
 	defer pw.lock.Unlock()
 
+	// clear previous progression
+	pw.clearProgression()
+
 	// set current block
 	var current uint64
 
@@ -76,19 +83,31 @@ func (pw *ProgressionWrapper) StartProgression(
 		SyncingPeer:   syncingPeer,
 		StartingBlock: startingBlock,
 		CurrentBlock:  current,
+		HighestBlock:  atomic.NewUint64(0),
+		stopCh:        make(chan struct{}),
+		stopped:       atomic.NewBool(false),
 	}
 
-	go pw.RunUpdateLoop(subscription)
+	go pw.progression.runUpdateLoop(subscription)
 }
 
 // runUpdateLoop starts the blockchain event monitoring loop and
 // updates the currently written block in the batch sync
-func (pw *ProgressionWrapper) RunUpdateLoop(subscription blockchain.Subscription) {
-	eventCh := subscription.GetEventCh()
-
+func (p *Progression) runUpdateLoop(subscription blockchain.Subscription) {
 	for {
 		select {
-		case event := <-eventCh:
+		case <-p.stopCh:
+			return
+		default:
+			if subscription.IsClosed() {
+				continue
+			}
+
+			event, ok := <-subscription.GetEvent()
+			if event == nil || p.stopped.Load() || !ok {
+				continue
+			}
+
 			if event.Type == blockchain.EventFork {
 				continue
 			}
@@ -98,23 +117,29 @@ func (pw *ProgressionWrapper) RunUpdateLoop(subscription blockchain.Subscription
 			}
 
 			lastBlock := event.NewChain[len(event.NewChain)-1]
-			pw.UpdateCurrentProgression(lastBlock.Number)
-		case <-pw.stopCh:
-			subscription.Close()
-
-			return
+			p.HighestBlock.Store(lastBlock.Number)
 		}
+	}
+}
+
+func (p *Progression) GetHighestBlock() uint64 {
+	return p.HighestBlock.Load()
+}
+
+// clearProgression clear progression object (non-thread safe)
+func (pw *ProgressionWrapper) clearProgression() {
+	if pw.progression != nil && pw.progression.stopped.CAS(false, true) {
+		close(pw.progression.stopCh)
+		pw.progression = nil
 	}
 }
 
 // StopProgression stops the progression tracking
 func (pw *ProgressionWrapper) StopProgression() {
-	pw.stopCh <- struct{}{}
-
 	pw.lock.Lock()
 	defer pw.lock.Unlock()
 
-	pw.progression = nil
+	pw.clearProgression()
 }
 
 // UpdateCurrentProgression sets the currently written block in the bulk sync
@@ -138,7 +163,7 @@ func (pw *ProgressionWrapper) UpdateHighestProgression(highestBlock uint64) {
 		return
 	}
 
-	pw.progression.HighestBlock = highestBlock
+	pw.progression.HighestBlock.Store(highestBlock)
 }
 
 // GetProgression returns the latest sync progression

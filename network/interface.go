@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/dogechain-lab/dogechain/network/event"
+	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	rawGrpc "google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
@@ -24,6 +25,8 @@ type Network interface {
 	JoinPeer(rawPeerMultiaddr string, static bool) error
 	// HasPeer returns true if the peer is connected
 	HasPeer(peerID peer.ID) bool
+	// IsStaticPeer returns true if the peer is a static peer
+	IsStaticPeer(peerID peer.ID) bool
 	// IsConnected returns the node is connecting to the peer associated with the given ID
 	IsConnected(peerID peer.ID) bool
 	// DisconnectFromPeer disconnects the networking server from the specified peer
@@ -35,8 +38,8 @@ type Network interface {
 
 	// NewTopic Creates New Topic for gossip
 	NewTopic(protoID string, obj proto.Message) (Topic, error)
-	// SubscribeCh returns a channel of peer event
-	SubscribeCh(context.Context) (<-chan *event.PeerEvent, error)
+	// SubscribeFn subscribe of peer event
+	SubscribeFn(ctx context.Context, handler func(evnt *event.PeerEvent)) error
 
 	// **Protocol**
 
@@ -52,8 +55,11 @@ type Network interface {
 	NewProtoConnection(protocol string, peerID peer.ID) (*rawGrpc.ClientConn, error)
 	// SaveProtocolStream saves stream
 	SaveProtocolStream(protocol string, stream *rawGrpc.ClientConn, peerID peer.ID)
-	// CloseProtocolStream closes stream
-	CloseProtocolStream(protocol string, peerID peer.ID) error
+}
+
+type Protocol interface {
+	Client(context.Context, network.Stream) *rawGrpc.ClientConn
+	Handler() func(network.Stream)
 }
 
 type Server interface {

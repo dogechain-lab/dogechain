@@ -20,6 +20,25 @@ const (
 	testGossipTopicName = "msg-pub-sub"
 )
 
+func createServerParams(numServers int) map[int]*CreateServerParams {
+	// MeshJoin is full connected, connected limit is numServers * numServers
+	// but we need to set a higher limit to avoid the random failed test
+	defaultConfig := &CreateServerParams{
+		ConfigCallback: func(c *Config) {
+			c.MaxInboundPeers = int64(numServers*numServers) + 1
+			c.MaxOutboundPeers = int64(numServers*numServers) + 1
+			c.NoDiscover = true
+		},
+	}
+
+	paramsMap := map[int]*CreateServerParams{}
+	for i := 0; i < numServers; i++ {
+		paramsMap[i] = defaultConfig
+	}
+
+	return paramsMap
+}
+
 func NumSubscribers(srv *DefaultServer, topic string) int {
 	return len(srv.ps.ListPeers(topic))
 }
@@ -45,7 +64,7 @@ func WaitForSubscribers(ctx context.Context, srv *DefaultServer, topic string, e
 func TestSimpleGossip(t *testing.T) {
 	numServers := 10
 	sentMessage := fmt.Sprintf("%d", time.Now().Unix())
-	servers, createErr := createServers(numServers, nil)
+	servers, createErr := createServers(numServers, createServerParams(numServers))
 	topicName := fmt.Sprintf(testGossipTopicName+"-%d", time.Now().UnixNano())
 
 	if createErr != nil {
@@ -59,7 +78,7 @@ func TestSimpleGossip(t *testing.T) {
 		closeTestServers(t, servers)
 	})
 
-	joinErrors := MeshJoin(servers...)
+	joinErrors := MeshJoin(t, servers...)
 	if len(joinErrors) != 0 {
 		t.Fatalf("Unable to join servers [%d], %v", len(joinErrors), joinErrors)
 	}
@@ -128,7 +147,7 @@ func TestTopicBackpressure(t *testing.T) {
 	numServers := 3
 	sentMessage := fmt.Sprintf("%d", time.Now().Unix())
 	topicName := fmt.Sprintf(testGossipTopicName+"-%d", time.Now().UnixNano())
-	servers, createErr := createServers(numServers, nil)
+	servers, createErr := createServers(numServers, createServerParams(numServers))
 	subscribeCloseCh := make(chan struct{})
 
 	subscribeGoroutineCount := &atomic.Int32{}
@@ -142,7 +161,7 @@ func TestTopicBackpressure(t *testing.T) {
 		closeTestServers(t, servers)
 	})
 
-	joinErrors := MeshJoin(servers...)
+	joinErrors := MeshJoin(t, servers...)
 	if len(joinErrors) != 0 {
 		t.Fatalf("Unable to join servers [%d], %v", len(joinErrors), joinErrors)
 	}
@@ -188,7 +207,7 @@ func TestTopicClose(t *testing.T) {
 	numServers := 5
 	sentMessage := fmt.Sprintf("%d", time.Now().Unix())
 	topicName := fmt.Sprintf(testGossipTopicName+"-%d", time.Now().UnixNano())
-	servers, createErr := createServers(numServers, nil)
+	servers, createErr := createServers(numServers, createServerParams(numServers))
 	subscribeCloseCh := make(chan struct{})
 
 	subscribeCount := make([]*atomic.Int32, numServers)
@@ -205,7 +224,7 @@ func TestTopicClose(t *testing.T) {
 		closeTestServers(t, servers)
 	})
 
-	joinErrors := MeshJoin(servers...)
+	joinErrors := MeshJoin(t, servers...)
 	if len(joinErrors) != 0 {
 		t.Fatalf("Unable to join servers [%d], %v", len(joinErrors), joinErrors)
 	}

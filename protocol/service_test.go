@@ -86,18 +86,24 @@ func Test_syncPeerService_GetBlocks(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		blks := test.blocks
+		from := test.from
+		latest := test.latest
+		receivedBlocks := test.receivedBlocks
+		errVal := test.err
+
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
 			blockMap := make(map[uint64]*types.Block)
 
-			for _, b := range test.blocks {
+			for _, b := range blks {
 				blockMap[b.Number()] = b
 			}
 
 			service := &syncPeerService{
 				blockchain: &mockBlockchain{
-					headerHandler: newSimpleHeaderHandler(test.latest),
+					headerHandler: newSimpleHeaderHandler(latest),
 					getBlockByNumberHandler: func(u uint64, _ bool) (*types.Block, bool) {
 						block, ok := blockMap[u]
 						if !ok {
@@ -112,22 +118,22 @@ func Test_syncPeerService_GetBlocks(t *testing.T) {
 			client := newMockGrpcClient(t, service)
 
 			rsp, err := client.GetBlocks(context.Background(), &proto.GetBlocksRequest{
-				From: test.from,
-				To:   test.latest,
+				From: from,
+				To:   latest,
 			})
 
 			if err == nil {
 				count := 0
 
 				for _, block := range rsp.Blocks {
-					expected := test.receivedBlocks[count].MarshalRLP()
+					expected := receivedBlocks[count].MarshalRLP()
 
 					assert.Equal(t, expected, block)
 
 					count++
 				}
 			} else {
-				assert.Contains(t, err.Error(), test.err.Error())
+				assert.Contains(t, err.Error(), errVal.Error())
 			}
 		})
 	}

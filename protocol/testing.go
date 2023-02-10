@@ -162,34 +162,3 @@ func (b *mockBlockchain) WriteBlocks(blocks []*types.Block) error {
 
 	return nil
 }
-
-// mockSubscription is a mock of subscription for blockchain events
-type mockSubscription struct {
-	eventCh chan *blockchain.Event
-}
-
-func NewMockSubscription() *mockSubscription {
-	return &mockSubscription{
-		eventCh: make(chan *blockchain.Event),
-	}
-}
-
-func (s *mockSubscription) AppendBlock(block *types.Block) {
-	status := HeaderToStatus(block.Header)
-	s.eventCh <- &blockchain.Event{
-		Difficulty: status.Difficulty,
-		NewChain:   []*types.Header{block.Header},
-	}
-}
-
-func (s *mockSubscription) GetEventCh() chan *blockchain.Event {
-	return s.eventCh
-}
-
-func (s *mockSubscription) GetEvent() *blockchain.Event {
-	return <-s.eventCh
-}
-
-func (s *mockSubscription) Close() {
-	close(s.eventCh)
-}

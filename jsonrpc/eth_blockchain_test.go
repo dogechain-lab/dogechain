@@ -12,6 +12,7 @@ import (
 	"github.com/dogechain-lab/dogechain/state/runtime"
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/atomic"
 )
 
 func TestEth_Block_GetBlockByNumber(t *testing.T) {
@@ -469,7 +470,7 @@ func (m *mockBlockStore) GetSyncProgression() *progress.Progression {
 			SyncType:      progress.ChainSyncBulk,
 			StartingBlock: 1,
 			CurrentBlock:  10,
-			HighestBlock:  100,
+			HighestBlock:  atomic.NewUint64(100),
 		}
 	} else {
 		return nil

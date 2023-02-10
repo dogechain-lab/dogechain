@@ -35,7 +35,11 @@ func TestBackup(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
-	connection, err := helper.GetGRPCConnection(
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	t.Cleanup(cancel)
+
+	conn, err := helper.GetGRPCConnection(
+		ctx,
 		svr.GrpcAddr(),
 	)
 
@@ -43,7 +47,7 @@ func TestBackup(t *testing.T) {
 
 	for _, backupFile := range backupFiles {
 		resFrom, resTo, err := archive.CreateBackup(
-			connection,
+			conn,
 			hclog.NewNullLogger(),
 			0,
 			&toBlock,
@@ -67,10 +71,6 @@ func TestBackup(t *testing.T) {
 
 	blockHash := block.Hash
 
-	for _, svr := range svrs {
-		svr.Stop()
-	}
-
 	for _, backupFile := range backupFiles {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		t.Cleanup(cancel)
@@ -86,6 +86,10 @@ func TestBackup(t *testing.T) {
 		err := restoreSvr.Start(ctx)
 		assert.NoError(t, err)
 
+		t.Cleanup(func() {
+			restoreSvr.Stop()
+		})
+
 		_, err = framework.WaitUntilBlockMined(ctx, restoreSvr, toBlock)
 		assert.NoError(t, err)
 
@@ -95,7 +99,5 @@ func TestBackup(t *testing.T) {
 		restoreHash := block.Hash
 
 		assert.Equal(t, blockHash, restoreHash)
-
-		restoreSvr.Stop()
 	}
 }

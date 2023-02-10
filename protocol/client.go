@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dogechain-lab/dogechain/blockchain"
 	"github.com/dogechain-lab/dogechain/network"
 	"github.com/dogechain-lab/dogechain/network/event"
 	"github.com/dogechain-lab/dogechain/protocol/proto"
@@ -30,14 +29,17 @@ type syncPeerClient struct {
 	connLock   sync.Mutex      // mutext for getting client connection
 	blockchain Blockchain      // reference to the blockchain module
 
-	subscription           blockchain.Subscription // reference to the blockchain subscription
-	topic                  network.Topic           // reference to the network topic
-	id                     string                  // node id
-	peerStatusUpdateCh     chan *NoForkPeer        // peer status update channel
-	peerConnectionUpdateCh chan *event.PeerEvent   // peer connection update channel
+	topic                  network.Topic         // reference to the network topic
+	selfID                 string                // self node id
+	peerStatusUpdateCh     chan *NoForkPeer      // peer status update channel
+	peerConnectionUpdateCh chan *event.PeerEvent // peer connection update channel
 
 	shouldEmitBlocks bool // flag for emitting blocks in the topic
-	isClosed         *atomic.Bool
+
+	isClosed *atomic.Bool
+
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 func NewSyncPeerClient(
@@ -45,22 +47,29 @@ func NewSyncPeerClient(
 	network network.Network,
 	blockchain Blockchain,
 ) SyncPeerClient {
+	ctx, cancel := context.WithCancel(context.Background())
+
 	return &syncPeerClient{
 		logger:                 logger.Named(SyncPeerClientLoggerName),
 		network:                network,
 		blockchain:             blockchain,
-		id:                     network.AddrInfo().ID.String(),
-		peerStatusUpdateCh:     make(chan *NoForkPeer, 1),
-		peerConnectionUpdateCh: make(chan *event.PeerEvent, 1),
+		selfID:                 network.AddrInfo().ID.String(),
+		peerStatusUpdateCh:     make(chan *NoForkPeer, 32),
+		peerConnectionUpdateCh: make(chan *event.PeerEvent, 32),
 		shouldEmitBlocks:       true,
 		isClosed:               atomic.NewBool(false),
+		ctx:                    ctx,
+		cancel:                 cancel,
 	}
 }
 
 // Start processes for SyncPeerClient
 func (client *syncPeerClient) Start() error {
 	go client.startNewBlockProcess()
-	go client.startPeerEventProcess()
+
+	if err := client.subscribeEventProcess(); err != nil {
+		return err
+	}
 
 	if err := client.startGossip(); err != nil {
 		return err
@@ -75,21 +84,12 @@ func (client *syncPeerClient) Close() {
 		return
 	}
 
-	if client.subscription != nil {
-		client.subscription.Close()
-
-		client.subscription = nil
-	}
+	client.cancel()
 
 	if client.topic != nil {
 		// close topic when needed
 		client.topic.Close()
-
-		client.topic = nil
 	}
-
-	close(client.peerStatusUpdateCh)
-	close(client.peerConnectionUpdateCh)
 }
 
 // DisablePublishingPeerStatus disables publishing own status via gossip
@@ -142,6 +142,9 @@ func (client *syncPeerClient) GetConnectedPeerStatuses() []*NoForkPeer {
 			defer wg.Done()
 
 			peerID := p.Info.ID
+			if peerID.String() == client.selfID {
+				return
+			}
 
 			status, err := client.GetPeerStatus(peerID)
 			if err != nil {
@@ -197,7 +200,7 @@ func (client *syncPeerClient) handleStatusUpdate(obj interface{}, from peer.ID) 
 	}
 
 	if !client.network.IsConnected(from) {
-		if client.id != from.String() {
+		if client.selfID != from.String() {
 			client.logger.Debug("received status from non-connected peer, ignore", "id", from)
 		}
 
@@ -212,18 +215,38 @@ func (client *syncPeerClient) handleStatusUpdate(obj interface{}, from peer.ID) 
 		return
 	}
 
-	client.peerStatusUpdateCh <- &NoForkPeer{
+	client.logger.Debug("send peerStatusUpdateCh")
+
+	peer := &NoForkPeer{
 		ID:     from,
 		Number: status.Number,
-		// Distance: m.network.GetPeerDistance(from),
+	}
+
+	select {
+	case <-client.ctx.Done():
+		return
+	case client.peerStatusUpdateCh <- peer:
+	default:
 	}
 }
 
 // startNewBlockProcess starts blockchain event subscription
 func (client *syncPeerClient) startNewBlockProcess() {
-	client.subscription = client.blockchain.SubscribeEvents()
+	subscription := client.blockchain.SubscribeEvents()
+	defer subscription.Unsubscribe()
 
-	for event := range client.subscription.GetEventCh() {
+	for {
+		if client.isClosed.Load() || subscription.IsClosed() {
+			return
+		}
+
+		event, ok := <-subscription.GetEvent()
+		if event == nil || !ok {
+			client.logger.Debug("event is nil, skip")
+
+			continue
+		}
+
 		if !client.shouldEmitBlocks {
 			continue
 		}
@@ -241,31 +264,25 @@ func (client *syncPeerClient) startNewBlockProcess() {
 	}
 }
 
-// startPeerEventProcess starts subscribing peer connection change events and process them
-func (client *syncPeerClient) startPeerEventProcess() {
-	peerEventCh, err := client.network.SubscribeCh(context.Background())
-	if err != nil {
-		client.logger.Error("failed to subscribe", "err", err)
+// subscribeEventProcess starts subscribing peer connection change events and process them
+func (client *syncPeerClient) subscribeEventProcess() error {
+	err := client.network.SubscribeFn(client.ctx, func(e *event.PeerEvent) {
+		if client.isClosed.Load() {
+			client.logger.Debug("client is closed, ignore peer connection update", "peer", e.PeerID, "type", e.Type)
 
-		return
-	}
-
-	for e := range peerEventCh {
-		if e.Type == event.PeerConnected || e.Type == event.PeerDisconnected {
-			if client.isClosed.Load() {
-				client.logger.Debug("client is closed, ignore peer connection update", "peer", e.PeerID, "type", e.Type)
-
-				return
-			}
-
-			client.peerConnectionUpdateCh <- e
+			return
 		}
-	}
-}
 
-// CloseStream closes stream
-func (client *syncPeerClient) CloseStream(peerID peer.ID) error {
-	return client.network.CloseProtocolStream(_syncerV1, peerID)
+		if e.Type == event.PeerConnected || e.Type == event.PeerDisconnected {
+			select {
+			case <-client.ctx.Done():
+				return
+			case client.peerConnectionUpdateCh <- e:
+			}
+		}
+	})
+
+	return err
 }
 
 // GetBlocks returns a stream of blocks from given height to peer's latest
@@ -370,21 +387,20 @@ func (client *syncPeerClient) newSyncPeerClient(peerID peer.ID) (proto.V1Client,
 	client.connLock.Lock()
 	defer client.connLock.Unlock()
 
-	var err error
-
-	conn := client.network.GetProtoStream(_syncerV1, peerID)
-	if conn == nil {
-		// create new connection
-		conn, err = client.network.NewProtoConnection(_syncerV1, peerID)
-		if err != nil {
-			client.network.ForgetPeer(peerID, "not support syncer v1 protocol")
-
-			return nil, fmt.Errorf("failed to open a stream, err %w", err)
-		}
-
-		// save protocol stream
-		client.network.SaveProtocolStream(_syncerV1, conn, peerID)
+	if conn := client.network.GetProtoStream(_syncerV1, peerID); conn != nil {
+		return proto.NewV1Client(conn), nil
 	}
+
+	// create new connection
+	conn, err := client.network.NewProtoConnection(_syncerV1, peerID)
+	if err != nil {
+		client.network.ForgetPeer(peerID, "not support syncer v1 protocol")
+
+		return nil, fmt.Errorf("failed to open a stream, err %w", err)
+	}
+
+	// save protocol stream
+	client.network.SaveProtocolStream(_syncerV1, conn, peerID)
 
 	return proto.NewV1Client(conn), nil
 }

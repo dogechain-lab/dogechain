@@ -17,7 +17,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/peerstore"
 	kb "github.com/libp2p/go-libp2p-kbucket"
-	rawGrpc "google.golang.org/grpc"
 )
 
 // GetRandomBootnode fetches a random bootnode that's currently
@@ -45,29 +44,11 @@ func (s *DefaultServer) GetBootnodeConnCount() int64 {
 	return s.bootnodes.getBootnodeConnCount()
 }
 
-// GetProtoStream returns an active protocol stream if present, otherwise
-// it returns nil
-func (s *DefaultServer) GetProtoStream(protocol string, peerID peer.ID) *rawGrpc.ClientConn {
-	s.peersLock.Lock()
-	defer s.peersLock.Unlock()
-
-	connectionInfo, ok := s.peers[peerID]
-	if !ok {
-		return nil
-	}
-
-	return connectionInfo.getProtocolStream(protocol)
-}
-
 // NewDiscoveryClient returns a new or existing discovery service client connection
 func (s *DefaultServer) NewDiscoveryClient(peerID peer.ID) (proto.DiscoveryClient, error) {
-	// Temporary dials are never added to the peer store,
-	// so they have a special status when doing discovery
-	isTemporaryDial := s.IsTemporaryDial(peerID)
-
 	// Check if there is a peer connection at this point in time,
 	// as there might have been a disconnection previously
-	if !s.IsConnected(peerID) && !isTemporaryDial {
+	if !s.IsConnected(peerID) {
 		return nil, fmt.Errorf("could not initialize new discovery client - peer [%s] not connected",
 			peerID.String())
 	}
@@ -77,73 +58,40 @@ func (s *DefaultServer) NewDiscoveryClient(peerID peer.ID) (proto.DiscoveryClien
 		return proto.NewDiscoveryClient(protoStream), nil
 	}
 
-	// Create a new stream connection and return it
+	// Create a new stream connection and save, only single object
+	// close and clear only when the peer is disconnected
 	protoStream, err := s.NewProtoConnection(common.DiscProto, peerID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Discovery protocol streams should be saved,
-	// since they are referenced later on,
-	// if they are not temporary or static nodes
-	if !isTemporaryDial || s.staticnodes.isStaticnode(peerID) {
-		s.SaveProtocolStream(common.DiscProto, protoStream, peerID)
-	}
+	s.SaveProtocolStream(common.DiscProto, protoStream, peerID)
 
 	return proto.NewDiscoveryClient(protoStream), nil
 }
 
-// SaveProtocolStream saves the protocol stream to the peer
-// protocol stream reference [Thread safe]
-func (s *DefaultServer) SaveProtocolStream(
-	protocol string,
-	stream *rawGrpc.ClientConn,
-	peerID peer.ID,
-) {
-	s.peersLock.Lock()
-	defer s.peersLock.Unlock()
-
-	connectionInfo, ok := s.peers[peerID]
-	if !ok {
-		s.logger.Warn(
-			fmt.Sprintf(
-				"Attempted to save protocol %s stream for non-existing peer %s",
-				protocol,
-				peerID,
-			),
-		)
-
-		return
-	}
-
-	connectionInfo.addProtocolStream(protocol, stream)
-}
-
-// CloseProtocolStream closes a protocol stream to the specified peer
-func (s *DefaultServer) CloseProtocolStream(protocol string, peerID peer.ID) error {
-	s.peersLock.Lock()
-	defer s.peersLock.Unlock()
-
-	connectionInfo, ok := s.peers[peerID]
-	if !ok {
-		return nil
-	}
-
-	return connectionInfo.removeProtocolStream(protocol)
-}
-
-// AddToPeerStore adds peer information to the node's peer store
+// AddToPeerStore adds peer information to the node's peer store,
+// static node and bootnode addresses are added with permanent TTL
 func (s *DefaultServer) AddToPeerStore(peerInfo *peer.AddrInfo) {
-	s.host.Peerstore().AddAddr(peerInfo.ID, peerInfo.Addrs[0], peerstore.AddressTTL)
+	ttl := peerstore.AddressTTL
+
+	if s.IsStaticPeer(peerInfo.ID) || s.IsBootnode(peerInfo.ID) {
+		ttl = peerstore.PermanentAddrTTL
+	}
+
+	// add all addresses to the peer store
+	s.host.Peerstore().AddAddrs(peerInfo.ID, peerInfo.Addrs, ttl)
 }
 
-// RemoveFromPeerStore removes peer information from the node's peer store, ignoring static nodes
+// RemoveFromPeerStore removes peer information from the node's peer store, ignoring static nodes and bootnodes
 func (s *DefaultServer) RemoveFromPeerStore(peerInfo *peer.AddrInfo) {
-	if s.staticnodes.isStaticnode(peerInfo.ID) {
+	// ignore static nodes and bootnodes, they are not removed from the peer store
+	if s.IsStaticPeer(peerInfo.ID) || s.IsBootnode(peerInfo.ID) {
 		return
 	}
 
 	s.host.Peerstore().RemovePeer(peerInfo.ID)
+	s.host.Peerstore().ClearAddrs(peerInfo.ID)
 }
 
 // GetPeerInfo fetches the information of a peer
@@ -179,19 +127,6 @@ func (s *DefaultServer) GetRandomPeer() *peer.ID {
 	}
 
 	return nil
-}
-
-// FetchOrSetTemporaryDial loads the temporary status of a peer connection, and
-// sets a new value [Thread safe]
-func (s *DefaultServer) FetchOrSetTemporaryDial(peerID peer.ID, newValue bool) bool {
-	_, loaded := s.temporaryDials.LoadOrStore(peerID, newValue)
-
-	return loaded
-}
-
-// RemoveTemporaryDial removes a peer connection as temporary [Thread safe]
-func (s *DefaultServer) RemoveTemporaryDial(peerID peer.ID) {
-	s.temporaryDials.Delete(peerID)
 }
 
 // setupDiscovery Sets up the discovery service for the node
@@ -271,11 +206,6 @@ func (s *DefaultServer) setupDiscovery() error {
 	s.discovery = discoveryService
 
 	return nil
-}
-
-func (s *DefaultServer) TemporaryDialPeer(peerAddrInfo *peer.AddrInfo) {
-	s.logger.Debug("creating new temporary dial to peer", "peer", peerAddrInfo.ID)
-	s.addToDialQueue(peerAddrInfo, common.PriorityRandomDial)
 }
 
 // registerDiscoveryService registers the discovery protocol to be available

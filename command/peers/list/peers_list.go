@@ -2,6 +2,7 @@ package list
 
 import (
 	"context"
+	"time"
 
 	"github.com/dogechain-lab/dogechain/command"
 	"github.com/dogechain-lab/dogechain/command/helper"
@@ -37,7 +38,10 @@ func runCommand(cmd *cobra.Command, _ []string) {
 }
 
 func getPeersList(grpcAddress string) (*proto.PeersListResponse, error) {
-	client, err := helper.GetSystemClientConnection(grpcAddress)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	client, err := helper.GetSystemClientConnection(ctx, grpcAddress)
 	if err != nil {
 		return nil, err
 	}

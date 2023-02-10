@@ -18,16 +18,20 @@ import (
 )
 
 type GrpcStream struct {
-	ctx      context.Context
-	streamCh chan network.Stream
+	ctx       context.Context
+	ctxCancel context.CancelFunc
 
+	streamCh   chan network.Stream
 	grpcServer *grpc.Server
 }
 
 func NewGrpcStream() *GrpcStream {
+	ctx, cancel := context.WithCancel(context.Background())
+
 	return &GrpcStream{
-		ctx:      context.Background(),
-		streamCh: make(chan network.Stream),
+		ctx:       ctx,
+		ctxCancel: cancel,
+		streamCh:  make(chan network.Stream),
 		grpcServer: grpc.NewServer(
 			grpc.UnaryInterceptor(interceptor),
 			grpc.MaxRecvMsgSize(common.MaxGrpcMsgSize),
@@ -72,8 +76,8 @@ func interceptor(
 	)
 }
 
-func (g *GrpcStream) Client(stream network.Stream) *grpc.ClientConn {
-	return WrapClient(stream)
+func (g *GrpcStream) Client(ctx context.Context, stream network.Stream) *grpc.ClientConn {
+	return WrapClient(ctx, stream)
 }
 
 func (g *GrpcStream) Serve() {
@@ -117,21 +121,27 @@ func (g *GrpcStream) Addr() net.Addr {
 }
 
 func (g *GrpcStream) Close() error {
+	g.ctxCancel()
+
 	return nil
 }
 
 // --- conn ---
 
-func WrapClient(s network.Stream) *grpc.ClientConn {
+func WrapClient(ctx context.Context, s network.Stream) *grpc.ClientConn {
 	opts := grpc.WithContextDialer(func(ctx context.Context, peerIdStr string) (net.Conn, error) {
 		return &streamConn{s}, nil
 	})
-	conn, err := grpc.Dial(
+
+	conn, err := grpc.DialContext(
+		ctx,
 		"",
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultCallOptions(
 			grpc.MaxCallRecvMsgSize(common.MaxGrpcMsgSize),
-			grpc.MaxCallSendMsgSize(common.MaxGrpcMsgSize)),
+			grpc.MaxCallSendMsgSize(common.MaxGrpcMsgSize),
+		),
+		grpc.WithBlock(),
 		opts)
 
 	if err != nil {
@@ -171,8 +181,6 @@ func (c *streamConn) RemoteAddr() net.Addr {
 
 	return &wrapLibp2pAddr{Addr: addr, id: c.Stream.Conn().RemotePeer()}
 }
-
-var _ net.Conn = &streamConn{}
 
 // fakeLocalAddr returns a dummy local address.
 func fakeLocalAddr() net.Addr {

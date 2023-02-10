@@ -49,10 +49,14 @@ func newDiscoveryService(
 		return nil, routingErr
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+
 	return &DiscoveryService{
 		baseServer:   baseServer,
 		logger:       hclog.NewNullLogger(),
 		routingTable: routingTable,
+		ctx:          ctx,
+		ctxCancel:    cancel,
 	}, nil
 }
 
@@ -84,56 +88,28 @@ func TestDiscoveryService_BootnodePeerDiscovery(t *testing.T) {
 		ID: "RandomBootnode",
 	}
 	randomPeers := getRandomPeers(t, 3)
-	expectedDisconnectReason := "Thank you"
-
-	isTemporaryDial := false
-	temporaryDials := map[peer.ID]bool{
-		"DummyTemp": true, // has one temporary dial for example
-	}
-	streamClosed := false
-	disconnectReason := ""
 	peerStore := make([]*peer.AddrInfo, 0)
 
 	// Create an instance of the identity service
 	discoveryService, setupErr := newDiscoveryService(
 		// Set the relevant hook responses from the mock server
 		func(server *networkTesting.MockNetworkingServer) {
+			server.HookIsConnected(func(peerID peer.ID) bool {
+				return true
+			})
+
+			server.HookPeerCount(func() int64 {
+				return 0
+			})
+
 			// Define the random bootnode hook
 			server.HookGetRandomBootnode(func() *peer.AddrInfo {
 				return randomBootnode
 			})
 
-			// Define the temporary dial status hook
-			server.HookFetchAndSetTemporaryDial(func(id peer.ID, b bool) bool {
-				isTemporaryDial = b
-				temporaryDials[id] = b
-
-				return false
-			})
-
-			// Define the temporary dial removal
-			server.HookRemoveTemporaryDial(func(id peer.ID) {
-				delete(temporaryDials, id)
-			})
-
-			// Define peer disconnect
-			server.HookDisconnectFromPeer(func(id peer.ID, s string) {
-				disconnectReason = s
-			})
-
 			// Define the bootnode conn count hook
 			server.HookGetBootnodeConnCount(func() int64 {
 				return 1 // > 0 to trigger a temporary connection
-			})
-
-			// Define the protocol stream closing hook
-			server.HookCloseProtocolStream(func(s string, id peer.ID) error {
-				if id == randomBootnode.ID {
-					// Make sure the correct temporary stream is closed
-					streamClosed = true
-				}
-
-				return nil
 			})
 
 			// Define the discovery client find peers hook
@@ -167,21 +143,12 @@ func TestDiscoveryService_BootnodePeerDiscovery(t *testing.T) {
 		t.Fatalf("Unable to setup the discovery service")
 	}
 
+	t.Cleanup(func() {
+		discoveryService.Close()
+	})
+
 	// Run the discovery service
 	discoveryService.bootnodePeerDiscovery()
-
-	// Make sure the dial was temporary
-	assert.True(t, isTemporaryDial)
-
-	// Make sure the temporary dial is removed from the server,
-	// and the only one left is the initial one
-	assert.Len(t, temporaryDials, 1)
-
-	// Make sure the stream is closed to the bootnode
-	assert.True(t, streamClosed)
-
-	// Make sure the disconnect reason is matching
-	assert.Equal(t, expectedDisconnectReason, disconnectReason)
 
 	// Make sure the bootnode peers are added to the peer store
 	assert.Len(t, peerStore, len(randomPeers))
@@ -252,6 +219,10 @@ func TestDiscoveryService_AddToTable(t *testing.T) {
 				t.Fatalf("Unable to setup the discovery service")
 			}
 
+			t.Cleanup(func() {
+				discoveryService.Close()
+			})
+
 			// Run the main method
 			additionErr := discoveryService.addToTable(randomPeer)
 
@@ -297,6 +268,10 @@ func TestDiscoveryService_RegularPeerDiscoveryUnconnected(t *testing.T) {
 		t.Fatalf("Unable to setup the discovery service")
 	}
 
+	t.Cleanup(func() {
+		discoveryService.Close()
+	})
+
 	// Run the regular peer discovery method
 	discoveryService.regularPeerDiscovery()
 
@@ -331,6 +306,14 @@ func TestDiscoveryService_IgnorePeer(t *testing.T) {
 	discoveryService, setupErr := newDiscoveryService(
 		// Set the relevant hook responses from the mock server
 		func(server *networkTesting.MockNetworkingServer) {
+			server.HookIsConnected(func(peerID peer.ID) bool {
+				return true
+			})
+
+			server.HookPeerCount(func() int64 {
+				return 0
+			})
+
 			// Define the random bootnode hook
 			server.HookGetRandomBootnode(func() *peer.AddrInfo {
 				return bootnode
@@ -366,6 +349,10 @@ func TestDiscoveryService_IgnorePeer(t *testing.T) {
 	if setupErr != nil {
 		t.Fatalf("Unable to setup the discovery service")
 	}
+
+	t.Cleanup(func() {
+		discoveryService.Close()
+	})
 
 	// add ignore cidr
 	_, network, _ := net.ParseCIDR("192.168.1.0/24")

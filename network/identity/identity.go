@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	cmap "github.com/dogechain-lab/dogechain/helper/concurrentmap"
 	"github.com/dogechain-lab/dogechain/network/event"
@@ -43,11 +44,6 @@ type networkingServer interface {
 
 	// EmitEvent emits the specified peer event on the base networking server
 	EmitEvent(event *event.PeerEvent)
-
-	// TEMPORARY DIALING //
-
-	// IsTemporaryDial checks if the peer connection is a temporary dial [Thread safe]
-	IsTemporaryDial(peerID peer.ID) bool
 
 	// CONNECTION INFORMATION //
 
@@ -165,6 +161,9 @@ func (i *IdentityService) disconnectFromPeer(peerID peer.ID, reason string) {
 
 // handleConnected handles new network connections (handshakes)
 func (i *IdentityService) handleConnected(peerID peer.ID, direction network.Direction) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+
 	clt, clientErr := i.baseServer.NewIdentityClient(peerID)
 	if clientErr != nil {
 		return fmt.Errorf(
@@ -180,7 +179,7 @@ func (i *IdentityService) handleConnected(peerID peer.ID, direction network.Dire
 	status := i.constructStatus(peerID)
 
 	// Initiate the handshake
-	resp, err := clt.Hello(context.Background(), status)
+	resp, err := clt.Hello(ctx, status)
 	if err != nil {
 		return err
 	}
@@ -194,10 +193,7 @@ func (i *IdentityService) handleConnected(peerID peer.ID, direction network.Dire
 		return ErrSelfConnection
 	}
 
-	// If this is a NOT temporary connection, save it
-	if !resp.TemporaryDial && !status.TemporaryDial {
-		i.baseServer.AddPeer(peerID, direction)
-	}
+	i.baseServer.AddPeer(peerID, direction)
 
 	return nil
 }
@@ -217,11 +213,12 @@ func (i *IdentityService) Hello(_ context.Context, req *proto.Status) (*proto.St
 
 // constructStatus constructs a status response of the current node
 func (i *IdentityService) constructStatus(peerID peer.ID) *proto.Status {
+	// deprecated TemporaryDial
 	return &proto.Status{
 		Metadata: map[string]string{
 			PeerID: i.hostID.Pretty(),
 		},
 		Chain:         i.chainID,
-		TemporaryDial: i.baseServer.IsTemporaryDial(peerID),
+		TemporaryDial: false,
 	}
 }

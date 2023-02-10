@@ -37,14 +37,18 @@ func newTestNetwork(t *testing.T) network.Server {
 }
 
 func newTestSyncPeerClient(network network.Network, blockchain Blockchain) *syncPeerClient {
+	ctx, cancel := context.WithCancel(context.Background())
+
 	client := &syncPeerClient{
 		logger:                 hclog.NewNullLogger(),
 		network:                network,
 		blockchain:             blockchain,
-		id:                     network.AddrInfo().ID.String(),
+		selfID:                 network.AddrInfo().ID.String(),
 		peerStatusUpdateCh:     make(chan *NoForkPeer, 1),
 		peerConnectionUpdateCh: make(chan *event.PeerEvent, 1),
 		isClosed:               atomic.NewBool(false),
+		ctx:                    ctx,
+		cancel:                 cancel,
 	}
 
 	// need to register protocol
@@ -74,12 +78,17 @@ func TestGetPeerStatus(t *testing.T) {
 	clientSrv := newTestNetwork(t)
 	client := newTestSyncPeerClient(clientSrv, nil)
 
+	t.Cleanup(func() {
+		client.Close()
+	})
+
 	peerLatest := uint64(10)
 	_, peerSrv := createTestSyncerService(t, &mockBlockchain{
 		headerHandler: newSimpleHeaderHandler(peerLatest),
 	})
 
 	err := network.JoinAndWait(
+		t,
 		clientSrv,
 		peerSrv,
 		network.DefaultBufferTimeout,
@@ -105,6 +114,10 @@ func TestGetConnectedPeerStatuses(t *testing.T) {
 
 	clientSrv := newTestNetwork(t)
 	client := newTestSyncPeerClient(clientSrv, nil)
+
+	t.Cleanup(func() {
+		client.Close()
+	})
 
 	var (
 		peerLatests = []uint64{
@@ -138,6 +151,7 @@ func TestGetConnectedPeerStatuses(t *testing.T) {
 			defer mutex.Unlock()
 
 			peerJoinErrs[idx] = network.JoinAndWait(
+				t,
 				clientSrv,
 				peerSrv,
 				network.DefaultBufferTimeout,
@@ -170,10 +184,14 @@ func TestStatusPubSub(t *testing.T) {
 	clientSrv := newTestNetwork(t)
 	client := newTestSyncPeerClient(clientSrv, nil)
 
+	t.Cleanup(func() {
+		client.Close()
+	})
+
 	_, peerSrv := createTestSyncerService(t, &mockBlockchain{})
 	peerID := peerSrv.AddrInfo().ID
 
-	go client.startPeerEventProcess()
+	client.subscribeEventProcess()
 
 	// run goroutine to collect events
 	var (
@@ -193,6 +211,7 @@ func TestStatusPubSub(t *testing.T) {
 
 	// connect
 	err := network.JoinAndWait(
+		t,
 		clientSrv,
 		peerSrv,
 		network.DefaultBufferTimeout,
@@ -231,8 +250,6 @@ func TestStatusPubSub(t *testing.T) {
 }
 
 func TestPeerConnectionUpdateEventCh(t *testing.T) {
-	t.Parallel()
-
 	var (
 		// network layer
 		clientSrv = newTestNetwork(t)
@@ -269,18 +286,25 @@ func TestPeerConnectionUpdateEventCh(t *testing.T) {
 		peerSrv3.Close()
 
 		// no need to call Close of Client because test closes it manually
+
+		client.Close()
 		peerClient1.Close()
 		peerClient2.Close()
 	})
 
 	// client <-> peer1
 	// peer1  <-> peer2
+	// peer2  <-> peer3
 	err := network.JoinAndWaitMultiple(
+		t,
 		network.DefaultJoinTimeout,
+		// client <-> peer1
 		clientSrv,
 		peerSrv1,
+		// peer1 <-> peer2
 		peerSrv1,
 		peerSrv2,
+		// peer2 <-> peer3
 		peerSrv2,
 		peerSrv3,
 	)
@@ -400,6 +424,7 @@ func Test_shouldEmitBlocks(t *testing.T) {
 	})
 
 	err := network.JoinAndWaitMultiple(
+		t,
 		network.DefaultJoinTimeout,
 		clientSrv,
 		peerSrv,
@@ -482,6 +507,10 @@ func Test_syncPeerClient_GetBlocks(t *testing.T) {
 	clientSrv := newTestNetwork(t)
 	client := newTestSyncPeerClient(clientSrv, nil)
 
+	t.Cleanup(func() {
+		client.Close()
+	})
+
 	var (
 		peerLatest = uint64(10)
 		syncFrom   = uint64(1)
@@ -503,6 +532,7 @@ func Test_syncPeerClient_GetBlocks(t *testing.T) {
 	})
 
 	err := network.JoinAndWait(
+		t,
 		clientSrv,
 		peerSrv,
 		network.DefaultBufferTimeout,
@@ -563,12 +593,12 @@ func Test_newSyncPeerClient_forgetNonProtocolPeer(t *testing.T) {
 	srvID := peerSrv.AddrInfo().ID
 
 	t.Cleanup(func() {
-		client.CloseStream(srvID)
 		client.Close()
 		peerSrv.Close()
 	})
 
 	err := network.JoinAndWait(
+		t,
 		clientSrv,
 		peerSrv,
 		network.DefaultBufferTimeout,

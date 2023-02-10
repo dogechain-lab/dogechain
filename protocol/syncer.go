@@ -68,8 +68,11 @@ func (q *minNumBlockQueue) Swap(i, j int) {
 // NOTE: Do not use this syncer for the consensus that may cause fork.
 // This syncer doesn't assume forks
 type noForkSyncer struct {
-	logger          hclog.Logger
-	blockchain      Blockchain
+	logger hclog.Logger
+
+	blockchain           Blockchain
+	blockchainSubscriber blockchain.Subscription
+
 	syncProgression Progression
 
 	peerMap         *PeerMap
@@ -79,8 +82,10 @@ type noForkSyncer struct {
 	// Channel to notify Sync that a new status arrived
 	newStatusCh chan struct{}
 	// syncing state
-	syncing     *atomic.Bool
-	syncingPeer string
+	syncing *atomic.Bool
+
+	// syncing peer id
+	syncingPeer *atomic.String
 
 	// stop chan
 	stopCh chan struct{}
@@ -90,8 +95,11 @@ type noForkSyncer struct {
 	// for peer status query
 	status     *Status
 	statusLock sync.Mutex
+
 	// network server
 	server network.Network
+	// self node id
+	selfID peer.ID
 	// broadcasting block flag for backward compatible nodes
 	blockBroadcast bool
 }
@@ -104,16 +112,21 @@ func NewSyncer(
 	enableBlockBroadcast bool,
 ) Syncer {
 	s := &noForkSyncer{
-		logger:          logger.Named(_syncerName),
-		blockchain:      blockchain,
+		logger: logger.Named(_syncerName),
+
+		blockchain:           blockchain,
+		blockchainSubscriber: blockchain.SubscribeEvents(),
+
 		syncProgression: progress.NewProgressionWrapper(progress.ChainSyncBulk),
 		peerMap:         new(PeerMap),
 		syncPeerService: NewSyncPeerService(server, blockchain),
 		syncPeerClient:  NewSyncPeerClient(logger, server, blockchain),
 		newStatusCh:     make(chan struct{}),
 		syncing:         atomic.NewBool(false),
+		syncingPeer:     atomic.NewString(""),
 		stopCh:          make(chan struct{}),
 		server:          server,
+		selfID:          server.AddrInfo().ID,
 		blockBroadcast:  enableBlockBroadcast,
 	}
 
@@ -136,8 +149,8 @@ func (s *noForkSyncer) GetSyncProgression() *progress.Progression {
 	return s.syncProgression.GetProgression()
 }
 
-// updateCurrentStatus taps into the blockchain event steam and updates the Syncer.status field
-func (s *noForkSyncer) updateCurrentStatus() {
+// runUpdateCurrentStatus taps into the blockchain event steam and updates the Syncer.status field
+func (s *noForkSyncer) runUpdateCurrentStatus() {
 	// Get the current status of the syncer
 	currentHeader := s.blockchain.Header()
 	diff, _ := s.blockchain.GetTD(currentHeader.Hash)
@@ -148,30 +161,62 @@ func (s *noForkSyncer) updateCurrentStatus() {
 		Difficulty: diff,
 	}
 
+	// new block event subscription
 	sub := s.blockchain.SubscribeEvents()
-	defer sub.Close()
+
+	updateStatusCh := make(chan *Status, 1)
+	defer close(updateStatusCh)
+
+	go func() {
+		for {
+			select {
+			case <-s.stopCh:
+				return
+			case state, ok := <-updateStatusCh:
+				if !ok {
+					return
+				}
+
+				s.updateStatus(state)
+			}
+		}
+	}()
 
 	// watch the subscription and notify
 	for {
 		select {
-		case evnt := <-sub.GetEventCh():
-			// we do not want to notify forks
-			if evnt.Type == blockchain.EventFork {
-				continue
-			}
-
-			// this should not happen
-			if len(evnt.NewChain) == 0 {
-				continue
-			}
-
-			s.updateStatus(&Status{
-				Difficulty: evnt.Difficulty,
-				Hash:       evnt.NewChain[0].Hash,
-				Number:     evnt.NewChain[0].Number,
-			})
 		case <-s.stopCh:
 			return
+		default:
+		}
+
+		if sub.IsClosed() {
+			return
+		}
+
+		e, ok := <-sub.GetEvent()
+		if e == nil || !ok {
+			continue
+		}
+
+		// we do not want to notify forks
+		if e.Type == blockchain.EventFork {
+			continue
+		}
+
+		// this should not happen
+		if len(e.NewChain) == 0 {
+			continue
+		}
+
+		// skip too many messages
+		select {
+		case updateStatusCh <- &Status{
+			Difficulty: e.Difficulty,
+			Hash:       e.NewChain[0].Hash,
+			Number:     e.NewChain[0].Number,
+		}:
+		default:
 		}
 	}
 }
@@ -212,7 +257,7 @@ func (s *noForkSyncer) Start() error {
 
 	// Run the blockchain event listener loop
 	// deprecated, only for backward compatibility
-	go s.updateCurrentStatus()
+	go s.runUpdateCurrentStatus()
 
 	return nil
 }
@@ -265,6 +310,8 @@ func (s *noForkSyncer) Sync(callback func(*types.Block) bool) error {
 		s.logger.Debug("got new status event")
 
 		if shouldTerminate := s.syncWithSkipList(skipList, callback); shouldTerminate {
+			s.logger.Error("terminate syncing")
+
 			break
 		}
 	}
@@ -279,6 +326,9 @@ func (s *noForkSyncer) syncWithSkipList(
 	// switch syncing status
 	s.setSyncing(true)
 	defer s.setSyncing(false)
+
+	s.logger.Debug("start syncing")
+	defer s.logger.Debug("done syncing")
 
 	var localLatest uint64
 
@@ -311,11 +361,13 @@ func (s *noForkSyncer) syncWithSkipList(
 		return
 	}
 
+	bestPeerID := bestPeer.ID.String()
+
 	// set up a peer to receive its status updates for progress updates
-	s.syncingPeer = bestPeer.ID.String()
+	s.syncingPeer.Store(bestPeerID)
 
 	// use subscription for updating progression
-	s.syncProgression.StartProgression(s.syncingPeer, localLatest, s.blockchain.SubscribeEvents())
+	s.syncProgression.StartProgression(bestPeerID, localLatest, s.blockchainSubscriber)
 	s.syncProgression.UpdateHighestProgression(bestPeer.Number)
 
 	// fetch block from the peer
@@ -324,13 +376,18 @@ func (s *noForkSyncer) syncWithSkipList(
 		s.logger.Warn("failed to complete bulk sync with peer", "peer ID", bestPeer.ID, "error", err)
 	}
 
+	s.logger.Debug("bulk sync with peer done", "peer ID", bestPeer.ID, "result", result)
+
 	// stop progression even it might be not done
 	s.syncProgression.StopProgression()
+	s.logger.Debug("stop progression")
 
 	// result should never be nil
 	for p := range result.SkipList {
 		skipList.Store(p, true)
 	}
+
+	s.logger.Debug("store result.SkipList")
 
 	return result.ShouldTerminate
 }
@@ -440,9 +497,11 @@ func (s *noForkSyncer) bulkSyncWithPeer(
 		// bulk syncing is entirely done as the peer's status can change over time
 		// if block writes have a significant time impact on the node in question
 		progression := s.syncProgression.GetProgression()
-		if progression != nil && progression.HighestBlock > target {
-			target = progression.HighestBlock
-			s.logger.Debug("update syncing target", "target", target)
+		if progression != nil {
+			if highestBlock := progression.GetHighestBlock(); highestBlock > target {
+				target = highestBlock
+				s.logger.Debug("update syncing target", "target", target)
+			}
 		}
 
 		if from > target {
@@ -475,6 +534,7 @@ func (s *noForkSyncer) initializePeerMap() {
 // startPeerStatusUpdateProcess subscribes peer status change event and updates peer map
 func (s *noForkSyncer) startPeerStatusUpdateProcess() {
 	for peerStatus := range s.syncPeerClient.GetPeerStatusUpdateCh() {
+		s.logger.Debug("peer status updated", "id", peerStatus.ID, "number", peerStatus.Number)
 		s.putToPeerMap(peerStatus)
 	}
 }
@@ -521,8 +581,18 @@ func (s *noForkSyncer) putToPeerMap(status *NoForkPeer) {
 		s.logger.Info("new connected peer", "id", status.ID, "number", status.Number)
 	}
 
+	if status.ID == s.selfID {
+		// skip self
+		return
+	}
+
+	// copy syncing peer id
+	syncingPeer := s.syncingPeer.Load()
+
+	s.logger.Debug("syncingPeer", "id", syncingPeer, "status.ID", status.ID.String())
+
 	// update progression if needed
-	if status.ID.String() == s.syncingPeer && status.Number > 0 {
+	if status.ID.String() == syncingPeer && status.Number > 0 {
 		s.logger.Debug("connected peer update status", "id", status.ID, "number", status.Number)
 		s.syncProgression.UpdateHighestProgression(status.Number)
 	}
@@ -536,11 +606,12 @@ func (s *noForkSyncer) removeFromPeerMap(peerID peer.ID) {
 	s.logger.Info("remove from peer map", "id", peerID)
 
 	s.peerMap.Remove(peerID)
-	// remove its stream
-	s.syncPeerClient.CloseStream(peerID)
 }
 
 // notifyNewStatusEvent emits signal to newStatusCh
 func (s *noForkSyncer) notifyNewStatusEvent() {
-	s.newStatusCh <- struct{}{}
+	select {
+	case s.newStatusCh <- struct{}{}:
+	default:
+	}
 }

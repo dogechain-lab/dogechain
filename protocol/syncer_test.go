@@ -140,6 +140,7 @@ func NewTestSyncer(
 		newStatusCh:     make(chan struct{}),
 		peerMap:         new(PeerMap),
 		syncing:         atomic.NewBool(false),
+		syncingPeer:     atomic.NewString(""),
 	}
 }
 

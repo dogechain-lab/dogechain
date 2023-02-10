@@ -1,25 +1,25 @@
 package blockchain
 
 import (
-	"math/big"
+	"context"
 	"sync"
 
-	"github.com/dogechain-lab/dogechain/types"
+	"go.uber.org/atomic"
 )
-
-type void struct{}
 
 // Subscription is the blockchain subscription interface
 type Subscription interface {
-	GetEventCh() chan *Event
-	GetEvent() *Event
-	Close()
+	GetEvent() <-chan *Event
+
+	IsClosed() bool
+	Unsubscribe()
 }
 
 // FOR TESTING PURPOSES //
 
 type MockSubscription struct {
-	eventCh chan *Event
+	eventCh  chan *Event
+	isClosed atomic.Bool
 }
 
 func NewMockSubscription() *MockSubscription {
@@ -30,60 +30,44 @@ func (m *MockSubscription) Push(e *Event) {
 	m.eventCh <- e
 }
 
-func (m *MockSubscription) GetEventCh() chan *Event {
+func (m *MockSubscription) GetEvent() <-chan *Event {
 	return m.eventCh
 }
 
-func (m *MockSubscription) GetEvent() *Event {
-	evnt := <-m.eventCh
-
-	return evnt
+func (m *MockSubscription) IsClosed() bool {
+	return m.isClosed.Load()
 }
 
-func (m *MockSubscription) Close() {
+func (m *MockSubscription) Unsubscribe() {
+	m.isClosed.Store(true)
 }
 
 /////////////////////////
 
 // subscription is the Blockchain event subscription object
 type subscription struct {
-	updateCh chan *Event // Channel for update information
-	closeCh  chan void   // Channel for close signals
-}
+	// Channel for update information
+	// close from eventStream
+	updateCh chan *Event
 
-// GetEventCh creates a new event channel, and returns it
-func (s *subscription) GetEventCh() chan *Event {
-	eventCh := make(chan *Event)
-
-	go func() {
-		for {
-			evnt := s.GetEvent()
-			if evnt == nil {
-				return
-			}
-			eventCh <- evnt
-		}
-	}()
-
-	return eventCh
+	// closed is a flag that indicates if the subscription is closed
+	closed *atomic.Bool
 }
 
 // GetEvent returns the event from the subscription (BLOCKING)
-func (s *subscription) GetEvent() *Event {
-	for {
-		// Wait for an update
-		select {
-		case ev := <-s.updateCh:
-			return ev
-		case <-s.closeCh:
-			return nil
-		}
-	}
+func (s *subscription) GetEvent() <-chan *Event {
+	return s.updateCh
 }
 
-// Close closes the subscription
-func (s *subscription) Close() {
-	close(s.closeCh)
+// IsClosed returns true if the subscription is closed
+func (s *subscription) IsClosed() bool {
+	return s.closed.Load()
+}
+
+// Unsubscribe closes the subscription
+func (s *subscription) Unsubscribe() {
+	// don't close updateCh, it's closed from eventStream
+	s.closed.CAS(false, true)
 }
 
 type EventType int
@@ -94,102 +78,149 @@ const (
 	EventFork                   // Chain fork event
 )
 
-// Event is the blockchain event that gets passed to the listeners
-type Event struct {
-	// Old chain (removed headers) if there was a reorg
-	OldChain []*types.Header
-
-	// New part of the chain (or a fork)
-	NewChain []*types.Header
-
-	// Difficulty is the new difficulty created with this event
-	Difficulty *big.Int
-
-	// Type is the type of event
-	Type EventType
-
-	// Source is the source that generated the blocks for the event
-	// right now it can be either the Sealer or the Syncer
-	Source string
-}
-
-// Header returns the latest block header for the event
-func (e *Event) Header() *types.Header {
-	return e.NewChain[len(e.NewChain)-1]
-}
-
-// SetDifficulty sets the event difficulty
-func (e *Event) SetDifficulty(b *big.Int) {
-	e.Difficulty = new(big.Int).Set(b)
-}
-
-// AddNewHeader appends a header to the event's NewChain array
-func (e *Event) AddNewHeader(newHeader *types.Header) {
-	header := newHeader.Copy()
-
-	if e.NewChain == nil {
-		// Array doesn't exist yet, create it
-		e.NewChain = []*types.Header{}
-	}
-
-	e.NewChain = append(e.NewChain, header)
-}
-
-// AddOldHeader appends a header to the event's OldChain array
-func (e *Event) AddOldHeader(oldHeader *types.Header) {
-	header := oldHeader.Copy()
-
-	if e.OldChain == nil {
-		// Array doesn't exist yet, create it
-		e.OldChain = []*types.Header{}
-	}
-
-	e.OldChain = append(e.OldChain, header)
-}
-
-// SubscribeEvents returns a blockchain event subscription
-func (b *Blockchain) SubscribeEvents() Subscription {
-	return b.stream.subscribe()
-}
-
 // eventStream is the structure that contains the event list,
 // as well as the update channel which it uses to notify of updates
 type eventStream struct {
-	lock sync.Mutex
+	lock sync.RWMutex
+
+	// context is the context for the event stream
+	ctx context.Context
+
+	// contextCancel is the cancel function for the context
+	ctxCancel context.CancelFunc
 
 	// channel to notify updates
-	updateCh []chan *Event
+	updateSubCh map[*subscription]chan *Event
+
+	// channel to notify new subscriptions
+	subCh chan *subscription
+
+	// event channel
+	eventCh chan *Event
+
+	isClosed *atomic.Bool
+}
+
+func newEventStream(ctx context.Context) *eventStream {
+	streamCtx, cancel := context.WithCancel(ctx)
+
+	stream := &eventStream{
+		ctx:         streamCtx,
+		ctxCancel:   cancel,
+		updateSubCh: make(map[*subscription]chan *Event),
+		// use buffered channel need fix unit test
+		subCh:    make(chan *subscription),
+		eventCh:  make(chan *Event),
+		isClosed: atomic.NewBool(false),
+	}
+
+	go stream.run()
+
+	return stream
+}
+
+func (e *eventStream) run() {
+	defer func() {
+		close(e.subCh)
+		close(e.eventCh)
+	}()
+
+	closeSub := make([]*subscription, 0)
+
+	for {
+		select {
+		case <-e.ctx.Done():
+			return
+		case newSub := <-e.subCh:
+			e.lock.Lock()
+
+			// add the new subscription to the list
+			_, ok := e.updateSubCh[newSub]
+			if !ok {
+				e.updateSubCh[newSub] = newSub.updateCh
+			}
+
+			e.lock.Unlock()
+		case event := <-e.eventCh:
+			e.lock.RLock()
+
+			// Notify the listeners
+			for sub, updateCh := range e.updateSubCh {
+				if sub.IsClosed() {
+					closeSub = append(closeSub, sub)
+
+					continue
+				}
+
+				select {
+				case <-e.ctx.Done():
+					return
+				case updateCh <- event:
+				default:
+				}
+			}
+
+			e.lock.RUnlock()
+
+			e.lock.Lock()
+
+			// clear closed subscriptions
+			for _, sub := range closeSub {
+				delete(e.updateSubCh, sub)
+				close(sub.updateCh)
+			}
+
+			e.lock.Unlock()
+
+			closeSub = closeSub[:0]
+		}
+	}
+}
+
+func (e *eventStream) Close() {
+	if !e.isClosed.CAS(false, true) {
+		return
+	}
+
+	e.ctxCancel()
+
+	e.lock.Lock()
+	defer e.lock.Unlock()
+
+	for update := range e.updateSubCh {
+		close(update.updateCh)
+		delete(e.updateSubCh, update)
+	}
 }
 
 // subscribe Creates a new blockchain event subscription
 func (e *eventStream) subscribe() *subscription {
-	return &subscription{
-		updateCh: e.newUpdateCh(),
-		closeCh:  make(chan void),
+	if e.isClosed.Load() {
+		return nil
 	}
-}
 
-// newUpdateCh returns the event update channel
-func (e *eventStream) newUpdateCh() chan *Event {
-	e.lock.Lock()
-	defer e.lock.Unlock()
+	// check if the context is done
+	select {
+	case <-e.ctx.Done():
+		return nil
+	default:
+	}
 
-	ch := make(chan *Event, 1)
-	e.updateCh = append(e.updateCh, ch)
+	sub := &subscription{
+		updateCh: make(chan *Event, 8),
+		closed:   atomic.NewBool(false),
+	}
 
-	return ch
+	select {
+	case <-e.ctx.Done():
+		return nil
+	case e.subCh <- sub:
+	}
+
+	return sub
 }
 
 // push adds a new Event, and notifies listeners
 func (e *eventStream) push(event *Event) {
-	e.lock.Lock()
-	defer e.lock.Unlock()
-
-	// Notify the listeners
-	for _, update := range e.updateCh {
-		select {
-		case update <- event:
-		default:
-		}
-	}
+	e.eventCh <- event
 }

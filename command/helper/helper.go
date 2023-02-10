@@ -1,6 +1,7 @@
 package helper
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -103,11 +104,11 @@ func FormatKV(in []string) string {
 }
 
 // GetTxPoolClientConnection returns the TxPool operator client connection
-func GetTxPoolClientConnection(address string) (
+func GetTxPoolClientConnection(ctx context.Context, address string) (
 	txpoolOp.TxnPoolOperatorClient,
 	error,
 ) {
-	conn, err := GetGRPCConnection(address)
+	conn, err := GetGRPCConnection(ctx, address)
 	if err != nil {
 		return nil, err
 	}
@@ -116,11 +117,11 @@ func GetTxPoolClientConnection(address string) (
 }
 
 // GetSystemClientConnection returns the System operator client connection
-func GetSystemClientConnection(address string) (
+func GetSystemClientConnection(ctx context.Context, address string) (
 	proto.SystemClient,
 	error,
 ) {
-	conn, err := GetGRPCConnection(address)
+	conn, err := GetGRPCConnection(ctx, address)
 	if err != nil {
 		return nil, err
 	}
@@ -129,11 +130,11 @@ func GetSystemClientConnection(address string) (
 }
 
 // GetIBFTOperatorClientConnection returns the IBFT operator client connection
-func GetIBFTOperatorClientConnection(address string) (
+func GetIBFTOperatorClientConnection(ctx context.Context, address string) (
 	ibftOp.IbftOperatorClient,
 	error,
 ) {
-	conn, err := GetGRPCConnection(address)
+	conn, err := GetGRPCConnection(ctx, address)
 	if err != nil {
 		return nil, err
 	}
@@ -142,8 +143,9 @@ func GetIBFTOperatorClientConnection(address string) (
 }
 
 // GetGRPCConnection returns a grpc client connection
-func GetGRPCConnection(address string) (*grpc.ClientConn, error) {
-	conn, err := grpc.Dial(
+func GetGRPCConnection(ctx context.Context, address string) (*grpc.ClientConn, error) {
+	conn, err := grpc.DialContext(
+		ctx,
 		address,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultCallOptions(

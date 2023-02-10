@@ -2,6 +2,7 @@ package status
 
 import (
 	"context"
+	"time"
 
 	"github.com/dogechain-lab/dogechain/command"
 	"github.com/dogechain-lab/dogechain/command/helper"
@@ -23,7 +24,10 @@ func runCommand(cmd *cobra.Command, _ []string) {
 	outputter := command.InitializeOutputter(cmd)
 	defer outputter.WriteOutput()
 
-	statusResponse, err := getTxPoolStatus(helper.GetGRPCAddress(cmd))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	statusResponse, err := getTxPoolStatus(ctx, helper.GetGRPCAddress(cmd))
 	if err != nil {
 		outputter.SetError(err)
 
@@ -38,8 +42,9 @@ func runCommand(cmd *cobra.Command, _ []string) {
 	})
 }
 
-func getTxPoolStatus(grpcAddress string) (*txpoolOp.TxnPoolStatusResp, error) {
+func getTxPoolStatus(ctx context.Context, grpcAddress string) (*txpoolOp.TxnPoolStatusResp, error) {
 	client, err := helper.GetTxPoolClientConnection(
+		ctx,
 		grpcAddress,
 	)
 	if err != nil {

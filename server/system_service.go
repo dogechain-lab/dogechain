@@ -46,11 +46,16 @@ func (s *systemService) GetStatus(ctx context.Context, req *empty.Empty) (*proto
 // Subscribe implements the blockchain event subscription service
 func (s *systemService) Subscribe(req *empty.Empty, stream proto.System_SubscribeServer) error {
 	sub := s.server.blockchain.SubscribeEvents()
+	defer sub.Unsubscribe()
 
 	for {
-		evnt := sub.GetEvent()
-		if evnt == nil {
+		if sub.IsClosed() {
 			break
+		}
+
+		blockEvent, ok := <-sub.GetEvent()
+		if blockEvent == nil || !ok {
+			continue
 		}
 
 		pEvent := &proto.BlockchainEvent{
@@ -58,14 +63,14 @@ func (s *systemService) Subscribe(req *empty.Empty, stream proto.System_Subscrib
 			Removed: []*proto.BlockchainEvent_Header{},
 		}
 
-		for _, h := range evnt.NewChain {
+		for _, h := range blockEvent.NewChain {
 			pEvent.Added = append(
 				pEvent.Added,
 				&proto.BlockchainEvent_Header{Hash: h.Hash.String(), Number: int64(h.Number)},
 			)
 		}
 
-		for _, h := range evnt.OldChain {
+		for _, h := range blockEvent.OldChain {
 			pEvent.Removed = append(
 				pEvent.Removed,
 				&proto.BlockchainEvent_Header{Hash: h.Hash.String(), Number: int64(h.Number)},
@@ -75,11 +80,11 @@ func (s *systemService) Subscribe(req *empty.Empty, stream proto.System_Subscrib
 		err := stream.Send(pEvent)
 
 		if err != nil {
+			s.server.logger.Error("error sending blockchain event", "error", err)
+
 			break
 		}
 	}
-
-	sub.Close()
 
 	return nil
 }

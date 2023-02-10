@@ -26,23 +26,23 @@ type MockNetworkingServer struct {
 	newIdentityClientFn      newIdentityClientDelegate
 	disconnectFromPeerFn     disconnectFromPeerDelegate
 	addPeerFn                addPeerDelegate
+	connectFn                connectDelegate
 	updatePendingConnCountFn updatePendingConnCountDelegate
 	emitEventFn              emitEventDelegate
-	isTemporaryDialFn        isTemporaryDialDelegate
 	hasFreeConnectionSlotFn  hasFreeConnectionSlotDelegate
 
 	// Discovery Hooks
-	newDiscoveryClientFn       newDiscoveryClientDelegate
-	getRandomBootnodeFn        getRandomBootnodeDelegate
-	getBootnodeConnCountFn     getBootnodeConnCountDelegate
-	closeProtocolStreamFn      closeProtocolStreamDelegate
-	addToPeerStoreFn           addToPeerStoreDelegate
-	removeFromPeerStoreFn      removeFromPeerStoreDelegate
-	getPeerInfoFn              getPeerInfoDelegate
-	getRandomPeerFn            getRandomPeerDelegate
-	fetchAndSetTemporaryDialFn fetchAndSetTemporaryDialDelegate
-	removeTemporaryDialFn      removeTemporaryDialDelegate
-	temporaryDialPeerFn        temporaryDialPeerDelegate
+	newDiscoveryClientFn   newDiscoveryClientDelegate
+	getRandomBootnodeFn    getRandomBootnodeDelegate
+	getBootnodeConnCountFn getBootnodeConnCountDelegate
+	addToPeerStoreFn       addToPeerStoreDelegate
+	removeFromPeerStoreFn  removeFromPeerStoreDelegate
+	getPeerInfoFn          getPeerInfoDelegate
+	getRandomPeerFn        getRandomPeerDelegate
+	peerCountFn            peerCountDelegate
+	isBootnodeFn           isBootnodeDelegate
+	isStaticPeerFn         isStaticPeerDelegate
+	isConnectedFn          isConnectedDelegate
 }
 
 func NewMockNetworkingServer() *MockNetworkingServer {
@@ -68,35 +68,25 @@ func (m *MockNetworkingServer) GetMockPeerMetrics() *MockPeerMetrics {
 // Define the mock hooks //
 // Required for Identity
 type newIdentityClientDelegate func(peer.ID) (proto.IdentityClient, error)
+type connectDelegate func(ctx context.Context, addrInfo peer.AddrInfo) error
 type disconnectFromPeerDelegate func(peer.ID, string)
 type addPeerDelegate func(peer.ID, network.Direction)
 type updatePendingConnCountDelegate func(int64, network.Direction)
 type emitEventDelegate func(*event.PeerEvent)
-type isTemporaryDialDelegate func(peer.ID) bool
 type hasFreeConnectionSlotDelegate func(network.Direction) bool
 
 // Required for Discovery
 type getRandomBootnodeDelegate func() *peer.AddrInfo
 type getBootnodeConnCountDelegate func() int64
 type newDiscoveryClientDelegate func(peer.ID) (proto.DiscoveryClient, error)
-type closeProtocolStreamDelegate func(string, peer.ID) error
 type addToPeerStoreDelegate func(*peer.AddrInfo)
 type removeFromPeerStoreDelegate func(peerInfo *peer.AddrInfo)
 type getPeerInfoDelegate func(peer.ID) *peer.AddrInfo
 type getRandomPeerDelegate func() *peer.ID
-type fetchAndSetTemporaryDialDelegate func(peer.ID, bool) bool
-type removeTemporaryDialDelegate func(peer.ID)
-type temporaryDialPeerDelegate func(peerAddrInfo *peer.AddrInfo)
-
-func (m *MockNetworkingServer) TemporaryDialPeer(peerAddrInfo *peer.AddrInfo) {
-	if m.temporaryDialPeerFn != nil {
-		m.temporaryDialPeerFn(peerAddrInfo)
-	}
-}
-
-func (m *MockNetworkingServer) HookTemporaryDialPeer(fn temporaryDialPeerDelegate) {
-	m.temporaryDialPeerFn = fn
-}
+type peerCountDelegate func() int64
+type isBootnodeDelegate func(peer.ID) bool
+type isStaticPeerDelegate func(peer.ID) bool
+type isConnectedDelegate func(peer.ID) bool
 
 func (m *MockNetworkingServer) NewIdentityClient(peerID peer.ID) (proto.IdentityClient, error) {
 	if m.newIdentityClientFn != nil {
@@ -130,6 +120,18 @@ func (m *MockNetworkingServer) HookAddPeer(fn addPeerDelegate) {
 	m.addPeerFn = fn
 }
 
+func (m *MockNetworkingServer) Connect(ctx context.Context, addrInfo peer.AddrInfo) error {
+	if m.connectFn != nil {
+		return m.connectFn(ctx, addrInfo)
+	}
+
+	return nil
+}
+
+func (m *MockNetworkingServer) HookConnect(fn connectDelegate) {
+	m.connectFn = fn
+}
+
 func (m *MockNetworkingServer) UpdatePendingConnCount(delta int64, direction network.Direction) {
 	if m.updatePendingConnCountFn != nil {
 		m.updatePendingConnCountFn(delta, direction)
@@ -148,18 +150,6 @@ func (m *MockNetworkingServer) EmitEvent(event *event.PeerEvent) {
 
 func (m *MockNetworkingServer) HookEmitEvent(fn emitEventDelegate) {
 	m.emitEventFn = fn
-}
-
-func (m *MockNetworkingServer) IsTemporaryDial(peerID peer.ID) bool {
-	if m.isTemporaryDialFn != nil {
-		return m.isTemporaryDialFn(peerID)
-	}
-
-	return false
-}
-
-func (m *MockNetworkingServer) HookIsTemporaryDial(fn isTemporaryDialDelegate) {
-	m.isTemporaryDialFn = fn
 }
 
 func (m *MockNetworkingServer) HasFreeConnectionSlot(direction network.Direction) bool {
@@ -210,18 +200,6 @@ func (m *MockNetworkingServer) HookNewDiscoveryClient(fn newDiscoveryClientDeleg
 	m.newDiscoveryClientFn = fn
 }
 
-func (m *MockNetworkingServer) CloseProtocolStream(protocol string, peerID peer.ID) error {
-	if m.closeProtocolStreamFn != nil {
-		return m.closeProtocolStreamFn(protocol, peerID)
-	}
-
-	return nil
-}
-
-func (m *MockNetworkingServer) HookCloseProtocolStream(fn closeProtocolStreamDelegate) {
-	m.closeProtocolStreamFn = fn
-}
-
 func (m *MockNetworkingServer) AddToPeerStore(peerInfo *peer.AddrInfo) {
 	if m.addToPeerStoreFn != nil {
 		m.addToPeerStoreFn(peerInfo)
@@ -266,26 +244,52 @@ func (m *MockNetworkingServer) HookGetRandomPeer(fn getRandomPeerDelegate) {
 	m.getRandomPeerFn = fn
 }
 
-func (m *MockNetworkingServer) FetchOrSetTemporaryDial(peerID peer.ID, newValue bool) bool {
-	if m.fetchAndSetTemporaryDialFn != nil {
-		return m.fetchAndSetTemporaryDialFn(peerID, newValue)
+func (m *MockNetworkingServer) PeerCount() int64 {
+	if m.peerCountFn != nil {
+		return m.peerCountFn()
+	}
+
+	return 0
+}
+
+func (m *MockNetworkingServer) HookPeerCount(fn peerCountDelegate) {
+	m.peerCountFn = fn
+}
+
+func (m *MockNetworkingServer) IsStaticPeer(peerID peer.ID) bool {
+	if m.isStaticPeerFn != nil {
+		return m.isStaticPeerFn(peerID)
 	}
 
 	return false
 }
 
-func (m *MockNetworkingServer) HookFetchAndSetTemporaryDial(fn fetchAndSetTemporaryDialDelegate) {
-	m.fetchAndSetTemporaryDialFn = fn
+func (m *MockNetworkingServer) HookIsBootnode(fn isBootnodeDelegate) {
+	m.isBootnodeFn = fn
 }
 
-func (m *MockNetworkingServer) RemoveTemporaryDial(peerID peer.ID) {
-	if m.removeTemporaryDialFn != nil {
-		m.removeTemporaryDialFn(peerID)
+func (m *MockNetworkingServer) IsBootnode(peerID peer.ID) bool {
+	if m.isBootnodeFn != nil {
+		return m.isBootnodeFn(peerID)
 	}
+
+	return false
 }
 
-func (m *MockNetworkingServer) HookRemoveTemporaryDial(fn removeTemporaryDialDelegate) {
-	m.removeTemporaryDialFn = fn
+func (m *MockNetworkingServer) HookIsStaticPeer(fn isStaticPeerDelegate) {
+	m.isStaticPeerFn = fn
+}
+
+func (m *MockNetworkingServer) IsConnected(peerID peer.ID) bool {
+	if m.isConnectedFn != nil {
+		return m.isConnectedFn(peerID)
+	}
+
+	return false
+}
+
+func (m *MockNetworkingServer) HookIsConnected(fn isConnectedDelegate) {
+	m.isConnectedFn = fn
 }
 
 // MockIdentityClient mocks an identity client (other peer in the communication)

@@ -9,7 +9,6 @@ import (
 
 	"github.com/dogechain-lab/dogechain/blockchain"
 	"github.com/dogechain-lab/dogechain/helper/progress"
-	"github.com/dogechain-lab/dogechain/protocol"
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -60,7 +59,7 @@ func (m *mockChain) VerifyFinalizedBlock(block *types.Block) error {
 }
 
 func (m *mockChain) SubscribeEvents() blockchain.Subscription {
-	return protocol.NewMockSubscription()
+	return blockchain.NewMockSubscription()
 }
 
 func getLatestBlockFromMockChain(m *mockChain) *types.Block {

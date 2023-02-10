@@ -32,55 +32,6 @@ func newIdentityService(
 	}
 }
 
-// TestTemporaryDial tests temporary peer connections,
-// by making sure temporary dials aren't saved as persistent peers
-func TestTemporaryDial(t *testing.T) {
-	peersArray := make([]peer.ID, 0)
-
-	// Create an instance of the identity service
-	identityService := newIdentityService(
-		// Set the relevant hook responses from the mock server
-		func(server *networkTesting.MockNetworkingServer) {
-			// Define the temporary dial hook
-			server.HookIsTemporaryDial(func(peerID peer.ID) bool {
-				return true
-			})
-
-			// Define the add peer hook
-			server.HookAddPeer(func(
-				id peer.ID,
-				direction network.Direction,
-			) {
-				peersArray = append(peersArray, id)
-			})
-
-			// Define the mock IdentityClient response
-			server.GetMockIdentityClient().HookHello(func(
-				ctx context.Context,
-				in *proto.Status,
-				opts ...grpc.CallOption,
-			) (*proto.Status, error) {
-				return &proto.Status{
-					Chain: 0,
-					Metadata: map[string]string{
-						PeerID: "TestPeer1",
-					},
-					TemporaryDial: true, // make sure the dial is temporary
-				}, nil
-			})
-		},
-	)
-
-	// Check that there was no error during handshaking
-	assert.NoError(
-		t,
-		identityService.handleConnected("TestPeer2", network.DirInbound),
-	)
-
-	// Make sure no peers have been  added to the base networking server
-	assert.Len(t, peersArray, 0)
-}
-
 // TestSelfConnected tests connect self to self
 func TestSelfConnected(t *testing.T) {
 	peersArray := make([]peer.ID, 0)

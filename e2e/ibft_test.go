@@ -110,6 +110,23 @@ func TestIbft_TransactionFeeRecipient(t *testing.T) {
 			srv := ibftManager.GetServer(0)
 			clt := srv.JSONRPC()
 
+			{
+				// wait for the first block
+				_, err := tests.RetryUntilTimeout(ctx, func() (interface{}, bool) {
+					num, err := srv.GetLatestBlockHeight()
+					if err != nil {
+						return nil, true
+					}
+					if num <= 1 {
+						return nil, true
+					}
+
+					return num, false
+				})
+
+				assert.NoError(t, err)
+			}
+
 			txn := &framework.PreparedTransaction{
 				From:     senderAddr,
 				To:       &receiverAddr,

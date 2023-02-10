@@ -120,6 +120,7 @@ func getSubscribeStream(
 	subscribeRequest *txpoolProto.SubscribeRequest,
 ) (txpoolProto.TxnPoolOperator_SubscribeClient, error) {
 	client, err := helper.GetTxPoolClientConnection(
+		ctx,
 		grpcAddress,
 	)
 	if err != nil {

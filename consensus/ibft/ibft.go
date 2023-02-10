@@ -118,9 +118,8 @@ type Ibft struct {
 
 	blockTime time.Duration // Minimum block generation time in seconds
 
-	// Dynamic References for signing and validating
-	currentTxSigner   crypto.TxSigner      // Tx Signer at current sequence
-	currentValidators validator.Validators // Validator set at current sequence
+	currentValidators    validator.Validators // Validator set at current sequence
+	currentValidatorsMux sync.RWMutex         // Mutex for currentValidators
 	// Recording resource exhausting contracts
 	// but would not banish it until it became a real ddos attack
 	// not thread safe, but can be used sequentially
@@ -494,16 +493,25 @@ func (i *Ibft) startConsensus() {
 		syncerBlockCh = make(chan struct{})
 	)
 
-	defer newBlockSub.Close()
+	defer newBlockSub.Unsubscribe()
 
 	// Receive a notification every time syncer manages
 	// to insert a valid block. Used for cancelling active consensus
 	// rounds for a specific height
 	go func() {
-		eventCh := newBlockSub.GetEventCh()
-
 		for {
-			if ev := <-eventCh; ev.Source == protocol.WriteBlockSource {
+			if newBlockSub.IsClosed() {
+				return
+			}
+
+			ev, ok := <-newBlockSub.GetEvent()
+			if ev == nil || !ok {
+				i.logger.Debug("received nil event from blockchain subscription (ignoring)")
+
+				continue
+			}
+
+			if ev.Source == protocol.WriteBlockSource {
 				if ev.NewChain[0].Number < i.blockchain.Header().Number {
 					// The blockchain notification system can eventually deliver
 					// stale block notifications. These should be ignored
@@ -880,6 +888,9 @@ func (i *Ibft) makeTransitionSlashTx(
 }
 
 func (i *Ibft) isActiveValidator(addr types.Address) bool {
+	i.currentValidatorsMux.RLock()
+	defer i.currentValidatorsMux.RUnlock()
+
 	return i.currentValidators.Includes(addr)
 }
 
@@ -891,8 +902,10 @@ func (i *Ibft) updateCurrentModules(height uint64) error {
 		return err
 	}
 
+	i.currentValidatorsMux.Lock()
+	defer i.currentValidatorsMux.Unlock()
+
 	i.currentValidators = snap.Set
-	i.currentTxSigner = i.getSigner(height)
 
 	i.logger.Info("update current module",
 		"height", height,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/dogechain-lab/dogechain/network/common"
@@ -30,7 +31,9 @@ const (
 
 	// bootnodeDiscoveryInterval is the interval at which
 	// random bootnodes are dialed for their peer sets
-	bootnodeDiscoveryInterval = 60 * time.Second
+	bootnodeDiscoveryInterval = 30 * time.Second
+
+	maxDiscoveryPeerReqTimeout = 10 * time.Second
 )
 
 // networkingServer defines the base communication interface between
@@ -41,18 +44,24 @@ type networkingServer interface {
 	// GetRandomBootnode fetches a random bootnode, if any
 	GetRandomBootnode() *peer.AddrInfo
 
-	// GetBootnodeConnCount fetches the number of bootnode connections [Thread safe]
-	GetBootnodeConnCount() int64
-
 	// PROTOCOL MANIPULATION //
 
 	// NewDiscoveryClient returns a discovery gRPC client connection
 	NewDiscoveryClient(peerID peer.ID) (proto.DiscoveryClient, error)
 
-	// CloseProtocolStream closes a protocol stream to the peer
-	CloseProtocolStream(protocol string, peerID peer.ID) error
-
 	// PEER MANIPULATION //
+
+	// IsBootnode returns true if the peer is a bootnode
+	IsBootnode(peerID peer.ID) bool
+
+	// IsStaticPeer returns true if the peer is a static peer
+	IsStaticPeer(peerID peer.ID) bool
+
+	// isConnected checks if the networking server is connected to a peer
+	IsConnected(peerID peer.ID) bool
+
+	// Connect attempts to connect to the specified peer
+	Connect(context.Context, peer.AddrInfo) error
 
 	// DisconnectFromPeer attempts to disconnect from the specified peer
 	DisconnectFromPeer(peerID peer.ID, reason string)
@@ -69,22 +78,13 @@ type networkingServer interface {
 	// GetRandomPeer fetches a random peer from the server's peer store
 	GetRandomPeer() *peer.ID
 
-	// TEMPORARY DIALING //
-
-	// FetchOrSetTemporaryDial checks if the peer connection is a temporary dial,
-	// and sets a new value accordingly
-	FetchOrSetTemporaryDial(peerID peer.ID, newValue bool) bool
-
-	// RemoveTemporaryDial removes a peer from the temporary dial map
-	RemoveTemporaryDial(peerID peer.ID)
-
-	// TemporaryDialPeer dials the peer temporarily
-	TemporaryDialPeer(peerAddrInfo *peer.AddrInfo)
-
 	// CONNECTION INFORMATION //
 
 	// HasFreeConnectionSlot checks if there is an available connection slot for the set direction [Thread safe]
 	HasFreeConnectionSlot(direction network.Direction) bool
+
+	// PeerCount connection peer number
+	PeerCount() int64
 }
 
 // DiscoveryService is a service that finds other peers in the network
@@ -98,7 +98,9 @@ type DiscoveryService struct {
 
 	ignoreCIDR ranger.Ranger // CIDR ranges to ignore when finding peers
 
-	closeCh chan struct{} // Channel used for stopping the DiscoveryService
+	// ctx used for stopping the DiscoveryService
+	ctx       context.Context
+	ctxCancel context.CancelFunc
 }
 
 // NewDiscoveryService creates a new instance of the discovery service
@@ -108,12 +110,15 @@ func NewDiscoveryService(
 	ignoreCIDR ranger.Ranger,
 	logger hclog.Logger,
 ) *DiscoveryService {
+	ctx, cancel := context.WithCancel(context.Background())
+
 	return &DiscoveryService{
 		baseServer:   server,
 		logger:       logger.Named("discovery"),
 		routingTable: routingTable,
 		ignoreCIDR:   ignoreCIDR,
-		closeCh:      make(chan struct{}),
+		ctx:          ctx,
+		ctxCancel:    cancel,
 	}
 }
 
@@ -124,7 +129,7 @@ func (d *DiscoveryService) Start() {
 
 // Close stops the discovery service
 func (d *DiscoveryService) Close() {
-	close(d.closeCh)
+	d.ctxCancel()
 }
 
 // RoutingTableSize returns the size of the routing table
@@ -160,7 +165,9 @@ func (d *DiscoveryService) HandleNetworkEvent(peerEvent *event.PeerEvent) {
 // and add them to the peer / routing table
 func (d *DiscoveryService) ConnectToBootnodes(bootnodes []*peer.AddrInfo) {
 	for _, nodeInfo := range bootnodes {
-		if err := d.addToTable(nodeInfo); err != nil {
+		d.baseServer.AddToPeerStore(nodeInfo)
+
+		if _, err := d.routingTable.TryAddPeer(nodeInfo.ID, true, false); err != nil {
 			d.logger.Error(
 				"Failed to add new peer to routing table",
 				"peer",
@@ -182,7 +189,7 @@ func (d *DiscoveryService) addToTable(node *peer.AddrInfo) error {
 	if _, err := d.routingTable.TryAddPeer(
 		node.ID,
 		false,
-		false,
+		true, // allow replacing existing peers
 	); err != nil {
 		// Since the routing table addition failed,
 		// the peer can be removed from the libp2p peer store
@@ -193,6 +200,10 @@ func (d *DiscoveryService) addToTable(node *peer.AddrInfo) error {
 	}
 
 	return nil
+}
+
+func (d *DiscoveryService) RemovePeerFromRoutingTable(peerID peer.ID) {
+	d.routingTable.RemovePeer(peerID)
 }
 
 // addPeersToTable adds the passed in peers to the peer store and the routing table
@@ -207,6 +218,13 @@ func (d *DiscoveryService) addPeersToTable(nodeAddrStrs []string) {
 				err,
 			)
 
+			continue
+		}
+
+		// ignore the peer if it is in the ignore CIDR range
+		// this is used to ignore peers like only lan network address peer
+		// but if the peer is a static peer, we should not ignore it
+		if d.checkPeerInIgnoreCIDR(nodeAddrStr) && !d.baseServer.IsStaticPeer(nodeInfo.ID) {
 			continue
 		}
 
@@ -226,16 +244,12 @@ func (d *DiscoveryService) addPeersToTable(nodeAddrStrs []string) {
 // to see their peer list
 func (d *DiscoveryService) attemptToFindPeers(peerID peer.ID) error {
 	d.logger.Debug("Querying a peer for near peers", "peer", peerID)
-	nodes, err := d.findPeersCall(peerID, false)
-
-	if err != nil {
-		return err
-	}
+	nodes, err := d.findPeersCall(peerID)
 
 	d.logger.Debug("Found new near peers", "peer", len(nodes))
 	d.addPeersToTable(nodes)
 
-	return nil
+	return err
 }
 
 // checkPeerInIgnoreCIDR checks if the peer is in the ignore CIDR range
@@ -279,28 +293,23 @@ func (d *DiscoveryService) checkPeerInIgnoreCIDR(peerAddr string) bool {
 // findPeersCall queries the set peer for their peer set
 func (d *DiscoveryService) findPeersCall(
 	peerID peer.ID,
-	shouldCloseConn bool,
 ) ([]string, error) {
+	ctx, cancel := context.WithTimeout(d.ctx, maxDiscoveryPeerReqTimeout)
+	defer cancel()
+
 	clt, clientErr := d.baseServer.NewDiscoveryClient(peerID)
 	if clientErr != nil {
 		return nil, fmt.Errorf("unable to create new discovery client connection, %w", clientErr)
 	}
 
 	resp, err := clt.FindPeers(
-		context.Background(),
+		ctx,
 		&proto.FindPeersReq{
 			Count: maxDiscoveryPeerReqCount,
 		},
 	)
 	if err != nil {
 		return nil, err
-	}
-
-	// Check if the connection should be closed after getting the data
-	if shouldCloseConn {
-		if closeErr := d.baseServer.CloseProtocolStream(common.DiscProto, peerID); closeErr != nil {
-			return nil, closeErr
-		}
 	}
 
 	var filterNode []string
@@ -321,6 +330,10 @@ func (d *DiscoveryService) startDiscovery() {
 	peerDiscoveryTicker := time.NewTicker(peerDiscoveryInterval)
 	bootnodeDiscoveryTicker := time.NewTicker(bootnodeDiscoveryInterval)
 
+	seed := time.Now().UnixNano()
+	//#nosec G404
+	r := rand.New(rand.NewSource(seed))
+
 	defer func() {
 		peerDiscoveryTicker.Stop()
 		bootnodeDiscoveryTicker.Stop()
@@ -328,11 +341,21 @@ func (d *DiscoveryService) startDiscovery() {
 
 	for {
 		select {
-		case <-d.closeCh:
+		case <-d.ctx.Done():
 			return
 		case <-peerDiscoveryTicker.C:
+			// random delay to avoid all nodes querying at the same time
+			peerDiscoveryTicker.Reset(
+				peerDiscoveryInterval + time.Duration(r.Int63n(int64(peerDiscoveryInterval/2))),
+			)
+
 			go d.regularPeerDiscovery()
 		case <-bootnodeDiscoveryTicker.C:
+			// ditto
+			bootnodeDiscoveryTicker.Reset(
+				bootnodeDiscoveryInterval + time.Duration(r.Int63n(int64(bootnodeDiscoveryInterval/2))),
+			)
+
 			go d.bootnodePeerDiscovery()
 		}
 	}
@@ -374,13 +397,12 @@ func (d *DiscoveryService) bootnodePeerDiscovery() {
 	if !d.baseServer.HasFreeConnectionSlot(network.DirOutbound) {
 		// No need to attempt bootnode dialing, since no
 		// open outbound slots are left
+		d.logger.Warn("no free connection slot, bootnode discovery failed")
+
 		return
 	}
 
-	var (
-		isTemporaryDial bool           // dial status of the connection
-		bootnode        *peer.AddrInfo // the reference bootnode
-	)
+	var bootnode *peer.AddrInfo // the reference bootnode
 
 	// Try to find a suitable bootnode to use as a reference peer
 	for bootnode == nil {
@@ -389,38 +411,27 @@ func (d *DiscoveryService) bootnodePeerDiscovery() {
 		if bootnode == nil {
 			return
 		}
+	}
 
-		// If one or more bootnode is connected the dial status is temporary
-		if d.baseServer.GetBootnodeConnCount() > 0 {
-			// Check if the peer is already a temporary dial
-			if alreadyTempDial := d.baseServer.FetchOrSetTemporaryDial(
-				bootnode.ID,
-				true,
-			); alreadyTempDial {
-				bootnode = nil
+	// If bootnode is not connected try reonnect
+	if !d.baseServer.IsConnected(bootnode.ID) {
+		d.logger.Debug("bootnode is not connected, try to reconnect")
 
-				continue
-			}
+		connectCtx, cancel := context.WithTimeout(d.ctx, bootnodeDiscoveryInterval/2)
+		defer cancel()
 
-			// Mark the subsequent connection as temporary
-			isTemporaryDial = true
+		if err := d.baseServer.Connect(connectCtx, *bootnode); err != nil {
+			d.logger.Error("Unable to connect to bootnode",
+				"bootnode", bootnode.ID.String(),
+				"err", err.Error(),
+			)
+
+			return
 		}
 	}
 
-	defer func() {
-		if isTemporaryDial {
-			// Since temporary dials are short-lived, the connection
-			// needs to be turned off the moment it's not needed anymore
-			d.baseServer.RemoveTemporaryDial(bootnode.ID)
-			d.baseServer.DisconnectFromPeer(bootnode.ID, "Thank you")
-		}
-	}()
-
-	// Make sure we are peered with a bootnode
-	d.baseServer.TemporaryDialPeer(bootnode)
-
 	// Find peers from the referenced bootnode
-	foundNodes, err := d.findPeersCall(bootnode.ID, true)
+	foundNodes, err := d.findPeersCall(bootnode.ID)
 	if err != nil {
 		d.logger.Error("Unable to execute bootnode peer discovery",
 			"bootnode", bootnode.ID.String(),
@@ -462,7 +473,7 @@ func (d *DiscoveryService) FindPeers(
 
 	nearestPeers := d.routingTable.NearestPeers(
 		kb.ConvertKey(req.GetKey()),
-		int(req.Count),
+		int(req.Count)+1,
 	)
 
 	// The peer that's initializing this request

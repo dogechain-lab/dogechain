@@ -2,6 +2,7 @@ package candidates
 
 import (
 	"context"
+	"time"
 
 	"github.com/dogechain-lab/dogechain/command"
 	"github.com/dogechain-lab/dogechain/command/helper"
@@ -35,7 +36,11 @@ func runCommand(cmd *cobra.Command, _ []string) {
 }
 
 func getIBFTCandidates(grpcAddress string) (*ibftOp.CandidatesResp, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
 	client, err := helper.GetIBFTOperatorClientConnection(
+		ctx,
 		grpcAddress,
 	)
 	if err != nil {

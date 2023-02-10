@@ -1,6 +1,7 @@
 package blockchain
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math/big"
@@ -207,7 +208,7 @@ func NewBlockchain(
 		config:    config,
 		consensus: consensus,
 		executor:  executor,
-		stream:    &eventStream{},
+		stream:    newEventStream(context.Background()),
 		gpAverage: &gasPriceAverage{
 			price: big.NewInt(0),
 			count: big.NewInt(0),
@@ -1469,6 +1470,11 @@ func (b *Blockchain) GetBlockByNumber(blockNumber uint64, full bool) (*types.Blo
 	}
 
 	return b.GetBlockByHash(blockHash, full)
+}
+
+// SubscribeEvents returns a blockchain event subscription
+func (b *Blockchain) SubscribeEvents() Subscription {
+	return b.stream.subscribe()
 }
 
 // Close closes the DB connection
