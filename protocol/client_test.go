@@ -352,9 +352,14 @@ func TestPeerConnectionUpdateEventCh(t *testing.T) {
 
 	go func() {
 		defer wgForConnectingStatus.Done()
+		wgForGossip.Wait()
 
 		for status := range client.GetPeerStatusUpdateCh() {
 			newStatuses = append(newStatuses, status)
+
+			if len(newStatuses) > 0 {
+				break
+			}
 		}
 	}()
 
@@ -376,9 +381,6 @@ func TestPeerConnectionUpdateEventCh(t *testing.T) {
 
 	// wait until 2 messages are propagated
 	wgForGossip.Wait()
-
-	// close to terminate goroutine
-	close(client.peerStatusUpdateCh)
 
 	// wait until collecting routine is done
 	wgForConnectingStatus.Wait()
