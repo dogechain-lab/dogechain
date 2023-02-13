@@ -45,7 +45,7 @@ require (
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
-	github.com/graph-gophers/graphql-go v1.4.0
+	github.com/graph-gophers/graphql-go v1.5.0
 	github.com/howeyc/gopass v0.0.0-20210920133722-c8aef6fb66ef
 	github.com/ipfs/go-cid v0.2.0 // indirect
 	github.com/klauspost/compress v1.15.10
