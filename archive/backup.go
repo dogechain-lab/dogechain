@@ -241,9 +241,8 @@ func processExport(
 				err = blk.UnmarshalRLP(resp.Data)
 				if err != nil {
 					logger.Error("Failed to unmarshal block", "Number", num, "err", err)
-					time.Sleep(1 * time.Second)
 
-					continue
+					return
 				}
 
 				if blk.Number() != num {
@@ -270,7 +269,7 @@ func processExport(
 				return from, current, nil
 			}
 
-			// tips: writer.Write() not necessarily write all data, use io.Copy() instead
+			// tips: writer.Write() does not necessarily write all data, use io.Copy() instead
 			if _, err := io.Copy(writer, bytes.NewBuffer(block.MarshalRLP())); err != nil {
 				return from, current, err
 			}
