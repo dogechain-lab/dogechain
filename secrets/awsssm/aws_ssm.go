@@ -1,13 +1,17 @@
 package awsssm
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ssm"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
+	"github.com/aws/aws-sdk-go-v2/service/ssm/types"
+
 	"github.com/dogechain-lab/dogechain/secrets"
+
 	"github.com/hashicorp/go-hclog"
 )
 
@@ -21,7 +25,7 @@ type AwsSsmManager struct {
 	region string
 
 	// The AWS SSM client
-	client *ssm.SSM
+	client *ssm.Client
 
 	// The base path to store the secrets in SSM Parameter Store
 	basePath string
@@ -61,15 +65,16 @@ func SecretsManagerFactory(
 
 // Setup sets up the AWS SSM secrets manager
 func (a *AwsSsmManager) Setup() error {
-	sess, err := session.NewSessionWithOptions(session.Options{
-		Config:            aws.Config{Region: aws.String(a.region)},
-		SharedConfigState: session.SharedConfigEnable,
-	})
+	cfg, err := config.LoadDefaultConfig(
+		context.TODO(),
+		config.WithDefaultRegion(a.region),
+	)
+
 	if err != nil {
 		return fmt.Errorf("unable to initialize AWS SSM client: %w", err)
 	}
 
-	ssmsvc := ssm.New(sess, aws.NewConfig().WithRegion(a.region))
+	ssmsvc := ssm.NewFromConfig(cfg)
 	a.client = ssmsvc
 
 	return nil
@@ -82,10 +87,12 @@ func (a *AwsSsmManager) constructSecretPath(name string) string {
 
 // GetSecret fetches a secret from AWS SSM
 func (a *AwsSsmManager) GetSecret(name string) ([]byte, error) {
-	param, err := a.client.GetParameter(&ssm.GetParameterInput{
-		Name:           aws.String(a.constructSecretPath(name)),
-		WithDecryption: aws.Bool(true),
-	})
+	param, err := a.client.GetParameter(
+		context.TODO(),
+		&ssm.GetParameterInput{
+			Name:           aws.String(a.constructSecretPath(name)),
+			WithDecryption: aws.Bool(true),
+		})
 	if err != nil || param == nil {
 		return nil, secrets.ErrSecretNotFound
 	}
@@ -97,12 +104,15 @@ func (a *AwsSsmManager) GetSecret(name string) ([]byte, error) {
 
 // SetSecret saves a secret to AWS SSM
 func (a *AwsSsmManager) SetSecret(name string, value []byte) error {
-	if _, err := a.client.PutParameter(&ssm.PutParameterInput{
-		Name:      aws.String(a.constructSecretPath(name)),
-		Value:     aws.String(string(value)),
-		Type:      aws.String(ssm.ParameterTypeSecureString),
-		Overwrite: aws.Bool(false),
-	}); err != nil {
+	if _, err := a.client.PutParameter(
+		context.TODO(),
+		&ssm.PutParameterInput{
+			Name:      aws.String(a.constructSecretPath(name)),
+			Value:     aws.String(string(value)),
+			Tier:      types.ParameterTierStandard,
+			Type:      types.ParameterTypeSecureString,
+			Overwrite: aws.Bool(false),
+		}); err != nil {
 		return fmt.Errorf("unable to store secret (%s), %w", name, err)
 	}
 
@@ -124,9 +134,11 @@ func (a *AwsSsmManager) RemoveSecret(name string) error {
 	}
 
 	// Delete the secret from SSM
-	if _, err := a.client.DeleteParameter(&ssm.DeleteParameterInput{
-		Name: aws.String(a.constructSecretPath(name)),
-	}); err != nil {
+	if _, err := a.client.DeleteParameter(
+		context.TODO(),
+		&ssm.DeleteParameterInput{
+			Name: aws.String(a.constructSecretPath(name)),
+		}); err != nil {
 		return fmt.Errorf("unable to delete secret (%s), %w", name, err)
 	}
 
