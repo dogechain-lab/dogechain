@@ -11,7 +11,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/grpc"
 )
 
 // newIdentityService creates a new identity service instance
@@ -35,6 +34,7 @@ func newIdentityService(
 // TestSelfConnected tests connect self to self
 func TestSelfConnected(t *testing.T) {
 	peersArray := make([]peer.ID, 0)
+	connectIsClose := false
 
 	identityService := newIdentityService(
 		// Set the relevant hook responses from the mock server
@@ -48,13 +48,18 @@ func TestSelfConnected(t *testing.T) {
 			})
 
 			// Define the mock IdentityClient response
-			server.GetMockIdentityClient().HookHello(func(
+			client := server.GetMockIdentityClient()
+			client.HookHello(func(
 				ctx context.Context,
 				in *proto.Status,
-				opts ...grpc.CallOption,
 			) (*proto.Status, error) {
 				// echo back the chain ID
 				return in, nil
+			})
+			client.HookClose(func() error {
+				connectIsClose = true
+
+				return nil
 			})
 		},
 	)
@@ -67,6 +72,8 @@ func TestSelfConnected(t *testing.T) {
 	assert.ErrorIs(t, connectErr, ErrSelfConnection)
 
 	assert.Len(t, peersArray, 0)
+
+	assert.True(t, connectIsClose)
 }
 
 // TestHandshake_Errors tests peer connections errors (or echo hello)
@@ -91,7 +98,6 @@ func TestHandshake_Errors(t *testing.T) {
 			server.GetMockIdentityClient().HookHello(func(
 				ctx context.Context,
 				in *proto.Status,
-				opts ...grpc.CallOption,
 			) (*proto.Status, error) {
 				return &proto.Status{
 					Chain: responderChainID,

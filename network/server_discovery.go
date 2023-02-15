@@ -48,7 +48,7 @@ func (s *DefaultServer) GetBootnodeConnCount() int64 {
 func (s *DefaultServer) NewDiscoveryClient(peerID peer.ID) (proto.DiscoveryClient, error) {
 	// Check if there is a peer connection at this point in time,
 	// as there might have been a disconnection previously
-	if !s.IsConnected(peerID) {
+	if !s.HasPeer(peerID) {
 		return nil, fmt.Errorf("could not initialize new discovery client - peer [%s] not connected",
 			peerID.String())
 	}

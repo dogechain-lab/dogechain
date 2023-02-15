@@ -6,6 +6,7 @@ import (
 
 	"github.com/dogechain-lab/dogechain/network/event"
 	"github.com/dogechain-lab/dogechain/network/proto"
+	"github.com/dogechain-lab/dogechain/network/wrappers"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"google.golang.org/grpc"
@@ -67,7 +68,7 @@ func (m *MockNetworkingServer) GetMockPeerMetrics() *MockPeerMetrics {
 
 // Define the mock hooks //
 // Required for Identity
-type newIdentityClientDelegate func(peer.ID) (proto.IdentityClient, error)
+type newIdentityClientDelegate func(peer.ID) (wrappers.IdentityClient, error)
 type connectDelegate func(ctx context.Context, addrInfo peer.AddrInfo) error
 type disconnectFromPeerDelegate func(peer.ID, string)
 type addPeerDelegate func(peer.ID, network.Direction)
@@ -88,7 +89,7 @@ type isBootnodeDelegate func(peer.ID) bool
 type isStaticPeerDelegate func(peer.ID) bool
 type isConnectedDelegate func(peer.ID) bool
 
-func (m *MockNetworkingServer) NewIdentityClient(peerID peer.ID) (proto.IdentityClient, error) {
+func (m *MockNetworkingServer) NewIdentityClient(peerID peer.ID) (wrappers.IdentityClient, error) {
 	if m.newIdentityClientFn != nil {
 		return m.newIdentityClientFn(peerID)
 	}
@@ -296,13 +297,15 @@ func (m *MockNetworkingServer) HookIsConnected(fn isConnectedDelegate) {
 type MockIdentityClient struct {
 	// Hooks that the test can set
 	helloFn helloDelegate
+	closeFn closeDelegate
 }
 
 type helloDelegate func(
 	ctx context.Context,
 	in *proto.Status,
-	opts ...grpc.CallOption,
 ) (*proto.Status, error)
+
+type closeDelegate func() error
 
 func (mic *MockIdentityClient) HookHello(fn helloDelegate) {
 	mic.helloFn = fn
@@ -311,13 +314,24 @@ func (mic *MockIdentityClient) HookHello(fn helloDelegate) {
 func (mic *MockIdentityClient) Hello(
 	ctx context.Context,
 	in *proto.Status,
-	opts ...grpc.CallOption,
 ) (*proto.Status, error) {
 	if mic.helloFn != nil {
-		return mic.helloFn(ctx, in, opts...)
+		return mic.helloFn(ctx, in)
 	}
 
 	return nil, nil
+}
+
+func (mic *MockIdentityClient) HookClose(fn closeDelegate) {
+	mic.closeFn = fn
+}
+
+func (mic *MockIdentityClient) Close() error {
+	if mic.closeFn != nil {
+		return mic.closeFn()
+	}
+
+	return nil
 }
 
 // MockDiscoveryClient mocks a discovery client (other peer in the communication)

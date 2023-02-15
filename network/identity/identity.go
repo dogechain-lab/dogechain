@@ -8,9 +8,10 @@ import (
 
 	cmap "github.com/dogechain-lab/dogechain/helper/concurrentmap"
 	"github.com/dogechain-lab/dogechain/network/event"
-	"github.com/hashicorp/go-hclog"
-
 	"github.com/dogechain-lab/dogechain/network/proto"
+	"github.com/dogechain-lab/dogechain/network/wrappers"
+
+	"github.com/hashicorp/go-hclog"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 )
@@ -29,7 +30,7 @@ type networkingServer interface {
 	// PROTOCOL MANIPULATION //
 
 	// NewIdentityClient returns an identity gRPC client connection
-	NewIdentityClient(peerID peer.ID) (proto.IdentityClient, error)
+	NewIdentityClient(peerID peer.ID) (wrappers.IdentityClient, error)
 
 	// PEER MANIPULATION //
 
@@ -164,6 +165,8 @@ func (i *IdentityService) handleConnected(peerID peer.ID, direction network.Dire
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 
+	// don't save this grpc client object
+	// this is a one time use stream
 	clt, clientErr := i.baseServer.NewIdentityClient(peerID)
 	if clientErr != nil {
 		return fmt.Errorf(
@@ -171,6 +174,13 @@ func (i *IdentityService) handleConnected(peerID peer.ID, direction network.Dire
 			clientErr,
 		)
 	}
+
+	defer func() {
+		err := clt.Close()
+		if err != nil {
+			i.logger.Error("error closing identity client connection", "error", err)
+		}
+	}()
 
 	// self peer ID
 	selfPeerID := i.hostID.Pretty()

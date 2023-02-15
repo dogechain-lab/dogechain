@@ -8,6 +8,7 @@ import (
 	"github.com/dogechain-lab/dogechain/network/grpc"
 	"github.com/dogechain-lab/dogechain/network/identity"
 	"github.com/dogechain-lab/dogechain/network/proto"
+	"github.com/dogechain-lab/dogechain/network/wrappers"
 	kbucket "github.com/libp2p/go-libp2p-kbucket"
 	"github.com/libp2p/go-libp2p-kbucket/keyspace"
 	"github.com/libp2p/go-libp2p/core/network"
@@ -16,23 +17,13 @@ import (
 )
 
 // NewIdentityClient returns a new identity service client connection
-func (s *DefaultServer) NewIdentityClient(peerID peer.ID) (proto.IdentityClient, error) {
-	// Check if there is an active stream connection already
-	if protoStream := s.GetProtoStream(common.IdentityProto, peerID); protoStream != nil {
-		// Identity protocol connections are temporary and not saved anywhere
-		return proto.NewIdentityClient(protoStream), nil
-	}
-
-	// Create a new stream connection and save, only single object
-	// close and clear only when the peer is disconnected
-	protoStream, err := s.NewProtoConnection(common.IdentityProto, peerID)
+func (s *DefaultServer) NewIdentityClient(peerID peer.ID) (wrappers.IdentityClient, error) {
+	conn, err := s.NewProtoConnection(common.IdentityProto, peerID)
 	if err != nil {
 		return nil, err
 	}
 
-	s.SaveProtocolStream(common.IdentityProto, protoStream, peerID)
-
-	return proto.NewIdentityClient(protoStream), nil
+	return wrappers.NewIdentityClient(proto.NewIdentityClient(conn), conn), nil
 }
 
 // AddPeer adds a new peer to the networking server's peer list,

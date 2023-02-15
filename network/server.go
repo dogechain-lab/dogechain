@@ -833,7 +833,7 @@ func (s *DefaultServer) SaveProtocolStream(
 
 	connectionInfo, ok := s.peers[peerID]
 	if !ok {
-		s.logger.Warn(
+		s.logger.Error(
 			fmt.Sprintf(
 				"Attempted to save protocol %s stream for non-existing peer %s",
 				protocol,
