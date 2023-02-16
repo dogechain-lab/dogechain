@@ -25,7 +25,8 @@ func (s *DefaultServer) GetRandomBootnode() *peer.AddrInfo {
 	nonConnectedNodes := make([]*peer.AddrInfo, 0)
 
 	for _, v := range s.bootnodes.getBootnodes() {
-		if !s.HasPeer(v.ID) {
+		// don't use HasPeer()
+		if !s.IsConnected(v.ID) && v.ID != s.host.ID() {
 			nonConnectedNodes = append(nonConnectedNodes, v)
 		}
 	}

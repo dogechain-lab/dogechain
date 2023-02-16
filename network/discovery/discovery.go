@@ -3,7 +3,6 @@ package discovery
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math/rand"
 	"time"
 
@@ -299,7 +298,7 @@ func (d *DiscoveryService) findPeersCall(
 
 	clt, clientErr := d.baseServer.NewDiscoveryClient(peerID)
 	if clientErr != nil {
-		return nil, fmt.Errorf("unable to create new discovery client connection, %w", clientErr)
+		return nil, clientErr
 	}
 
 	resp, err := clt.FindPeers(
