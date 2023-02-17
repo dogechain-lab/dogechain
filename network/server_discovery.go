@@ -151,6 +151,15 @@ func (s *DefaultServer) setupDiscovery() error {
 		return err
 	}
 
+	// Set the PeerAdded event handler
+	routingTable.PeerAdded = func(p peer.ID) {
+		// check peer is not connected and has free outbound connections
+		if s.connectionCounts.HasFreeOutboundConn() && !s.IsConnected(p) {
+			info := s.host.Peerstore().PeerInfo(p)
+			s.addToDialQueue(&info, common.PriorityRandomDial)
+		}
+	}
+
 	// Set the PeerRemoved event handler
 	routingTable.PeerRemoved = func(p peer.ID) {
 		s.dialQueue.DeleteTask(p)
