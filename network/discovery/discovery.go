@@ -430,18 +430,15 @@ func (d *DiscoveryService) bootnodePeerDiscovery() {
 	}
 
 	// Find peers from the referenced bootnode
-	foundNodes, err := d.findPeersCall(bootnode.ID)
-	if err != nil {
-		d.logger.Error("Unable to execute bootnode peer discovery",
-			"bootnode", bootnode.ID.String(),
-			"err", err.Error(),
+	if err := d.attemptToFindPeers(bootnode.ID); err != nil {
+		d.logger.Error(
+			"Failed to find new peers",
+			"peer",
+			bootnode.ID,
+			"err",
+			err,
 		)
-
-		return
 	}
-
-	// Save the peers for subsequent dialing
-	d.addPeersToTable(foundNodes)
 }
 
 // FindPeers implements the proto service for finding the target's peers

@@ -22,19 +22,20 @@ import (
 // GetRandomBootnode fetches a random bootnode that's currently
 // NOT connected, if any
 func (s *DefaultServer) GetRandomBootnode() *peer.AddrInfo {
-	nonConnectedNodes := make([]*peer.AddrInfo, 0)
+	bootnodes := make([]*peer.AddrInfo, 0)
 
 	for _, v := range s.bootnodes.getBootnodes() {
-		// don't use HasPeer()
-		if !s.IsConnected(v.ID) && v.ID != s.host.ID() {
-			nonConnectedNodes = append(nonConnectedNodes, v)
+		// Check if the bootnode is not self
+		// filter self peer from bootnodes
+		if v.ID != s.host.ID() {
+			bootnodes = append(bootnodes, v)
 		}
 	}
 
-	if len(nonConnectedNodes) > 0 {
-		randNum, _ := rand.Int(rand.Reader, big.NewInt(int64(len(nonConnectedNodes))))
+	if len(bootnodes) > 0 {
+		randNum, _ := rand.Int(rand.Reader, big.NewInt(int64(len(bootnodes))))
 
-		return nonConnectedNodes[randNum.Int64()]
+		return bootnodes[randNum.Int64()]
 	}
 
 	return nil
@@ -148,12 +149,6 @@ func (s *DefaultServer) setupDiscovery() error {
 	)
 	if err != nil {
 		return err
-	}
-
-	// Set the PeerAdded event handler
-	routingTable.PeerAdded = func(p peer.ID) {
-		info := s.host.Peerstore().PeerInfo(p)
-		s.addToDialQueue(&info, common.PriorityRandomDial)
 	}
 
 	// Set the PeerRemoved event handler

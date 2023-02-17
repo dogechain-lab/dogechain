@@ -303,7 +303,6 @@ func (s *DefaultServer) Start() error {
 	}
 
 	go s.runDial()
-	go s.keepAliveMinimumPeerConnections()
 	go s.keepAliveStaticPeerConnections()
 
 	// watch for disconnected peers
@@ -391,7 +390,8 @@ func (s *DefaultServer) keepAliveStaticPeerConnections() {
 				allConnected = false
 			}
 
-			s.joinPeer(add)
+			s.logger.Info("reconnect static peer", "addr", add.String())
+			s.addToDialQueue(add, common.PriorityRequestedDial)
 
 			return true
 		})
@@ -439,41 +439,6 @@ func (s *DefaultServer) setupBootnodes() error {
 	}
 
 	return nil
-}
-
-// keepAliveMinimumPeerConnections will attempt to make new connections
-// if the active peer count is lesser than the specified limit.
-func (s *DefaultServer) keepAliveMinimumPeerConnections() {
-	s.closeWg.Add(1)
-	defer s.closeWg.Done()
-
-	delay := time.NewTimer(DefaultKeepAliveTimer)
-	defer delay.Stop()
-
-	for {
-		delay.Reset(DefaultKeepAliveTimer)
-
-		select {
-		case <-delay.C:
-		case <-s.closeCh:
-			return
-		}
-
-		if s.PeerCount() >= MinimumPeerConnections {
-			continue
-		}
-
-		if s.config.NoDiscover || !s.bootnodes.hasBootnodes() {
-			// dial unconnected peer
-			randPeer := s.GetRandomPeer()
-			if randPeer != nil && !s.IsConnected(*randPeer) {
-				s.addToDialQueue(s.GetPeerInfo(*randPeer), common.PriorityRandomDial)
-			}
-		} else if randomNode := s.GetRandomBootnode(); randomNode != nil {
-			// dial random unconnected bootnode
-			s.addToDialQueue(randomNode, common.PriorityRandomDial)
-		}
-	}
 }
 
 // runDial starts the networking server's dial loop.
@@ -778,7 +743,8 @@ func (s *DefaultServer) JoinPeer(rawPeerMultiaddr string, static bool) error {
 	}
 
 	// Mark the peer as ripe for dialing (async)
-	s.joinPeer(peerInfo)
+	s.logger.Info("start join peer", "addr", peerInfo.String())
+	s.addToDialQueue(peerInfo, common.PriorityRequestedDial)
 
 	return nil
 }
@@ -790,17 +756,6 @@ func (s *DefaultServer) markStaticPeer(peerInfo *peer.AddrInfo) {
 	s.AddToPeerStore(peerInfo)
 	s.host.ConnManager().TagPeer(peerInfo.ID, "staticnode", 1000)
 	s.host.ConnManager().Protect(peerInfo.ID, "staticnode")
-}
-
-// joinPeer creates a new dial task for the peer (for async joining)
-func (s *DefaultServer) joinPeer(peerInfo *peer.AddrInfo) {
-	s.logger.Info("Join request", "addr", peerInfo.String())
-
-	// This method can be completely refactored to support some kind of active
-	// feedback information on the dial status, and not just asynchronous updates.
-	// For this feature to work, the networking server requires a flexible event subscription
-	// manager that is configurable and cancelable at any point in time
-	s.addToDialQueue(peerInfo, common.PriorityRequestedDial)
 }
 
 func (s *DefaultServer) Close() error {
