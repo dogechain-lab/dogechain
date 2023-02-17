@@ -39,13 +39,3 @@ func (bw *bootnodesWrapper) increaseBootnodeConnCount(delta int64) {
 func (bw *bootnodesWrapper) getBootnodes() []*peer.AddrInfo {
 	return bw.bootnodeArr
 }
-
-// getBootnodeCount returns the number of set bootnodes
-func (bw *bootnodesWrapper) getBootnodeCount() int {
-	return len(bw.bootnodeArr)
-}
-
-// hasBootnodes checks if any bootnodes are set [Thread safe]
-func (bw *bootnodesWrapper) hasBootnodes() bool {
-	return bw.getBootnodeCount() > 0
-}
