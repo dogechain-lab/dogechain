@@ -8,6 +8,7 @@ import (
 
 	"github.com/dogechain-lab/dogechain/network"
 	"github.com/dogechain-lab/dogechain/network/event"
+	"github.com/dogechain-lab/dogechain/network/wrappers"
 	"github.com/dogechain-lab/dogechain/protocol/proto"
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/hashicorp/go-hclog"
@@ -383,12 +384,14 @@ func (client *syncPeerClient) broadcastBlockTo(
 }
 
 // newSyncPeerClient creates gRPC client [thread safe]
-func (client *syncPeerClient) newSyncPeerClient(peerID peer.ID) (proto.V1Client, error) {
+func (client *syncPeerClient) newSyncPeerClient(peerID peer.ID) (wrappers.SyncerV1Client, error) {
 	client.connLock.Lock()
 	defer client.connLock.Unlock()
 
-	if conn := client.network.GetProtoStream(_syncerV1, peerID); conn != nil {
-		return proto.NewV1Client(conn), nil
+	if conn := client.network.GetProtoClient(_syncerV1, peerID); conn != nil {
+		if syncer, ok := conn.(wrappers.SyncerV1Client); ok {
+			return syncer, nil
+		}
 	}
 
 	// create new connection
@@ -400,7 +403,8 @@ func (client *syncPeerClient) newSyncPeerClient(peerID peer.ID) (proto.V1Client,
 	}
 
 	// save protocol stream
-	client.network.SaveProtocolStream(_syncerV1, conn, peerID)
+	clt := wrappers.NewSyncerV1Client(client.logger, proto.NewV1Client(conn), conn)
+	client.network.SaveProtoClient(_syncerV1, clt, peerID)
 
-	return proto.NewV1Client(conn), nil
+	return clt, nil
 }

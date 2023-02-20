@@ -8,6 +8,7 @@ import (
 
 	"github.com/dogechain-lab/dogechain/network/common"
 	"github.com/dogechain-lab/dogechain/network/event"
+	"github.com/dogechain-lab/dogechain/network/wrappers"
 	"github.com/hashicorp/go-hclog"
 	"github.com/libp2p/go-libp2p/core/network"
 
@@ -46,7 +47,7 @@ type networkingServer interface {
 	// PROTOCOL MANIPULATION //
 
 	// NewDiscoveryClient returns a discovery gRPC client connection
-	NewDiscoveryClient(peerID peer.ID) (proto.DiscoveryClient, error)
+	NewDiscoveryClient(peerID peer.ID) (wrappers.DiscoveryClient, error)
 
 	// PEER MANIPULATION //
 

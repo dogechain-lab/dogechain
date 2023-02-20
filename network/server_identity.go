@@ -13,7 +13,6 @@ import (
 	"github.com/libp2p/go-libp2p-kbucket/keyspace"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
-	rawGrpc "google.golang.org/grpc"
 )
 
 // NewIdentityClient returns a new identity service client connection
@@ -23,7 +22,7 @@ func (s *DefaultServer) NewIdentityClient(peerID peer.ID) (wrappers.IdentityClie
 		return nil, err
 	}
 
-	return wrappers.NewIdentityClient(proto.NewIdentityClient(conn), conn), nil
+	return wrappers.NewIdentityClient(s.logger, proto.NewIdentityClient(conn), conn), nil
 }
 
 // AddPeer adds a new peer to the networking server's peer list,
@@ -63,9 +62,9 @@ func (s *DefaultServer) addPeerInfo(id peer.ID, direction network.Direction) boo
 	if !connectionExists {
 		// Create a new record for the connection info
 		connectionInfo = &PeerConnInfo{
-			Info:            s.host.Peerstore().PeerInfo(id),
-			connDirections:  make(map[network.Direction]bool),
-			protocolStreams: make(map[string]*rawGrpc.ClientConn),
+			Info:           s.host.Peerstore().PeerInfo(id),
+			connDirections: make(map[network.Direction]bool),
+			protocolClient: make(map[string]wrappers.GrpcClientWrapper),
 		}
 	}
 

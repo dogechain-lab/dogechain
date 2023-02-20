@@ -688,6 +688,7 @@ func TestRunDial(t *testing.T) {
 					ConfigCallback: func(c *Config) {
 						c.MaxInboundPeers = maxPeers[idx]
 						c.MaxOutboundPeers = maxPeers[idx]
+						c.MaxPeers = maxPeers[idx]
 						c.NoDiscover = true
 					},
 				})
@@ -740,23 +741,18 @@ func TestRunDial(t *testing.T) {
 		closeServers(servers...)
 	})
 
-	t.Run("should try to connect after adding a peer to queue", func(t *testing.T) {
-		maxPeers := []int64{1, 0, 1}
-		servers := setupServers(t, maxPeers)
-		srv, peers := servers[0], servers[1:]
+	t.Run("should fail if MaxPeers is 0", func(t *testing.T) {
+		_, createErr := CreateServer(
+			&CreateServerParams{
+				ConfigCallback: func(c *Config) {
+					c.MaxInboundPeers = 0
+					c.MaxOutboundPeers = 0
+					c.MaxPeers = 0
+					c.NoDiscover = true
+				},
+			})
 
-		// Server 1 can't connect to any peers, so this join should fail
-		smallTimeout := time.Second * 5
-		if joinErr := JoinAndWait(t, srv, peers[0], smallTimeout, smallTimeout, false); joinErr == nil {
-			t.Fatalf("Shouldn't be able to join peer (srv, peers[0]), %v", joinErr)
-		}
-
-		// Server 0 and Server 2 should connect
-		if joinErr := JoinAndWait(t, srv, peers[1], DefaultBufferTimeout, DefaultJoinTimeout, false); joinErr != nil {
-			t.Fatalf("Couldn't join peer (srv, peers[1]), %v", joinErr)
-		}
-
-		closeServers(srv, peers[1])
+		assert.Error(t, createErr)
 	})
 }
 

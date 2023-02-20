@@ -146,8 +146,12 @@ func TestEventSubscription_ProcessedEvents(t *testing.T) {
 			}
 
 			wg.Wait()
-			eventWaitCtx, eventWaitFn := context.WithTimeout(context.Background(), time.Second*10)
+
+			eventWaitCtx, eventWaitFn := context.WithTimeout(
+				context.Background(),
+				time.Second*time.Duration(testCase.expectedProcessed+1))
 			defer eventWaitFn()
+
 			if _, err := tests.RetryUntilTimeout(eventWaitCtx, func() (interface{}, bool) {
 				return nil, atomic.LoadInt64(&processed) < int64(testCase.expectedProcessed)
 			}); err != nil {

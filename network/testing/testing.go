@@ -9,7 +9,6 @@ import (
 	"github.com/dogechain-lab/dogechain/network/wrappers"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"google.golang.org/grpc"
 )
 
 type MockNetworkingServer struct {
@@ -79,7 +78,7 @@ type hasFreeConnectionSlotDelegate func(network.Direction) bool
 // Required for Discovery
 type getRandomBootnodeDelegate func() *peer.AddrInfo
 type getBootnodeConnCountDelegate func() int64
-type newDiscoveryClientDelegate func(peer.ID) (proto.DiscoveryClient, error)
+type newDiscoveryClientDelegate func(peer.ID) (wrappers.DiscoveryClient, error)
 type addToPeerStoreDelegate func(*peer.AddrInfo)
 type removeFromPeerStoreDelegate func(peerInfo *peer.AddrInfo)
 type getPeerInfoDelegate func(peer.ID) *peer.AddrInfo
@@ -189,7 +188,7 @@ func (m *MockNetworkingServer) HookGetBootnodeConnCount(fn getBootnodeConnCountD
 	m.getBootnodeConnCountFn = fn
 }
 
-func (m *MockNetworkingServer) NewDiscoveryClient(peerID peer.ID) (proto.DiscoveryClient, error) {
+func (m *MockNetworkingServer) NewDiscoveryClient(peerID peer.ID) (wrappers.DiscoveryClient, error) {
 	if m.newDiscoveryClientFn != nil {
 		return m.newDiscoveryClientFn(peerID)
 	}
@@ -296,8 +295,9 @@ func (m *MockNetworkingServer) HookHasPeer(fn hasPeerDelegate) {
 // MockIdentityClient mocks an identity client (other peer in the communication)
 type MockIdentityClient struct {
 	// Hooks that the test can set
-	helloFn helloDelegate
-	closeFn closeDelegate
+	helloFn   helloDelegate
+	closeFn   closeDelegate
+	isCloseFn isCloseDelegate
 }
 
 type helloDelegate func(
@@ -306,6 +306,7 @@ type helloDelegate func(
 ) (*proto.Status, error)
 
 type closeDelegate func() error
+type isCloseDelegate func() bool
 
 func (mic *MockIdentityClient) HookHello(fn helloDelegate) {
 	mic.helloFn = fn
@@ -334,16 +335,31 @@ func (mic *MockIdentityClient) Close() error {
 	return nil
 }
 
+func (mic *MockIdentityClient) HookIsClose(fn isCloseDelegate) {
+	mic.isCloseFn = fn
+}
+
+func (mic *MockIdentityClient) IsClose() bool {
+	if mic.isCloseFn != nil {
+		return mic.isCloseFn()
+	}
+
+	return false
+}
+
 // MockDiscoveryClient mocks a discovery client (other peer in the communication)
 type MockDiscoveryClient struct {
 	// Hooks that the test can set
 	findPeersFn findPeersDelegate
+	// Hooks close function
+	closeFn closeDelegate
+	// Hooks isClose function
+	isCloseFn isCloseDelegate
 }
 
 type findPeersDelegate func(
 	ctx context.Context,
 	in *proto.FindPeersReq,
-	opts ...grpc.CallOption,
 ) (*proto.FindPeersResp, error)
 
 func (mdc *MockDiscoveryClient) HookFindPeers(fn findPeersDelegate) {
@@ -353,13 +369,36 @@ func (mdc *MockDiscoveryClient) HookFindPeers(fn findPeersDelegate) {
 func (mdc *MockDiscoveryClient) FindPeers(
 	ctx context.Context,
 	in *proto.FindPeersReq,
-	opts ...grpc.CallOption,
 ) (*proto.FindPeersResp, error) {
 	if mdc.findPeersFn != nil {
-		return mdc.findPeersFn(ctx, in, opts...)
+		return mdc.findPeersFn(ctx, in)
 	}
 
 	return nil, nil
+}
+
+func (mdc *MockDiscoveryClient) HookClose(fn closeDelegate) {
+	mdc.closeFn = fn
+}
+
+func (mdc *MockDiscoveryClient) Close() error {
+	if mdc.closeFn != nil {
+		return mdc.closeFn()
+	}
+
+	return nil
+}
+
+func (mdc *MockDiscoveryClient) HookIsClose(fn isCloseDelegate) {
+	mdc.isCloseFn = fn
+}
+
+func (mdc *MockDiscoveryClient) IsClose() bool {
+	if mdc.isCloseFn != nil {
+		return mdc.isCloseFn()
+	}
+
+	return false
 }
 
 // MockPeerMetrics is a mock used by the Kademlia routing table

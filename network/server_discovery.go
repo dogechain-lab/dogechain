@@ -13,6 +13,7 @@ import (
 	"github.com/dogechain-lab/dogechain/network/discovery"
 	"github.com/dogechain-lab/dogechain/network/grpc"
 	"github.com/dogechain-lab/dogechain/network/proto"
+	"github.com/dogechain-lab/dogechain/network/wrappers"
 	ranger "github.com/libp2p/go-cidranger"
 	kb "github.com/libp2p/go-libp2p-kbucket"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -47,17 +48,12 @@ func (s *DefaultServer) GetBootnodeConnCount() int64 {
 }
 
 // NewDiscoveryClient returns a new or existing discovery service client connection
-func (s *DefaultServer) NewDiscoveryClient(peerID peer.ID) (proto.DiscoveryClient, error) {
-	// Check if there is a peer connection at this point in time,
-	// as there might have been a disconnection previously
-	if !s.HasPeer(peerID) {
-		return nil, fmt.Errorf("could not initialize new discovery client - peer [%s] not connected",
-			peerID.String())
-	}
-
+func (s *DefaultServer) NewDiscoveryClient(peerID peer.ID) (wrappers.DiscoveryClient, error) {
 	// Check if there is an active stream connection already
-	if protoStream := s.GetProtoStream(common.DiscProto, peerID); protoStream != nil {
-		return proto.NewDiscoveryClient(protoStream), nil
+	if protoStream := s.GetProtoClient(common.DiscProto, peerID); protoStream != nil {
+		if discoveryClt, ok := protoStream.(wrappers.DiscoveryClient); ok {
+			return discoveryClt, nil
+		}
 	}
 
 	// Create a new stream connection and save, only single object
@@ -67,9 +63,15 @@ func (s *DefaultServer) NewDiscoveryClient(peerID peer.ID) (proto.DiscoveryClien
 		return nil, err
 	}
 
-	s.SaveProtocolStream(common.DiscProto, protoStream, peerID)
+	// Save the stream connection
+	clt := wrappers.NewDiscoveryClient(
+		s.logger,
+		proto.NewDiscoveryClient(protoStream),
+		protoStream,
+	)
+	s.SaveProtoClient(common.DiscProto, clt, peerID)
 
-	return proto.NewDiscoveryClient(protoStream), nil
+	return clt, nil
 }
 
 // AddToPeerStore adds peer information to the node's peer store,

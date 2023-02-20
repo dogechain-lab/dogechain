@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/dogechain-lab/dogechain/network/event"
+	"github.com/dogechain-lab/dogechain/network/wrappers"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	rawGrpc "google.golang.org/grpc"
@@ -45,14 +46,14 @@ type Network interface {
 	RegisterProtocol(string, Protocol)
 	// GetProtocols returns the list of protocols supported by the peer
 	GetProtocols(peerID peer.ID) ([]string, error)
-	// GetProtoStream returns an active protocol stream if present, otherwise
-	// it returns nil
-	GetProtoStream(protocol string, peerID peer.ID) *rawGrpc.ClientConn
-	// NewProtoConnection opens up a new stream on the set protocol to the peer,
+	// NewProtoConnection opens up a new client connect on the set protocol to the peer,
 	// and returns a reference to the connection
 	NewProtoConnection(protocol string, peerID peer.ID) (*rawGrpc.ClientConn, error)
-	// SaveProtocolStream saves stream
-	SaveProtocolStream(protocol string, stream *rawGrpc.ClientConn, peerID peer.ID)
+	// GetProtoClient returns an active protocol client if present, otherwise
+	// it returns nil
+	GetProtoClient(protocol string, peerID peer.ID) wrappers.GrpcClientWrapper
+	// SaveProtoClient saves protocol client
+	SaveProtoClient(protocol string, stream wrappers.GrpcClientWrapper, peerID peer.ID)
 }
 
 type Protocol interface {

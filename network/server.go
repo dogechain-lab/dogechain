@@ -10,6 +10,7 @@ import (
 	"github.com/dogechain-lab/dogechain/network/common"
 	"github.com/dogechain-lab/dogechain/network/dial"
 	"github.com/dogechain-lab/dogechain/network/discovery"
+	"github.com/dogechain-lab/dogechain/network/wrappers"
 	"github.com/dogechain-lab/dogechain/secrets"
 
 	peerEvent "github.com/dogechain-lab/dogechain/network/event"
@@ -217,33 +218,33 @@ func (s *DefaultServer) HasFreeConnectionSlot(direction network.Direction) bool 
 type PeerConnInfo struct {
 	Info peer.AddrInfo
 
-	connDirections  map[network.Direction]bool
-	protocolStreams map[string]*rawGrpc.ClientConn
+	connDirections map[network.Direction]bool
+	protocolClient map[string]wrappers.GrpcClientWrapper
 }
 
-// addProtocolStream adds a protocol stream
-func (pci *PeerConnInfo) addProtocolStream(protocol string, stream *rawGrpc.ClientConn) {
-	pci.protocolStreams[protocol] = stream
+// addProtocolClient adds a protocol stream
+func (pci *PeerConnInfo) addProtocolClient(protocol string, stream wrappers.GrpcClientWrapper) {
+	pci.protocolClient[protocol] = stream
 }
 
 // cleanProtocolStreams clean and closes all protocol stream
 func (pci *PeerConnInfo) cleanProtocolStreams() []error {
 	errs := []error{}
 
-	for _, stream := range pci.protocolStreams {
-		if stream != nil {
-			errs = append(errs, stream.Close())
+	for _, clt := range pci.protocolClient {
+		if clt != nil {
+			errs = append(errs, clt.Close())
 		}
 	}
 
-	pci.protocolStreams = make(map[string]*rawGrpc.ClientConn)
+	pci.protocolClient = make(map[string]wrappers.GrpcClientWrapper)
 
 	return errs
 }
 
-// getProtocolStream fetches the protocol stream, if any
-func (pci *PeerConnInfo) getProtocolStream(protocol string) *rawGrpc.ClientConn {
-	return pci.protocolStreams[protocol]
+// getProtocolClient fetches the protocol stream, if any
+func (pci *PeerConnInfo) getProtocolClient(protocol string) wrappers.GrpcClientWrapper {
+	return pci.protocolClient[protocol]
 }
 
 // setupLibp2pKey is a helper method for setting up the networking private key
@@ -681,6 +682,12 @@ func (s *DefaultServer) forgetPeer(peer peer.ID) {
 
 	// remove peer from peer store
 	s.RemoveFromPeerStore(p)
+
+	// close peer connection
+	err := s.host.Network().ClosePeer(peer)
+	if err != nil {
+		s.logger.Error("close peer connection failed", "err", err)
+	}
 }
 
 // DisconnectFromPeer disconnects the networking server from the specified peer
@@ -768,11 +775,11 @@ func (s *DefaultServer) Close() error {
 	return s.host.Close()
 }
 
-// SaveProtocolStream saves the protocol stream to the peer
+// SaveProtoClient saves the protocol client to the peer
 // protocol stream reference [Thread safe]
-func (s *DefaultServer) SaveProtocolStream(
+func (s *DefaultServer) SaveProtoClient(
 	protocol string,
-	stream *rawGrpc.ClientConn,
+	stream wrappers.GrpcClientWrapper,
 	peerID peer.ID,
 ) {
 	s.peersLock.Lock()
@@ -791,7 +798,7 @@ func (s *DefaultServer) SaveProtocolStream(
 		return
 	}
 
-	connectionInfo.addProtocolStream(protocol, stream)
+	connectionInfo.addProtocolClient(protocol, stream)
 }
 
 // NewProtoConnection opens up a new stream on the set protocol to the peer,
@@ -820,9 +827,9 @@ func (s *DefaultServer) NewStream(proto string, id peer.ID) (network.Stream, err
 	return s.host.NewStream(context.Background(), id, protocol.ID(proto))
 }
 
-// GetProtoStream returns an active protocol stream if present, otherwise
+// GetProtoClient returns an active protocol client if present, otherwise
 // it returns nil
-func (s *DefaultServer) GetProtoStream(protocol string, peerID peer.ID) *rawGrpc.ClientConn {
+func (s *DefaultServer) GetProtoClient(protocol string, peerID peer.ID) wrappers.GrpcClientWrapper {
 	s.peersLock.Lock()
 	defer s.peersLock.Unlock()
 
@@ -831,7 +838,7 @@ func (s *DefaultServer) GetProtoStream(protocol string, peerID peer.ID) *rawGrpc
 		return nil
 	}
 
-	return connectionInfo.getProtocolStream(protocol)
+	return connectionInfo.getProtocolClient(protocol)
 }
 
 func (s *DefaultServer) RegisterProtocol(id string, p Protocol) {
