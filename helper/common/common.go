@@ -24,8 +24,26 @@ var (
 	MaxGrpcMsgSize = 16 * 1024 * 1024 // 16MB
 )
 
-// Min returns the strictly lower number
-func Min(a, b uint64) uint64 {
+// MinInt returns the strictly lower number(int)
+func MinInt(a, b int) int {
+	if a < b {
+		return a
+	}
+
+	return b
+}
+
+// MinUint64 returns the strictly lower number
+func MinInt64(a, b int64) int64 {
+	if a < b {
+		return a
+	}
+
+	return b
+}
+
+// MinUint64 returns the strictly lower number
+func MinUint64(a, b uint64) uint64 {
 	if a < b {
 		return a
 	}
@@ -55,8 +73,8 @@ func MaxInt(a, b int) int {
 	return b
 }
 
-// Max returns the strictly bigger number
-func Max(a, b uint64) uint64 {
+// MaxUint64 returns the strictly bigger number
+func MaxUint64(a, b uint64) uint64 {
 	if a > b {
 		return a
 	}

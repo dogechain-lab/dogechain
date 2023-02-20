@@ -13,7 +13,9 @@ import (
 	"github.com/dogechain-lab/dogechain/network/wrappers"
 	"github.com/dogechain-lab/dogechain/secrets"
 
+	helperCommon "github.com/dogechain-lab/dogechain/helper/common"
 	peerEvent "github.com/dogechain-lab/dogechain/network/event"
+
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	rawGrpc "google.golang.org/grpc"
 
@@ -131,22 +133,27 @@ func newServer(logger hclog.Logger, config *Config) (*DefaultServer, error) {
 		return addrs
 	}
 
-	if config.MaxPeers == 0 {
+	maxPeers := config.MaxInboundPeers + config.MaxOutboundPeers
+	if maxPeers == 0 {
 		return nil, fmt.Errorf("max peers is 0, please set MaxInboundPeers and MaxOutboundPeers greater than 0")
 	}
 
-	if int(config.MaxPeers) < len(config.Chain.Bootnodes) {
+	if helperCommon.ClampInt64ToInt(maxPeers) < len(config.Chain.Bootnodes) {
 		return nil, fmt.Errorf(
 			"max peers (%d) is less than bootnodes (%d)",
-			config.MaxPeers,
+			maxPeers,
 			len(config.Chain.Bootnodes),
 		)
 	}
 
 	// use libp2p connection manager to manage the number of connections
 	cm, err := connmgr.NewConnManager(
-		len(config.Chain.Bootnodes)+1,          // minimum number of connections
-		int(config.MaxPeers),                   // maximum number of connections
+		helperCommon.ClampInt64ToInt(
+			helperCommon.MinInt64(
+				config.MaxInboundPeers,
+				config.MaxOutboundPeers,
+			)), // minimum number of connections
+		helperCommon.ClampInt64ToInt(maxPeers), // maximum number of connections
 		connmgr.WithGracePeriod(2*time.Minute), // grace period before pruning connections
 	)
 	if err != nil {

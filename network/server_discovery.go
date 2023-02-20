@@ -140,7 +140,8 @@ func (s *DefaultServer) setupDiscovery() error {
 
 	routingTable, err := kb.NewRoutingTable(
 		helperCommon.MaxInt(
-			helperCommon.ClampInt64ToInt(s.config.MaxPeers),
+			helperCommon.ClampInt64ToInt(
+				s.config.MaxInboundPeers+s.config.MaxOutboundPeers),
 			defaultBucketSize,
 		),
 		keyID,

@@ -25,7 +25,7 @@ const (
 )
 
 // max worker number (min 2 and max 64)
-var _workerNum = int(common.Min(common.Max(uint64(runtime.NumCPU()), 2), 64))
+var _workerNum = common.MinInt(common.MaxInt(runtime.NumCPU(), 2), 64)
 
 type Topic interface {
 	// Publish publishes a message to the topic

@@ -407,12 +407,12 @@ func (b *Blockchain) calculateGasLimit(parentGasLimit uint64) uint64 {
 	if parentGasLimit < blockGasTarget {
 		// The gas limit is lower than the gas target, so it should
 		// increase towards the target
-		return common.Min(blockGasTarget, parentGasLimit+delta)
+		return common.MinUint64(blockGasTarget, parentGasLimit+delta)
 	}
 
 	// The gas limit is higher than the gas target, so it should
 	// decrease towards the target
-	return common.Max(blockGasTarget, common.Max(parentGasLimit-delta, 0))
+	return common.MaxUint64(blockGasTarget, common.MaxUint64(parentGasLimit-delta, 0))
 }
 
 // writeGenesis wrapper for the genesis write function

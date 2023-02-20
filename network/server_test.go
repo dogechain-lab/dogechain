@@ -28,6 +28,9 @@ func TestConnLimit_Inbound(t *testing.T) {
 			c.MaxOutboundPeers = 1
 			c.NoDiscover = true
 		},
+		ServerCallback: func(s *DefaultServer) {
+			s.config.Chain.Bootnodes = []string{}
+		},
 	}
 
 	servers, createErr := createServers(3, map[int]*CreateServerParams{
@@ -43,16 +46,19 @@ func TestConnLimit_Inbound(t *testing.T) {
 		closeTestServers(t, servers)
 	})
 
-	// One slot left, Server 0 can connect to Server 1
-	if joinErr := JoinAndWait(t, servers[0], servers[1], DefaultBufferTimeout, DefaultJoinTimeout, false); joinErr != nil {
-		t.Fatalf("Unable to join servers (servers[0], servers[1]), %v", joinErr)
+	// One slot left, Server 1 can connect to Server 0
+	if joinErr := JoinAndWait(t, servers[1], servers[0], DefaultBufferTimeout, DefaultJoinTimeout, false); joinErr != nil {
+		t.Fatalf("Unable to join servers (servers[1], servers[0]), %v", joinErr)
 	}
 
-	// Server 2 tries to connect to Server 1
-	// but Server 1 is already connected to max inbound peers
+	t.Logf("Server 0 connectionCounts: %v", servers[0].connectionCounts)
+	t.Logf("Server 1 connectionCounts: %v", servers[1].connectionCounts)
+
+	// Server 2 tries to connect to Server 0
+	// but Server 0 is already connected to max inbound peers
 	smallTimeout := time.Second * 5
-	if joinErr := JoinAndWait(t, servers[2], servers[1], smallTimeout, smallTimeout, false); joinErr == nil {
-		t.Fatalf("Peer join should've failed (servers[2], servers[1]), %v", joinErr)
+	if joinErr := JoinAndWait(t, servers[2], servers[0], smallTimeout, smallTimeout, false); joinErr == nil {
+		t.Fatalf("Peer join should've failed (servers[2], servers[0])")
 	}
 
 	// Disconnect Server 0 from Server 1 so Server 1 will have free slots
@@ -83,6 +89,9 @@ func TestConnLimit_Outbound(t *testing.T) {
 			c.MaxOutboundPeers = 1
 			c.NoDiscover = true
 		},
+		ServerCallback: func(s *DefaultServer) {
+			s.config.Chain.Bootnodes = []string{}
+		},
 	}
 
 	servers, createErr := createServers(3, map[int]*CreateServerParams{
@@ -103,11 +112,14 @@ func TestConnLimit_Outbound(t *testing.T) {
 		t.Fatalf("Unable to join servers (servers[0], servers[1]), %v", joinErr)
 	}
 
+	t.Logf("Server 0 connectionCounts: %v", servers[0].connectionCounts)
+	t.Logf("Server 1 connectionCounts: %v", servers[1].connectionCounts)
+
 	// Attempt to connect Server 0 to Server 2, but it should fail since
 	// Server 0 already has 1 peer (Server 1)
 	smallTimeout := time.Second * 5
 	if joinErr := JoinAndWait(t, servers[0], servers[2], smallTimeout, smallTimeout, false); joinErr == nil {
-		t.Fatalf("Unable to join servers (servers[0], servers[2), %v", joinErr)
+		t.Fatalf("Unable to join servers (servers[0], servers[2)")
 	}
 
 	// Disconnect Server 0 from Server 1

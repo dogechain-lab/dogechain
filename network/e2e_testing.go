@@ -60,7 +60,7 @@ func JoinAndWait(
 	_, connectErr := WaitUntilPeerConnectsTo(connectCtx, source, destination.AddrInfo().ID)
 
 	t.Logf("JoinAndWait: source server peers: %v\n", source.Peers())
-	t.Logf("JoinAndWait: destination server peers: %v\n", source.Peers())
+	t.Logf("JoinAndWait: destination server peers: %v\n", destination.Peers())
 
 	return connectErr
 }
