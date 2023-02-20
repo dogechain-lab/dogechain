@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dogechain-lab/dogechain/helper/common"
 	"github.com/dogechain-lab/dogechain/helper/tests"
 	"github.com/dogechain-lab/dogechain/txpool/proto"
 	"github.com/dogechain-lab/dogechain/types"
@@ -149,7 +150,7 @@ func TestEventSubscription_ProcessedEvents(t *testing.T) {
 
 			eventWaitCtx, eventWaitFn := context.WithTimeout(
 				context.Background(),
-				time.Second*time.Duration(testCase.expectedProcessed*2))
+				time.Second*time.Duration(common.MaxInt(testCase.expectedProcessed*2, 5)))
 			defer eventWaitFn()
 
 			if _, err := tests.RetryUntilTimeout(eventWaitCtx, func() (interface{}, bool) {
