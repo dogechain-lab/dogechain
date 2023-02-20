@@ -582,7 +582,7 @@ func (s *DefaultServer) GetProtocols(peerID peer.ID) ([]string, error) {
 }
 
 // removePeer removes a peer from the networking server's peer list,
-// and updates relevant counters and metrics. It is called from the
+// and updates relevant counters and metrics. It only called from the
 // disconnection callback of the libp2p network bundle (when the connection is closed)
 func (s *DefaultServer) removePeer(peerID peer.ID) {
 	s.peersLock.Lock()
@@ -681,9 +681,6 @@ func (s *DefaultServer) forgetPeer(peer peer.ID) {
 
 	// remove peer from peer store
 	s.RemoveFromPeerStore(p)
-
-	// remove peer from peer list
-	s.removePeer(peer)
 }
 
 // DisconnectFromPeer disconnects the networking server from the specified peer
