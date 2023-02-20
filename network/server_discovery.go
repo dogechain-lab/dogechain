@@ -203,15 +203,13 @@ func (s *DefaultServer) setupDiscovery() error {
 	// Register the actual discovery service as a valid protocol
 	s.registerDiscoveryService(discoveryService)
 
-	// Make sure the discovery service has the bootnodes in its routing table,
-	// and instantiates connections to them
-	discoveryService.ConnectToBootnodes(s.bootnodes.getBootnodes())
-
-	// Start the discovery service
-	discoveryService.Start()
-
-	// Set the discovery service reference
-	s.discovery = discoveryService
+	if !s.config.NoDiscover {
+		// Make sure the discovery service has the bootnodes in its routing table,
+		// and instantiates connections to them
+		discoveryService.ConnectToBootnodes(s.bootnodes.getBootnodes())
+		// Start the discovery service
+		discoveryService.Start()
+	}
 
 	return nil
 }
@@ -223,4 +221,7 @@ func (s *DefaultServer) registerDiscoveryService(discovery *discovery.DiscoveryS
 	grpcStream.Serve()
 
 	s.RegisterProtocol(common.DiscProto, grpcStream)
+
+	// Set the discovery service reference
+	s.discovery = discovery
 }

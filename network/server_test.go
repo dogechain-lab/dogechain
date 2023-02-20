@@ -46,6 +46,10 @@ func TestConnLimit_Inbound(t *testing.T) {
 		closeTestServers(t, servers)
 	})
 
+	t.Logf("Server 0 ID: %v", servers[0].host.ID())
+	t.Logf("Server 1 ID: %v", servers[1].host.ID())
+	t.Logf("Server 2 ID: %v", servers[2].host.ID())
+
 	// One slot left, Server 1 can connect to Server 0
 	if joinErr := JoinAndWait(t, servers[1], servers[0], DefaultBufferTimeout, DefaultJoinTimeout, false); joinErr != nil {
 		t.Fatalf("Unable to join servers (servers[1], servers[0]), %v", joinErr)
@@ -53,13 +57,15 @@ func TestConnLimit_Inbound(t *testing.T) {
 
 	t.Logf("Server 0 connectionCounts: %v", servers[0].connectionCounts)
 	t.Logf("Server 1 connectionCounts: %v", servers[1].connectionCounts)
+	t.Logf("Server 2 connectionCounts: %v", servers[2].connectionCounts)
 
 	// Server 2 tries to connect to Server 0
 	// but Server 0 is already connected to max inbound peers
 	smallTimeout := time.Second * 5
-	if joinErr := JoinAndWait(t, servers[2], servers[0], smallTimeout, smallTimeout, false); joinErr == nil {
-		t.Fatalf("Peer join should've failed (servers[2], servers[0])")
-	}
+	_ = JoinAndWait(t, servers[2], servers[0], smallTimeout, smallTimeout, false)
+
+	assert.True(t, servers[0].HasPeer(servers[1].host.ID()), "Server 0 should have Server 1 as a peer")
+	assert.False(t, servers[0].HasPeer(servers[2].host.ID()), "Server 0 should not have Server 2 as a peer")
 
 	// Disconnect Server 0 from Server 1 so Server 1 will have free slots
 	servers[0].DisconnectFromPeer(servers[1].host.ID(), "bye")
@@ -75,9 +81,13 @@ func TestConnLimit_Inbound(t *testing.T) {
 		t.Fatalf("Unable to disconnect from peer, %v", disconnectErr)
 	}
 
-	// Attempt a connection between Server 2 and Server 1 again
-	if joinErr := JoinAndWait(t, servers[2], servers[1], DefaultBufferTimeout, DefaultJoinTimeout, false); joinErr != nil {
-		t.Fatalf("Unable to join servers (servers[2], servers[1]), %v", joinErr)
+	servers[0].peersLock.RLock()
+	t.Logf("Server 0 peers: %v", servers[0].peers)
+	servers[0].peersLock.RUnlock()
+
+	// Attempt a connection between Server 2 and Server 0 again
+	if joinErr := JoinAndWait(t, servers[2], servers[0], DefaultBufferTimeout, DefaultJoinTimeout, false); joinErr != nil {
+		t.Fatalf("Unable to join servers (servers[2], servers[0]), %v", joinErr)
 	}
 }
 
