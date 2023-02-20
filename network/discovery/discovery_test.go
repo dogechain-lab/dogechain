@@ -94,7 +94,7 @@ func TestDiscoveryService_BootnodePeerDiscovery(t *testing.T) {
 	discoveryService, setupErr := newDiscoveryService(
 		// Set the relevant hook responses from the mock server
 		func(server *networkTesting.MockNetworkingServer) {
-			server.HookIsConnected(func(peerID peer.ID) bool {
+			server.HookHasPeer(func(peerID peer.ID) bool {
 				return true
 			})
 
@@ -306,7 +306,7 @@ func TestDiscoveryService_IgnorePeer(t *testing.T) {
 	discoveryService, setupErr := newDiscoveryService(
 		// Set the relevant hook responses from the mock server
 		func(server *networkTesting.MockNetworkingServer) {
-			server.HookIsConnected(func(peerID peer.ID) bool {
+			server.HookHasPeer(func(peerID peer.ID) bool {
 				return true
 			})
 

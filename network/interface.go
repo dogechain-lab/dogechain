@@ -27,8 +27,6 @@ type Network interface {
 	HasPeer(peerID peer.ID) bool
 	// IsStaticPeer returns true if the peer is a static peer
 	IsStaticPeer(peerID peer.ID) bool
-	// IsConnected returns the node is connecting to the peer associated with the given ID
-	IsConnected(peerID peer.ID) bool
 	// DisconnectFromPeer disconnects the networking server from the specified peer
 	DisconnectFromPeer(peer peer.ID, reason string)
 	// ForgetPeer disconnects, remove and forget peer to prevent broadcast discovery to other peers

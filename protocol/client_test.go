@@ -614,7 +614,7 @@ func Test_newSyncPeerClient_forgetNonProtocolPeer(t *testing.T) {
 	assert.Error(t, err)
 
 	// client should disconnect with peer do not support syncer protocol
-	assert.False(t, client.network.IsConnected(srvID))
+	assert.False(t, client.network.HasPeer(srvID))
 	// client should be forget
 	peers := client.network.Peers()
 	assert.Equal(t, 0, len(peers))

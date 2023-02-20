@@ -154,7 +154,7 @@ func (s *DefaultServer) setupDiscovery() error {
 	// Set the PeerAdded event handler
 	routingTable.PeerAdded = func(p peer.ID) {
 		// check peer is not connected and has free outbound connections
-		if s.connectionCounts.HasFreeOutboundConn() && !s.IsConnected(p) {
+		if s.connectionCounts.HasFreeOutboundConn() && !s.HasPeer(p) {
 			info := s.host.Peerstore().PeerInfo(p)
 			s.addToDialQueue(&info, common.PriorityRandomDial)
 		}

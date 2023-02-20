@@ -43,7 +43,7 @@ type MockNetworkingServer struct {
 	peerCountFn            peerCountDelegate
 	isBootnodeFn           isBootnodeDelegate
 	isStaticPeerFn         isStaticPeerDelegate
-	isConnectedFn          isConnectedDelegate
+	hasPeerFn              hasPeerDelegate
 }
 
 func NewMockNetworkingServer() *MockNetworkingServer {
@@ -87,7 +87,7 @@ type getRandomPeerDelegate func() *peer.ID
 type peerCountDelegate func() int64
 type isBootnodeDelegate func(peer.ID) bool
 type isStaticPeerDelegate func(peer.ID) bool
-type isConnectedDelegate func(peer.ID) bool
+type hasPeerDelegate func(peer.ID) bool
 
 func (m *MockNetworkingServer) NewIdentityClient(peerID peer.ID) (wrappers.IdentityClient, error) {
 	if m.newIdentityClientFn != nil {
@@ -281,16 +281,16 @@ func (m *MockNetworkingServer) HookIsStaticPeer(fn isStaticPeerDelegate) {
 	m.isStaticPeerFn = fn
 }
 
-func (m *MockNetworkingServer) IsConnected(peerID peer.ID) bool {
-	if m.isConnectedFn != nil {
-		return m.isConnectedFn(peerID)
+func (m *MockNetworkingServer) HasPeer(peerID peer.ID) bool {
+	if m.hasPeerFn != nil {
+		return m.hasPeerFn(peerID)
 	}
 
 	return false
 }
 
-func (m *MockNetworkingServer) HookIsConnected(fn isConnectedDelegate) {
-	m.isConnectedFn = fn
+func (m *MockNetworkingServer) HookHasPeer(fn hasPeerDelegate) {
+	m.hasPeerFn = fn
 }
 
 // MockIdentityClient mocks an identity client (other peer in the communication)

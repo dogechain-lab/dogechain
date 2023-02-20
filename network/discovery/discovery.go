@@ -56,8 +56,8 @@ type networkingServer interface {
 	// IsStaticPeer returns true if the peer is a static peer
 	IsStaticPeer(peerID peer.ID) bool
 
-	// isConnected checks if the networking server is connected to a peer
-	IsConnected(peerID peer.ID) bool
+	// HasPeer returns true if the peer is connected
+	HasPeer(peerID peer.ID) bool
 
 	// Connect attempts to connect to the specified peer
 	Connect(context.Context, peer.AddrInfo) error
@@ -413,7 +413,7 @@ func (d *DiscoveryService) bootnodePeerDiscovery() {
 	}
 
 	// If bootnode is not connected try reonnect
-	if !d.baseServer.IsConnected(bootnode.ID) {
+	if !d.baseServer.HasPeer(bootnode.ID) {
 		d.logger.Debug("bootnode is not connected, try to reconnect")
 
 		connectCtx, cancel := context.WithTimeout(d.ctx, bootnodeDiscoveryInterval/2)

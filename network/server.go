@@ -521,7 +521,7 @@ func (s *DefaultServer) runDial() {
 }
 
 func (s *DefaultServer) Connect(ctx context.Context, peerInfo peer.AddrInfo) error {
-	if !s.IsConnected(peerInfo.ID) {
+	if !s.HasPeer(peerInfo.ID) {
 		// the connection process is async because it involves connection (here) +
 		// the handshake done in the identity service.
 		if err := s.host.Connect(ctx, peerInfo); err != nil {
@@ -564,11 +564,6 @@ func (s *DefaultServer) HasPeer(peerID peer.ID) bool {
 	_, ok := s.peers[peerID]
 
 	return ok
-}
-
-// IsConnected checks if the networking server is connected to a peer
-func (s *DefaultServer) IsConnected(peerID peer.ID) bool {
-	return s.host.Network().Connectedness(peerID) == network.Connected
 }
 
 // IsBootnode checks if the peer is a bootnode
@@ -693,7 +688,7 @@ func (s *DefaultServer) forgetPeer(peer peer.ID) {
 
 // DisconnectFromPeer disconnects the networking server from the specified peer
 func (s *DefaultServer) DisconnectFromPeer(peer peer.ID, reason string) {
-	if !s.IsConnected(peer) {
+	if !s.HasPeer(peer) {
 		return
 	}
 
