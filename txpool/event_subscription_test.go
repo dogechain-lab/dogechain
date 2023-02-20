@@ -149,7 +149,7 @@ func TestEventSubscription_ProcessedEvents(t *testing.T) {
 
 			eventWaitCtx, eventWaitFn := context.WithTimeout(
 				context.Background(),
-				time.Second*time.Duration(testCase.expectedProcessed+1))
+				time.Second*time.Duration(testCase.expectedProcessed*2))
 			defer eventWaitFn()
 
 			if _, err := tests.RetryUntilTimeout(eventWaitCtx, func() (interface{}, bool) {

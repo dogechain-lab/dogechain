@@ -699,10 +699,6 @@ func (s *DefaultServer) forgetPeer(peer peer.ID) {
 
 // DisconnectFromPeer disconnects the networking server from the specified peer
 func (s *DefaultServer) DisconnectFromPeer(peer peer.ID, reason string) {
-	if !s.HasPeer(peer) {
-		return
-	}
-
 	if s.IsStaticPeer(peer) {
 		return
 	}

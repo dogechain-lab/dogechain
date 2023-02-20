@@ -55,14 +55,18 @@ func TestConnLimit_Inbound(t *testing.T) {
 		t.Fatalf("Unable to join servers (servers[1], servers[0]), %v", joinErr)
 	}
 
-	t.Logf("Server 0 connectionCounts: %v", servers[0].connectionCounts)
-	t.Logf("Server 1 connectionCounts: %v", servers[1].connectionCounts)
-	t.Logf("Server 2 connectionCounts: %v", servers[2].connectionCounts)
-
 	// Server 2 tries to connect to Server 0
 	// but Server 0 is already connected to max inbound peers
 	smallTimeout := time.Second * 5
-	_ = JoinAndWait(t, servers[2], servers[0], smallTimeout, smallTimeout, false)
+	if joinErr := JoinAndWait(t, servers[2], servers[0], smallTimeout, smallTimeout, false); joinErr == nil {
+		// join if successful
+		servers[0].peersLock.RLock()
+		t.Logf("Server 0 peers: %v", servers[0].peers)
+		servers[0].peersLock.RUnlock()
+
+		Connectedness := servers[0].host.Network().Connectedness(servers[2].host.ID())
+		assert.Equal(t, network.NotConnected, Connectedness)
+	}
 
 	assert.True(t, servers[0].HasPeer(servers[1].host.ID()), "Server 0 should have Server 1 as a peer")
 	assert.False(t, servers[0].HasPeer(servers[2].host.ID()), "Server 0 should not have Server 2 as a peer")
@@ -87,7 +91,7 @@ func TestConnLimit_Inbound(t *testing.T) {
 
 	// Attempt a connection between Server 2 and Server 0 again
 	if joinErr := JoinAndWait(t, servers[2], servers[0], DefaultBufferTimeout, DefaultJoinTimeout, false); joinErr != nil {
-		t.Fatalf("Unable to join servers (servers[2], servers[0]), %v", joinErr)
+		t.Fatalf("Unable to join servers (servers[2] => servers[0]), %v", joinErr)
 	}
 }
 
