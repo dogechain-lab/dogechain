@@ -473,8 +473,8 @@ func (s *DefaultServer) keepAliveMinimumPeerConnections() {
 
 		s.logger.Debug("attempting to connect to random peer")
 
-		// get all peers
-		peers := s.host.Peerstore().Peers()
+		// get routingTable peers
+		peers := s.discovery.RoutingTablePeers()
 		if len(peers) == 0 {
 			s.logger.Error("no peers found")
 

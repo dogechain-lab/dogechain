@@ -155,8 +155,10 @@ func (d *DiscoveryService) HandleNetworkEvent(peerEvent *event.PeerEvent) {
 
 			return
 		}
-	case event.PeerDisconnected, event.PeerFailedToConnect:
-		// Run cleanup for the local routing / reference peers table
+	case event.PeerFailedToConnect:
+		// ignore event.PeerDisconnected, routingTable save all discovered peers,
+		// and we don't want to remove them from the routing table
+		// if bootnode disconnects and shutdown, can use this reconnect to network
 		d.routingTable.RemovePeer(peerID)
 	}
 }
