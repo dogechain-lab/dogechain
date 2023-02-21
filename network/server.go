@@ -499,12 +499,11 @@ func (s *DefaultServer) keepAliveMinimumPeerConnections() {
 		for _, v := range perm {
 			randPeer := &peers[v]
 			/// dial unconnected peer
-			if randPeer != nil && selfID != *randPeer && !s.HasPeer(*randPeer) {
+			if randPeer != nil &&
+				selfID != *randPeer &&
+				!s.bootnodes.isBootnode(*randPeer) &&
+				!s.HasPeer(*randPeer) {
 				s.logger.Debug("dialing random peer", "peer", *randPeer)
-
-				// clear old peer connect status
-				s.DisconnectFromPeer(*randPeer, "bye")
-
 				s.addToDialQueue(s.GetPeerInfo(*randPeer), common.PriorityRandomDial)
 
 				isDial = true
