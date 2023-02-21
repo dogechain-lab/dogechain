@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -190,9 +191,8 @@ func newServer(logger hclog.Logger, config *Config) (*DefaultServer, error) {
 		protocols:        map[string]Protocol{},
 		secretsManager:   config.SecretsManager,
 		bootnodes: &bootnodesWrapper{
-			bootnodeArr:       make([]*peer.AddrInfo, 0),
-			bootnodesMap:      make(map[peer.ID]*peer.AddrInfo),
-			bootnodeConnCount: 0,
+			bootnodeArr:  make([]*peer.AddrInfo, 0),
+			bootnodesMap: make(map[peer.ID]*peer.AddrInfo),
 		},
 		connectionCounts: NewBlankConnectionInfo(
 			config.MaxInboundPeers,
@@ -311,6 +311,7 @@ func (s *DefaultServer) Start() error {
 	}
 
 	go s.runDial()
+	go s.keepAliveMinimumPeerConnections()
 	go s.keepAliveStaticPeerConnections()
 
 	// watch for disconnected peers
@@ -441,12 +442,64 @@ func (s *DefaultServer) setupBootnodes() error {
 	// at this point because it is initialized once (doesn't change),
 	// and used only after this point
 	s.bootnodes = &bootnodesWrapper{
-		bootnodeArr:       bootnodesArr,
-		bootnodesMap:      bootnodesMap,
-		bootnodeConnCount: 0,
+		bootnodeArr:  bootnodesArr,
+		bootnodesMap: bootnodesMap,
 	}
 
 	return nil
+}
+
+// keepAliveMinimumPeerConnections will attempt to make new connections
+// if the active peer count is lesser than the specified limit.
+func (s *DefaultServer) keepAliveMinimumPeerConnections() {
+	s.closeWg.Add(1)
+	defer s.closeWg.Done()
+
+	delay := time.NewTimer(DefaultKeepAliveTimer)
+	defer delay.Stop()
+
+	for {
+		select {
+		case <-delay.C:
+		case <-s.closeCh:
+			return
+		}
+
+		delay.Reset(DefaultKeepAliveTimer)
+
+		if s.PeerCount() >= MinimumPeerConnections {
+			continue
+		}
+
+		s.logger.Debug("attempting to connect to random peer")
+
+		// get all peers
+		peers := s.host.Peerstore().Peers()
+		if len(peers) == 0 {
+			s.logger.Error("no peers found")
+
+			continue
+		}
+
+		// shuffle peers
+		perm := rand.Perm(len(peers))
+		for _, v := range perm {
+			randPeer := &peers[v]
+			/// dial unconnected peer
+			if randPeer != nil && !s.HasPeer(*randPeer) {
+				s.logger.Debug("dialing random peer", "peer", *randPeer)
+
+				s.addToDialQueue(s.GetPeerInfo(*randPeer), common.PriorityRandomDial)
+
+				continue
+			}
+		}
+
+		s.logger.Info("all peers are connected, no random peer to dial")
+
+		// if we get here, all peers are connected, so we can sleep for a longer
+		delay.Reset(DefaultKeepAliveTimer * 3)
+	}
 }
 
 // runDial starts the networking server's dial loop.
@@ -623,7 +676,6 @@ func (s *DefaultServer) removePeer(peerID peer.ID) {
 		if active {
 			s.connectionCounts.UpdateConnCountByDirection(-1, connDirection)
 			s.updateConnCountMetrics(connDirection)
-			s.updateBootnodeConnCount(peerID, -1)
 		}
 	}
 
@@ -641,19 +693,6 @@ func (s *DefaultServer) removePeer(peerID peer.ID) {
 
 	// Emit the event alerting listeners
 	s.emitEvent(peerID, peerEvent.PeerDisconnected)
-}
-
-// updateBootnodeConnCount attempts to update the bootnode connection count
-// by delta if the action is valid [Thread safe]
-func (s *DefaultServer) updateBootnodeConnCount(peerID peer.ID, delta int64) {
-	if s.config.NoDiscover || !s.IsBootnode(peerID) {
-		// If the discovery service is not running
-		// or the peer is not a bootnode, there is no need
-		// to update bootnode connection counters
-		return
-	}
-
-	s.bootnodes.increaseBootnodeConnCount(delta)
 }
 
 // ForgetPeer disconnects, remove and forget peer to prevent broadcast discovery to other peers

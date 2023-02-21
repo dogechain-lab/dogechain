@@ -32,17 +32,16 @@ type MockNetworkingServer struct {
 	hasFreeConnectionSlotFn  hasFreeConnectionSlotDelegate
 
 	// Discovery Hooks
-	newDiscoveryClientFn   newDiscoveryClientDelegate
-	getRandomBootnodeFn    getRandomBootnodeDelegate
-	getBootnodeConnCountFn getBootnodeConnCountDelegate
-	addToPeerStoreFn       addToPeerStoreDelegate
-	removeFromPeerStoreFn  removeFromPeerStoreDelegate
-	getPeerInfoFn          getPeerInfoDelegate
-	getRandomPeerFn        getRandomPeerDelegate
-	peerCountFn            peerCountDelegate
-	isBootnodeFn           isBootnodeDelegate
-	isStaticPeerFn         isStaticPeerDelegate
-	hasPeerFn              hasPeerDelegate
+	newDiscoveryClientFn  newDiscoveryClientDelegate
+	getRandomBootnodeFn   getRandomBootnodeDelegate
+	addToPeerStoreFn      addToPeerStoreDelegate
+	removeFromPeerStoreFn removeFromPeerStoreDelegate
+	getPeerInfoFn         getPeerInfoDelegate
+	getRandomPeerFn       getRandomPeerDelegate
+	peerCountFn           peerCountDelegate
+	isBootnodeFn          isBootnodeDelegate
+	isStaticPeerFn        isStaticPeerDelegate
+	hasPeerFn             hasPeerDelegate
 }
 
 func NewMockNetworkingServer() *MockNetworkingServer {
@@ -77,7 +76,6 @@ type hasFreeConnectionSlotDelegate func(network.Direction) bool
 
 // Required for Discovery
 type getRandomBootnodeDelegate func() *peer.AddrInfo
-type getBootnodeConnCountDelegate func() int64
 type newDiscoveryClientDelegate func(peer.ID) (wrappers.DiscoveryClient, error)
 type addToPeerStoreDelegate func(*peer.AddrInfo)
 type removeFromPeerStoreDelegate func(peerInfo *peer.AddrInfo)
@@ -174,18 +172,6 @@ func (m *MockNetworkingServer) GetRandomBootnode() *peer.AddrInfo {
 
 func (m *MockNetworkingServer) HookGetRandomBootnode(fn getRandomBootnodeDelegate) {
 	m.getRandomBootnodeFn = fn
-}
-
-func (m *MockNetworkingServer) GetBootnodeConnCount() int64 {
-	if m.getBootnodeConnCountFn != nil {
-		return m.getBootnodeConnCountFn()
-	}
-
-	return 0
-}
-
-func (m *MockNetworkingServer) HookGetBootnodeConnCount(fn getBootnodeConnCountDelegate) {
-	m.getBootnodeConnCountFn = fn
 }
 
 func (m *MockNetworkingServer) NewDiscoveryClient(peerID peer.ID) (wrappers.DiscoveryClient, error) {

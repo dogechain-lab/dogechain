@@ -107,11 +107,6 @@ func TestDiscoveryService_BootnodePeerDiscovery(t *testing.T) {
 				return randomBootnode
 			})
 
-			// Define the bootnode conn count hook
-			server.HookGetBootnodeConnCount(func() int64 {
-				return 1 // > 0 to trigger a temporary connection
-			})
-
 			// Define the discovery client find peers hook
 			server.GetMockDiscoveryClient().HookFindPeers(
 				func(

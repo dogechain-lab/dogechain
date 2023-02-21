@@ -76,7 +76,6 @@ func (s *DefaultServer) addPeerInfo(id peer.ID, direction network.Direction) boo
 	// Update connection counters
 	s.connectionCounts.UpdateConnCountByDirection(1, direction)
 	s.updateConnCountMetrics(direction)
-	s.updateBootnodeConnCount(id, 1)
 
 	// Update the metric stats
 	s.metrics.SetTotalPeerCount(

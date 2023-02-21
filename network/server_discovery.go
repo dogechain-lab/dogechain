@@ -42,11 +42,6 @@ func (s *DefaultServer) GetRandomBootnode() *peer.AddrInfo {
 	return nil
 }
 
-// GetBootnodeConnCount fetches the number of active bootnode connections [Thread safe]
-func (s *DefaultServer) GetBootnodeConnCount() int64 {
-	return s.bootnodes.getBootnodeConnCount()
-}
-
 // NewDiscoveryClient returns a new or existing discovery service client connection
 func (s *DefaultServer) NewDiscoveryClient(peerID peer.ID) (wrappers.DiscoveryClient, error) {
 	// Check if there is an active stream connection already
