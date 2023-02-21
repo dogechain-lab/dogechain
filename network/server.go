@@ -473,6 +473,13 @@ func (s *DefaultServer) keepAliveMinimumPeerConnections() {
 
 		s.logger.Debug("attempting to connect to random peer")
 
+		if s.discovery == nil {
+			s.logger.Error("discovery service is nil")
+			delay.Reset(DefaultKeepAliveTimer * 12) // wait 2 minutes before trying again
+
+			continue
+		}
+
 		// get routingTable peers
 		peers := s.discovery.RoutingTablePeers()
 		if len(peers) == 0 {
