@@ -71,8 +71,9 @@ type DefaultServer struct {
 	closeCh chan struct{}  // the channel used for closing the networking server
 	closeWg sync.WaitGroup // the waitgroup used for closing the networking server
 
-	host  host.Host             // the libp2p host reference
-	addrs []multiaddr.Multiaddr // the list of supported (bound) addresses
+	host   host.Host             // the libp2p host reference
+	selfID peer.ID               // the node ID
+	addrs  []multiaddr.Multiaddr // the list of supported (bound) addresses
 
 	peers     map[peer.ID]*PeerConnInfo // map of all peer connections
 	peersLock sync.RWMutex              // lock for the peer map
@@ -182,6 +183,7 @@ func newServer(logger hclog.Logger, config *Config) (*DefaultServer, error) {
 		logger:           logger,
 		config:           config,
 		host:             host,
+		selfID:           host.ID(),
 		addrs:            host.Addrs(),
 		peers:            make(map[peer.ID]*PeerConnInfo),
 		metrics:          config.Metrics,
@@ -458,6 +460,8 @@ func (s *DefaultServer) keepAliveMinimumPeerConnections() {
 	delay := time.NewTimer(DefaultKeepAliveTimer)
 	defer delay.Stop()
 
+	selfID := s.host.ID()
+
 	for {
 		select {
 		case <-delay.C:
@@ -493,7 +497,7 @@ func (s *DefaultServer) keepAliveMinimumPeerConnections() {
 		for _, v := range perm {
 			randPeer := &peers[v]
 			/// dial unconnected peer
-			if randPeer != nil && !s.HasPeer(*randPeer) {
+			if randPeer != nil && selfID != *randPeer && !s.HasPeer(*randPeer) {
 				s.logger.Debug("dialing random peer", "peer", *randPeer)
 
 				s.addToDialQueue(s.GetPeerInfo(*randPeer), common.PriorityRandomDial)
@@ -589,7 +593,7 @@ func (s *DefaultServer) runDial() {
 }
 
 func (s *DefaultServer) Connect(ctx context.Context, peerInfo peer.AddrInfo) error {
-	if !s.HasPeer(peerInfo.ID) {
+	if !s.HasPeer(peerInfo.ID) && s.selfID != peerInfo.ID {
 		// the connection process is async because it involves connection (here) +
 		// the handshake done in the identity service.
 		if err := s.host.Connect(ctx, peerInfo); err != nil {
@@ -915,6 +919,10 @@ func (s *DefaultServer) AddrInfo() *peer.AddrInfo {
 }
 
 func (s *DefaultServer) addToDialQueue(addr *peer.AddrInfo, priority common.DialPriority) {
+	if s.selfID == addr.ID {
+		return
+	}
+
 	s.dialQueue.AddTask(addr, priority)
 	s.emitEvent(addr.ID, peerEvent.PeerAddedToDialQueue)
 }
