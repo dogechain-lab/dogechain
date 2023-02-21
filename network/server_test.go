@@ -509,7 +509,7 @@ func TestPeerReconnection(t *testing.T) {
 	})
 
 	disconnectFromPeer := func(server Server, peerID peer.ID) {
-		server.DisconnectFromPeer(peerID, "Bye")
+		server.DisconnectFromPeer(peerID, "bye")
 
 		disconnectCtx, disconnectFn := context.WithTimeout(context.Background(), DefaultJoinTimeout)
 		defer disconnectFn()

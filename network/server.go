@@ -502,6 +502,9 @@ func (s *DefaultServer) keepAliveMinimumPeerConnections() {
 			if randPeer != nil && selfID != *randPeer && !s.HasPeer(*randPeer) {
 				s.logger.Debug("dialing random peer", "peer", *randPeer)
 
+				// clear old peer connect status
+				s.DisconnectFromPeer(*randPeer, "bye")
+
 				s.addToDialQueue(s.GetPeerInfo(*randPeer), common.PriorityRandomDial)
 
 				isDial = true
@@ -602,17 +605,6 @@ func (s *DefaultServer) runDial() {
 
 func (s *DefaultServer) Connect(ctx context.Context, peerInfo peer.AddrInfo) error {
 	if !s.HasPeer(peerInfo.ID) && s.selfID != peerInfo.ID {
-		// if the peer is already connected, add peer info
-		if s.host.Network().Connectedness(peerInfo.ID) == network.Connected {
-			s.logger.Debug("connect is exist", "addr", peerInfo.String())
-
-			conns := s.host.Network().ConnsToPeer(peerInfo.ID)
-			for _, conn := range conns {
-				s.addPeerInfo(peerInfo.ID, conn.Stat().Direction)
-			}
-
-			return nil
-		}
 		// the connection process is async because it involves connection (here) +
 		// the handshake done in the identity service.
 		if err := s.host.Connect(ctx, peerInfo); err != nil {
