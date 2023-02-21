@@ -144,22 +144,21 @@ func (d *DiscoveryService) RoutingTablePeers() []peer.ID {
 
 // HandleNetworkEvent handles base network events for the DiscoveryService
 func (d *DiscoveryService) HandleNetworkEvent(peerEvent *event.PeerEvent) {
+	// ignore event.PeerDisconnected and event.PeerFailedToConnect,
+	// routingTable save all discovered peers (pass identity check)
+	// and we don't want to remove them from the routing table
+	// if bootnode disconnects and shutdown, can use this reconnect to network
 	peerID := peerEvent.PeerID
 
 	switch peerEvent.Type {
 	case event.PeerConnected:
 		// Add peer to the routing table and to our local peer table
-		_, err := d.routingTable.TryAddPeer(peerID, false, false)
+		_, err := d.routingTable.TryAddPeer(peerID, false, true)
 		if err != nil {
 			d.logger.Error("failed to add peer to routing table", "err", err)
 
 			return
 		}
-	case event.PeerFailedToConnect:
-		// ignore event.PeerDisconnected, routingTable save all discovered peers,
-		// and we don't want to remove them from the routing table
-		// if bootnode disconnects and shutdown, can use this reconnect to network
-		d.routingTable.RemovePeer(peerID)
 	}
 }
 

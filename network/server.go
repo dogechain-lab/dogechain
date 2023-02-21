@@ -52,8 +52,7 @@ const (
 
 	DefaultLibp2pPort int = 1478
 
-	MinimumBootNodes       int   = 1
-	MinimumPeerConnections int64 = 1
+	MinimumBootNodes int = 1
 
 	DefaultKeepAliveTimer = 10 * time.Second
 	DefaultDialTimeout    = 30 * time.Second
@@ -471,12 +470,6 @@ func (s *DefaultServer) keepAliveMinimumPeerConnections() {
 
 		delay.Reset(DefaultKeepAliveTimer)
 
-		if s.PeerCount() >= MinimumPeerConnections {
-			continue
-		}
-
-		s.logger.Debug("attempting to connect to random peer")
-
 		if s.discovery == nil {
 			s.logger.Error("discovery service is nil")
 			delay.Reset(DefaultKeepAliveTimer * 12) // wait 2 minutes before trying again
@@ -492,8 +485,17 @@ func (s *DefaultServer) keepAliveMinimumPeerConnections() {
 			continue
 		}
 
+		// check if we have enough peers
+		if helperCommon.ClampInt64ToInt(s.PeerCount()) >= len(peers) {
+			continue
+		}
+
+		s.logger.Debug("attempting to connect to random peer")
+
 		// shuffle peers
 		perm := rand.Perm(len(peers))
+		isDial := false
+
 		for _, v := range perm {
 			randPeer := &peers[v]
 			/// dial unconnected peer
@@ -502,8 +504,14 @@ func (s *DefaultServer) keepAliveMinimumPeerConnections() {
 
 				s.addToDialQueue(s.GetPeerInfo(*randPeer), common.PriorityRandomDial)
 
-				continue
+				isDial = true
+
+				break
 			}
+		}
+
+		if isDial {
+			continue
 		}
 
 		s.logger.Info("all peers are connected, no random peer to dial")
@@ -594,6 +602,17 @@ func (s *DefaultServer) runDial() {
 
 func (s *DefaultServer) Connect(ctx context.Context, peerInfo peer.AddrInfo) error {
 	if !s.HasPeer(peerInfo.ID) && s.selfID != peerInfo.ID {
+		// if the peer is already connected, add peer info
+		if s.host.Network().Connectedness(peerInfo.ID) == network.Connected {
+			s.logger.Debug("connect is exist", "addr", peerInfo.String())
+
+			conns := s.host.Network().ConnsToPeer(peerInfo.ID)
+			for _, conn := range conns {
+				s.addPeerInfo(peerInfo.ID, conn.Stat().Direction)
+			}
+
+			return nil
+		}
 		// the connection process is async because it involves connection (here) +
 		// the handshake done in the identity service.
 		if err := s.host.Connect(ctx, peerInfo); err != nil {
