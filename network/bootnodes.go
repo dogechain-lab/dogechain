@@ -19,11 +19,6 @@ func (bw *bootnodesWrapper) isBootnode(nodeID peer.ID) bool {
 	return ok
 }
 
-// hasBootnodes checks if any bootnodes are set [Thread safe]
-func (bw *bootnodesWrapper) hasBootnodes() bool {
-	return len(bw.bootnodeArr) > 0
-}
-
 // getBootnodes gets all the bootnodes
 func (bw *bootnodesWrapper) getBootnodes() []*peer.AddrInfo {
 	return bw.bootnodeArr
