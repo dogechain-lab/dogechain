@@ -83,14 +83,14 @@ func (s *DefaultServer) AddToPeerStore(peerInfo *peer.AddrInfo) {
 }
 
 // RemoveFromPeerStore removes peer information from the node's peer store, ignoring static nodes and bootnodes
-func (s *DefaultServer) RemoveFromPeerStore(peerInfo *peer.AddrInfo) {
+func (s *DefaultServer) RemoveFromPeerStore(peerID peer.ID) {
 	// ignore static nodes and bootnodes, they are not removed from the peer store
-	if s.IsStaticPeer(peerInfo.ID) || s.IsBootnode(peerInfo.ID) {
+	if s.IsStaticPeer(peerID) || s.IsBootnode(peerID) {
 		return
 	}
 
-	s.host.Peerstore().RemovePeer(peerInfo.ID)
-	s.host.Peerstore().ClearAddrs(peerInfo.ID)
+	s.host.Peerstore().RemovePeer(peerID)
+	s.host.Peerstore().ClearAddrs(peerID)
 }
 
 // GetPeerInfo fetches the information of a peer
@@ -136,7 +136,7 @@ func (s *DefaultServer) setupDiscovery() error {
 	routingTable, err := kb.NewRoutingTable(
 		helperCommon.MaxInt(
 			helperCommon.ClampInt64ToInt(
-				s.config.MaxInboundPeers+s.config.MaxOutboundPeers),
+				s.config.MaxInboundPeers+s.config.MaxOutboundPeers)*2, // double the k-bucket size, storage more peers info
 			defaultBucketSize,
 		),
 		keyID,

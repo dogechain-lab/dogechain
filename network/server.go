@@ -11,6 +11,7 @@ import (
 	"github.com/dogechain-lab/dogechain/network/common"
 	"github.com/dogechain-lab/dogechain/network/dial"
 	"github.com/dogechain-lab/dogechain/network/discovery"
+	"github.com/dogechain-lab/dogechain/network/identity"
 	"github.com/dogechain-lab/dogechain/network/wrappers"
 	"github.com/dogechain-lab/dogechain/secrets"
 
@@ -81,6 +82,7 @@ type DefaultServer struct {
 
 	dialQueue *dial.DialQueue // queue used to asynchronously connect to peers
 
+	identity  *identity.IdentityService   // identity service
 	discovery *discovery.DiscoveryService // service used for discovering other peers
 
 	protocols     map[string]Protocol // supported protocols
@@ -312,14 +314,14 @@ func (s *DefaultServer) Start() error {
 	}
 
 	go s.runDial()
-	go s.keepAliveMinimumPeerConnections()
+	go s.keepAvailablePeerConnections()
 	go s.keepAliveStaticPeerConnections()
 
 	// watch for disconnected peers
 	s.host.Network().Notify(&network.NotifyBundle{
 		DisconnectedF: func(net network.Network, conn network.Conn) {
 			// Update the local connection metrics
-			s.removePeer(conn.RemotePeer())
+			s.removePeer(conn.RemotePeer(), conn.Stat().Direction)
 		},
 	})
 
@@ -450,9 +452,10 @@ func (s *DefaultServer) setupBootnodes() error {
 	return nil
 }
 
-// keepAliveMinimumPeerConnections will attempt to make new connections
+// keepAvailablePeerConnections clear the peerstore of peers that are not connected
+// and will attempt to make new connections
 // if the active peer count is lesser than the specified limit.
-func (s *DefaultServer) keepAliveMinimumPeerConnections() {
+func (s *DefaultServer) keepAvailablePeerConnections() {
 	s.closeWg.Add(1)
 	defer s.closeWg.Done()
 
@@ -477,27 +480,47 @@ func (s *DefaultServer) keepAliveMinimumPeerConnections() {
 			continue
 		}
 
-		// get routingTable peers
-		peers := s.discovery.RoutingTablePeers()
-		if len(peers) == 0 {
-			s.logger.Error("no peers found")
+		s.peersLock.RLock()
+
+		peers := s.host.Network().Peers()
+		for _, p := range peers {
+			if p == selfID || s.identity.HasPendingStatus(p) {
+				continue
+			}
+
+			if _, ok := s.peers[p]; !ok {
+				s.logger.Error("peer session not exist, disconnect peer", "peer", p)
+
+				s.DisconnectFromPeer(p, "bye")
+			}
+		}
+
+		// check libp2p connections
+		if len(s.peers) > 0 {
+			s.logger.Debug("service ready connections", "count", len(s.peers))
+			s.peersLock.RUnlock()
 
 			continue
 		}
 
-		// check if we have enough peers
-		if helperCommon.ClampInt64ToInt(s.PeerCount()) >= len(peers) {
+		s.peersLock.RUnlock()
+
+		// get routingTable peers
+		routTablePeers := s.discovery.RoutingTablePeers()
+		if len(routTablePeers) == 0 {
+			s.logger.Error("no peers found")
+
 			continue
 		}
 
 		s.logger.Debug("attempting to connect to random peer")
 
 		// shuffle peers
-		perm := rand.Perm(len(peers))
+		perm := rand.Perm(len(routTablePeers))
 		isDial := false
 
 		for _, v := range perm {
-			randPeer := &peers[v]
+			randPeer := &routTablePeers[v]
 			/// dial unconnected peer
 			if randPeer != nil &&
 				selfID != *randPeer &&
@@ -666,7 +689,7 @@ func (s *DefaultServer) GetProtocols(peerID peer.ID) ([]string, error) {
 // removePeer removes a peer from the networking server's peer list,
 // and updates relevant counters and metrics. It only called from the
 // disconnection callback of the libp2p network bundle (when the connection is closed)
-func (s *DefaultServer) removePeer(peerID peer.ID) {
+func (s *DefaultServer) removePeer(peerID peer.ID, direction network.Direction) {
 	s.peersLock.Lock()
 	defer s.peersLock.Unlock()
 
@@ -689,31 +712,38 @@ func (s *DefaultServer) removePeer(peerID peer.ID) {
 		return
 	}
 
-	// Delete the peer from the peers map
-	delete(s.peers, peerID)
-
 	// Update connection counters
-	for connDirection, active := range connectionInfo.connDirections {
-		if active {
-			s.connectionCounts.UpdateConnCountByDirection(-1, connDirection)
-			s.updateConnCountMetrics(connDirection)
+	_, active := connectionInfo.connDirections[direction]
+	if active {
+		s.connectionCounts.UpdateConnCountByDirection(-1, direction)
+		s.updateConnCountMetrics(direction)
+	}
+
+	connects := s.host.Network().ConnsToPeer(peerID)
+	if len(connects) == 0 {
+		// No more connections to the peer, remove it from the peers map
+		delete(s.peers, peerID)
+
+		if errs := connectionInfo.cleanProtocolStreams(); len(errs) > 0 {
+			for _, err := range errs {
+				if err != nil {
+					s.logger.Error("close protocol streams failed", "err", err)
+				}
+			}
+		}
+
+		// Emit the event alerting listeners
+		s.emitEvent(peerID, peerEvent.PeerDisconnected)
+	} else {
+		// sync the connection direction
+		for _, conn := range connects {
+			connectionInfo.connDirections[conn.Stat().Direction] = true
 		}
 	}
 
 	s.metrics.SetTotalPeerCount(
 		float64(len(s.peers)),
 	)
-
-	if errs := connectionInfo.cleanProtocolStreams(); len(errs) > 0 {
-		for _, err := range errs {
-			if err != nil {
-				s.logger.Error("close protocol streams failed", "err", err)
-			}
-		}
-	}
-
-	// Emit the event alerting listeners
-	s.emitEvent(peerID, peerEvent.PeerDisconnected)
 }
 
 // ForgetPeer disconnects, remove and forget peer to prevent broadcast discovery to other peers
@@ -729,37 +759,16 @@ func (s *DefaultServer) ForgetPeer(peer peer.ID, reason string) {
 	s.logger.Warn("forget peer", "id", peer, "reason", reason)
 
 	s.DisconnectFromPeer(peer, reason)
-	s.forgetPeer(peer)
-}
-
-func (s *DefaultServer) forgetPeer(peer peer.ID) {
-	p := s.GetPeerInfo(peer)
-	if p == nil || len(p.Addrs) == 0 { // already removed?
-		s.logger.Info("peer already removed from store", "id", peer)
-
-		return
-	}
-
-	s.logger.Info("remove peer from store", "id", peer)
 
 	if s.discovery != nil {
 		// remove peer from routing table
 		s.discovery.RemovePeerFromRoutingTable(peer)
 	}
-
-	// remove peer from peer store
-	s.RemoveFromPeerStore(p)
-
-	// close peer connection
-	err := s.host.Network().ClosePeer(peer)
-	if err != nil {
-		s.logger.Error("close peer connection failed", "err", err)
-	}
 }
 
 // DisconnectFromPeer disconnects the networking server from the specified peer
 func (s *DefaultServer) DisconnectFromPeer(peer peer.ID, reason string) {
-	if s.IsStaticPeer(peer) {
+	if s.IsStaticPeer(peer) && s.HasPeer(peer) {
 		return
 	}
 
@@ -772,6 +781,8 @@ func (s *DefaultServer) DisconnectFromPeer(peer peer.ID, reason string) {
 	if closeErr := s.host.Network().ClosePeer(peer); closeErr != nil {
 		s.logger.Error("unable to gracefully close peer connection", "err", closeErr)
 	}
+
+	s.RemoveFromPeerStore(peer)
 }
 
 var (

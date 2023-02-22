@@ -1,6 +1,7 @@
 package network
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/dogechain-lab/dogechain/network/common"
@@ -99,8 +100,12 @@ func (s *DefaultServer) EmitEvent(event *peerEvent.PeerEvent) {
 
 // setupIdentity sets up the identity service for the node
 func (s *DefaultServer) setupIdentity() error {
+	if s.identity != nil {
+		return fmt.Errorf("identity service already initialized")
+	}
+
 	// Create an instance of the identity service
-	identityService := identity.NewIdentityService(
+	s.identity = identity.NewIdentityService(
 		s,
 		s.logger,
 		int64(s.config.Chain.Params.ChainID),
@@ -108,10 +113,10 @@ func (s *DefaultServer) setupIdentity() error {
 	)
 
 	// Register the identity service protocol
-	s.registerIdentityService(identityService)
+	s.registerIdentityService(s.identity)
 
 	// Register the network notify bundle handlers
-	s.host.Network().Notify(identityService.GetNotifyBundle())
+	s.host.Network().Notify(s.identity.GetNotifyBundle())
 
 	return nil
 }

@@ -162,8 +162,8 @@ func TestDiscoveryService_AddToTable(t *testing.T) {
 		peerStore[info.ID] = info
 	}
 
-	removeFromPeerStoreHook := func(info *peer.AddrInfo) {
-		delete(peerStore, info.ID)
+	removeFromPeerStoreHook := func(peerID peer.ID) {
+		delete(peerStore, peerID)
 	}
 
 	highLatencyHook := func(id peer.ID) time.Duration {

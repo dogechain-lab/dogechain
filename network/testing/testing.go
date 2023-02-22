@@ -78,7 +78,7 @@ type hasFreeConnectionSlotDelegate func(network.Direction) bool
 type getRandomBootnodeDelegate func() *peer.AddrInfo
 type newDiscoveryClientDelegate func(peer.ID) (wrappers.DiscoveryClient, error)
 type addToPeerStoreDelegate func(*peer.AddrInfo)
-type removeFromPeerStoreDelegate func(peerInfo *peer.AddrInfo)
+type removeFromPeerStoreDelegate func(peerInfo peer.ID)
 type getPeerInfoDelegate func(peer.ID) *peer.AddrInfo
 type getRandomPeerDelegate func() *peer.ID
 type peerCountDelegate func() int64
@@ -196,9 +196,9 @@ func (m *MockNetworkingServer) HookAddToPeerStore(fn addToPeerStoreDelegate) {
 	m.addToPeerStoreFn = fn
 }
 
-func (m *MockNetworkingServer) RemoveFromPeerStore(peerInfo *peer.AddrInfo) {
+func (m *MockNetworkingServer) RemoveFromPeerStore(peerID peer.ID) {
 	if m.removeFromPeerStoreFn != nil {
-		m.removeFromPeerStoreFn(peerInfo)
+		m.removeFromPeerStoreFn(peerID)
 	}
 }
 

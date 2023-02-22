@@ -113,11 +113,11 @@ func TestRoutingTable_Disconnected(t *testing.T) {
 	})
 
 	if _, err := WaitUntilRoutingTableToBeFilled(ctx, servers[0], 1); err != nil {
-		t.Fatalf("server 0 should add a peer to routing table but didn't, peer=%s", servers[1].host.ID())
+		t.Fatalf("server 0 should add a peer to routing table but didn't")
 	}
 
 	if _, err := WaitUntilRoutingTableToBeFilled(ctx, servers[1], 1); err != nil {
-		t.Fatalf("server 1 should add a peer to routing table but didn't, peer=%s", servers[0].host.ID())
+		t.Fatalf("server 1 should add a peer to routing table but didn't")
 	}
 
 	// disconnect the servers by closing server 0 to stop auto-reconnection
@@ -132,8 +132,12 @@ func TestRoutingTable_Disconnected(t *testing.T) {
 		cancel2()
 	})
 
-	if _, err := WaitUntilRoutingTableToBeFilled(ctx2, servers[1], 0); err != nil {
-		t.Fatalf("server 1 should remove a peer from routing table but didn't, peer=%s", servers[0].host.ID())
+	if _, err := WaitUntilPeerDisconnectsFrom(ctx2, servers[1], servers[0].host.ID()); err != nil {
+		t.Fatalf("server 1 should disconnect from server 0 but didn't")
+	}
+
+	if _, err := WaitUntilRoutingTableToBeFilled(ctx2, servers[1], 1); err != nil {
+		t.Fatalf("server 1 should save a peer in routing table but didn't")
 	}
 }
 

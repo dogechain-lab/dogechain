@@ -87,7 +87,7 @@ func (i *IdentityService) GetNotifyBundle() *network.NotifyBundle {
 			peerID := conn.RemotePeer()
 			i.logger.Debug("Conn", "peer", peerID, "direction", conn.Stat().Direction)
 
-			if i.hasPendingStatus(peerID) {
+			if i.HasPendingStatus(peerID) {
 				// handshake has already started
 				return
 			}
@@ -127,8 +127,8 @@ func (i *IdentityService) GetNotifyBundle() *network.NotifyBundle {
 	}
 }
 
-// hasPendingStatus checks if a peer is pending handshake [Thread safe]
-func (i *IdentityService) hasPendingStatus(id peer.ID) bool {
+// HasPendingStatus checks if a peer is pending handshake [Thread safe]
+func (i *IdentityService) HasPendingStatus(id peer.ID) bool {
 	_, ok := i.pendingPeerConnections.Load(id)
 
 	return ok
