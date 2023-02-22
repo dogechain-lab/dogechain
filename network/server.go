@@ -488,7 +488,7 @@ func (s *DefaultServer) keepAvailablePeerConnections() {
 				continue
 			}
 
-			if _, ok := s.peers[p]; !ok {
+			if !s.HasPeer(p) {
 				s.logger.Error("peer session not exist, disconnect peer", "peer", p)
 
 				s.DisconnectFromPeer(p, "bye")
