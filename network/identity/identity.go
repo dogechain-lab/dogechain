@@ -16,7 +16,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 )
 
-const PeerID = "peerID"
+const peerIDMetaString = "peerID"
 
 var (
 	ErrInvalidChainID   = errors.New("invalid chain ID")
@@ -85,23 +85,25 @@ func (i *IdentityService) GetNotifyBundle() *network.NotifyBundle {
 	return &network.NotifyBundle{
 		ConnectedF: func(net network.Network, conn network.Conn) {
 			peerID := conn.RemotePeer()
-			i.logger.Debug("Conn", "peer", peerID, "direction", conn.Stat().Direction)
+			direction := conn.Stat().Direction
+
+			i.logger.Debug("conn", "peer", peerID, "direction", direction)
 
 			if i.HasPendingStatus(peerID) {
 				// handshake has already started
 				return
 			}
 
-			if !i.baseServer.HasFreeConnectionSlot(conn.Stat().Direction) {
+			if !i.baseServer.HasFreeConnectionSlot(direction) {
 				i.disconnectFromPeer(peerID, ErrNoAvailableSlots.Error())
 
 				return
 			}
 
-			// Mark the peer as pending (pending handshake)
-			i.addPendingStatus(peerID, conn.Stat().Direction)
+			i.addPendingStatus(peerID, direction)
 
 			go func() {
+				// Mark the peer as pending (pending handshake)
 				connectEvent := &event.PeerEvent{
 					PeerID: peerID,
 					Type:   event.PeerDialCompleted,
@@ -114,8 +116,7 @@ func (i *IdentityService) GetNotifyBundle() *network.NotifyBundle {
 					connectEvent.Type = event.PeerFailedToConnect
 				}
 
-				// Mark the peer as no longer pending
-				i.removePendingStatus(connectEvent.PeerID)
+				i.removePendingStatus(peerID, direction)
 
 				// Emit an adequate event
 				i.baseServer.EmitEvent(&event.PeerEvent{
@@ -136,13 +137,8 @@ func (i *IdentityService) HasPendingStatus(id peer.ID) bool {
 
 // removePendingStatus removes the pending status from a peer,
 // and updates adequate counter information [Thread safe]
-func (i *IdentityService) removePendingStatus(peerID peer.ID) {
-	if value, loaded := i.pendingPeerConnections.LoadAndDelete(peerID); loaded {
-		direction, ok := value.(network.Direction)
-		if !ok {
-			return
-		}
-
+func (i *IdentityService) removePendingStatus(peerID peer.ID, direction network.Direction) {
+	if _, loaded := i.pendingPeerConnections.LoadAndDelete(peerID); loaded {
 		i.baseServer.UpdatePendingConnCount(-1, direction)
 	}
 }
@@ -199,7 +195,7 @@ func (i *IdentityService) handleConnected(peerID peer.ID, direction network.Dire
 		return ErrInvalidChainID
 	}
 
-	if selfPeerID == resp.Metadata[PeerID] {
+	if selfPeerID == resp.Metadata[peerIDMetaString] {
 		return ErrSelfConnection
 	}
 
@@ -213,7 +209,7 @@ func (i *IdentityService) handleConnected(peerID peer.ID, direction network.Dire
 func (i *IdentityService) Hello(_ context.Context, req *proto.Status) (*proto.Status, error) {
 	// The peerID is the other node's peerID
 	// as this method is invoking a call such as "Hello, <peerID>!"
-	peerID, err := peer.Decode(req.Metadata[PeerID])
+	peerID, err := peer.Decode(req.Metadata[peerIDMetaString])
 	if err != nil {
 		return nil, err
 	}
@@ -226,7 +222,7 @@ func (i *IdentityService) constructStatus(peerID peer.ID) *proto.Status {
 	// deprecated TemporaryDial
 	return &proto.Status{
 		Metadata: map[string]string{
-			PeerID: i.hostID.Pretty(),
+			peerIDMetaString: i.hostID.Pretty(),
 		},
 		Chain:         i.chainID,
 		TemporaryDial: false,

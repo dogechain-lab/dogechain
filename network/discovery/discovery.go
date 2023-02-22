@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math/rand"
+	"sync"
 	"time"
 
 	"github.com/dogechain-lab/dogechain/network/common"
@@ -87,6 +88,69 @@ type networkingServer interface {
 	PeerCount() int64
 }
 
+// peerAddreStore is a struct that contains the peer address information
+type peerAddreStore struct {
+	peerAddressLock sync.RWMutex               // protects the peerAddress map
+	peerAddress     map[peer.ID]*peer.AddrInfo // stores the peer address information
+}
+
+func (p *peerAddreStore) GetPeerInfo(peerID peer.ID) *peer.AddrInfo {
+	p.peerAddressLock.RLock()
+	defer p.peerAddressLock.RUnlock()
+
+	peerInfo, ok := p.peerAddress[peerID]
+	if !ok {
+		return nil
+	}
+
+	return peerInfo
+}
+
+func (p *peerAddreStore) AddToPeerStore(peerInfo *peer.AddrInfo) {
+	p.peerAddressLock.Lock()
+	defer p.peerAddressLock.Unlock()
+
+	p.peerAddress[peerInfo.ID] = peerInfo
+}
+
+func (p *peerAddreStore) RemoveFromPeerStore(peerID peer.ID) {
+	p.peerAddressLock.Lock()
+	defer p.peerAddressLock.Unlock()
+
+	delete(p.peerAddress, peerID)
+}
+
+func (p *peerAddreStore) Prune(routingTable *kb.RoutingTable) {
+	p.peerAddressLock.Lock()
+	defer p.peerAddressLock.Unlock()
+
+	// if the peer address store is less than twice the size of the routing table
+	// then there is no need to prune
+	if len(p.peerAddress) < (routingTable.Size() * 2) {
+		return
+	}
+
+	// create a new peer address store
+	// and copy over the peer address information
+	// if peer exist in the routing table
+	newPeerAddress := make(map[peer.ID]*peer.AddrInfo)
+	peers := routingTable.ListPeers()
+
+	for _, peerID := range peers {
+		if peerInfo, ok := p.peerAddress[peerID]; ok {
+			newPeerAddress[peerID] = peerInfo
+		}
+	}
+
+	p.peerAddress = newPeerAddress
+}
+
+func newPeerAddreStore() *peerAddreStore {
+	return &peerAddreStore{
+		peerAddress: make(map[peer.ID]*peer.AddrInfo),
+	}
+}
+
 // DiscoveryService is a service that finds other peers in the network
 // and connects them to the current running node
 type DiscoveryService struct {
@@ -95,6 +159,8 @@ type DiscoveryService struct {
 	baseServer   networkingServer // The interface towards the base networking server
 	logger       hclog.Logger     // The DiscoveryService logger
 	routingTable *kb.RoutingTable // Kademlia 'k-bucket' routing table that contains connected nodes info
+
+	peerAddress *peerAddreStore // stores the peer address information
 
 	ignoreCIDR ranger.Ranger // CIDR ranges to ignore when finding peers
 
@@ -116,6 +182,7 @@ func NewDiscoveryService(
 		baseServer:   server,
 		logger:       logger.Named("discovery"),
 		routingTable: routingTable,
+		peerAddress:  newPeerAddreStore(),
 		ignoreCIDR:   ignoreCIDR,
 		ctx:          ctx,
 		ctxCancel:    cancel,
@@ -142,6 +209,11 @@ func (d *DiscoveryService) RoutingTablePeers() []peer.ID {
 	return d.routingTable.ListPeers()
 }
 
+// GetPeerInfo fetches the peer information from the server's peer store
+func (d *DiscoveryService) GetPeerInfo(peerID peer.ID) *peer.AddrInfo {
+	return d.peerAddress.GetPeerInfo(peerID)
+}
+
 // HandleNetworkEvent handles base network events for the DiscoveryService
 func (d *DiscoveryService) HandleNetworkEvent(peerEvent *event.PeerEvent) {
 	// ignore event.PeerDisconnected and event.PeerFailedToConnect,
@@ -153,11 +225,21 @@ func (d *DiscoveryService) HandleNetworkEvent(peerEvent *event.PeerEvent) {
 	switch peerEvent.Type {
 	case event.PeerConnected:
 		// Add peer to the routing table and to our local peer table
-		_, err := d.routingTable.TryAddPeer(peerID, false, true)
+		isAdd, err := d.routingTable.TryAddPeer(peerID, false, true)
 		if err != nil {
 			d.logger.Error("failed to add peer to routing table", "err", err)
 
 			return
+		}
+
+		if isAdd {
+			peerInfo := d.baseServer.GetPeerInfo(peerID)
+			// re-add to peersotre, flush ttl
+			d.baseServer.AddToPeerStore(peerInfo)
+
+			// save peer address information
+			d.peerAddress.AddToPeerStore(peerInfo)
+			d.peerAddress.Prune(d.routingTable)
 		}
 	}
 }
@@ -187,23 +269,27 @@ func (d *DiscoveryService) addToTable(node *peer.AddrInfo) error {
 	// available to all the libp2p services
 	d.baseServer.AddToPeerStore(node)
 
-	if _, err := d.routingTable.TryAddPeer(
-		node.ID,
-		false,
-		true, // allow replacing existing peers
-	); err != nil {
+	isAdd, err := d.routingTable.TryAddPeer(node.ID, false, true) // allow replacing existing peers
+	if err != nil {
 		// Since the routing table addition failed,
 		// the peer can be removed from the libp2p peer store
 		// in the base networking server
 		d.baseServer.RemoveFromPeerStore(node.ID)
+		d.peerAddress.RemoveFromPeerStore(node.ID)
 
 		return err
+	}
+
+	if isAdd {
+		// save peer address information
+		d.peerAddress.AddToPeerStore(node)
 	}
 
 	return nil
 }
 
 func (d *DiscoveryService) RemovePeerFromRoutingTable(peerID peer.ID) {
+	d.peerAddress.RemoveFromPeerStore(peerID)
 	d.routingTable.RemovePeer(peerID)
 }
 
@@ -249,6 +335,7 @@ func (d *DiscoveryService) attemptToFindPeers(peerID peer.ID) error {
 
 	d.logger.Debug("Found new near peers", "peer", len(nodes))
 	d.addPeersToTable(nodes)
+	d.peerAddress.Prune(d.routingTable)
 
 	return err
 }

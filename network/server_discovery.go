@@ -84,11 +84,6 @@ func (s *DefaultServer) AddToPeerStore(peerInfo *peer.AddrInfo) {
 
 // RemoveFromPeerStore removes peer information from the node's peer store, ignoring static nodes and bootnodes
 func (s *DefaultServer) RemoveFromPeerStore(peerID peer.ID) {
-	// ignore static nodes and bootnodes, they are not removed from the peer store
-	if s.IsStaticPeer(peerID) || s.IsBootnode(peerID) {
-		return
-	}
-
 	s.host.Peerstore().RemovePeer(peerID)
 	s.host.Peerstore().ClearAddrs(peerID)
 }
@@ -102,8 +97,8 @@ func (s *DefaultServer) GetPeerInfo(peerID peer.ID) *peer.AddrInfo {
 
 // GetRandomPeer fetches a random peer from the peers list
 func (s *DefaultServer) GetRandomPeer() *peer.ID {
-	s.peersLock.Lock()
-	defer s.peersLock.Unlock()
+	s.peersLock.RLock()
+	defer s.peersLock.RUnlock()
 
 	if len(s.peers) < 1 {
 		return nil

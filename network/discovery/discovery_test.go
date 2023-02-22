@@ -55,6 +55,7 @@ func newDiscoveryService(
 		baseServer:   baseServer,
 		logger:       hclog.NewNullLogger(),
 		routingTable: routingTable,
+		peerAddress:  newPeerAddreStore(),
 		ctx:          ctx,
 		ctxCancel:    cancel,
 	}, nil

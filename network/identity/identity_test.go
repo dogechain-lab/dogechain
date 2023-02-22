@@ -102,7 +102,7 @@ func TestHandshake_Errors(t *testing.T) {
 				return &proto.Status{
 					Chain: responderChainID,
 					Metadata: map[string]string{
-						PeerID: "TestPeer1",
+						peerIDMetaString: "TestPeer1",
 					},
 					TemporaryDial: false,
 				}, nil

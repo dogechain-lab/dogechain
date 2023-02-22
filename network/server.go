@@ -314,14 +314,15 @@ func (s *DefaultServer) Start() error {
 	}
 
 	go s.runDial()
-	go s.keepAvailablePeerConnections()
 	go s.keepAliveStaticPeerConnections()
+	go s.keepAvailablePeerConnections()
 
 	// watch for disconnected peers
 	s.host.Network().Notify(&network.NotifyBundle{
 		DisconnectedF: func(net network.Network, conn network.Conn) {
+			s.logger.Info("peer disconnected, remove peer connect info", "id", conn.RemotePeer())
 			// Update the local connection metrics
-			s.removePeer(conn.RemotePeer(), conn.Stat().Direction)
+			s.removePeerConnect(conn.RemotePeer(), conn.Stat().Direction)
 		},
 	})
 
@@ -353,6 +354,7 @@ func (s *DefaultServer) setupStaticnodes() error {
 		}
 
 		s.staticnodes.addStaticnode(staticnode)
+		s.AddToPeerStore(staticnode)
 		s.markStaticPeer(staticnode)
 	}
 
@@ -459,7 +461,8 @@ func (s *DefaultServer) keepAvailablePeerConnections() {
 	s.closeWg.Add(1)
 	defer s.closeWg.Done()
 
-	delay := time.NewTimer(DefaultKeepAliveTimer)
+	// start with a delay to wait the node to connect to the bootnodes
+	delay := time.NewTimer(DefaultDialTimeout * 2)
 	defer delay.Stop()
 
 	selfID := s.host.ID()
@@ -496,9 +499,11 @@ func (s *DefaultServer) keepAvailablePeerConnections() {
 		}
 
 		// check libp2p connections
-		if len(s.peers) > 0 {
+		if len(s.peers) >= int(s.connectionCounts.maxInboundConnCount()+s.connectionCounts.maxOutboundConnCount()) {
 			s.logger.Debug("service ready connections", "count", len(s.peers))
 			s.peersLock.RUnlock()
+
+			delay.Reset(DefaultKeepAliveTimer * 6) // wait 1 minute before trying again
 
 			continue
 		}
@@ -516,22 +521,31 @@ func (s *DefaultServer) keepAvailablePeerConnections() {
 		s.logger.Debug("attempting to connect to random peer")
 
 		// shuffle peers
-		perm := rand.Perm(len(routTablePeers))
+		rand.Shuffle(
+			len(routTablePeers),
+			func(i, j int) {
+				routTablePeers[i], routTablePeers[j] = routTablePeers[j], routTablePeers[i]
+			})
+
 		isDial := false
 
-		for _, v := range perm {
-			randPeer := &routTablePeers[v]
+		for _, randPeer := range routTablePeers {
 			/// dial unconnected peer
-			if randPeer != nil &&
-				selfID != *randPeer &&
-				!s.bootnodes.isBootnode(*randPeer) &&
-				!s.HasPeer(*randPeer) {
-				s.logger.Debug("dialing random peer", "peer", *randPeer)
-				s.addToDialQueue(s.GetPeerInfo(*randPeer), common.PriorityRandomDial)
+			if s.connectionCounts.HasFreeOutboundConn() &&
+				selfID != randPeer &&
+				!s.identity.HasPendingStatus(randPeer) &&
+				!s.bootnodes.isBootnode(randPeer) &&
+				!s.HasPeer(randPeer) {
+				s.logger.Debug("dialing random peer", "peer", randPeer)
+				// use discovery service save
+				peerInfo := s.discovery.GetPeerInfo(randPeer)
+				if peerInfo != nil {
+					s.addToDialQueue(s.discovery.GetPeerInfo(randPeer), common.PriorityRandomDial)
 
-				isDial = true
+					isDial = true
 
-				break
+					break
+				}
 			}
 		}
 
@@ -603,7 +617,7 @@ func (s *DefaultServer) runDial() {
 
 			peerInfo := tt.GetAddrInfo()
 
-			s.logger.Debug(fmt.Sprintf("Dialing peer [%s] as local [%s]", peerInfo.String(), s.host.ID()))
+			s.logger.Debug(fmt.Sprintf("dialing peer [%s] as local [%s]", peerInfo.String(), s.host.ID()))
 
 			// Attempt to connect to the peer
 			func() {
@@ -633,6 +647,8 @@ func (s *DefaultServer) Connect(ctx context.Context, peerInfo peer.AddrInfo) err
 			s.logger.Debug("failed to dial", "addr", peerInfo.String(), "err", err.Error())
 
 			s.emitEvent(peerInfo.ID, peerEvent.PeerFailedToConnect)
+
+			return err
 		}
 	}
 
@@ -686,20 +702,14 @@ func (s *DefaultServer) GetProtocols(peerID peer.ID) ([]string, error) {
 	return s.host.Peerstore().GetProtocols(peerID)
 }
 
-// removePeer removes a peer from the networking server's peer list,
+// removePeerConnect removes a peer from the networking server's peer list,
 // and updates relevant counters and metrics. It only called from the
 // disconnection callback of the libp2p network bundle (when the connection is closed)
-func (s *DefaultServer) removePeer(peerID peer.ID, direction network.Direction) {
+func (s *DefaultServer) removePeerConnect(peerID peer.ID, direction network.Direction) {
 	s.peersLock.Lock()
 	defer s.peersLock.Unlock()
 
-	s.logger.Info("remove peer", "id", peerID.String())
-
-	if s.IsStaticPeer(peerID) {
-		s.logger.Info("peer is static node, ignore", "id", peerID.String())
-
-		return
-	}
+	s.logger.Info("peer remove", "id", peerID.String())
 
 	// Remove the peer from the peers map
 	connectionInfo, ok := s.peers[peerID]
@@ -709,15 +719,16 @@ func (s *DefaultServer) removePeer(peerID peer.ID, direction network.Direction) 
 			fmt.Sprintf("Attempted removing missing peer info %s", peerID),
 		)
 
+		// NOTO: Remove the peer from the peer store,
+		// if not removed, host.Network().Notify never triggered
+		s.RemoveFromPeerStore(peerID)
+
 		return
 	}
 
 	// Update connection counters
-	_, active := connectionInfo.connDirections[direction]
-	if active {
-		s.connectionCounts.UpdateConnCountByDirection(-1, direction)
-		s.updateConnCountMetrics(direction)
-	}
+	s.connectionCounts.UpdateConnCountByDirection(-1, direction)
+	s.updateConnCountMetrics(direction)
 
 	connects := s.host.Network().ConnsToPeer(peerID)
 	if len(connects) == 0 {
@@ -731,6 +742,10 @@ func (s *DefaultServer) removePeer(peerID peer.ID, direction network.Direction) 
 				}
 			}
 		}
+
+		// NOTO: Remove the peer from the peer store,
+		// if not removed, host.Network().Notify never triggered
+		s.RemoveFromPeerStore(peerID)
 
 		// Emit the event alerting listeners
 		s.emitEvent(peerID, peerEvent.PeerDisconnected)
@@ -767,22 +782,24 @@ func (s *DefaultServer) ForgetPeer(peer peer.ID, reason string) {
 }
 
 // DisconnectFromPeer disconnects the networking server from the specified peer
-func (s *DefaultServer) DisconnectFromPeer(peer peer.ID, reason string) {
-	if s.IsStaticPeer(peer) && s.HasPeer(peer) {
+func (s *DefaultServer) DisconnectFromPeer(peerID peer.ID, reason string) {
+	if s.IsStaticPeer(peerID) && s.HasPeer(peerID) {
 		return
 	}
 
-	s.logger.Info("closing connection to peer", "id", peer, "reason", reason)
+	s.logger.Info("closing connection to peer", "id", peerID, "reason", reason)
 
 	// Remove the peer from the dial queue
-	s.dialQueue.DeleteTask(peer)
+	s.dialQueue.DeleteTask(peerID)
 
 	// Close the peer connection
-	if closeErr := s.host.Network().ClosePeer(peer); closeErr != nil {
+	if closeErr := s.host.Network().ClosePeer(peerID); closeErr != nil {
 		s.logger.Error("unable to gracefully close peer connection", "err", closeErr)
 	}
 
-	s.RemoveFromPeerStore(peer)
+	// NOTO: Remove the peer from the peer store,
+	// if not removed, host.Network().Notify never triggered
+	s.RemoveFromPeerStore(peerID)
 }
 
 var (
@@ -826,7 +843,6 @@ func (s *DefaultServer) JoinPeer(rawPeerMultiaddr string, static bool) error {
 func (s *DefaultServer) markStaticPeer(peerInfo *peer.AddrInfo) {
 	s.logger.Info("Marking peer as static", "peer", peerInfo.ID)
 
-	s.AddToPeerStore(peerInfo)
 	s.host.ConnManager().TagPeer(peerInfo.ID, "staticnode", 1000)
 	s.host.ConnManager().Protect(peerInfo.ID, "staticnode")
 }

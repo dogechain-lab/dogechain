@@ -1072,7 +1072,7 @@ func TestPeerAdditionDeletion(t *testing.T) {
 			peerInfo, ok := server.peers[randomPeers[i].peerID]
 			if ok {
 				for direction := range peerInfo.connDirections {
-					server.removePeer(randomPeers[i].peerID, direction)
+					server.removePeerConnect(randomPeers[i].peerID, direction)
 				}
 			}
 
