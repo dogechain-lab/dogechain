@@ -510,6 +510,10 @@ func (s *DefaultServer) keepAvailablePeerConnections() {
 
 		s.peersLock.RUnlock()
 
+		if !s.connectionCounts.HasFreeOutboundConn() {
+			continue
+		}
+
 		// get routingTable peers
 		routTablePeers := s.discovery.RoutingTablePeers()
 		if len(routTablePeers) == 0 {
@@ -528,11 +532,11 @@ func (s *DefaultServer) keepAvailablePeerConnections() {
 			})
 
 		isDial := false
+		dialCount := 0
 
 		for _, randPeer := range routTablePeers {
 			/// dial unconnected peer
-			if s.connectionCounts.HasFreeOutboundConn() &&
-				selfID != randPeer &&
+			if selfID != randPeer &&
 				!s.identity.HasPendingStatus(randPeer) &&
 				!s.bootnodes.isBootnode(randPeer) &&
 				!s.HasPeer(randPeer) {
@@ -543,7 +547,10 @@ func (s *DefaultServer) keepAvailablePeerConnections() {
 					s.addToDialQueue(s.discovery.GetPeerInfo(randPeer), common.PriorityRandomDial)
 
 					isDial = true
+					dialCount++
+				}
 
+				if dialCount >= 5 {
 					break
 				}
 			}
