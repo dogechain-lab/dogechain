@@ -490,15 +490,19 @@ func (s *DefaultServer) keepAvailablePeerConnections() {
 		peers := s.host.Network().Peers()
 		s.logger.Debug("service ready connections", "count", len(peers))
 
-		for _, p := range peers {
-			if p == selfID || s.identity.HasPendingStatus(p) {
+		for _, peerID := range peers {
+			if peerID == selfID || s.identity.HasPendingStatus(peerID) {
 				continue
 			}
 
-			if !s.HasPeer(p) {
-				s.logger.Error("peer session not exist, disconnect peer", "peer", p)
+			if !s.HasPeer(peerID) {
+				s.logger.Error("peer session not exist, disconnect peer", "peer", "bye")
 
-				s.DisconnectFromPeer(p, "bye")
+				if closeErr := s.host.Network().ClosePeer(peerID); closeErr != nil {
+					s.logger.Error("unable to gracefully close peer connection", "err", closeErr)
+				}
+
+				s.RemoveFromPeerStore(peerID)
 			}
 		}
 
