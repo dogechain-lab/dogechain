@@ -14,6 +14,7 @@ import (
 	"github.com/libp2p/go-libp2p-kbucket/keyspace"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/peerstore"
 )
 
 // NewIdentityClient returns a new identity service client connection
@@ -67,6 +68,9 @@ func (s *DefaultServer) addPeerInfo(id peer.ID, direction network.Direction) boo
 			connDirections: make(map[network.Direction]bool),
 			protocolClient: make(map[string]wrappers.GrpcClientWrapper),
 		}
+
+		// update ttl
+		s.host.Peerstore().UpdateAddrs(id, peerstore.TempAddrTTL, peerstore.PermanentAddrTTL)
 	}
 
 	// Save the connection info to the networking server

@@ -466,6 +466,8 @@ func (s *DefaultServer) keepAvailablePeerConnections() {
 	defer delay.Stop()
 
 	selfID := s.host.ID()
+	maxPeers := int(s.connectionCounts.maxInboundConnCount() + s.connectionCounts.maxOutboundConnCount())
+	batchDialPeers := (int(s.connectionCounts.maxOutboundConnCount()) / 4) + 1 // 25% of max outbound peers
 
 	for {
 		select {
@@ -486,6 +488,8 @@ func (s *DefaultServer) keepAvailablePeerConnections() {
 		s.peersLock.RLock()
 
 		peers := s.host.Network().Peers()
+		s.logger.Debug("service ready connections", "count", len(peers))
+
 		for _, p := range peers {
 			if p == selfID || s.identity.HasPendingStatus(p) {
 				continue
@@ -499,8 +503,7 @@ func (s *DefaultServer) keepAvailablePeerConnections() {
 		}
 
 		// check libp2p connections
-		if len(s.peers) >= int(s.connectionCounts.maxInboundConnCount()+s.connectionCounts.maxOutboundConnCount()) {
-			s.logger.Debug("service ready connections", "count", len(s.peers))
+		if len(peers) >= maxPeers {
 			s.peersLock.RUnlock()
 
 			delay.Reset(DefaultKeepAliveTimer * 6) // wait 1 minute before trying again
@@ -540,17 +543,19 @@ func (s *DefaultServer) keepAvailablePeerConnections() {
 				!s.identity.HasPendingStatus(randPeer) &&
 				!s.bootnodes.isBootnode(randPeer) &&
 				!s.HasPeer(randPeer) {
-				s.logger.Debug("dialing random peer", "peer", randPeer)
 				// use discovery service save
 				peerInfo := s.discovery.GetPeerInfo(randPeer)
 				if peerInfo != nil {
+					s.logger.Debug("dialing random peer", "peer", peerInfo)
 					s.addToDialQueue(s.discovery.GetPeerInfo(randPeer), common.PriorityRandomDial)
 
 					isDial = true
 					dialCount++
+				} else {
+					s.logger.Error("peer not found in discovery service", "peer", randPeer)
 				}
 
-				if dialCount >= 5 {
+				if dialCount >= batchDialPeers {
 					break
 				}
 			}
@@ -560,7 +565,7 @@ func (s *DefaultServer) keepAvailablePeerConnections() {
 			continue
 		}
 
-		s.logger.Info("all peers are connected, no random peer to dial")
+		s.logger.Info("all peers add to dial queue, no random peer to dial")
 
 		// if we get here, all peers are connected, so we can sleep for a longer
 		delay.Reset(DefaultKeepAliveTimer * 3)

@@ -113,13 +113,6 @@ func (p *peerAddreStore) AddToPeerStore(peerInfo *peer.AddrInfo) {
 	p.peerAddress[peerInfo.ID] = peerInfo
 }
 
-func (p *peerAddreStore) RemoveFromPeerStore(peerID peer.ID) {
-	p.peerAddressLock.Lock()
-	defer p.peerAddressLock.Unlock()
-
-	delete(p.peerAddress, peerID)
-}
-
 func (p *peerAddreStore) Prune(routingTable *kb.RoutingTable) {
 	p.peerAddressLock.Lock()
 	defer p.peerAddressLock.Unlock()
@@ -225,22 +218,17 @@ func (d *DiscoveryService) HandleNetworkEvent(peerEvent *event.PeerEvent) {
 	switch peerEvent.Type {
 	case event.PeerConnected:
 		// Add peer to the routing table and to our local peer table
-		isAdd, err := d.routingTable.TryAddPeer(peerID, false, true)
+		_, err := d.routingTable.TryAddPeer(peerID, false, true)
 		if err != nil {
 			d.logger.Error("failed to add peer to routing table", "err", err)
 
 			return
 		}
 
-		if isAdd {
-			peerInfo := d.baseServer.GetPeerInfo(peerID)
-			// re-add to peersotre, flush ttl
-			d.baseServer.AddToPeerStore(peerInfo)
-
-			// save peer address information
-			d.peerAddress.AddToPeerStore(peerInfo)
-			d.peerAddress.Prune(d.routingTable)
-		}
+		peerInfo := d.baseServer.GetPeerInfo(peerID)
+		// save peer address information
+		d.peerAddress.AddToPeerStore(peerInfo)
+		d.peerAddress.Prune(d.routingTable)
 	}
 }
 
@@ -269,27 +257,20 @@ func (d *DiscoveryService) addToTable(node *peer.AddrInfo) error {
 	// available to all the libp2p services
 	d.baseServer.AddToPeerStore(node)
 
-	isAdd, err := d.routingTable.TryAddPeer(node.ID, false, true) // allow replacing existing peers
+	_, err := d.routingTable.TryAddPeer(node.ID, false, true) // allow replacing existing peers
 	if err != nil {
 		// Since the routing table addition failed,
 		// the peer can be removed from the libp2p peer store
 		// in the base networking server
 		d.baseServer.RemoveFromPeerStore(node.ID)
-		d.peerAddress.RemoveFromPeerStore(node.ID)
 
 		return err
-	}
-
-	if isAdd {
-		// save peer address information
-		d.peerAddress.AddToPeerStore(node)
 	}
 
 	return nil
 }
 
 func (d *DiscoveryService) RemovePeerFromRoutingTable(peerID peer.ID) {
-	d.peerAddress.RemoveFromPeerStore(peerID)
 	d.routingTable.RemovePeer(peerID)
 }
 

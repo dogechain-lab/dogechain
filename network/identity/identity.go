@@ -161,6 +161,8 @@ func (i *IdentityService) handleConnected(peerID peer.ID, direction network.Dire
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 
+	i.logger.Debug("handling new connection", "peer", peerID, "direction", direction)
+
 	// don't save this grpc client object
 	// this is a one time use stream
 	clt, clientErr := i.baseServer.NewIdentityClient(peerID)
