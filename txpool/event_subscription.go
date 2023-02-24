@@ -6,6 +6,8 @@ import (
 
 type subscriptionID int32
 
+// eventSubscription is a subscription to a set of events
+// TODO: Perhaps a generic subscription system could be used instead?
 type eventSubscription struct {
 	// eventTypes is the list of subscribed event types
 	eventTypes []proto.EventType
@@ -37,9 +39,9 @@ func (es *eventSubscription) eventSupported(eventType proto.EventType) bool {
 
 // close stops the event subscription
 func (es *eventSubscription) close() {
+	// don't close the outputCh and notifyCh channel
+	// may appear `panic: send on closed channel`
 	close(es.doneCh)
-	close(es.outputCh)
-	close(es.notifyCh)
 }
 
 // runLoop is the main loop that listens for notifications and handles the event / close signals
