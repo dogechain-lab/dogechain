@@ -39,9 +39,10 @@ func (es *eventSubscription) eventSupported(eventType proto.EventType) bool {
 
 // close stops the event subscription
 func (es *eventSubscription) close() {
-	// don't close the outputCh and notifyCh channel
+	// don't close the notifyCh channel
 	// may appear `panic: send on closed channel`
 	close(es.doneCh)
+	close(es.outputCh)
 }
 
 // runLoop is the main loop that listens for notifications and handles the event / close signals
