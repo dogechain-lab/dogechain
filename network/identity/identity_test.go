@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	cmap "github.com/dogechain-lab/dogechain/helper/concurrentmap"
 	"github.com/dogechain-lab/dogechain/network/proto"
 	networkTesting "github.com/dogechain-lab/dogechain/network/testing"
 	"github.com/hashicorp/go-hclog"
@@ -27,7 +26,7 @@ func newIdentityService(
 	return &IdentityService{
 		baseServer:             baseServer,
 		logger:                 hclog.NewNullLogger(),
-		pendingPeerConnections: cmap.NewConcurrentMap(),
+		pendingPeerConnections: make(map[peer.ID]struct{}),
 	}
 }
 

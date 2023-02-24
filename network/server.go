@@ -232,6 +232,37 @@ type PeerConnInfo struct {
 	protocolClient map[string]wrappers.GrpcClientWrapper
 }
 
+// addConnDirection adds a connection direction
+func (pci *PeerConnInfo) addConnDirection(direction network.Direction) {
+	pci.connDirections[direction] = true
+}
+
+// removeConnDirection adds a connection direction
+func (pci *PeerConnInfo) removeConnDirection(direction network.Direction) {
+	pci.connDirections[direction] = false
+}
+
+// getConnDirection returns the connection direction
+func (pci *PeerConnInfo) getConnDirection(direction network.Direction) bool {
+	exist, ok := pci.connDirections[direction]
+	if !ok {
+		return false
+	}
+
+	return exist
+}
+
+func (pci *PeerConnInfo) noConnectionAvailable() bool {
+	// if all directions are false, return false
+	for _, v := range pci.connDirections {
+		if v {
+			return false
+		}
+	}
+
+	return true
+}
+
 // addProtocolClient adds a protocol stream
 func (pci *PeerConnInfo) addProtocolClient(protocol string, stream wrappers.GrpcClientWrapper) {
 	pci.protocolClient[protocol] = stream
@@ -465,9 +496,12 @@ func (s *DefaultServer) keepAvailablePeerConnections() {
 	delay := time.NewTimer(DefaultDialTimeout * 2)
 	defer delay.Stop()
 
+	//#nosec G404
+	randIns := rand.New(rand.NewSource(time.Now().UnixNano()))
 	selfID := s.host.ID()
 	maxPeers := int(s.connectionCounts.maxInboundConnCount() + s.connectionCounts.maxOutboundConnCount())
 	batchDialPeers := (int(s.connectionCounts.maxOutboundConnCount()) / 4) + 1 // 25% of max outbound peers
+	pendingConnectMark := make(map[peer.ID]struct{})
 
 	for {
 		select {
@@ -485,26 +519,67 @@ func (s *DefaultServer) keepAvailablePeerConnections() {
 			continue
 		}
 
+		// use a waitgroup avoid disconnect deadlock
+		var waitingPeersDiscovered sync.WaitGroup
+
+		disconnectFlag := false
+
+		waitingPeersDiscovered.Add(1)
 		s.peersLock.RLock()
 
 		peers := s.host.Network().Peers()
-		s.logger.Debug("service ready connections", "count", len(peers))
+		s.logger.Debug("ready connections", "count", len(peers))
 
 		for _, peerID := range peers {
-			if peerID == selfID || s.identity.HasPendingStatus(peerID) {
+			if peerID == selfID {
 				continue
 			}
 
-			if !s.HasPeer(peerID) {
+			// check and mark if peer has pending status
+			if s.identity.HasPendingStatus(peerID) {
+				if _, ok := pendingConnectMark[peerID]; !ok {
+					s.logger.Debug("peer has pending status", "peer", peerID)
+
+					pendingConnectMark[peerID] = struct{}{}
+
+					continue
+				}
+			} else {
+				// clear pending connect mark
+				delete(pendingConnectMark, peerID)
+			}
+
+			_, isMark := pendingConnectMark[peerID]
+			if !s.HasPeer(peerID) || isMark {
 				s.logger.Error("peer session not exist, disconnect peer", "peer", "bye")
 
-				if closeErr := s.host.Network().ClosePeer(peerID); closeErr != nil {
-					s.logger.Error("unable to gracefully close peer connection", "err", closeErr)
-				}
+				disconnectFlag = true
 
-				s.RemoveFromPeerStore(peerID)
+				// disconnect peer, but peersLock is locked, so use goroutine
+				waitingPeersDiscovered.Add(1)
+
+				go func() {
+					defer waitingPeersDiscovered.Done()
+					s.DisconnectFromPeer(peerID, "bye")
+				}()
+			}
+
+			if isMark {
+				// clear pending connect mark
+				delete(pendingConnectMark, peerID)
 			}
 		}
+
+		// clear pending connect mark, remove not exist peers
+		copyMark := make(map[peer.ID]struct{})
+
+		for _, peerID := range peers {
+			if _, ok := pendingConnectMark[peerID]; ok {
+				copyMark[peerID] = struct{}{}
+			}
+		}
+
+		pendingConnectMark = copyMark
 
 		// check libp2p connections
 		if len(peers) >= maxPeers {
@@ -517,7 +592,12 @@ func (s *DefaultServer) keepAvailablePeerConnections() {
 
 		s.peersLock.RUnlock()
 
-		if !s.connectionCounts.HasFreeOutboundConn() {
+		// wait peer disconnect finish
+		waitingPeersDiscovered.Done()
+		waitingPeersDiscovered.Wait()
+
+		// if not free outbound connection or disconnect peer, wait next loop
+		if !s.connectionCounts.HasFreeOutboundConn() || disconnectFlag {
 			continue
 		}
 
@@ -532,7 +612,7 @@ func (s *DefaultServer) keepAvailablePeerConnections() {
 		s.logger.Debug("attempting to connect to random peer")
 
 		// shuffle peers
-		rand.Shuffle(
+		randIns.Shuffle(
 			len(routTablePeers),
 			func(i, j int) {
 				routTablePeers[i], routTablePeers[j] = routTablePeers[j], routTablePeers[i]
@@ -746,8 +826,9 @@ func (s *DefaultServer) removePeerConnect(peerID peer.ID, direction network.Dire
 	s.connectionCounts.UpdateConnCountByDirection(-1, direction)
 	s.updateConnCountMetrics(direction)
 
-	connects := s.host.Network().ConnsToPeer(peerID)
-	if len(connects) == 0 {
+	connectionInfo.removeConnDirection(direction)
+
+	if connectionInfo.noConnectionAvailable() {
 		// No more connections to the peer, remove it from the peers map
 		delete(s.peers, peerID)
 
@@ -765,11 +846,6 @@ func (s *DefaultServer) removePeerConnect(peerID peer.ID, direction network.Dire
 
 		// Emit the event alerting listeners
 		s.emitEvent(peerID, peerEvent.PeerDisconnected)
-	} else {
-		// sync the connection direction
-		for _, conn := range connects {
-			connectionInfo.connDirections[conn.Stat().Direction] = true
-		}
 	}
 
 	s.metrics.SetTotalPeerCount(
@@ -925,12 +1001,16 @@ func (s *DefaultServer) NewProtoConnection(protocol string, peerID peer.ID) (*ra
 		return nil, err
 	}
 
-	// TODO: all connection use context background, need to be fixed
+	// don't need context.WithTimeout, rpc client is fake
 	return p.Client(context.Background(), stream), nil
 }
 
 func (s *DefaultServer) NewStream(proto string, id peer.ID) (network.Stream, error) {
-	return s.host.NewStream(context.Background(), id, protocol.ID(proto))
+	// NewStream is a blocking call, so we need to wrap it in a timeout
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultDialTimeout)
+	defer cancel()
+
+	return s.host.NewStream(ctx, id, protocol.ID(proto))
 }
 
 // GetProtoClient returns an active protocol client if present, otherwise

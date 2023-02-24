@@ -215,8 +215,9 @@ func (d *DiscoveryService) HandleNetworkEvent(peerEvent *event.PeerEvent) {
 	// if bootnode disconnects and shutdown, can use this reconnect to network
 	peerID := peerEvent.PeerID
 
+	// identity service trigger PeerDialCompleted event
 	switch peerEvent.Type {
-	case event.PeerConnected:
+	case event.PeerDialCompleted:
 		// Add peer to the routing table and to our local peer table
 		_, err := d.routingTable.TryAddPeer(peerID, false, true)
 		if err != nil {

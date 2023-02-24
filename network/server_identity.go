@@ -54,7 +54,7 @@ func (s *DefaultServer) addPeerInfo(id peer.ID, direction network.Direction) boo
 	defer s.peersLock.Unlock()
 
 	connectionInfo, connectionExists := s.peers[id]
-	if connectionExists && connectionInfo.connDirections[direction] {
+	if connectionExists && connectionInfo.getConnDirection(direction) {
 		// Check if this peer already has an active connection status (saved info).
 		// There is no need to do further processing
 		return true
@@ -74,7 +74,7 @@ func (s *DefaultServer) addPeerInfo(id peer.ID, direction network.Direction) boo
 	}
 
 	// Save the connection info to the networking server
-	connectionInfo.connDirections[direction] = true
+	connectionInfo.addConnDirection(direction)
 
 	s.peers[id] = connectionInfo
 
