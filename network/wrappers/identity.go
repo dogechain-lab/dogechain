@@ -25,7 +25,7 @@ type identityClient struct {
 }
 
 func (i *identityClient) Hello(ctx context.Context, in *proto.Status) (*proto.Status, error) {
-	return i.clt.Hello(ctx, in)
+	return i.clt.Hello(ctx, in, rawGrpc.WaitForReady(false))
 }
 
 func (i *identityClient) Close() error {

@@ -89,7 +89,7 @@ func (i *IdentityService) GetNotifyBundle() *network.NotifyBundle {
 			peerID := conn.RemotePeer()
 			direction := conn.Stat().Direction
 
-			i.logger.Debug("conn", "peer", peerID, "direction", direction)
+			i.logger.Debug("new conn", "peer", peerID, "direction", direction)
 
 			if i.HasPendingStatus(peerID) {
 				// handshake has already started
@@ -117,16 +117,18 @@ func (i *IdentityService) GetNotifyBundle() *network.NotifyBundle {
 			i.addPendingStatus(peerID, direction)
 
 			go func() {
-				// Mark the peer as pending (pending handshake)
 				connectEvent := &event.PeerEvent{
 					PeerID: peerID,
 					Type:   event.PeerDialCompleted,
 				}
 
 				if err := i.handleConnected(peerID, conn.Stat().Direction); err != nil {
+					i.logger.Debug("identity check failed, disconnect peer", "peer", peerID)
+
 					// Close the connection to the peer
 					i.disconnectFromPeer(peerID, err.Error())
 
+					i.logger.Debug("send PeerFailedToConnect event", "peer", peerID)
 					connectEvent.Type = event.PeerFailedToConnect
 				}
 
@@ -207,6 +209,8 @@ func (i *IdentityService) handleConnected(peerID peer.ID, direction network.Dire
 	// Initiate the handshake
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
+
+	i.logger.Debug("send hello", "peer", peerID)
 
 	resp, err := clt.Hello(ctx, status)
 	if err != nil {

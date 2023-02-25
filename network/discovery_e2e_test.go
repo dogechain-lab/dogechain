@@ -75,8 +75,8 @@ func TestRoutingTable_Connected(t *testing.T) {
 		t.Fatalf("server 1 should add a peer to routing table but didn't, peer=%s", servers[0].host.ID())
 	}
 
-	assert.Contains(t, servers[0].discovery.RoutingTablePeers(), servers[1].AddrInfo().ID)
-	assert.Contains(t, servers[1].discovery.RoutingTablePeers(), servers[0].AddrInfo().ID)
+	assert.Contains(t, servers[0].discovery.GetConfirmPeers(), servers[1].AddrInfo().ID)
+	assert.Contains(t, servers[1].discovery.GetConfirmPeers(), servers[0].AddrInfo().ID)
 }
 
 func TestRoutingTable_Disconnected(t *testing.T) {

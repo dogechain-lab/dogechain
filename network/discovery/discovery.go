@@ -106,6 +106,18 @@ func (p *peerAddreStore) GetPeerInfo(peerID peer.ID) *peer.AddrInfo {
 	return peerInfo
 }
 
+func (p *peerAddreStore) GetPeers() []peer.ID {
+	p.peerAddressLock.RLock()
+	defer p.peerAddressLock.RUnlock()
+
+	peers := make([]peer.ID, 0, len(p.peerAddress))
+	for peerID := range p.peerAddress {
+		peers = append(peers, peerID)
+	}
+
+	return peers
+}
+
 func (p *peerAddreStore) AddToPeerStore(peerInfo *peer.AddrInfo) {
 	p.peerAddressLock.Lock()
 	defer p.peerAddressLock.Unlock()
@@ -197,13 +209,13 @@ func (d *DiscoveryService) RoutingTableSize() int {
 	return d.routingTable.Size()
 }
 
-// RoutingTablePeers fetches the peers from the routing table
-func (d *DiscoveryService) RoutingTablePeers() []peer.ID {
-	return d.routingTable.ListPeers()
+// GetConfirmPeers fetches the peers (pass identity check)
+func (d *DiscoveryService) GetConfirmPeers() []peer.ID {
+	return d.peerAddress.GetPeers()
 }
 
-// GetPeerInfo fetches the peer information from the server's peer store
-func (d *DiscoveryService) GetPeerInfo(peerID peer.ID) *peer.AddrInfo {
+// GetConfirmPeerInfo fetches the peer information (pass identity check)
+func (d *DiscoveryService) GetConfirmPeerInfo(peerID peer.ID) *peer.AddrInfo {
 	return d.peerAddress.GetPeerInfo(peerID)
 }
 
@@ -230,6 +242,9 @@ func (d *DiscoveryService) HandleNetworkEvent(peerEvent *event.PeerEvent) {
 		// save peer address information
 		d.peerAddress.AddToPeerStore(peerInfo)
 		d.peerAddress.Prune(d.routingTable)
+
+		// update last use time
+		d.routingTable.UpdateLastUsefulAt(peerID, time.Now())
 	}
 }
 
@@ -315,9 +330,7 @@ func (d *DiscoveryService) attemptToFindPeers(peerID peer.ID) error {
 	d.logger.Debug("Querying a peer for near peers", "peer", peerID)
 	nodes, err := d.findPeersCall(peerID)
 
-	d.logger.Debug("Found new near peers", "peer", len(nodes))
 	d.addPeersToTable(nodes)
-	d.peerAddress.Prune(d.routingTable)
 
 	return err
 }
@@ -381,6 +394,9 @@ func (d *DiscoveryService) findPeersCall(
 	if err != nil {
 		return nil, err
 	}
+
+	// update last use time
+	d.routingTable.UpdateLastUsefulAt(peerID, time.Now())
 
 	var filterNode []string
 

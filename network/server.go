@@ -524,9 +524,6 @@ func (s *DefaultServer) keepAvailablePeerConnections() {
 
 		disconnectFlag := false
 
-		waitingPeersDiscovered.Add(1)
-		s.peersLock.RLock()
-
 		peers := s.host.Network().Peers()
 		s.logger.Debug("ready connections", "count", len(peers))
 
@@ -570,6 +567,11 @@ func (s *DefaultServer) keepAvailablePeerConnections() {
 			}
 		}
 
+		if disconnectFlag {
+			// wait peer disconnect finish
+			waitingPeersDiscovered.Wait()
+		}
+
 		// clear pending connect mark, remove not exist peers
 		copyMark := make(map[peer.ID]struct{})
 
@@ -583,18 +585,10 @@ func (s *DefaultServer) keepAvailablePeerConnections() {
 
 		// check libp2p connections
 		if len(peers) >= maxPeers {
-			s.peersLock.RUnlock()
-
 			delay.Reset(DefaultKeepAliveTimer * 6) // wait 1 minute before trying again
 
 			continue
 		}
-
-		s.peersLock.RUnlock()
-
-		// wait peer disconnect finish
-		waitingPeersDiscovered.Done()
-		waitingPeersDiscovered.Wait()
 
 		// if not free outbound connection or disconnect peer, wait next loop
 		if !s.connectionCounts.HasFreeOutboundConn() || disconnectFlag {
@@ -602,7 +596,7 @@ func (s *DefaultServer) keepAvailablePeerConnections() {
 		}
 
 		// get routingTable peers
-		routTablePeers := s.discovery.RoutingTablePeers()
+		routTablePeers := s.discovery.GetConfirmPeers()
 		if len(routTablePeers) == 0 {
 			s.logger.Error("no peers found")
 
@@ -628,10 +622,10 @@ func (s *DefaultServer) keepAvailablePeerConnections() {
 				!s.bootnodes.isBootnode(randPeer) &&
 				!s.HasPeer(randPeer) {
 				// use discovery service save
-				peerInfo := s.discovery.GetPeerInfo(randPeer)
+				peerInfo := s.discovery.GetConfirmPeerInfo(randPeer)
 				if peerInfo != nil {
 					s.logger.Debug("dialing random peer", "peer", peerInfo)
-					s.addToDialQueue(s.discovery.GetPeerInfo(randPeer), common.PriorityRandomDial)
+					s.addToDialQueue(peerInfo, common.PriorityRandomDial)
 
 					isDial = true
 					dialCount++
@@ -888,10 +882,6 @@ func (s *DefaultServer) DisconnectFromPeer(peerID peer.ID, reason string) {
 	if closeErr := s.host.Network().ClosePeer(peerID); closeErr != nil {
 		s.logger.Error("unable to gracefully close peer connection", "err", closeErr)
 	}
-
-	// NOTO: Remove the peer from the peer store,
-	// if not removed, host.Network().Notify never triggered
-	s.RemoveFromPeerStore(peerID)
 }
 
 var (

@@ -25,7 +25,7 @@ type discoveryClient struct {
 }
 
 func (i *discoveryClient) FindPeers(ctx context.Context, in *proto.FindPeersReq) (*proto.FindPeersResp, error) {
-	return i.clt.FindPeers(ctx, in)
+	return i.clt.FindPeers(ctx, in, rawGrpc.WaitForReady(false))
 }
 
 func (i *discoveryClient) Close() error {
