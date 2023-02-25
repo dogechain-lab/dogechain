@@ -67,7 +67,7 @@ func (m *MockNetworkingServer) GetMockPeerMetrics() *MockPeerMetrics {
 // Define the mock hooks //
 // Required for Identity
 type newIdentityClientDelegate func(peer.ID) (wrappers.IdentityClient, error)
-type connectDelegate func(ctx context.Context, addrInfo peer.AddrInfo) error
+type connectDelegate func(addrInfo peer.AddrInfo) error
 type disconnectFromPeerDelegate func(peer.ID, string)
 type addPeerDelegate func(peer.ID, network.Direction)
 type updatePendingConnCountDelegate func(int64, network.Direction)
@@ -118,9 +118,9 @@ func (m *MockNetworkingServer) HookAddPeer(fn addPeerDelegate) {
 	m.addPeerFn = fn
 }
 
-func (m *MockNetworkingServer) Connect(ctx context.Context, addrInfo peer.AddrInfo) error {
+func (m *MockNetworkingServer) Connect(addrInfo peer.AddrInfo) error {
 	if m.connectFn != nil {
-		return m.connectFn(ctx, addrInfo)
+		return m.connectFn(addrInfo)
 	}
 
 	return nil

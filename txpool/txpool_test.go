@@ -756,6 +756,8 @@ func TestResetAccount(t *testing.T) {
 			},
 		}
 		for _, test := range testCases {
+			test := test
+
 			t.Run(test.name, func(t *testing.T) {
 				t.Parallel()
 
@@ -893,6 +895,8 @@ func TestResetAccount(t *testing.T) {
 		}
 
 		for _, test := range testCases {
+			test := test
+
 			t.Run(test.name, func(t *testing.T) {
 				t.Parallel()
 
@@ -1040,6 +1044,8 @@ func TestResetAccount(t *testing.T) {
 		}
 
 		for _, test := range testCases {
+			test := test
+
 			t.Run(test.name, func(t *testing.T) {
 				t.Parallel()
 
@@ -1856,6 +1862,8 @@ func TestExecutablesOrder(t *testing.T) {
 	}
 
 	for _, test := range testCases {
+		test := test
+
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -2044,6 +2052,8 @@ func TestDropAndRequeue(t *testing.T) {
 	}
 
 	for _, test := range testCases {
+		test := test
+
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -2252,6 +2262,8 @@ func TestGetTxs(t *testing.T) {
 	}
 
 	for _, test := range testCases {
+		test := test
+
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 

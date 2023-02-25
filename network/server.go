@@ -86,7 +86,7 @@ type DefaultServer struct {
 	discovery *discovery.DiscoveryService // service used for discovering other peers
 
 	protocols     map[string]Protocol // supported protocols
-	protocolsLock sync.Mutex          // lock for the supported protocols map
+	protocolsLock sync.RWMutex        // lock for the supported protocols map
 
 	secretsManager secrets.SecretsManager // secrets manager for networking keys
 
@@ -547,7 +547,7 @@ func (s *DefaultServer) keepAvailablePeerConnections() {
 			}
 
 			_, isMark := pendingConnectMark[peerID]
-			if !s.HasPeer(peerID) || isMark {
+			if !s.HasPeer(peerID) && isMark {
 				s.logger.Error("peer session not exist, disconnect peer", "peer", "bye")
 
 				disconnectFlag = true
@@ -555,13 +555,11 @@ func (s *DefaultServer) keepAvailablePeerConnections() {
 				// disconnect peer, but peersLock is locked, so use goroutine
 				waitingPeersDiscovered.Add(1)
 
-				go func() {
+				go func(peerID peer.ID) {
 					defer waitingPeersDiscovered.Done()
 					s.DisconnectFromPeer(peerID, "bye")
-				}()
-			}
-
-			if isMark {
+				}(peerID)
+			} else {
 				// clear pending connect mark
 				delete(pendingConnectMark, peerID)
 			}
@@ -710,12 +708,7 @@ func (s *DefaultServer) runDial() {
 			s.logger.Debug(fmt.Sprintf("dialing peer [%s] as local [%s]", peerInfo.String(), s.host.ID()))
 
 			// Attempt to connect to the peer
-			func() {
-				connectCtx, cancel := context.WithTimeout(ctx, DefaultDialTimeout)
-				defer cancel()
-
-				s.Connect(connectCtx, *peerInfo)
-			}()
+			s.Connect(*peerInfo)
 		}
 
 		// wait until there is a change in the state of a peer that
@@ -729,10 +722,12 @@ func (s *DefaultServer) runDial() {
 	}
 }
 
-func (s *DefaultServer) Connect(ctx context.Context, peerInfo peer.AddrInfo) error {
+func (s *DefaultServer) Connect(peerInfo peer.AddrInfo) error {
 	if !s.HasPeer(peerInfo.ID) && s.selfID != peerInfo.ID {
 		// the connection process is async because it involves connection (here) +
 		// the handshake done in the identity service.
+		ctx := network.WithDialPeerTimeout(context.Background(), DefaultDialTimeout)
+
 		if err := s.host.Connect(ctx, peerInfo); err != nil {
 			s.logger.Debug("failed to dial", "addr", peerInfo.String(), "err", err.Error())
 
@@ -976,29 +971,32 @@ func (s *DefaultServer) SaveProtoClient(
 // NewProtoConnection opens up a new stream on the set protocol to the peer,
 // and returns a reference to the connection
 func (s *DefaultServer) NewProtoConnection(protocol string, peerID peer.ID) (*rawGrpc.ClientConn, error) {
-	s.protocolsLock.Lock()
-	defer s.protocolsLock.Unlock()
+	s.protocolsLock.RLock()
+	defer s.protocolsLock.RUnlock()
 
-	s.logger.Debug("NewProtoConnection", "protocol", protocol, "peer", peerID)
+	s.logger.Debug("new protocol connect", "protocol", protocol, "peer", peerID)
 
 	p, ok := s.protocols[protocol]
 	if !ok {
 		return nil, fmt.Errorf("protocol not found: %s", protocol)
 	}
 
+	s.logger.Debug("create new libp2p stream", "protocol", protocol, "peer", peerID)
+
 	stream, err := s.NewStream(protocol, peerID)
 	if err != nil {
 		return nil, err
 	}
+
+	s.logger.Debug("create grpc client", "protocol", protocol, "peer", peerID)
 
 	// don't need context.WithTimeout, rpc client is fake
 	return p.Client(context.Background(), stream), nil
 }
 
 func (s *DefaultServer) NewStream(proto string, id peer.ID) (network.Stream, error) {
-	// NewStream is a blocking call, so we need to wrap it in a timeout
-	ctx, cancel := context.WithTimeout(context.Background(), DefaultDialTimeout)
-	defer cancel()
+	// don't dial
+	ctx := network.WithNoDial(context.Background(), "grpc client stream")
 
 	return s.host.NewStream(ctx, id, protocol.ID(proto))
 }

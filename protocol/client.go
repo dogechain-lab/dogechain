@@ -201,10 +201,6 @@ func (client *syncPeerClient) handleStatusUpdate(obj interface{}, from peer.ID) 
 	}
 
 	if !client.network.HasPeer(from) {
-		if client.selfID != from.String() {
-			client.logger.Debug("received status from non-connected peer, ignore", "id", from)
-		}
-
 		return
 	}
 

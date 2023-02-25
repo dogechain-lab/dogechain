@@ -338,7 +338,7 @@ func (p *TxPool) Start() {
 
 // Close shuts down the pool's main loop.
 func (p *TxPool) Close() {
-	if !p.isClosed.CAS(false, true) {
+	if !p.isClosed.CompareAndSwap(false, true) {
 		p.logger.Error("txpool is Closed")
 
 		return

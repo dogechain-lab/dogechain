@@ -62,7 +62,7 @@ type networkingServer interface {
 	HasPeer(peerID peer.ID) bool
 
 	// Connect attempts to connect to the specified peer
-	Connect(context.Context, peer.AddrInfo) error
+	Connect(peer.AddrInfo) error
 
 	// DisconnectFromPeer attempts to disconnect from the specified peer
 	DisconnectFromPeer(peerID peer.ID, reason string)
@@ -503,10 +503,7 @@ func (d *DiscoveryService) bootnodePeerDiscovery() {
 	if !d.baseServer.HasPeer(bootnode.ID) {
 		d.logger.Debug("bootnode is not connected, try to reconnect")
 
-		connectCtx, cancel := context.WithTimeout(d.ctx, bootnodeDiscoveryInterval/2)
-		defer cancel()
-
-		if err := d.baseServer.Connect(connectCtx, *bootnode); err != nil {
+		if err := d.baseServer.Connect(*bootnode); err != nil {
 			d.logger.Error("Unable to connect to bootnode",
 				"bootnode", bootnode.ID.String(),
 				"err", err.Error(),
