@@ -4,27 +4,29 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/dogechain-lab/dogechain/network/client"
 	"github.com/dogechain-lab/dogechain/network/common"
-	peerEvent "github.com/dogechain-lab/dogechain/network/event"
 	"github.com/dogechain-lab/dogechain/network/grpc"
 	"github.com/dogechain-lab/dogechain/network/identity"
 	"github.com/dogechain-lab/dogechain/network/proto"
-	"github.com/dogechain-lab/dogechain/network/wrappers"
-	kbucket "github.com/libp2p/go-libp2p-kbucket"
+
 	"github.com/libp2p/go-libp2p-kbucket/keyspace"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/peerstore"
+
+	peerEvent "github.com/dogechain-lab/dogechain/network/event"
+	kbucket "github.com/libp2p/go-libp2p-kbucket"
 )
 
 // NewIdentityClient returns a new identity service client connection
-func (s *DefaultServer) NewIdentityClient(peerID peer.ID) (wrappers.IdentityClient, error) {
+func (s *DefaultServer) NewIdentityClient(peerID peer.ID) (client.IdentityClient, error) {
 	conn, err := s.NewProtoConnection(common.IdentityProto, peerID)
 	if err != nil {
 		return nil, err
 	}
 
-	return wrappers.NewIdentityClient(s.logger, proto.NewIdentityClient(conn), conn), nil
+	return client.NewIdentityClient(s.logger, proto.NewIdentityClient(conn), conn), nil
 }
 
 // AddPeer adds a new peer to the networking server's peer list,
@@ -54,7 +56,7 @@ func (s *DefaultServer) addPeerInfo(id peer.ID, direction network.Direction) boo
 	defer s.peersLock.Unlock()
 
 	connectionInfo, connectionExists := s.peers[id]
-	if connectionExists && connectionInfo.getConnDirection(direction) {
+	if connectionExists && connectionInfo.existsConnDirection(direction) {
 		// Check if this peer already has an active connection status (saved info).
 		// There is no need to do further processing
 		return true
@@ -66,7 +68,7 @@ func (s *DefaultServer) addPeerInfo(id peer.ID, direction network.Direction) boo
 		connectionInfo = &PeerConnInfo{
 			Info:           s.host.Peerstore().PeerInfo(id),
 			connDirections: make(map[network.Direction]bool),
-			protocolClient: make(map[string]wrappers.GrpcClientWrapper),
+			protocolClient: make(map[string]client.GrpcClientCloser),
 		}
 
 		// update ttl

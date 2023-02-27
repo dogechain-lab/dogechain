@@ -1050,8 +1050,8 @@ func TestPeerAdditionDeletion(t *testing.T) {
 		// Make sure the directions match
 		for indx, connInfo := range server.Peers() {
 			assert.Equal(t, randomPeers[indx].peerID, connInfo.Info.ID)
-			assert.True(t, connInfo.getConnDirection(network.DirOutbound))
-			assert.True(t, connInfo.getConnDirection(network.DirInbound))
+			assert.True(t, connInfo.existsConnDirection(network.DirOutbound))
+			assert.True(t, connInfo.existsConnDirection(network.DirInbound))
 		}
 
 		outbound, inbound := extractExpectedDirectionCounts(randomPeers)

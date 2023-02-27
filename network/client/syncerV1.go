@@ -1,4 +1,4 @@
-package wrappers
+package client
 
 import (
 	"context"
@@ -11,16 +11,17 @@ import (
 )
 
 type SyncerV1Client interface {
+	GrpcClientCloser
+
 	GetCurrent(ctx context.Context, in *emptypb.Empty) (*proto.V1Status, error)
 	GetObjectsByHash(ctx context.Context, in *proto.HashRequest) (*proto.Response, error)
 	GetHeaders(ctx context.Context, in *proto.GetHeadersRequest) (*proto.Response, error)
+
 	Notify(ctx context.Context, in *proto.NotifyReq) (*emptypb.Empty, error)
 	// Returns blocks from begin to end (which is determined by server)
 	GetBlocks(ctx context.Context, in *proto.GetBlocksRequest) (*proto.GetBlocksResponse, error)
 	// Returns server's status
 	GetStatus(ctx context.Context, in *emptypb.Empty) (*proto.SyncPeerStatus, error)
-
-	GrpcClientWrapper
 }
 
 type syncerV1Client struct {

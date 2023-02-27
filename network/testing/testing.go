@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
+	"github.com/dogechain-lab/dogechain/network/client"
 	"github.com/dogechain-lab/dogechain/network/event"
 	"github.com/dogechain-lab/dogechain/network/proto"
-	"github.com/dogechain-lab/dogechain/network/wrappers"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 )
@@ -66,7 +66,7 @@ func (m *MockNetworkingServer) GetMockPeerMetrics() *MockPeerMetrics {
 
 // Define the mock hooks //
 // Required for Identity
-type newIdentityClientDelegate func(peer.ID) (wrappers.IdentityClient, error)
+type newIdentityClientDelegate func(peer.ID) (client.IdentityClient, error)
 type connectDelegate func(addrInfo peer.AddrInfo) error
 type disconnectFromPeerDelegate func(peer.ID, string)
 type addPeerDelegate func(peer.ID, network.Direction)
@@ -76,7 +76,7 @@ type hasFreeConnectionSlotDelegate func(network.Direction) bool
 
 // Required for Discovery
 type getRandomBootnodeDelegate func() *peer.AddrInfo
-type newDiscoveryClientDelegate func(peer.ID) (wrappers.DiscoveryClient, error)
+type newDiscoveryClientDelegate func(peer.ID) (client.DiscoveryClient, error)
 type addToPeerStoreDelegate func(*peer.AddrInfo)
 type removeFromPeerStoreDelegate func(peerInfo peer.ID)
 type getPeerInfoDelegate func(peer.ID) *peer.AddrInfo
@@ -86,7 +86,7 @@ type isBootnodeDelegate func(peer.ID) bool
 type isStaticPeerDelegate func(peer.ID) bool
 type hasPeerDelegate func(peer.ID) bool
 
-func (m *MockNetworkingServer) NewIdentityClient(peerID peer.ID) (wrappers.IdentityClient, error) {
+func (m *MockNetworkingServer) NewIdentityClient(peerID peer.ID) (client.IdentityClient, error) {
 	if m.newIdentityClientFn != nil {
 		return m.newIdentityClientFn(peerID)
 	}
@@ -174,7 +174,7 @@ func (m *MockNetworkingServer) HookGetRandomBootnode(fn getRandomBootnodeDelegat
 	m.getRandomBootnodeFn = fn
 }
 
-func (m *MockNetworkingServer) NewDiscoveryClient(peerID peer.ID) (wrappers.DiscoveryClient, error) {
+func (m *MockNetworkingServer) NewDiscoveryClient(peerID peer.ID) (client.DiscoveryClient, error) {
 	if m.newDiscoveryClientFn != nil {
 		return m.newDiscoveryClientFn(peerID)
 	}

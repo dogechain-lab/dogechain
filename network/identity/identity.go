@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dogechain-lab/dogechain/network/client"
 	"github.com/dogechain-lab/dogechain/network/event"
 	"github.com/dogechain-lab/dogechain/network/proto"
-	"github.com/dogechain-lab/dogechain/network/wrappers"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/libp2p/go-libp2p/core/network"
@@ -30,7 +30,7 @@ type networkingServer interface {
 	// PROTOCOL MANIPULATION //
 
 	// NewIdentityClient returns an identity gRPC client connection
-	NewIdentityClient(peerID peer.ID) (wrappers.IdentityClient, error)
+	NewIdentityClient(peerID peer.ID) (client.IdentityClient, error)
 
 	// PEER MANIPULATION //
 

@@ -1,5 +1,5 @@
 //nolint:dupl
-package wrappers
+package client
 
 import (
 	"context"
@@ -11,24 +11,24 @@ import (
 	rawGrpc "google.golang.org/grpc"
 )
 
-type DiscoveryClient interface {
-	FindPeers(ctx context.Context, in *proto.FindPeersReq) (*proto.FindPeersResp, error)
+type IdentityClient interface {
+	GrpcClientCloser
 
-	GrpcClientWrapper
+	Hello(ctx context.Context, in *proto.Status) (*proto.Status, error)
 }
 
-type discoveryClient struct {
-	clt  proto.DiscoveryClient
+type identityClient struct {
+	clt  proto.IdentityClient
 	conn *rawGrpc.ClientConn
 
 	isClosed *atomic.Bool
 }
 
-func (i *discoveryClient) FindPeers(ctx context.Context, in *proto.FindPeersReq) (*proto.FindPeersResp, error) {
-	return i.clt.FindPeers(ctx, in, rawGrpc.WaitForReady(false))
+func (i *identityClient) Hello(ctx context.Context, in *proto.Status) (*proto.Status, error) {
+	return i.clt.Hello(ctx, in, rawGrpc.WaitForReady(false))
 }
 
-func (i *discoveryClient) Close() error {
+func (i *identityClient) Close() error {
 	if i.isClosed.CompareAndSwap(false, true) {
 		return i.conn.Close()
 	} else {
@@ -36,16 +36,16 @@ func (i *discoveryClient) Close() error {
 	}
 }
 
-func (i *discoveryClient) IsClose() bool {
+func (i *identityClient) IsClose() bool {
 	return i.isClosed.Load()
 }
 
-func NewDiscoveryClient(
+func NewIdentityClient(
 	logger hclog.Logger,
-	clt proto.DiscoveryClient,
+	clt proto.IdentityClient,
 	conn *rawGrpc.ClientConn,
-) DiscoveryClient {
-	wrapClt := &discoveryClient{
+) IdentityClient {
+	wrapClt := &identityClient{
 		clt:      clt,
 		conn:     conn,
 		isClosed: atomic.NewBool(false),

@@ -8,16 +8,18 @@ import (
 	"net"
 	"time"
 
-	helperCommon "github.com/dogechain-lab/dogechain/helper/common"
+	"github.com/dogechain-lab/dogechain/network/client"
 	"github.com/dogechain-lab/dogechain/network/common"
 	"github.com/dogechain-lab/dogechain/network/discovery"
 	"github.com/dogechain-lab/dogechain/network/grpc"
 	"github.com/dogechain-lab/dogechain/network/proto"
-	"github.com/dogechain-lab/dogechain/network/wrappers"
-	ranger "github.com/libp2p/go-cidranger"
-	kb "github.com/libp2p/go-libp2p-kbucket"
+
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/peerstore"
+
+	helperCommon "github.com/dogechain-lab/dogechain/helper/common"
+	ranger "github.com/libp2p/go-cidranger"
+	kb "github.com/libp2p/go-libp2p-kbucket"
 )
 
 // GetRandomBootnode fetches a random bootnode that's currently
@@ -43,10 +45,10 @@ func (s *DefaultServer) GetRandomBootnode() *peer.AddrInfo {
 }
 
 // NewDiscoveryClient returns a new or existing discovery service client connection
-func (s *DefaultServer) NewDiscoveryClient(peerID peer.ID) (wrappers.DiscoveryClient, error) {
+func (s *DefaultServer) NewDiscoveryClient(peerID peer.ID) (client.DiscoveryClient, error) {
 	// Check if there is an active stream connection already
 	if protoStream := s.GetProtoClient(common.DiscProto, peerID); protoStream != nil {
-		if discoveryClt, ok := protoStream.(wrappers.DiscoveryClient); ok {
+		if discoveryClt, ok := protoStream.(client.DiscoveryClient); ok {
 			return discoveryClt, nil
 		}
 	}
@@ -59,7 +61,7 @@ func (s *DefaultServer) NewDiscoveryClient(peerID peer.ID) (wrappers.DiscoveryCl
 	}
 
 	// Save the stream connection
-	clt := wrappers.NewDiscoveryClient(
+	clt := client.NewDiscoveryClient(
 		s.logger,
 		proto.NewDiscoveryClient(protoStream),
 		protoStream,

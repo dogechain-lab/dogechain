@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dogechain-lab/dogechain/network/client"
 	"github.com/dogechain-lab/dogechain/network/common"
 	"github.com/dogechain-lab/dogechain/network/event"
-	"github.com/dogechain-lab/dogechain/network/wrappers"
 	"github.com/hashicorp/go-hclog"
 	"github.com/libp2p/go-libp2p/core/network"
 
@@ -48,7 +48,7 @@ type networkingServer interface {
 	// PROTOCOL MANIPULATION //
 
 	// NewDiscoveryClient returns a discovery gRPC client connection
-	NewDiscoveryClient(peerID peer.ID) (wrappers.DiscoveryClient, error)
+	NewDiscoveryClient(peerID peer.ID) (client.DiscoveryClient, error)
 
 	// PEER MANIPULATION //
 
@@ -90,15 +90,15 @@ type networkingServer interface {
 
 // peerAddreStore is a struct that contains the peer address information
 type peerAddreStore struct {
-	peerAddressLock sync.RWMutex               // protects the peerAddress map
-	peerAddress     map[peer.ID]*peer.AddrInfo // stores the peer address information
+	lcok          sync.RWMutex               // protects the peerAddress map
+	peerAddresses map[peer.ID]*peer.AddrInfo // stores the peer address information
 }
 
 func (p *peerAddreStore) GetPeerInfo(peerID peer.ID) *peer.AddrInfo {
-	p.peerAddressLock.RLock()
-	defer p.peerAddressLock.RUnlock()
+	p.lcok.RLock()
+	defer p.lcok.RUnlock()
 
-	peerInfo, ok := p.peerAddress[peerID]
+	peerInfo, ok := p.peerAddresses[peerID]
 	if !ok {
 		return nil
 	}
@@ -107,11 +107,11 @@ func (p *peerAddreStore) GetPeerInfo(peerID peer.ID) *peer.AddrInfo {
 }
 
 func (p *peerAddreStore) GetPeers() []peer.ID {
-	p.peerAddressLock.RLock()
-	defer p.peerAddressLock.RUnlock()
+	p.lcok.RLock()
+	defer p.lcok.RUnlock()
 
-	peers := make([]peer.ID, 0, len(p.peerAddress))
-	for peerID := range p.peerAddress {
+	peers := make([]peer.ID, 0, len(p.peerAddresses))
+	for peerID := range p.peerAddresses {
 		peers = append(peers, peerID)
 	}
 
@@ -119,19 +119,19 @@ func (p *peerAddreStore) GetPeers() []peer.ID {
 }
 
 func (p *peerAddreStore) AddToPeerStore(peerInfo *peer.AddrInfo) {
-	p.peerAddressLock.Lock()
-	defer p.peerAddressLock.Unlock()
+	p.lcok.Lock()
+	defer p.lcok.Unlock()
 
-	p.peerAddress[peerInfo.ID] = peerInfo
+	p.peerAddresses[peerInfo.ID] = peerInfo
 }
 
 func (p *peerAddreStore) Prune(routingTable *kb.RoutingTable) {
-	p.peerAddressLock.Lock()
-	defer p.peerAddressLock.Unlock()
+	p.lcok.Lock()
+	defer p.lcok.Unlock()
 
 	// if the peer address store is less than twice the size of the routing table
 	// then there is no need to prune
-	if len(p.peerAddress) < (routingTable.Size() * 2) {
+	if len(p.peerAddresses) < (routingTable.Size() * 2) {
 		return
 	}
 
@@ -142,17 +142,17 @@ func (p *peerAddreStore) Prune(routingTable *kb.RoutingTable) {
 	peers := routingTable.ListPeers()
 
 	for _, peerID := range peers {
-		if peerInfo, ok := p.peerAddress[peerID]; ok {
+		if peerInfo, ok := p.peerAddresses[peerID]; ok {
 			newPeerAddress[peerID] = peerInfo
 		}
 	}
 
-	p.peerAddress = newPeerAddress
+	p.peerAddresses = newPeerAddress
 }
 
 func newPeerAddreStore() *peerAddreStore {
 	return &peerAddreStore{
-		peerAddress: make(map[peer.ID]*peer.AddrInfo),
+		peerAddresses: make(map[peer.ID]*peer.AddrInfo),
 	}
 }
 

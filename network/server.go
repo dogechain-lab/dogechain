@@ -8,11 +8,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dogechain-lab/dogechain/network/client"
 	"github.com/dogechain-lab/dogechain/network/common"
 	"github.com/dogechain-lab/dogechain/network/dial"
 	"github.com/dogechain-lab/dogechain/network/discovery"
 	"github.com/dogechain-lab/dogechain/network/identity"
-	"github.com/dogechain-lab/dogechain/network/wrappers"
 	"github.com/dogechain-lab/dogechain/secrets"
 
 	helperCommon "github.com/dogechain-lab/dogechain/helper/common"
@@ -57,6 +57,10 @@ const (
 
 	DefaultKeepAliveTimer = 10 * time.Second
 	DefaultDialTimeout    = 30 * time.Second
+
+	DefaultKeepAliveDoubleTimer = DefaultKeepAliveTimer * 2
+	KeepAliveConnectFullSleep   = DefaultKeepAliveTimer * 6
+	WaitDiscoverServceReady     = DefaultKeepAliveTimer * 12
 )
 
 var (
@@ -229,7 +233,7 @@ type PeerConnInfo struct {
 	Info peer.AddrInfo
 
 	connDirections map[network.Direction]bool
-	protocolClient map[string]wrappers.GrpcClientWrapper
+	protocolClient map[string]client.GrpcClientCloser
 }
 
 // addConnDirection adds a connection direction
@@ -242,8 +246,8 @@ func (pci *PeerConnInfo) removeConnDirection(direction network.Direction) {
 	pci.connDirections[direction] = false
 }
 
-// getConnDirection returns the connection direction
-func (pci *PeerConnInfo) getConnDirection(direction network.Direction) bool {
+// existsConnDirection returns the connection direction
+func (pci *PeerConnInfo) existsConnDirection(direction network.Direction) bool {
 	exist, ok := pci.connDirections[direction]
 	if !ok {
 		return false
@@ -264,7 +268,7 @@ func (pci *PeerConnInfo) noConnectionAvailable() bool {
 }
 
 // addProtocolClient adds a protocol stream
-func (pci *PeerConnInfo) addProtocolClient(protocol string, stream wrappers.GrpcClientWrapper) {
+func (pci *PeerConnInfo) addProtocolClient(protocol string, stream client.GrpcClientCloser) {
 	pci.protocolClient[protocol] = stream
 }
 
@@ -278,13 +282,13 @@ func (pci *PeerConnInfo) cleanProtocolStreams() []error {
 		}
 	}
 
-	pci.protocolClient = make(map[string]wrappers.GrpcClientWrapper)
+	pci.protocolClient = make(map[string]client.GrpcClientCloser)
 
 	return errs
 }
 
 // getProtocolClient fetches the protocol stream, if any
-func (pci *PeerConnInfo) getProtocolClient(protocol string) wrappers.GrpcClientWrapper {
+func (pci *PeerConnInfo) getProtocolClient(protocol string) client.GrpcClientCloser {
 	return pci.protocolClient[protocol]
 }
 
@@ -409,7 +413,7 @@ func (s *DefaultServer) keepAliveStaticPeerConnections() {
 	for {
 		// If all the static nodes are connected, double the delay
 		if allConnected {
-			delay.Reset(DefaultKeepAliveTimer * 2)
+			delay.Reset(DefaultKeepAliveDoubleTimer)
 		} else {
 			delay.Reset(DefaultKeepAliveTimer)
 		}
@@ -516,7 +520,7 @@ func (s *DefaultServer) keepAvailablePeerConnections() {
 		// this happens when the startup is not complete
 		if s.discovery == nil {
 			s.logger.Error("discovery service is nil")
-			delay.Reset(DefaultKeepAliveTimer * 12) // wait 2 minutes before trying again
+			delay.Reset(WaitDiscoverServceReady) // wait 2 minutes before trying again
 
 			continue
 		}
@@ -591,7 +595,7 @@ func (s *DefaultServer) keepAvailablePeerConnections() {
 		// if connect count is enough, wait next loop
 
 		if len(peers) >= maxPeers {
-			delay.Reset(DefaultKeepAliveTimer * 6) // wait 1 minute before trying again
+			delay.Reset(KeepAliveConnectFullSleep) // wait 1 minute before trying again
 
 			continue
 		}
@@ -652,7 +656,7 @@ func (s *DefaultServer) keepAvailablePeerConnections() {
 		s.logger.Info("all peers add to dial queue, no random peer to dial")
 
 		// if we get here, all peers are connected, so we can sleep for a longer
-		delay.Reset(DefaultKeepAliveTimer * 3)
+		delay.Reset(DefaultKeepAliveDoubleTimer)
 	}
 }
 
@@ -954,7 +958,7 @@ func (s *DefaultServer) Close() error {
 // protocol stream reference [Thread safe]
 func (s *DefaultServer) SaveProtoClient(
 	protocol string,
-	stream wrappers.GrpcClientWrapper,
+	stream client.GrpcClientCloser,
 	peerID peer.ID,
 ) {
 	s.peersLock.Lock()
@@ -1003,7 +1007,8 @@ func (s *DefaultServer) NewProtoConnection(protocol string, peerID peer.ID) (*ra
 }
 
 func (s *DefaultServer) NewStream(proto string, id peer.ID) (network.Stream, error) {
-	// don't dial
+	// by default NewStream will dial if not connected
+	// this bypasses connection control
 	ctx := network.WithNoDial(context.Background(), "grpc client stream")
 
 	return s.host.NewStream(ctx, id, protocol.ID(proto))
@@ -1011,7 +1016,7 @@ func (s *DefaultServer) NewStream(proto string, id peer.ID) (network.Stream, err
 
 // GetProtoClient returns an active protocol client if present, otherwise
 // it returns nil
-func (s *DefaultServer) GetProtoClient(protocol string, peerID peer.ID) wrappers.GrpcClientWrapper {
+func (s *DefaultServer) GetProtoClient(protocol string, peerID peer.ID) client.GrpcClientCloser {
 	s.peersLock.Lock()
 	defer s.peersLock.Unlock()
 

@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/dogechain-lab/dogechain/helper/tests"
+	"github.com/dogechain-lab/dogechain/network/client"
 	"github.com/dogechain-lab/dogechain/network/common"
 	"github.com/dogechain-lab/dogechain/network/proto"
-	"github.com/dogechain-lab/dogechain/network/wrappers"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -249,7 +249,7 @@ func TestDiscoveryService_RegularPeerDiscoveryUnconnected(t *testing.T) {
 			})
 
 			// Define the new discovery client creation
-			server.HookNewDiscoveryClient(func(id peer.ID) (wrappers.DiscoveryClient, error) {
+			server.HookNewDiscoveryClient(func(id peer.ID) (client.DiscoveryClient, error) {
 				return nil, errors.New("peer is not connected anymore")
 			})
 

@@ -5,12 +5,14 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/dogechain-lab/dogechain/network/client"
 	"github.com/dogechain-lab/dogechain/network/event"
-	"github.com/dogechain-lab/dogechain/network/wrappers"
+
 	"github.com/libp2p/go-libp2p/core/peer"
 	"go.uber.org/atomic"
-	rawGrpc "google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
+
+	rawGrpc "google.golang.org/grpc"
 )
 
 // NonetworkTopic is a fake topic that does nothing
@@ -72,11 +74,11 @@ func (s *NonetworkServer) NewProtoConnection(protocol string, peerID peer.ID) (*
 	return nil, errors.New("not implemented")
 }
 
-func (s *NonetworkServer) GetProtoClient(protocol string, peerID peer.ID) wrappers.GrpcClientWrapper {
+func (s *NonetworkServer) GetProtoClient(protocol string, peerID peer.ID) client.GrpcClientCloser {
 	return nil
 }
 
-func (s *NonetworkServer) SaveProtoClient(protocol string, stream wrappers.GrpcClientWrapper, peerID peer.ID) {
+func (s *NonetworkServer) SaveProtoClient(protocol string, stream client.GrpcClientCloser, peerID peer.ID) {
 }
 
 func (s *NonetworkServer) ForgetPeer(peer peer.ID, reason string) {}
