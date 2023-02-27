@@ -327,8 +327,9 @@ func (s *noForkSyncer) Sync(callback func(*types.Block) bool) error {
 			}
 
 			// remove expired peer
+			currentTime := time.Now().Unix()
 			for _, id := range keys {
-				if time.Now().Unix() > skipList[id] {
+				if currentTime > skipList[id] {
 					delete(skipList, id)
 				}
 			}
