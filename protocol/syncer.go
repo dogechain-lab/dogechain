@@ -555,7 +555,10 @@ func (s *noForkSyncer) initializePeerMap() {
 func (s *noForkSyncer) startPeerStatusUpdateProcess() {
 	for peerStatus := range s.syncPeerClient.GetPeerStatusUpdateCh() {
 		s.logger.Debug("peer status updated", "id", peerStatus.ID, "number", peerStatus.Number)
-		s.putToPeerMap(peerStatus)
+
+		if s.server.HasPeer(peerStatus.ID) {
+			s.putToPeerMap(peerStatus)
+		}
 	}
 }
 
@@ -618,7 +621,10 @@ func (s *noForkSyncer) putToPeerMap(status *NoForkPeer) {
 	}
 
 	s.peerMap.Put(status)
-	s.notifyNewStatusEvent()
+
+	if status.Number < s.blockchain.Header().Number {
+		s.notifyNewStatusEvent()
+	}
 }
 
 // removeFromPeerMap removes the peer from peer map
