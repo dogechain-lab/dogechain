@@ -137,7 +137,7 @@ func NewTestSyncer(
 		syncProgression: mockProgression,
 		syncPeerService: &mockSyncPeerService{},
 		syncPeerClient:  mockSyncPeerClient,
-		newStatusCh:     make(chan struct{}),
+		newStatusCh:     make(chan struct{}, 1),
 		peerMap:         new(PeerMap),
 		syncing:         atomic.NewBool(false),
 		syncingPeer:     atomic.NewString(""),

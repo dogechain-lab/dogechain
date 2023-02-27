@@ -2,8 +2,8 @@ package protocol
 
 import (
 	"sort"
-	"sync"
 	"testing"
+	"time"
 
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/assert"
@@ -110,12 +110,12 @@ func TestPutPeer(t *testing.T) {
 func TestBestPeer(t *testing.T) {
 	t.Parallel()
 
-	skipList := new(sync.Map)
-	skipList.Store(peer.ID("C"), true)
+	skipList := make(map[peer.ID]int64)
+	skipList[peer.ID("C")] = time.Now().Unix()
 
 	tests := []struct {
 		name     string
-		skipList *sync.Map
+		skipList *map[peer.ID]int64
 		peers    []*NoForkPeer
 		result   *NoForkPeer
 	}{
@@ -133,7 +133,7 @@ func TestBestPeer(t *testing.T) {
 		},
 		{
 			name:     "should return the 2nd best peer if the best peer is in skip list",
-			skipList: skipList,
+			skipList: &skipList,
 			peers:    peers,
 			result:   peers[1],
 		},
