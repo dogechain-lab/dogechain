@@ -36,6 +36,8 @@ const (
 	// One step query blocks.
 	// Median rlp block size is around 20 - 50 KB, then 2 - 4 MB is suitable for one query.
 	_blockSyncStep = 100
+
+	_blockSyncTimeout = 30 * time.Second
 )
 
 var (
@@ -436,7 +438,7 @@ func (s *noForkSyncer) bulkSyncWithPeer(
 		return result, nil
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), _blockSyncTimeout)
 	defer cancel()
 
 	// sync up to the current known header
