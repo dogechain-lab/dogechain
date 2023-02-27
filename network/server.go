@@ -512,12 +512,18 @@ func (s *DefaultServer) keepAvailablePeerConnections() {
 
 		delay.Reset(DefaultKeepAliveTimer)
 
+		// if discovery service is not available, wait for it to be available
+		// this happens when the startup is not complete
 		if s.discovery == nil {
 			s.logger.Error("discovery service is nil")
 			delay.Reset(DefaultKeepAliveTimer * 12) // wait 2 minutes before trying again
 
 			continue
 		}
+
+		// first get all the peers from the peerstore
+		// mark connection if not create PeerConnInfo or pending status
+		// call DisconnectFromPeer to clean up the connection marked in the last round
 
 		// use a waitgroup avoid disconnect deadlock
 		var waitingPeersDiscovered sync.WaitGroup
@@ -559,10 +565,10 @@ func (s *DefaultServer) keepAvailablePeerConnections() {
 					defer waitingPeersDiscovered.Done()
 					s.DisconnectFromPeer(peerID, "bye")
 				}(peerID)
-			} else {
-				// clear pending connect mark
-				delete(pendingConnectMark, peerID)
 			}
+
+			// clear pending connect mark
+			delete(pendingConnectMark, peerID)
 		}
 
 		if disconnectFlag {
@@ -581,7 +587,9 @@ func (s *DefaultServer) keepAvailablePeerConnections() {
 
 		pendingConnectMark = copyMark
 
-		// check libp2p connections
+		// next check libp2p connections,
+		// if connect count is enough, wait next loop
+
 		if len(peers) >= maxPeers {
 			delay.Reset(DefaultKeepAliveTimer * 6) // wait 1 minute before trying again
 
