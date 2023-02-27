@@ -610,7 +610,6 @@ func Test_bulkSyncWithPeer(t *testing.T) {
 	var (
 		// mock errors
 		errPeerNoResponse       = errors.New("peer is not responding")
-		errInvalidBlock         = errors.New("invalid block")
 		errBlockInsertionFailed = errors.New("failed to insert block")
 	)
 
@@ -689,7 +688,7 @@ func Test_bulkSyncWithPeer(t *testing.T) {
 			},
 			verifyFinalizedBlockHandler: func(b *types.Block) error {
 				if b.Number() > 5 {
-					return errInvalidBlock
+					return ErrBlockVerifyFailed
 				}
 
 				return nil
@@ -700,7 +699,7 @@ func Test_bulkSyncWithPeer(t *testing.T) {
 			blocks:                blocks[:5],
 			lastSyncedBlockNumber: 5,
 			shouldTerminate:       false,
-			err:                   errInvalidBlock,
+			err:                   ErrBlockVerifyFailed,
 		},
 		{
 			name:             "should return error if block insertion is failed",

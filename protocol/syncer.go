@@ -50,6 +50,7 @@ var (
 	ErrTooManyHeaders         = errors.New("unexpected more than 1 result")
 	ErrDecodeDifficulty       = errors.New("failed to decode difficulty")
 	ErrInvalidTypeAssertion   = errors.New("invalid type assertion")
+	ErrBlockVerifyFailed      = errors.New("block verifying failed")
 
 	errTimeout = errors.New("timeout awaiting block from peer")
 )
@@ -482,9 +483,16 @@ func (s *noForkSyncer) bulkSyncWithPeer(
 		for _, block := range blocks {
 			if err := s.blockchain.VerifyFinalizedBlock(block); err != nil {
 				// not the same network or bad peer
-				s.server.ForgetPeer(p.ID, "block verifying failed")
+				s.logger.Error("block verifying failed", "peer", p.ID, "err", err)
 
-				return result, fmt.Errorf("unable to verify block, %w", err)
+				result.SkipList[p.ID] = time.Now().Add(time.Hour).Unix()
+
+				// if server is nil, it running in test mode
+				if s.server != nil {
+					s.server.ForgetPeer(p.ID, ErrBlockVerifyFailed.Error())
+				}
+
+				return result, ErrBlockVerifyFailed
 			}
 
 			if err := s.blockchain.WriteBlock(block, WriteBlockSource); err != nil {
@@ -556,7 +564,9 @@ func (s *noForkSyncer) startPeerStatusUpdateProcess() {
 	for peerStatus := range s.syncPeerClient.GetPeerStatusUpdateCh() {
 		s.logger.Debug("peer status updated", "id", peerStatus.ID, "number", peerStatus.Number)
 
-		if s.server.HasPeer(peerStatus.ID) {
+		// if server is nil, it running in test mode
+		if s.server == nil ||
+			s.server.HasPeer(peerStatus.ID) {
 			s.putToPeerMap(peerStatus)
 		}
 	}
@@ -622,7 +632,9 @@ func (s *noForkSyncer) putToPeerMap(status *NoForkPeer) {
 
 	s.peerMap.Put(status)
 
-	if status.Number < s.blockchain.Header().Number {
+	// blockchain if nil, it running in test mode
+	if s.blockchain == nil ||
+		status.Number < s.blockchain.Header().Number {
 		s.notifyNewStatusEvent()
 	}
 }

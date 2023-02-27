@@ -60,11 +60,8 @@ func (m *PeerMap) BestPeer(skipMap *map[peer.ID]int64) *NoForkPeer {
 		}
 
 		_, exists := (*skipMap)[id]
-		if !exists {
-			return false
-		}
 
-		return true
+		return exists
 	}
 
 	m.Range(func(key, value interface{}) bool {
