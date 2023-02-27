@@ -634,7 +634,7 @@ func (s *noForkSyncer) putToPeerMap(status *NoForkPeer) {
 
 	// blockchain if nil, it running in test mode
 	if s.blockchain == nil ||
-		status.Number < s.blockchain.Header().Number {
+		s.blockchain.Header().Number < status.Number {
 		s.notifyNewStatusEvent()
 	}
 }
