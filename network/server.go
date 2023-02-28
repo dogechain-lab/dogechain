@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math/rand"
 	"sync"
 	"time"
 
@@ -55,12 +54,8 @@ const (
 
 	MinimumBootNodes int = 1
 
-	DefaultKeepAliveTimer = 10 * time.Second
-	DefaultDialTimeout    = 30 * time.Second
-
-	DefaultKeepAliveDoubleTimer = DefaultKeepAliveTimer * 2
-	KeepAliveConnectFullSleep   = DefaultKeepAliveTimer * 6
-	WaitDiscoverServceReady     = DefaultKeepAliveTimer * 12
+	DefaultDialTimeout         = 30 * time.Second
+	DefaultBackgroundTaskSleep = 10 * time.Second
 )
 
 var (
@@ -93,6 +88,8 @@ type DefaultServer struct {
 	protocolsLock sync.RWMutex        // lock for the supported protocols map
 
 	secretsManager secrets.SecretsManager // secrets manager for networking keys
+
+	keepAvailable *keepAvailable // keep available service
 
 	ps *pubsub.PubSub // reference to the networking PubSub service
 
@@ -350,7 +347,9 @@ func (s *DefaultServer) Start() error {
 
 	go s.runDial()
 	go s.keepAliveStaticPeerConnections()
-	go s.keepAvailablePeerConnections()
+
+	s.keepAvailable = newKeepAvailable(s)
+	s.keepAvailable.Start()
 
 	// watch for disconnected peers
 	s.host.Network().Notify(&network.NotifyBundle{
@@ -407,15 +406,15 @@ func (s *DefaultServer) keepAliveStaticPeerConnections() {
 
 	allConnected := false
 
-	delay := time.NewTimer(DefaultKeepAliveTimer)
+	delay := time.NewTimer(DefaultBackgroundTaskSleep)
 	defer delay.Stop()
 
 	for {
 		// If all the static nodes are connected, double the delay
 		if allConnected {
-			delay.Reset(DefaultKeepAliveDoubleTimer)
+			delay.Reset(doubleSleepDuration)
 		} else {
-			delay.Reset(DefaultKeepAliveTimer)
+			delay.Reset(DefaultBackgroundTaskSleep)
 		}
 
 		select {
@@ -487,177 +486,6 @@ func (s *DefaultServer) setupBootnodes() error {
 	}
 
 	return nil
-}
-
-// keepAvailablePeerConnections clear the peerstore of peers that are not connected
-// and will attempt to make new connections
-// if the active peer count is lesser than the specified limit.
-func (s *DefaultServer) keepAvailablePeerConnections() {
-	s.closeWg.Add(1)
-	defer s.closeWg.Done()
-
-	// start with a delay to wait the node to connect to the bootnodes
-	delay := time.NewTimer(DefaultDialTimeout * 2)
-	defer delay.Stop()
-
-	//#nosec G404
-	randIns := rand.New(rand.NewSource(time.Now().UnixNano()))
-	selfID := s.host.ID()
-	maxPeers := int(s.connectionCounts.maxInboundConnCount() + s.connectionCounts.maxOutboundConnCount())
-	batchDialPeers := (int(s.connectionCounts.maxOutboundConnCount()) / 4) + 1 // 25% of max outbound peers
-	pendingConnectMark := make(map[peer.ID]struct{})
-
-	for {
-		select {
-		case <-delay.C:
-		case <-s.closeCh:
-			return
-		}
-
-		delay.Reset(DefaultKeepAliveTimer)
-
-		// if discovery service is not available, wait for it to be available
-		// this happens when the startup is not complete
-		if s.discovery == nil {
-			s.logger.Error("discovery service is nil")
-			delay.Reset(WaitDiscoverServceReady) // wait 2 minutes before trying again
-
-			continue
-		}
-
-		// first get all the peers from the peerstore
-		// mark connection if not create PeerConnInfo or pending status
-		// call DisconnectFromPeer to clean up the connection marked in the last round
-
-		// use a waitgroup avoid disconnect deadlock
-		var waitingPeersDiscovered sync.WaitGroup
-
-		disconnectFlag := false
-
-		peers := s.host.Network().Peers()
-		s.logger.Debug("ready connections", "count", len(peers))
-
-		for _, peerID := range peers {
-			if peerID == selfID {
-				continue
-			}
-
-			// check and mark if peer has pending status
-			if s.identity.HasPendingStatus(peerID) {
-				if _, ok := pendingConnectMark[peerID]; !ok {
-					s.logger.Debug("peer has pending status", "peer", peerID)
-
-					pendingConnectMark[peerID] = struct{}{}
-
-					continue
-				}
-			} else {
-				// clear pending connect mark
-				delete(pendingConnectMark, peerID)
-			}
-
-			_, isMark := pendingConnectMark[peerID]
-			if !s.HasPeer(peerID) && isMark {
-				s.logger.Error("peer session not exist, disconnect peer", "peer", "bye")
-
-				disconnectFlag = true
-
-				// disconnect peer, but peersLock is locked, so use goroutine
-				waitingPeersDiscovered.Add(1)
-
-				go func(peerID peer.ID) {
-					defer waitingPeersDiscovered.Done()
-					s.DisconnectFromPeer(peerID, "bye")
-				}(peerID)
-			}
-
-			// clear pending connect mark
-			delete(pendingConnectMark, peerID)
-		}
-
-		if disconnectFlag {
-			// wait peer disconnect finish
-			waitingPeersDiscovered.Wait()
-		}
-
-		// clear pending connect mark, remove not exist peers
-		copyMark := make(map[peer.ID]struct{})
-
-		for _, peerID := range peers {
-			if _, ok := pendingConnectMark[peerID]; ok {
-				copyMark[peerID] = struct{}{}
-			}
-		}
-
-		pendingConnectMark = copyMark
-
-		// next check libp2p connections,
-		// if connect count is enough, wait next loop
-
-		if len(peers) >= maxPeers {
-			delay.Reset(KeepAliveConnectFullSleep) // wait 1 minute before trying again
-
-			continue
-		}
-
-		// if not free outbound connection or disconnect peer, wait next loop
-		if !s.connectionCounts.HasFreeOutboundConn() || disconnectFlag {
-			continue
-		}
-
-		// get routingTable peers
-		routTablePeers := s.discovery.GetConfirmPeers()
-		if len(routTablePeers) == 0 {
-			s.logger.Error("no peers found")
-
-			continue
-		}
-
-		s.logger.Debug("attempting to connect to random peer")
-
-		// shuffle peers
-		randIns.Shuffle(
-			len(routTablePeers),
-			func(i, j int) {
-				routTablePeers[i], routTablePeers[j] = routTablePeers[j], routTablePeers[i]
-			})
-
-		isDial := false
-		dialCount := 0
-
-		for _, randPeer := range routTablePeers {
-			/// dial unconnected peer
-			if selfID != randPeer &&
-				!s.identity.HasPendingStatus(randPeer) &&
-				!s.bootnodes.isBootnode(randPeer) &&
-				!s.HasPeer(randPeer) {
-				// use discovery service save
-				peerInfo := s.discovery.GetConfirmPeerInfo(randPeer)
-				if peerInfo != nil {
-					s.logger.Debug("dialing random peer", "peer", peerInfo)
-					s.addToDialQueue(peerInfo, common.PriorityRandomDial)
-
-					isDial = true
-					dialCount++
-				} else {
-					s.logger.Error("peer not found in discovery service", "peer", randPeer)
-				}
-
-				if dialCount >= batchDialPeers {
-					break
-				}
-			}
-		}
-
-		if isDial {
-			continue
-		}
-
-		s.logger.Info("all peers add to dial queue, no random peer to dial")
-
-		// if we get here, all peers are connected, so we can sleep for a longer
-		delay.Reset(DefaultKeepAliveDoubleTimer)
-	}
 }
 
 // runDial starts the networking server's dial loop.
@@ -937,6 +765,8 @@ func (s *DefaultServer) markStaticPeer(peerInfo *peer.AddrInfo) {
 }
 
 func (s *DefaultServer) Close() error {
+	s.keepAvailable.Close()
+
 	// close dial queue
 	s.dialQueue.Close()
 
