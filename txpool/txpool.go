@@ -174,6 +174,7 @@ type TxPool struct {
 
 	// shutdown channel
 	shutdownCh chan struct{}
+	shutdownWg sync.WaitGroup
 
 	// flag indicating if the current node is a sealer,
 	// and should therefore gossip transactions
@@ -356,10 +357,14 @@ func (p *TxPool) Close() {
 	}
 
 	p.logger.Info("txpool close all channels")
+	// signal all goroutines to exit
+	close(p.shutdownCh)
+	// wait for all goroutines to exit
+	p.shutdownWg.Wait()
+
 	// close all channels
 	close(p.enqueueReqCh)
 	close(p.promoteReqCh)
-	close(p.shutdownCh)
 }
 
 // SetSigner sets the signer the pool will use
@@ -761,6 +766,9 @@ func (p *TxPool) addTx(origin txOrigin, tx *types.Transaction) error {
 // If, afterwards, the account is eligible for promotion,
 // a promoteRequest is signaled.
 func (p *TxPool) handleEnqueueRequest(req enqueueRequest) {
+	p.shutdownWg.Add(1)
+	defer p.shutdownWg.Done()
+
 	tx := req.tx
 	addr := req.tx.From
 
@@ -816,6 +824,9 @@ func (p *TxPool) handleEnqueueRequest(req enqueueRequest) {
 // of some account from enqueued to promoted. Can only be
 // invoked by handleEnqueueRequest or resetAccount.
 func (p *TxPool) handlePromoteRequest(req promoteRequest) {
+	p.shutdownWg.Add(1)
+	defer p.shutdownWg.Done()
+
 	addr := req.account
 	account := p.accounts.get(addr)
 
@@ -845,6 +856,9 @@ func (p *TxPool) handlePromoteRequest(req promoteRequest) {
 // pruneStaleAccounts would find out all need-to-prune transactions,
 // remove them from txpool.
 func (p *TxPool) pruneStaleAccounts() {
+	p.shutdownWg.Add(1)
+	defer p.shutdownWg.Done()
+
 	pruned := p.accounts.pruneStaleEnqueuedTxs(p.promoteOutdateDuration)
 	if len(pruned) == 0 {
 		return
