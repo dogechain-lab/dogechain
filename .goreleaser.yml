@@ -21,7 +21,6 @@ builds:
       -X 'github.com/dogechain-lab/dogechain/versioning.Version=v{{ .Version }}
       -X 'github.com/dogechain-lab/dogechain/versioning.Commit={{ .GITHUB_COMMIT_HASH }}'
       -X 'github.com/dogechain-lab/dogechain/versioning.BuildTime={{ .GITHUB_BUILT_AT }}'
-      -extldflags "-Wl,-z,stack-size=0x800000" "-static"
       -tags 'osusergo netgo static_build'
 
   - id: darwin-arm64
@@ -39,7 +38,6 @@ builds:
       -X 'github.com/dogechain-lab/dogechain/versioning.Version=v{{ .Version }}
       -X 'github.com/dogechain-lab/dogechain/versioning.Commit={{ .GITHUB_COMMIT_HASH }}'
       -X 'github.com/dogechain-lab/dogechain/versioning.BuildTime={{ .GITHUB_BUILT_AT }}'
-      -extldflags "-Wl,-z,stack-size=0x800000" "-static"
       -tags 'osusergo netgo static_build'
 
   - id: linux-amd64

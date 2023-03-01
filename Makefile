@@ -26,7 +26,6 @@ build:
 		-X 'github.com/dogechain-lab/dogechain/versioning.Version=$(LATEST_VERSION)'\
 		-X 'github.com/dogechain-lab/dogechain/versioning.Commit=$(COMMIT_HASH)'\
 		-X 'github.com/dogechain-lab/dogechain/versioning.BuildTime=$(DATE)' \
-		-extldflags '"-Wl,-z,stack-size=0x800000" "-static"' "\
 		-tags 'osusergo netgo static_build' \
 	main.go
 
