@@ -21,6 +21,8 @@ type Syncer interface {
 	GetSyncProgression() *progress.Progression
 	// HasSyncPeer returns whether syncer has the peer syncer can sync with
 	HasSyncPeer() bool
+	// IsSyncing returns whether syncer is syncing
+	IsSyncing() bool
 	// Sync starts routine to sync blocks
 	Sync(func(*types.Block) bool) error
 }

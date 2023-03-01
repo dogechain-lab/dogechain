@@ -212,7 +212,7 @@ func Test_startPeerStatusUpdateProcess(t *testing.T) {
 		&mockProgression{},
 	)
 
-	syncer.setSyncing(true) // to skip channel blocking
+	syncer.startSyncingStatus() // to skip channel blocking
 
 	go syncer.Sync(nil)
 

@@ -136,12 +136,16 @@ func NewSyncer(
 	return s
 }
 
-func (s *noForkSyncer) isSyncing() bool {
+func (s *noForkSyncer) IsSyncing() bool {
 	return s.syncing.Load()
 }
 
-func (s *noForkSyncer) setSyncing(syncing bool) (oldStatus bool) {
-	return s.syncing.Swap(syncing)
+func (s *noForkSyncer) startSyncingStatus() (success bool) {
+	return s.syncing.CompareAndSwap(false, true)
+}
+
+func (s *noForkSyncer) stopSyncingStatus() (success bool) {
+	return s.syncing.CompareAndSwap(true, false)
 }
 
 // GetSyncProgression returns the latest sync progression, if any
@@ -300,14 +304,12 @@ func (s *noForkSyncer) Sync(callback func(*types.Block) bool) error {
 			}
 
 			// The channel should not be blocked, otherwise it will hang when an error occurs
-			if s.isSyncing() {
+			if !s.startSyncingStatus() {
 				s.logger.Debug("skip new status event due to not done syncing")
 
 				continue
 			}
 		}
-
-		s.logger.Debug("got new status event")
 
 		if shouldTerminate := s.syncWithSkipList(skipList, callback); shouldTerminate {
 			s.logger.Error("terminate syncing")
@@ -323,12 +325,13 @@ func (s *noForkSyncer) syncWithSkipList(
 	skipList *sync.Map,
 	callback func(*types.Block) bool,
 ) (shouldTerminate bool) {
-	// switch syncing status
-	s.setSyncing(true)
-	defer s.setSyncing(false)
+	s.logger.Debug("got new status event and start syncing")
 
-	s.logger.Debug("start syncing")
-	defer s.logger.Debug("done syncing")
+	// switch syncing status
+	defer func() {
+		s.logger.Debug("done syncing")
+		s.stopSyncingStatus()
+	}()
 
 	var localLatest uint64
 
