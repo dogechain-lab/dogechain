@@ -542,7 +542,8 @@ func (i *Ibft) startConsensus() {
 			)
 		}
 
-		isValidator = i.isValidSnapshot()
+		// validator must not be in syncing mode
+		isValidator = !i.syncer.IsSyncing() && i.isValidSnapshot()
 
 		if isValidator {
 			// i.startNewSequence()
