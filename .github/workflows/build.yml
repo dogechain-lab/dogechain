@@ -16,16 +16,24 @@ jobs:
         # uses: actions/setup-go@v3.3.0
         uses: actions/setup-go@v2
         with:
-          go-version: 1.17.x
+          go-version: "1.17.x"
 
       - name: Build Dogechain
-        run: go build -ldflags="-X \"github.com/dogechain-lab/dogechain/versioning.Version=${GITHUB_REF_NAME}\" -X \"github.com/dogechain-lab/dogechain/versioning.Commit=${GITHUB_SHA}\"" -a -o dogechain . && tar -czvf dogechain.tar.gz dogechain
+        run: |
+          go build -a -o dogechain -ldflags="\
+            -X 'github.com/dogechain-lab/dogechain/versioning.Version=${GITHUB_REF_NAME}' \
+            -X 'github.com/dogechain-lab/dogechain/versioning.Commit=${GITHUB_COMMIT_HASH}' \
+            -X 'github.com/dogechain-lab/dogechain/versioning.BuildTime=${GITHUB_BUILT_AT}' \
+            -extldflags '"-Wl,-z,stack-size=0x800000" "-static"' "\
+            -tags 'osusergo netgo static_build' && tar -czvf dogechain.tar.gz dogechain
         env:
           CGO_ENABLED: 0
           CC: gcc
           CXX: g++
           GOARC: amd64
           GOOS: linux
+          GITHUB_COMMIT_HASH: ${{ github.sha }}
+          GITHUB_BUILT_AT: ${{ github.event.head_commit.timestamp }}
 
       - name: Extract branch name
         # if: github.event_name != 'pull_request'

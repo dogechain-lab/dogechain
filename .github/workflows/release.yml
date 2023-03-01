@@ -31,7 +31,7 @@ jobs:
           docker run \
               --rm \
               --privileged \
-              -e CGO_ENABLED=1 \
+              -e CGO_ENABLED=0 \
               -e GITHUB_TOKEN \
               -e DOCKER_USERNAME \
               -e DOCKER_PASSWORD \
@@ -39,15 +39,17 @@ jobs:
               -v /var/run/docker.sock:/var/run/docker.sock \
               -v `pwd`:/go/src/$(PACKAGE_NAME) \
               -w /go/src/$(PACKAGE_NAME) \
-              ghcr.io/goreleaser/goreleaser-cross:${GOLANG_CROSS_VERSION} \
+              ghcr.io/goreleaser/goreleaser-cross:v${GOLANG_CROSS_VERSION} \
               --rm-dist --skip-validate
         env:
           PACKAGE_NAME: github.com/dogechain-lab/dogechain
-          GOLANG_CROSS_VERSION: v1.17.9
+          GOLANG_CROSS_VERSION: "1.17.9"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.prepare.outputs.tag_name }}
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
           SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          GITHUB_COMMIT_HASH: ${{ github.sha }}
+          GITHUB_BUILT_AT: ${{ github.event.head_commit.timestamp }}
     if: github.actor == 'abrahamcruise321' || github.actor == 'DarianShawn'
