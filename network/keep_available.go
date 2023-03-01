@@ -23,7 +23,7 @@ const (
 	kasSleeping              keepAvailableStatus = iota // default sleep status
 	kasDiscoveryWaiting                                 // Discovery service is not ready
 	kasMaxPeerSleeping                                  // Max peer sleep
-	kasMarkConnectionPanding                            // Mark the connection as pending
+	kasMarkConnectionPending                            // Mark the connection as pending
 	kasRandomDialed                                     // Random dialed peer
 	kasDialSleeping                                     // Dial sleep
 	kasWeakUp                                           // Weak up
@@ -159,7 +159,7 @@ func (ka *keepAvailable) fsm() {
 			ka.timer.Reset(waitDiscoverDuration)
 
 			return
-		case kasMarkConnectionPanding:
+		case kasMarkConnectionPending:
 			ka.markPendingConnection()
 		case kasMaxPeerSleeping:
 			ka.timer.Reset(connectFullSleepDuration)
@@ -188,7 +188,7 @@ func (ka *keepAvailable) checkDiscoveryServiceReady() {
 	}
 
 	// next status is mark pending connection
-	ka.status = kasMarkConnectionPanding
+	ka.status = kasMarkConnectionPending
 }
 
 // markPendingConnection mark the connection as pending
