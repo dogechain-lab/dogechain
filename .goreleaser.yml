@@ -18,9 +18,9 @@ builds:
       - CXX=o64-clang++
     ldflags: >
       -s -w
-      -X 'github.com/dogechain-lab/dogechain/versioning.Version=v{{ .Version }}
-      -X 'github.com/dogechain-lab/dogechain/versioning.Commit={{ .GITHUB_COMMIT_HASH }}'
-      -X 'github.com/dogechain-lab/dogechain/versioning.BuildTime={{ .GITHUB_BUILT_AT }}'
+      -X 'github.com/dogechain-lab/dogechain/versioning.Version=v{{.Version}}
+      -X 'github.com/dogechain-lab/dogechain/versioning.Commit={{ .Commit }}'
+      -X 'github.com/dogechain-lab/dogechain/versioning.BuildTime={{ .Date }}'
     tags:
       - osusergo
       - netgo
@@ -39,8 +39,8 @@ builds:
     ldflags: >
       -s -w
       -X 'github.com/dogechain-lab/dogechain/versioning.Version=v{{ .Version }}
-      -X 'github.com/dogechain-lab/dogechain/versioning.Commit={{ .GITHUB_COMMIT_HASH }}'
-      -X 'github.com/dogechain-lab/dogechain/versioning.BuildTime={{ .GITHUB_BUILT_AT }}'
+      -X 'github.com/dogechain-lab/dogechain/versioning.Commit={{ .Commit }}'
+      -X 'github.com/dogechain-lab/dogechain/versioning.BuildTime={{ .Date }}'
     tags:
       - osusergo
       - netgo
@@ -60,8 +60,8 @@ builds:
     ldflags: >
       -s -w
       -X 'github.com/dogechain-lab/dogechain/versioning.Version=v{{ .Version }}
-      -X 'github.com/dogechain-lab/dogechain/versioning.Commit={{ .GITHUB_COMMIT_HASH }}'
-      -X 'github.com/dogechain-lab/dogechain/versioning.BuildTime={{ .GITHUB_BUILT_AT }}'
+      -X 'github.com/dogechain-lab/dogechain/versioning.Commit={{ .Commit }}'
+      -X 'github.com/dogechain-lab/dogechain/versioning.BuildTime={{ .Date }}'
       -extldflags "-Wl,-z,stack-size=0x800000" "-static"
     tags:
       - osusergo
@@ -81,8 +81,8 @@ builds:
     ldflags: >
       -s -w
       -X 'github.com/dogechain-lab/dogechain/versioning.Version=v{{ .Version }}
-      -X 'github.com/dogechain-lab/dogechain/versioning.Commit={{ .GITHUB_COMMIT_HASH }}'
-      -X 'github.com/dogechain-lab/dogechain/versioning.BuildTime={{ .GITHUB_BUILT_AT }}'
+      -X 'github.com/dogechain-lab/dogechain/versioning.Commit={{ .Commit }}'
+      -X 'github.com/dogechain-lab/dogechain/versioning.BuildTime={{ .Date }}'
       -extldflags "-Wl,-z,stack-size=0x800000" "-static"
     tags:
       - osusergo

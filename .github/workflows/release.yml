@@ -33,8 +33,6 @@ jobs:
               --privileged \
               -e CGO_ENABLED=0 \
               -e GITHUB_TOKEN \
-              -e GITHUB_COMMIT_HASH \
-              -e GITHUB_BUILT_AT \
               -e DOCKER_USERNAME \
               -e DOCKER_PASSWORD \
               -e SLACK_WEBHOOK \
@@ -47,8 +45,6 @@ jobs:
           PACKAGE_NAME: github.com/dogechain-lab/dogechain
           GOLANG_CROSS_VERSION: "1.17.9"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_COMMIT_HASH: ${{ github.sha }}
-          GITHUB_BUILT_AT: ${{ github.event.head_commit.timestamp }}
           VERSION: ${{ steps.prepare.outputs.tag_name }}
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
           SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
