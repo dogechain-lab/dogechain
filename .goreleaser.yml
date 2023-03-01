@@ -62,7 +62,7 @@ builds:
       -X 'github.com/dogechain-lab/dogechain/versioning.Version=v{{ .Version }}'
       -X 'github.com/dogechain-lab/dogechain/versioning.Commit={{ .Commit }}'
       -X 'github.com/dogechain-lab/dogechain/versioning.BuildTime={{ .Date }}'
-      -extldflags "-Wl,-z,stack-size=0x800000" "-static"
+      -extldflags '"-Wl,-z,stack-size=0x800000" "-static"'
     tags:
       - osusergo
       - netgo
@@ -83,7 +83,7 @@ builds:
       -X 'github.com/dogechain-lab/dogechain/versioning.Version=v{{ .Version }}'
       -X 'github.com/dogechain-lab/dogechain/versioning.Commit={{ .Commit }}'
       -X 'github.com/dogechain-lab/dogechain/versioning.BuildTime={{ .Date }}'
-      -extldflags "-Wl,-z,stack-size=0x800000" "-static"
+      -extldflags '"-Wl,-z,stack-size=0x800000" "-static"'
     tags:
       - osusergo
       - netgo
