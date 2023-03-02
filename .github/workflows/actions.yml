@@ -14,13 +14,10 @@ jobs:
     name: Lint Code
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
         with:
           submodules: recursive
-
-      - name: Install Go
-        uses: actions/setup-go@v2
+      - uses: actions/setup-go@v3
         with:
           go-version: "1.17.x"
 
@@ -28,24 +25,19 @@ jobs:
         uses: golangci/golangci-lint-action@v3
 
   build:
-    name: Build Dogechain
+    name: Build Test
     runs-on: ubuntu-latest
     needs:
       - lint
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
         with:
           submodules: recursive
-
-      - name: Setup Go environment
-        # uses: actions/setup-go@v3.3.0
-        uses: actions/setup-go@v2
+      - uses: actions/setup-go@v3
         with:
           go-version: "1.17.x"
 
-      - name: Build Dogechain
-        run: |
+      - run: |
           go build -a -o dogechain -ldflags="\
             -X 'github.com/dogechain-lab/dogechain/versioning.Version=${GITHUB_REF_NAME}' \
             -X 'github.com/dogechain-lab/dogechain/versioning.Commit=${GITHUB_COMMIT_HASH}' \
@@ -61,31 +53,16 @@ jobs:
           GITHUB_COMMIT_HASH: ${{ github.sha }}
           GITHUB_BUILT_AT: ${{ github.event.head_commit.timestamp }}
 
-      - name: Extract branch name
-        shell: bash
-        run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
-        id: extract_branch
-
-      - name: "Upload Artifact"
-        uses: actions/upload-artifact@v3
-        with:
-          name: dogechain_${{ github.sha }}_${{ steps.extract_branch.outputs.branch }}
-          path: dogechain.tar.gz
-          retention-days: 7
-
   tests:
     name: Run unit tests
     runs-on: ubuntu-latest
     needs:
       - build
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
         with:
           submodules: recursive
-
-      - name: Setup Go
-        uses: actions/setup-go@v2
+      - uses: actions/setup-go@v3
         with:
           go-version: "1.17.x"
 
