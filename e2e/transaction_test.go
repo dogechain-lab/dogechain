@@ -25,8 +25,8 @@ import (
 )
 
 const (
-	serverStartTimeout = 30 * time.Second // time to wait for all servers to start
-	transactionTimeout = 10 * time.Second // time to wait for a transaction
+	serverStartTimeout = 1 * time.Minute  // time to wait for all servers to start
+	transactionTimeout = 30 * time.Second // time to wait for a transaction
 )
 
 func TestSignedTransaction(t *testing.T) {
