@@ -1,4 +1,5 @@
 [![codecov](https://codecov.io/gh/dogechain-lab/dogechain/branch/dev/graph/badge.svg?token=EKFM6S9478)](https://codecov.io/gh/dogechain-lab/dogechain)
+[![QA](https://github.com/dogechain-lab/dogechain/actions/workflows/actions.yml/badge.svg)](https://github.com/dogechain-lab/dogechain/actions/workflows/actions.yml)
 
 ## Dogechain
 

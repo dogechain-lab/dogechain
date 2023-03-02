@@ -44,7 +44,8 @@ jobs:
           cache: true
           cache-dependency-path: go.sum
 
-      - run: |
+      - name: Build
+        run: |
           go build -a -o dogechain -ldflags="\
             -X 'github.com/dogechain-lab/dogechain/versioning.Version=${GITHUB_REF_NAME}' \
             -X 'github.com/dogechain-lab/dogechain/versioning.Commit=${GITHUB_COMMIT_HASH}' \
