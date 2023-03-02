@@ -84,16 +84,23 @@ func TestReverify(t *testing.T) {
 		*config = *svr.Config
 	})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	t.Cleanup(cancel)
+	func() {
+		ctx, cancel := context.WithTimeout(context.Background(), serverStartTimeout)
+		defer cancel()
 
-	err = resvr.Start(ctx)
-	assert.NoError(t, err)
+		err := resvr.Start(ctx)
+		assert.NoError(t, err)
+	}()
 
 	t.Cleanup(func() {
 		resvr.Stop()
 	})
 
-	_, err = framework.WaitUntilBlockMined(ctx, resvr, finalToBlock)
-	assert.NoError(t, err)
+	func() {
+		ctx, cancel := context.WithTimeout(context.Background(), transactionTimeout)
+		defer cancel()
+
+		_, err := framework.WaitUntilBlockMined(ctx, resvr, finalToBlock)
+		assert.NoError(t, err)
+	}()
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"math/big"
 	"testing"
-	"time"
 
 	"github.com/dogechain-lab/dogechain/command"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -111,7 +110,7 @@ func TestCustomBlockGasLimitPropagation(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), transactionTimeout)
 	defer cancel()
 
 	_, err = framework.WaitUntilBlockMined(ctx, srv, 1)

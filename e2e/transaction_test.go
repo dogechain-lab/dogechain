@@ -48,7 +48,7 @@ func TestSignedTransaction(t *testing.T) {
 
 	// Wait for the first block to be mined
 	func() {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		ctx, cancel := context.WithTimeout(context.Background(), transactionTimeout)
 		defer cancel()
 
 		_, err := framework.WaitUntilBlockMined(ctx, srv, 1)
@@ -542,7 +542,7 @@ func Test_TransactionIBFTLoop(t *testing.T) {
 
 	// Wait for the first block to be mined
 	func() {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		ctx, cancel := context.WithTimeout(context.Background(), transactionTimeout)
 		defer cancel()
 
 		_, err := framework.WaitUntilBlockMined(ctx, srv, 1)
