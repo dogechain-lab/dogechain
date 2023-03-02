@@ -51,7 +51,8 @@ func TestSignedTransaction(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		defer cancel()
 
-		framework.WaitUntilBlockMined(ctx, srv, 1)
+		_, err := framework.WaitUntilBlockMined(ctx, srv, 1)
+		assert.NoError(t, err)
 	}()
 
 	// check there is enough balance
@@ -544,7 +545,8 @@ func Test_TransactionIBFTLoop(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		defer cancel()
 
-		framework.WaitUntilBlockMined(ctx, srv, 1)
+		_, err := framework.WaitUntilBlockMined(ctx, srv, 1)
+		assert.NoError(t, err)
 	}()
 
 	// Deploy the stress test contract
