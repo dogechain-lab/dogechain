@@ -24,6 +24,11 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
+const (
+	serverStartTimeout = 30 * time.Second // time to wait for all servers to start
+	transactionTimeout = 10 * time.Second // time to wait for a transaction
+)
+
 func TestSignedTransaction(t *testing.T) {
 	senderKey, senderAddr := tests.GenerateKeyAndAddr(t)
 	_, receiverAddr := tests.GenerateKeyAndAddr(t)
@@ -39,12 +44,20 @@ func TestSignedTransaction(t *testing.T) {
 			config.SetSeal(true)
 		})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), serverStartTimeout)
 	defer cancel()
 	ibftManager.StartServers(ctx)
 
 	srv := ibftManager.GetServer(0)
 	clt := srv.JSONRPC()
+
+	// Wait for the first block to be mined
+	func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		defer cancel()
+
+		framework.WaitUntilBlockMined(ctx, srv, 1)
+	}()
 
 	// check there is enough balance
 	balance, err := clt.Eth().GetBalance(web3.Address(senderAddr), web3.Latest)
@@ -60,7 +73,7 @@ func TestSignedTransaction(t *testing.T) {
 			Value:    big.NewInt(10000),
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), transactionTimeout)
 		defer cancel()
 
 		receipt, err := srv.SendRawTx(ctx, txn, senderKey)
@@ -207,7 +220,7 @@ func TestEthTransfer(t *testing.T) {
 		previousReceiverBalance := balanceReceiver
 
 		// Do the transfer
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), transactionTimeout)
 		defer cancel()
 
 		txn := &framework.PreparedTransaction{
@@ -371,7 +384,7 @@ func Test_TransactionDevLoop(t *testing.T) {
 	client := srv.JSONRPC()
 
 	// Deploy the stress test contract
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), transactionTimeout)
 	defer cancel()
 
 	contractAddr, err := srv.DeployContract(ctx, stressTestBytecode, senderKey)
@@ -520,15 +533,27 @@ func Test_TransactionIBFTLoop(t *testing.T) {
 			config.SetBlockTime(1)
 		})
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	defer cancel()
-	ibftManager.StartServers(ctx)
+	// Start the test server
+	func() {
+		ctx, cancel := context.WithTimeout(context.Background(), serverStartTimeout)
+		defer cancel()
+
+		ibftManager.StartServers(ctx)
+	}()
 
 	srv := ibftManager.GetServer(0)
 	client := srv.JSONRPC()
 
+	// Wait for the first block to be mined
+	func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		defer cancel()
+
+		framework.WaitUntilBlockMined(ctx, srv, 1)
+	}()
+
 	// Deploy the stress test contract
-	deployCtx, deployCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	deployCtx, deployCancel := context.WithTimeout(context.Background(), transactionTimeout)
 	defer deployCancel()
 
 	buf, err := hex.DecodeString(stressTestBytecode)
