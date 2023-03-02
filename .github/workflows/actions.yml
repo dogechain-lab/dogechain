@@ -1,16 +1,40 @@
 ---
 name: Build
-on: # yamllint disable-line rule:truthy
+on:
+  push:
+    branches:
+      - main
+      - dev
+  pull_request:
   workflow_dispatch:
   workflow_call:
 
 jobs:
-  go_build:
-    name: Dogechain
+  lint:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: "1.17.x"
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v3
+
+  build:
+    runs-on: ubuntu-latest
+    needs:
+      - lint
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
 
       - name: Setup Go environment
         # uses: actions/setup-go@v3.3.0
@@ -36,7 +60,6 @@ jobs:
           GITHUB_BUILT_AT: ${{ github.event.head_commit.timestamp }}
 
       - name: Extract branch name
-        # if: github.event_name != 'pull_request'
         shell: bash
         run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
         id: extract_branch
@@ -47,3 +70,44 @@ jobs:
           name: dogechain_${{ github.sha }}_${{ steps.extract_branch.outputs.branch }}
           path: dogechain.tar.gz
           retention-days: 7
+
+  tests:
+    runs-on: ubuntu-latest
+    needs:
+      - build
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: "1.17.x"
+
+      - name: Run Go Test
+        run: go test -coverprofile coverage.out -timeout 20m `go list ./... | grep -v e2e`
+
+      - name: Upload coverage file to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: coverage.out
+
+  e2e-tests:
+    runs-on: ubuntu-latest
+    needs:
+      - tests
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: "1.17.x"
+
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Run tests
+        run: make test-e2e
