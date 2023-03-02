@@ -72,7 +72,7 @@ func TestBackup(t *testing.T) {
 	blockHash := block.Hash
 
 	for _, backupFile := range backupFiles {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), serverStartTimeout)
 		t.Cleanup(cancel)
 
 		os.RemoveAll(path.Join(svr.Config.RootDir, "blockchain"))

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"math/big"
 	"testing"
-	"time"
 
 	"github.com/dogechain-lab/dogechain/e2e/framework"
 	"github.com/dogechain-lab/dogechain/jsonrpc"
@@ -111,7 +110,7 @@ func TestWS_Response(t *testing.T) {
 	})
 
 	t.Run("Valid block number after transfer", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), transactionTimeout)
 		defer cancel()
 
 		_, err = srv.SendRawTx(ctx, &framework.PreparedTransaction{

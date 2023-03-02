@@ -72,7 +72,7 @@ func StakeAmount(
 		Input:    MethodSig("stake"),
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultTimeout)
 	defer cancel()
 
 	_, err := srv.SendRawTx(ctx, txn, senderKey)
@@ -100,7 +100,7 @@ func UnstakeAmount(
 		Input:    MethodSig("unstake"),
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultTimeout)
 	defer cancel()
 
 	receipt, err := srv.SendRawTx(ctx, txn, senderKey)
@@ -375,7 +375,7 @@ func NewTestServers(t *testing.T, num int, conf func(*TestServerConfig)) []*Test
 			t.Fatal(genesisErr)
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), DefaultTimeout)
 		defer cancel()
 
 		if err := srv.Start(ctx); err != nil {

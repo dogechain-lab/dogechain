@@ -4,7 +4,6 @@ import (
 	"context"
 	"math/big"
 	"testing"
-	"time"
 
 	"github.com/dogechain-lab/dogechain/e2e/framework"
 	"github.com/dogechain-lab/dogechain/helper/hex"
@@ -24,7 +23,7 @@ func TestNewFilter_Logs(t *testing.T) {
 	})
 	srv := srvs[0]
 
-	ctx1, cancel1 := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx1, cancel1 := context.WithTimeout(context.Background(), transactionTimeout)
 	defer cancel1()
 
 	contractAddr, err := srv.DeployContract(ctx1, sampleByteCode, key)
@@ -39,7 +38,7 @@ func TestNewFilter_Logs(t *testing.T) {
 
 	numCalls := 10
 	for i := 0; i < numCalls; i++ {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), transactionTimeout)
 		defer cancel()
 		srv.InvokeMethod(ctx, types.Address(contractAddr), "setA1", key)
 	}
@@ -65,7 +64,7 @@ func TestNewFilter_Block(t *testing.T) {
 	assert.NoError(t, err)
 
 	for i := 0; i < 3; i++ {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), transactionTimeout)
 		_, err := srv.SendRawTx(ctx, &framework.PreparedTransaction{
 			From:     from,
 			To:       &to,
@@ -106,7 +105,7 @@ func TestFilterValue(t *testing.T) {
 	})
 	srv := srvs[0]
 
-	ctx1, cancel1 := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx1, cancel1 := context.WithTimeout(context.Background(), transactionTimeout)
 	defer cancel1()
 
 	contractAddr, err := srv.DeployContract(ctx1, bloomFilterTestBytecode, key)
@@ -149,7 +148,7 @@ func TestFilterValue(t *testing.T) {
 
 	numCalls := 1
 	for i := 0; i < numCalls; i++ {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), transactionTimeout)
 		defer cancel()
 		srv.InvokeMethod(ctx, types.Address(contractAddr), "TriggerMyEvent", key)
 	}

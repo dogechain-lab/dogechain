@@ -3,7 +3,6 @@ package e2e
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/dogechain-lab/dogechain/e2e/framework"
 	"github.com/dogechain-lab/dogechain/helper/tests"
@@ -21,7 +20,7 @@ func TestEncoding(t *testing.T) {
 	})
 	srv := srvs[0]
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), transactionTimeout)
 	defer cancel()
 
 	contractAddr, err := srv.DeployContract(ctx, sampleByteCode, key)
@@ -30,7 +29,7 @@ func TestEncoding(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel = context.WithTimeout(context.Background(), transactionTimeout)
 	defer cancel()
 
 	receipt := srv.InvokeMethod(ctx, types.Address(contractAddr), "setA1", key)

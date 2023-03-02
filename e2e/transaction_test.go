@@ -24,11 +24,6 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-const (
-	serverStartTimeout = 1 * time.Minute  // time to wait for all servers to start
-	transactionTimeout = 30 * time.Second // time to wait for a transaction
-)
-
 func TestSignedTransaction(t *testing.T) {
 	senderKey, senderAddr := tests.GenerateKeyAndAddr(t)
 	_, receiverAddr := tests.GenerateKeyAndAddr(t)
