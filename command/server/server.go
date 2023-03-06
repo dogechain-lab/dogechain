@@ -371,6 +371,7 @@ func setDevFlags(cmd *cobra.Command) {
 	)
 
 	helper.RegisterPprofFlag(cmd)
+	helper.RegisterJaegerFlag(cmd)
 
 	_ = cmd.Flags().MarkHidden(devIntervalFlag)
 }
@@ -481,6 +482,12 @@ func runCommand(cmd *cobra.Command, _ []string) {
 
 	// pprof flag
 	params.rawConfig.EnablePprof = helper.GetPprofFlag(cmd)
+
+	// jaeger flag
+	if enable, jaegerURL := helper.GetJaegerFlag(cmd); enable {
+		params.rawConfig.Telemetry.EnableJaeger = enable
+		params.rawConfig.Telemetry.JaegerURL = jaegerURL
+	}
 
 	if err := runServerLoop(params.generateConfig(), outputter); err != nil {
 		outputter.SetError(err)

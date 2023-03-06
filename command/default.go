@@ -19,6 +19,8 @@ const (
 	GraphQLAddressFlag = "graphql-address"
 	PprofFlag          = "pprof"
 	PprofAddressFlag   = "pprof-address"
+	JaegerFlag         = "jaeger"
+	JaegerAddressFlag  = "jaeger-address"
 )
 
 // Legacy flag that needs to be present to preserve backwards

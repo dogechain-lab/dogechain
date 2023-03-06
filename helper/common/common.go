@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -215,4 +216,42 @@ func PadLeftOrTrim(bb []byte, size int) []byte {
 	copy(tmp[size-l:], bb)
 
 	return tmp
+}
+
+// Substr returns a substring of the input string
+func Substr(input string, start int, size int) string {
+	strRunes := []rune(input)
+
+	if start < 0 {
+		start = 0
+	}
+
+	if start >= len(strRunes) {
+		return ""
+	}
+
+	if (start + size) > len(strRunes) {
+		size = len(strRunes) - start
+	}
+
+	return string(strRunes[start : start+size])
+}
+
+// GetOutboundIP returns the preferred outbound ip of this machine
+func GetOutboundIP() (net.IP, error) {
+	// any public address will do
+	conn, err := net.Dial("udp", "1.1.1.1")
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	address, ok := conn.LocalAddr().(*net.UDPAddr)
+	if !ok {
+		return nil, errors.New("cannot assert UDPAddr")
+	}
+
+	ipaddress := address.IP
+
+	return ipaddress, nil
 }

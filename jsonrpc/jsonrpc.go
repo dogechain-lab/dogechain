@@ -73,8 +73,8 @@ type Config struct {
 	EnableWS                 bool
 	PriceLimit               uint64
 	EnablePProf              bool // whether pprof enable or not
-
-	Metrics *Metrics
+	EnableJaeger             bool // whether jaeger enable or not
+	Metrics                  *Metrics
 }
 
 // NewJSONRPC returns the JSONRPC http server
