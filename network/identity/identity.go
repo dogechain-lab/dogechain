@@ -45,7 +45,7 @@ type networkingServer interface {
 	UpdatePendingConnCount(delta int64, direction network.Direction)
 
 	// EmitEvent emits the specified peer event on the base networking server
-	EmitEvent(event *event.PeerEvent)
+	EmitEvent(ctx context.Context, event *event.PeerEvent)
 
 	// CONNECTION INFORMATION //
 
@@ -64,7 +64,9 @@ type IdentityService struct {
 	pendingPeerConnections map[peer.ID]struct{} // Map that keeps track of the pending status of peers; peerID -> bool
 	pendingCountMux        sync.RWMutex         // Mutex for the pendingPeerConnections map
 
-	logger     hclog.Logger     // The IdentityService logger
+	logger hclog.Logger     // The IdentityService logger
+	tracer telemetry.Tracer // tracer for the IdentityService
+
 	baseServer networkingServer // The interface towards the base networking server
 
 	chainID int64   // The chain ID of the network
@@ -80,6 +82,7 @@ func NewIdentityService(
 ) *IdentityService {
 	return &IdentityService{
 		logger:                 logger.Named("identity"),
+		tracer:                 server.GetTracer().GetTraceProvider().NewTracer("identity"),
 		baseServer:             server,
 		chainID:                chainID,
 		hostID:                 hostID,
@@ -156,7 +159,9 @@ func (i *IdentityService) GetNotifyBundle() *network.NotifyBundle {
 					i.disconnectFromPeer(peerID, err.Error())
 
 					i.logger.Debug("send PeerFailedToConnect event", "peer", peerID)
+
 					span.SetError(err)
+					span.SetStatus(telemetry.Error, "identity check failed")
 
 					connectEvent.Type = event.PeerFailedToConnect
 				}
@@ -164,7 +169,7 @@ func (i *IdentityService) GetNotifyBundle() *network.NotifyBundle {
 				i.removePendingStatus(peerID, direction)
 
 				// Emit an adequate event
-				i.baseServer.EmitEvent(connectEvent)
+				i.baseServer.EmitEvent(span.Context(), connectEvent)
 			}()
 		},
 	}

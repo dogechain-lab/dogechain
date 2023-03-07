@@ -135,6 +135,7 @@ func newServer(
 	listenAddr, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", config.Addr.IP.String(), config.Addr.Port))
 	if err != nil {
 		span.SetError(err)
+		span.SetStatus(telemetry.Error, "failed to create listen address")
 
 		return nil, err
 	}
@@ -388,6 +389,8 @@ func (s *DefaultServer) keepAliveStaticPeerConnections() {
 
 		allConnected = true
 
+		span := s.tracer.Start("network.keepAliveStaticPeerConnections")
+
 		s.staticnodes.rangeAddrs(func(add *peer.AddrInfo) bool {
 			if s.host.Network().Connectedness(add.ID) == network.Connected {
 				return true
@@ -398,10 +401,12 @@ func (s *DefaultServer) keepAliveStaticPeerConnections() {
 			}
 
 			s.logger.Info("reconnect static peer", "addr", add.String())
-			s.addToDialQueue(add, common.PriorityRequestedDial)
+			s.addToDialQueue(span.Context(), add, common.PriorityRequestedDial)
 
 			return true
 		})
+
+		span.End()
 	}
 }
 
@@ -538,8 +543,9 @@ func (s *DefaultServer) Connect(peerInfo peer.AddrInfo) error {
 		if err := s.host.Connect(ctx, peerInfo); err != nil {
 			s.logger.Debug("failed to dial", "addr", peerInfo.String(), "err", err.Error())
 			span.SetError(err)
+			span.SetStatus(telemetry.Error, "connect failed")
 
-			s.emitEvent(peerInfo.ID, peerEvent.PeerFailedToConnect)
+			s.emitEvent(span.Context(), peerInfo.ID, peerEvent.PeerFailedToConnect)
 
 			return err
 		}
@@ -610,7 +616,7 @@ func (s *DefaultServer) GetProtocols(peerID peer.ID) ([]string, error) {
 // disconnection callback of the libp2p network bundle (when the connection is closed)
 func (s *DefaultServer) removePeerConnect(ctx context.Context, peerID peer.ID, direction network.Direction) {
 	span := func() telemetry.Span {
-		const spanName = "network.remove_peer_connect"
+		const spanName = "network.removePeerConnect"
 
 		if ctx == nil {
 			return s.tracer.Start(spanName)
@@ -672,7 +678,7 @@ func (s *DefaultServer) removePeerConnect(ctx context.Context, peerID peer.ID, d
 		s.RemoveFromPeerStore(peerID)
 
 		// Emit the event alerting listeners
-		s.emitEvent(peerID, peerEvent.PeerDisconnected)
+		s.emitEvent(span.Context(), peerID, peerEvent.PeerDisconnected)
 	}
 
 	s.metrics.SetTotalPeerCount(
@@ -702,7 +708,14 @@ func (s *DefaultServer) ForgetPeer(peer peer.ID, reason string) {
 
 // DisconnectFromPeer disconnects the networking server from the specified peer
 func (s *DefaultServer) DisconnectFromPeer(peerID peer.ID, reason string) {
+	span := s.tracer.Start("network.DisconnectFromPeer")
+	defer span.End()
+
+	span.SetAttribute("peer_id", peerID.String())
+
 	if s.IsStaticPeer(peerID) && s.HasPeer(peerID) {
+		span.SetAttribute("ignore_static_peer", true)
+
 		return
 	}
 
@@ -714,6 +727,8 @@ func (s *DefaultServer) DisconnectFromPeer(peerID peer.ID, reason string) {
 	// Close the peer connection
 	if closeErr := s.host.Network().ClosePeer(peerID); closeErr != nil {
 		s.logger.Error("unable to gracefully close peer connection", "err", closeErr)
+		span.SetError(closeErr)
+		span.SetStatus(telemetry.Error, "closer peer connection failed")
 	}
 }
 
@@ -726,6 +741,9 @@ var (
 
 // JoinPeer attempts to add a new peer to the networking server
 func (s *DefaultServer) JoinPeer(rawPeerMultiaddr string, static bool) error {
+	span := s.tracer.Start("network.JoinPeer")
+	defer span.End()
+
 	// Parse the raw string to a MultiAddr format
 	parsedMultiaddr, err := multiaddr.NewMultiaddr(rawPeerMultiaddr)
 	if err != nil {
@@ -749,7 +767,7 @@ func (s *DefaultServer) JoinPeer(rawPeerMultiaddr string, static bool) error {
 
 	// Mark the peer as ripe for dialing (async)
 	s.logger.Info("start join peer", "addr", peerInfo.String())
-	s.addToDialQueue(peerInfo, common.PriorityRequestedDial)
+	s.addToDialQueue(span.Context(), peerInfo, common.PriorityRequestedDial)
 
 	return nil
 }
@@ -880,20 +898,27 @@ func (s *DefaultServer) AddrInfo() *peer.AddrInfo {
 	}
 }
 
-func (s *DefaultServer) addToDialQueue(addr *peer.AddrInfo, priority common.DialPriority) {
+func (s *DefaultServer) addToDialQueue(ctx context.Context, addr *peer.AddrInfo, priority common.DialPriority) {
+	span := s.tracer.StartWithParentFromContext(ctx, "network.addToDialQueue")
+	defer span.End()
+
 	if s.selfID == addr.ID {
 		return
 	}
 
 	s.dialQueue.AddTask(addr, priority)
-	s.emitEvent(addr.ID, peerEvent.PeerAddedToDialQueue)
+	s.emitEvent(span.Context(), addr.ID, peerEvent.PeerAddedToDialQueue)
 }
 
-func (s *DefaultServer) emitEvent(peerID peer.ID, peerEventType peerEvent.PeerEventType) {
+func (s *DefaultServer) emitEvent(ctx context.Context, peerID peer.ID, peerEventType peerEvent.PeerEventType) {
+	span := s.tracer.StartWithParentFromContext(ctx, "network.emitEvent")
+	defer span.End()
+
 	// POTENTIALLY BLOCKING
 	if err := s.emitterPeerEvent.Emit(peerEvent.PeerEvent{
-		PeerID: peerID,
-		Type:   peerEventType,
+		PeerID:      peerID,
+		Type:        peerEventType,
+		SpanContext: span.SpanContext(),
 	}); err != nil {
 		s.logger.Info("failed to emit event", "peer", peerID, "type", peerEventType, "err", err)
 	}

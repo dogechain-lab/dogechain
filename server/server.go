@@ -35,7 +35,6 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"go.opentelemetry.io/otel"
 	"google.golang.org/grpc"
 )
 
@@ -159,9 +158,6 @@ func newLevelDBBuilder(logger hclog.Logger, config *Config, path string) kvdb.Le
 
 // NewServer creates a new Minimal server, using the passed in configuration
 func NewServer(config *Config) (*Server, error) {
-	_, span := otel.Tracer("server").Start(context.Background(), "NewServer")
-	defer span.End()
-
 	logger, err := newLoggerFromConfig(config)
 	if err != nil {
 		return nil, fmt.Errorf("could not setup new logger instance, %w", err)

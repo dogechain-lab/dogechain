@@ -63,6 +63,9 @@ type Tracer interface {
 
 	// StartWithParentFromContext starts a new span with a parent from context
 	StartWithParentFromContext(ctx context.Context, name string) Span
+
+	// GetTraceProvider returns the trace provider
+	GetTraceProvider() TracerProvider
 }
 
 type TracerProvider interface {

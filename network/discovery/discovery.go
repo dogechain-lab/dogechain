@@ -167,6 +167,7 @@ type DiscoveryService struct {
 
 	baseServer   networkingServer // The interface towards the base networking server
 	logger       hclog.Logger     // The DiscoveryService logger
+	tracer       telemetry.Tracer // tracer for the IdentityService
 	routingTable *kb.RoutingTable // Kademlia 'k-bucket' routing table that contains connected nodes info
 
 	peerAddress *peerAddreStore // stores the peer address information
@@ -190,6 +191,7 @@ func NewDiscoveryService(
 	return &DiscoveryService{
 		baseServer:   server,
 		logger:       logger.Named("discovery"),
+		tracer:       server.GetTracer().GetTraceProvider().NewTracer("discovery"),
 		routingTable: routingTable,
 		peerAddress:  newPeerAddreStore(),
 		ignoreCIDR:   ignoreCIDR,
@@ -232,7 +234,7 @@ func (d *DiscoveryService) HandleNetworkEvent(peerEvent *event.PeerEvent) {
 	peerID := peerEvent.PeerID
 
 	// create tracer span
-	span := d.baseServer.GetTracer().StartWithParent(
+	span := d.tracer.StartWithParent(
 		peerEvent.SpanContext,
 		"discovery.HandleNetworkEvent",
 	)
@@ -246,6 +248,7 @@ func (d *DiscoveryService) HandleNetworkEvent(peerEvent *event.PeerEvent) {
 		if err != nil {
 			d.logger.Error("failed to add peer to routing table", "err", err)
 			span.SetError(err)
+			span.SetStatus(telemetry.Error, "failed to add peer to routing table")
 
 			return
 		}

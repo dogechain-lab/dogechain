@@ -154,7 +154,8 @@ func (s *DefaultServer) setupDiscovery() error {
 		// check peer is not connected and has free outbound connections
 		if s.connectionCounts.HasFreeOutboundConn() && !s.HasPeer(p) {
 			info := s.host.Peerstore().PeerInfo(p)
-			s.addToDialQueue(&info, common.PriorityRandomDial)
+			// TODO: use DefaultServer.ctx replace context.Background()
+			s.addToDialQueue(context.Background(), &info, common.PriorityRandomDial)
 		}
 	}
 

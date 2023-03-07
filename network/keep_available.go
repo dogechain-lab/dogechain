@@ -1,10 +1,12 @@
 package network
 
 import (
+	"context"
 	"math/rand"
 	"sync"
 	"time"
 
+	"github.com/dogechain-lab/dogechain/helper/telemetry"
 	"github.com/dogechain-lab/dogechain/network/common"
 	"github.com/hashicorp/go-hclog"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -39,6 +41,9 @@ type keepAvailable struct {
 
 	// logger
 	logger hclog.Logger
+
+	// tracer for keep available
+	tracer telemetry.Tracer
 
 	// Keep available status
 	status keepAvailableStatus
@@ -77,9 +82,11 @@ func newKeepAvailable(server *DefaultServer) *keepAvailable {
 	batchDialPeers := (int(server.connectionCounts.maxOutboundConnCount()) / 4) + 1 // 25% of max outbound peers
 	pendingConnectMark := make(map[peer.ID]struct{})
 	logger := server.logger.Named("keep_available")
+	tracer := server.tracer.GetTraceProvider().NewTracer("keepAvailable")
 
 	return &keepAvailable{
 		server:             server,
+		tracer:             tracer,
 		logger:             logger,
 		status:             kasSleeping,
 		timer:              time.NewTimer(DefaultBackgroundTaskSleep),
@@ -125,6 +132,9 @@ func (ka *keepAvailable) fsm() {
 	ka.closeWG.Add(1)
 	defer ka.closeWG.Done()
 
+	span := ka.tracer.Start("keepAvailable.fsm")
+	defer span.End()
+
 	// **status change sequence**
 	// kasWeakUp -> checkDiscoveryServiceReady()
 	//    if Discovery service not ready -> state set kasDiscoveryWaiting
@@ -154,19 +164,19 @@ func (ka *keepAvailable) fsm() {
 		switch ka.status {
 		case kasWeakUp:
 			// first check discovery service is ready
-			ka.checkDiscoveryServiceReady()
+			ka.checkDiscoveryServiceReady(span.Context())
 		case kasDiscoveryWaiting:
 			ka.timer.Reset(waitDiscoverDuration)
 
 			return
 		case kasMarkConnectionPending:
-			ka.markPendingConnection()
+			ka.markPendingConnection(span.Context())
 		case kasMaxPeerSleeping:
 			ka.timer.Reset(connectFullSleepDuration)
 
 			return
 		case kasRandomDialed:
-			ka.randomDial()
+			ka.randomDial(span.Context())
 		case kasDialSleeping:
 			ka.timer.Reset(doubleSleepDuration)
 
@@ -180,25 +190,37 @@ func (ka *keepAvailable) fsm() {
 }
 
 // checkDiscoveryServiceReady check the discovery service is ready
-func (ka *keepAvailable) checkDiscoveryServiceReady() {
+func (ka *keepAvailable) checkDiscoveryServiceReady(ctx context.Context) {
+	span := ka.tracer.Start("keepAvailable.checkDiscoveryServiceReady")
+	defer span.End()
+
 	if ka.server.discovery == nil {
 		ka.status = kasDiscoveryWaiting
 
+		span.SetAttribute("discovery", "nil")
+
 		return
 	}
+
+	span.SetAttribute("discovery", "not nil")
 
 	// next status is mark pending connection
 	ka.status = kasMarkConnectionPending
 }
 
 // markPendingConnection mark the connection as pending
-func (ka *keepAvailable) markPendingConnection() {
+func (ka *keepAvailable) markPendingConnection(ctx context.Context) {
+	span := ka.tracer.StartWithParentFromContext(ctx, "keepAvailable.markPendingConnection")
+	defer span.End()
+
 	var waitingPeersDisconnect sync.WaitGroup
 
 	disconnectFlag := false
 
 	peers := ka.server.host.Network().Peers()
+
 	ka.logger.Debug("ready connections", "count", len(peers))
+	span.SetAttribute("ready_connections", len(peers))
 
 	for _, peerID := range peers {
 		if peerID == ka.selfID {
@@ -228,6 +250,10 @@ func (ka *keepAvailable) markPendingConnection() {
 			// disconnect peer, but peersLock is locked, so use goroutine
 			waitingPeersDisconnect.Add(1)
 
+			span.AddEvent("disconnect_peer", map[string]interface{}{
+				"peer": peerID,
+			})
+
 			go func(peerID peer.ID) {
 				defer waitingPeersDisconnect.Done()
 				ka.server.DisconnectFromPeer(peerID, "bye")
@@ -254,6 +280,8 @@ func (ka *keepAvailable) markPendingConnection() {
 
 	ka.pendingConnectMark = copyMark
 
+	span.SetAttribute("pendingConnectMark", copyMark)
+
 	// next check max peer count
 	if len(peers) >= ka.maxPeers {
 		ka.status = kasMaxPeerSleeping
@@ -273,7 +301,10 @@ func (ka *keepAvailable) markPendingConnection() {
 }
 
 // randomDial random dialed peer
-func (ka *keepAvailable) randomDial() {
+func (ka *keepAvailable) randomDial(ctx context.Context) {
+	span := ka.tracer.StartWithParentFromContext(ctx, "keepAvailable.randomDial")
+	defer span.End()
+
 	// defer set status to sleep, and wait group done
 	defer func() {
 		ka.status = kasSleeping
@@ -309,7 +340,7 @@ func (ka *keepAvailable) randomDial() {
 			peerInfo := ka.server.discovery.GetConfirmPeerInfo(randPeer)
 			if peerInfo != nil {
 				ka.logger.Debug("dialing random peer", "peer", peerInfo)
-				ka.server.addToDialQueue(peerInfo, common.PriorityRandomDial)
+				ka.server.addToDialQueue(span.Context(), peerInfo, common.PriorityRandomDial)
 
 				isDial = true
 				dialCount++

@@ -42,6 +42,7 @@ func (s *nilSpan) Context() context.Context {
 
 // nilTracer
 type nilTracer struct {
+	provider *nilTracerProvider
 }
 
 // Start starts a new span
@@ -58,13 +59,19 @@ func (t *nilTracer) StartWithParentFromContext(ctx context.Context, name string)
 	return &nilSpan{}
 }
 
+func (t *nilTracer) GetTraceProvider() TracerProvider {
+	return t.provider
+}
+
 // nilTracerProvider
 type nilTracerProvider struct {
 }
 
 // NewTracer creates a new tracer
 func (p *nilTracerProvider) NewTracer(namespace string) Tracer {
-	return &nilTracer{}
+	return &nilTracer{
+		provider: p,
+	}
 }
 
 // Shutdown shuts down the tracer provider

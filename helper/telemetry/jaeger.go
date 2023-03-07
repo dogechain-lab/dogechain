@@ -133,6 +133,9 @@ type jaegerTracer struct {
 
 	// tracer
 	tracer trace.Tracer
+
+	// provider
+	provider *jaegerTracerProvider
 }
 
 // Start starts a new span
@@ -178,6 +181,11 @@ func (t *jaegerTracer) StartWithParentFromContext(ctx context.Context, name stri
 	}
 }
 
+// GetTracerProvider returns the tracer provider
+func (t *jaegerTracer) GetTraceProvider() TracerProvider {
+	return t.provider
+}
+
 // jaegerTracerProvider
 type jaegerTracerProvider struct {
 	// context
@@ -190,8 +198,9 @@ type jaegerTracerProvider struct {
 // NewTracer creates a new tracer
 func (p *jaegerTracerProvider) NewTracer(namespace string) Tracer {
 	return &jaegerTracer{
-		context: p.context,
-		tracer:  p.provider.Tracer(namespace),
+		context:  p.context,
+		tracer:   p.provider.Tracer(namespace),
+		provider: p,
 	}
 }
 

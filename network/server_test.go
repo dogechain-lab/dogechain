@@ -205,7 +205,7 @@ func TestPeerEvent_EmitAndSubscribe(t *testing.T) {
 	t.Run("Serial event emit and read", func(t *testing.T) {
 		for i := 0; i < count; i++ {
 			id, event := getIDAndEventType(i)
-			go server.emitEvent(id, event)
+			go server.emitEvent(context.Background(), id, event)
 
 			select {
 			case <-ctx.Done():
@@ -223,7 +223,7 @@ func TestPeerEvent_EmitAndSubscribe(t *testing.T) {
 		go func() {
 			for i := 0; i < count; i++ {
 				id, event := getIDAndEventType(i)
-				server.emitEvent(id, event)
+				server.emitEvent(context.Background(), id, event)
 			}
 		}()
 
@@ -1072,7 +1072,7 @@ func TestPeerAdditionDeletion(t *testing.T) {
 			peerInfo, ok := server.peers[randomPeers[i].peerID]
 			if ok {
 				for direction := range peerInfo.connDirections {
-					server.removePeerConnect(nil, randomPeers[i].peerID, direction)
+					server.removePeerConnect(context.Background(), randomPeers[i].peerID, direction)
 				}
 			}
 

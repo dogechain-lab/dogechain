@@ -75,7 +75,7 @@ type connectDelegate func(addrInfo peer.AddrInfo) error
 type disconnectFromPeerDelegate func(peer.ID, string)
 type addPeerDelegate func(peer.ID, network.Direction)
 type updatePendingConnCountDelegate func(int64, network.Direction)
-type emitEventDelegate func(*event.PeerEvent)
+type emitEventDelegate func(context.Context, *event.PeerEvent)
 type hasFreeConnectionSlotDelegate func(network.Direction) bool
 
 // Required for Discovery
@@ -147,9 +147,9 @@ func (m *MockNetworkingServer) HookUpdatePendingConnCount(fn updatePendingConnCo
 	m.updatePendingConnCountFn = fn
 }
 
-func (m *MockNetworkingServer) EmitEvent(event *event.PeerEvent) {
+func (m *MockNetworkingServer) EmitEvent(ctx context.Context, event *event.PeerEvent) {
 	if m.emitEventFn != nil {
-		m.emitEventFn(event)
+		m.emitEventFn(ctx, event)
 	}
 }
 
