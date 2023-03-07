@@ -93,6 +93,7 @@ func DefaultConfig() *Config {
 		},
 		Telemetry: &Telemetry{
 			EnableIOTimer: false,
+			EnableJaeger:  false,
 		},
 		ShouldSeal: false,
 		TxPool: &TxPool{

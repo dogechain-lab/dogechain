@@ -226,6 +226,8 @@ func (p *serverParams) generateConfig() *server.Config {
 		Telemetry: &server.Telemetry{
 			PrometheusAddr:  p.prometheusAddress,
 			EnableIOMetrics: p.prometheusIOMetrics,
+			EnableJaeger:    p.rawConfig.Telemetry.EnableJaeger,
+			JaegerURL:       p.rawConfig.Telemetry.JaegerURL,
 		},
 		Network: &network.Config{
 			NoDiscover:         p.rawConfig.Network.NoDiscover,

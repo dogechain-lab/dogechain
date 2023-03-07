@@ -66,6 +66,8 @@ type LeveldbOptions struct {
 type Telemetry struct {
 	PrometheusAddr  *net.TCPAddr
 	EnableIOMetrics bool
+	EnableJaeger    bool
+	JaegerURL       string
 }
 
 // JSONRPC holds the config details for the JSON-RPC server

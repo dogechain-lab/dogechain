@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dogechain-lab/dogechain/helper/telemetry"
 	"github.com/dogechain-lab/dogechain/network/client"
 	"github.com/dogechain-lab/dogechain/network/common"
 	"github.com/dogechain-lab/dogechain/network/dial"
@@ -64,8 +65,10 @@ var (
 )
 
 type DefaultServer struct {
-	logger hclog.Logger // the logger
-	config *Config      // the base networking server configuration
+	logger hclog.Logger     // the logger
+	tracer telemetry.Tracer // the tracer for telemetry
+
+	config *Config // the base networking server configuration
 
 	closeCh chan struct{}  // the channel used for closing the networking server
 	closeWg sync.WaitGroup // the waitgroup used for closing the networking server
@@ -103,20 +106,28 @@ type DefaultServer struct {
 }
 
 // NewServer returns a new instance of the networking server
-func NewServer(logger hclog.Logger, config *Config) (Server, error) {
-	return newServer(logger, config)
+func NewServer(logger hclog.Logger, tracer telemetry.Tracer, config *Config) (Server, error) {
+	return newServer(logger, tracer, config)
 }
 
-func newServer(logger hclog.Logger, config *Config) (*DefaultServer, error) {
+func newServer(logger hclog.Logger, tracer telemetry.Tracer, config *Config) (*DefaultServer, error) {
 	logger = logger.Named("network")
+
+	span := tracer.Start("init")
+	defer span.End()
 
 	key, err := setupLibp2pKey(config.SecretsManager)
 	if err != nil {
 		return nil, err
 	}
 
+	span.SetAttribute("listen_addr", config.Addr.String())
+	span.SetAttribute("listen_port", config.Addr.Port)
+
 	listenAddr, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", config.Addr.IP.String(), config.Addr.Port))
 	if err != nil {
+		span.SetError(err)
+
 		return nil, err
 	}
 
@@ -136,6 +147,8 @@ func newServer(logger hclog.Logger, config *Config) (*DefaultServer, error) {
 
 		return addrs
 	}
+
+	span.SetAttribute("max_peers", config.MaxPeers)
 
 	maxPeers := config.MaxInboundPeers + config.MaxOutboundPeers
 	if maxPeers == 0 {
@@ -183,6 +196,7 @@ func newServer(logger hclog.Logger, config *Config) (*DefaultServer, error) {
 
 	srv := &DefaultServer{
 		logger:           logger,
+		tracer:           tracer,
 		config:           config,
 		host:             host,
 		selfID:           host.ID(),
@@ -220,75 +234,6 @@ func newServer(logger hclog.Logger, config *Config) (*DefaultServer, error) {
 	return srv, nil
 }
 
-// HasFreeConnectionSlot checks if there are free connection slots in the specified direction [Thread safe]
-func (s *DefaultServer) HasFreeConnectionSlot(direction network.Direction) bool {
-	return s.connectionCounts.HasFreeConnectionSlot(direction)
-}
-
-// PeerConnInfo holds the connection information about the peer
-type PeerConnInfo struct {
-	Info peer.AddrInfo
-
-	connDirections map[network.Direction]bool
-	protocolClient map[string]client.GrpcClientCloser
-}
-
-// addConnDirection adds a connection direction
-func (pci *PeerConnInfo) addConnDirection(direction network.Direction) {
-	pci.connDirections[direction] = true
-}
-
-// removeConnDirection adds a connection direction
-func (pci *PeerConnInfo) removeConnDirection(direction network.Direction) {
-	pci.connDirections[direction] = false
-}
-
-// existsConnDirection returns the connection direction
-func (pci *PeerConnInfo) existsConnDirection(direction network.Direction) bool {
-	exist, ok := pci.connDirections[direction]
-	if !ok {
-		return false
-	}
-
-	return exist
-}
-
-func (pci *PeerConnInfo) noConnectionAvailable() bool {
-	// if all directions are false, return false
-	for _, v := range pci.connDirections {
-		if v {
-			return false
-		}
-	}
-
-	return true
-}
-
-// addProtocolClient adds a protocol stream
-func (pci *PeerConnInfo) addProtocolClient(protocol string, stream client.GrpcClientCloser) {
-	pci.protocolClient[protocol] = stream
-}
-
-// cleanProtocolStreams clean and closes all protocol stream
-func (pci *PeerConnInfo) cleanProtocolStreams() []error {
-	errs := []error{}
-
-	for _, clt := range pci.protocolClient {
-		if clt != nil {
-			errs = append(errs, clt.Close())
-		}
-	}
-
-	pci.protocolClient = make(map[string]client.GrpcClientCloser)
-
-	return errs
-}
-
-// getProtocolClient fetches the protocol stream, if any
-func (pci *PeerConnInfo) getProtocolClient(protocol string) client.GrpcClientCloser {
-	return pci.protocolClient[protocol]
-}
-
 // setupLibp2pKey is a helper method for setting up the networking private key
 func setupLibp2pKey(secretsManager secrets.SecretsManager) (crypto.PrivKey, error) {
 	var key crypto.PrivKey
@@ -321,6 +266,9 @@ func setupLibp2pKey(secretsManager secrets.SecretsManager) (crypto.PrivKey, erro
 
 // Start starts the networking services
 func (s *DefaultServer) Start() error {
+	span := s.tracer.Start("start")
+	defer span.End()
+
 	s.logger.Info("LibP2P server running", "addr", common.AddrInfoToString(s.AddrInfo()))
 
 	if setupErr := s.setupIdentity(); setupErr != nil {
@@ -600,6 +548,16 @@ func (s *DefaultServer) Peers() []*PeerConnInfo {
 	}
 
 	return peers
+}
+
+// HasFreeConnectionSlot checks if there are free connection slots in the specified direction [Thread safe]
+func (s *DefaultServer) HasFreeConnectionSlot(direction network.Direction) bool {
+	return s.connectionCounts.HasFreeConnectionSlot(direction)
+}
+
+// GetTracer returns the tracer instance
+func (s *DefaultServer) GetTracer() telemetry.Tracer {
+	return s.tracer
 }
 
 // hasPeer checks if the peer is present in the peers list [Thread safe]

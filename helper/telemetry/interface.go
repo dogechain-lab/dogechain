@@ -6,6 +6,26 @@ import (
 	"go.opentelemetry.io/otel/codes"
 )
 
+type contextLabel string
+type contextValue string
+
+const (
+	ContextNamespace contextLabel = "telemetry"
+)
+
+type Code codes.Code
+
+const (
+	// Unset is the default status code
+	Unset Code = Code(codes.Unset)
+
+	// Error indicates the operation contains an error
+	Error Code = Code(codes.Error)
+
+	// Ok indicates operation has been validated by an Application developers
+	Ok Code = Code(codes.Ok)
+)
+
 type Span interface {
 	// SetAttribute sets an attribute (base type)
 	SetAttribute(label string, value interface{})
@@ -13,8 +33,11 @@ type Span interface {
 	// SetAttributes sets attributes
 	SetAttributes(attributes map[string]interface{})
 
+	// AddEvent adds an event
+	AddEvent(name string, attributes map[string]interface{})
+
 	// SetStatus sets the status
-	SetStatus(code codes.Code, info string)
+	SetStatus(code Code, info string)
 
 	// SetError sets the error
 	SetError(err error)
@@ -40,5 +63,5 @@ type TracerProvider interface {
 	NewTracer(namespace string) Tracer
 
 	// Shutdown shuts down the tracer provider
-	Shutdown() error
+	Shutdown(context.Context) error
 }

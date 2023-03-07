@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/dogechain-lab/dogechain/helper/telemetry"
 	"github.com/dogechain-lab/dogechain/network/client"
 	"github.com/dogechain-lab/dogechain/network/event"
 	"github.com/dogechain-lab/dogechain/network/proto"
@@ -42,6 +43,9 @@ type MockNetworkingServer struct {
 	isBootnodeFn          isBootnodeDelegate
 	isStaticPeerFn        isStaticPeerDelegate
 	hasPeerFn             hasPeerDelegate
+
+	// tracer
+	getTraceFn getTraceDelegate
 }
 
 func NewMockNetworkingServer() *MockNetworkingServer {
@@ -85,6 +89,9 @@ type peerCountDelegate func() int64
 type isBootnodeDelegate func(peer.ID) bool
 type isStaticPeerDelegate func(peer.ID) bool
 type hasPeerDelegate func(peer.ID) bool
+
+// tracer
+type getTraceDelegate func() telemetry.Tracer
 
 func (m *MockNetworkingServer) NewIdentityClient(peerID peer.ID) (client.IdentityClient, error) {
 	if m.newIdentityClientFn != nil {
@@ -276,6 +283,18 @@ func (m *MockNetworkingServer) HasPeer(peerID peer.ID) bool {
 
 func (m *MockNetworkingServer) HookHasPeer(fn hasPeerDelegate) {
 	m.hasPeerFn = fn
+}
+
+func (m *MockNetworkingServer) HookGetTracer(fn getTraceDelegate) {
+	m.getTraceFn = fn
+}
+
+func (m *MockNetworkingServer) GetTracer() telemetry.Tracer {
+	if m.getTraceFn != nil {
+		return m.getTraceFn()
+	}
+
+	return nil
 }
 
 // MockIdentityClient mocks an identity client (other peer in the communication)

@@ -17,6 +17,10 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 )
 
+const (
+	JaegerContextName contextValue = "jaeger"
+)
+
 // newJaegerProvider creates a new jaeger provider
 func newJaegerProvider(url string, service string) (*tracesdk.TracerProvider, error) {
 	hostname, err := os.Hostname()
@@ -48,6 +52,7 @@ func newJaegerProvider(url string, service string) (*tracesdk.TracerProvider, er
 			attribute.String("commit", common.Substr(versioning.Commit, 0, 8)),
 			attribute.String("buildTime", versioning.BuildTime),
 		)),
+		tracesdk.WithSampler(tracesdk.AlwaysSample()),
 	)
 
 	return tp, nil
@@ -83,8 +88,20 @@ func (s *jaegerSpan) SetAttributes(attributes map[string]interface{}) {
 	s.span.SetAttributes(kvs...)
 }
 
-func (s *jaegerSpan) SetStatus(code codes.Code, info string) {
-	s.span.SetStatus(code, info)
+func (s *jaegerSpan) AddEvent(name string, attributes map[string]interface{}) {
+	kvs := make([]attribute.KeyValue, 0, len(attributes))
+	for key, value := range attributes {
+		kvs = append(kvs, attribute.KeyValue{
+			Key:   attribute.Key(key),
+			Value: convertTypeToAttribute(value),
+		})
+	}
+
+	s.span.AddEvent(name, trace.WithAttributes(kvs...))
+}
+
+func (s *jaegerSpan) SetStatus(code Code, info string) {
+	s.span.SetStatus(codes.Code(code), info)
 }
 
 // SetError sets the error
@@ -149,12 +166,12 @@ func (p *jaegerTracerProvider) NewTracer(namespace string) Tracer {
 }
 
 // Shutdown shuts down the tracer provider
-func (p *jaegerTracerProvider) Shutdown() error {
-	return p.provider.Shutdown(p.context)
+func (p *jaegerTracerProvider) Shutdown(ctx context.Context) error {
+	return p.provider.Shutdown(ctx)
 }
 
 // NewTracerProvider creates a new trace provider
-func NewTracerProvider(url string, service string) (TracerProvider, error) {
+func NewTracerProvider(ctx context.Context, url string, service string) (TracerProvider, error) {
 	tp, err := newJaegerProvider(url, service)
 	if err != nil {
 		return nil, err
@@ -164,7 +181,7 @@ func NewTracerProvider(url string, service string) (TracerProvider, error) {
 	otel.SetTracerProvider(tp)
 
 	return &jaegerTracerProvider{
-		context:  context.Background(),
+		context:  context.WithValue(ctx, JaegerContextName, JaegerContextName),
 		provider: tp,
 	}, nil
 }

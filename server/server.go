@@ -21,6 +21,7 @@ import (
 	"github.com/dogechain-lab/dogechain/helper/common"
 	"github.com/dogechain-lab/dogechain/helper/kvdb"
 	"github.com/dogechain-lab/dogechain/helper/progress"
+	"github.com/dogechain-lab/dogechain/helper/telemetry"
 	"github.com/dogechain-lab/dogechain/jsonrpc"
 	"github.com/dogechain-lab/dogechain/network"
 	"github.com/dogechain-lab/dogechain/secrets"
@@ -40,8 +41,13 @@ import (
 
 // Minimal is the central manager of the blockchain client
 type Server struct {
-	logger       hclog.Logger
-	config       *Config
+	ctx context.Context // the context for the server
+
+	logger         hclog.Logger
+	tracerProvider telemetry.TracerProvider // the tracer for telemetry
+
+	config *Config
+
 	state        state.State
 	stateStorage itrie.Storage
 
@@ -163,6 +169,7 @@ func NewServer(config *Config) (*Server, error) {
 
 	m := &Server{
 		logger: logger,
+		ctx:    context.Background(),
 		config: config,
 		chain:  config.Chain,
 		grpcServer: grpc.NewServer(
@@ -186,6 +193,22 @@ func NewServer(config *Config) (*Server, error) {
 		m.serverMetrics = metricProvider("dogechain", config.Chain.Name, false, false)
 	}
 
+	if config.Telemetry.EnableJaeger {
+		var err error
+
+		m.tracerProvider, err = telemetry.NewTracerProvider(
+			m.ctx,
+			config.Telemetry.JaegerURL,
+			loggerDomainName,
+		)
+
+		if err != nil {
+			return nil, fmt.Errorf("failed to set up the tracer: %w", err)
+		}
+	} else {
+		m.tracerProvider = telemetry.NewNilTracerProvider(m.ctx)
+	}
+
 	// Set up the secrets manager
 	if err := m.setupSecretsManager(); err != nil {
 		return nil, fmt.Errorf("failed to set up the secrets manager: %w", err)
@@ -199,7 +222,9 @@ func NewServer(config *Config) (*Server, error) {
 		netConfig.SecretsManager = m.secretsManager
 		netConfig.Metrics = m.serverMetrics.network
 
-		network, err := network.NewServer(logger, netConfig)
+		trace := m.tracerProvider.NewTracer("network")
+
+		network, err := network.NewServer(logger, trace, netConfig)
 		if err != nil {
 			return nil, err
 		}
@@ -650,6 +675,12 @@ func (s *Server) Close() {
 	if s.prometheusServer != nil {
 		if err := s.prometheusServer.Shutdown(context.Background()); err != nil {
 			s.logger.Error("Prometheus server shutdown error", err)
+		}
+	}
+
+	if s.tracerProvider != nil {
+		if err := s.tracerProvider.Shutdown(context.Background()); err != nil {
+			s.logger.Error("Tracer provider shutdown error", err)
 		}
 	}
 }

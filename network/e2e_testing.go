@@ -13,6 +13,7 @@ import (
 
 	"github.com/dogechain-lab/dogechain/chain"
 	"github.com/dogechain-lab/dogechain/helper/common"
+	"github.com/dogechain-lab/dogechain/helper/telemetry"
 	"github.com/dogechain-lab/dogechain/helper/tests"
 	"github.com/dogechain-lab/dogechain/secrets"
 	"github.com/dogechain-lab/dogechain/secrets/local"
@@ -334,7 +335,9 @@ func CreateServer(params *CreateServerParams) (*DefaultServer, error) {
 	cfg.SecretsManager = secretsManager
 	cfg.Metrics = NilMetrics()
 
-	server, err := newServer(params.Logger, cfg)
+	tracerProvider := telemetry.NewNilTracerProvider(context.Background())
+
+	server, err := newServer(params.Logger, tracerProvider.NewTracer("test"), cfg)
 	if err != nil {
 		return nil, err
 	}
