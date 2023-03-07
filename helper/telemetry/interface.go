@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type contextLabel string
@@ -27,26 +28,29 @@ const (
 )
 
 type Span interface {
-	// SetAttribute sets an attribute (base type)
+	// SetAttribute set attribute (base type)
 	SetAttribute(label string, value interface{})
 
-	// SetAttributes sets attributes
+	// SetAttributes set attributes
 	SetAttributes(attributes map[string]interface{})
 
 	// AddEvent adds an event
 	AddEvent(name string, attributes map[string]interface{})
 
-	// SetStatus sets the status
+	// SetStatus set status
 	SetStatus(code Code, info string)
 
-	// SetError sets the error
+	// SetError set error
 	SetError(err error)
 
 	// End ends the span
 	End()
 
-	// context returns the span context
-	context() context.Context
+	// SpanContext returns the span context
+	SpanContext() trace.SpanContext
+
+	// Context returns the context.Context (span warrapped)
+	Context() context.Context
 }
 
 // Tracer provides a tracer
@@ -55,7 +59,10 @@ type Tracer interface {
 	Start(name string) Span
 
 	// StartWithParent starts a new span with a parent
-	StartWithParent(parent Span, name string) Span
+	StartWithParent(parent trace.SpanContext, name string) Span
+
+	// StartWithParentFromContext starts a new span with a parent from context
+	StartWithParentFromContext(ctx context.Context, name string) Span
 }
 
 type TracerProvider interface {

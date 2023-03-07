@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dogechain-lab/dogechain/helper/telemetry"
 	"github.com/dogechain-lab/dogechain/network/client"
 	"github.com/dogechain-lab/dogechain/network/common"
 	"github.com/dogechain-lab/dogechain/network/event"
@@ -86,6 +87,9 @@ type networkingServer interface {
 
 	// PeerCount connection peer number
 	PeerCount() int64
+
+	// GetTracer returns the tracer instance
+	GetTracer() telemetry.Tracer
 }
 
 // peerAddreStore is a struct that contains the peer address information
@@ -227,13 +231,21 @@ func (d *DiscoveryService) HandleNetworkEvent(peerEvent *event.PeerEvent) {
 	// if bootnode disconnects and shutdown, can use this reconnect to network
 	peerID := peerEvent.PeerID
 
+	// create tracer span
+	span := d.baseServer.GetTracer().StartWithParent(
+		peerEvent.SpanContext,
+		"discovery.HandleNetworkEvent",
+	)
+	defer span.End()
+
 	// identity service trigger PeerDialCompleted event
 	switch peerEvent.Type {
 	case event.PeerDialCompleted:
 		// Add peer to the routing table and to our local peer table
-		_, err := d.routingTable.TryAddPeer(peerID, false, true)
+		exist, err := d.routingTable.TryAddPeer(peerID, false, true)
 		if err != nil {
 			d.logger.Error("failed to add peer to routing table", "err", err)
+			span.SetError(err)
 
 			return
 		}
@@ -245,6 +257,11 @@ func (d *DiscoveryService) HandleNetworkEvent(peerEvent *event.PeerEvent) {
 
 		// update last use time
 		d.routingTable.UpdateLastUsefulAt(peerID, time.Now())
+
+		span.AddEvent("peer_added_to_routing_table", map[string]interface{}{
+			"existed":  exist,
+			"peerInfo": peerInfo,
+		})
 	}
 }
 

@@ -1,6 +1,9 @@
 package network
 
 import (
+	"context"
+
+	"github.com/dogechain-lab/dogechain/helper/telemetry"
 	"github.com/dogechain-lab/dogechain/network/client"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -51,12 +54,23 @@ func (pci *PeerConnInfo) addProtocolClient(protocol string, stream client.GrpcCl
 }
 
 // cleanProtocolStreams clean and closes all protocol stream
-func (pci *PeerConnInfo) cleanProtocolStreams() []error {
+func (pci *PeerConnInfo) cleanProtocolStreams(ctx context.Context, trace telemetry.Tracer) []error {
 	errs := []error{}
+	span := trace.StartWithParentFromContext(ctx, "cleanProtocolStreams")
 
-	for _, clt := range pci.protocolClient {
+	for protocolName, clt := range pci.protocolClient {
 		if clt != nil {
-			errs = append(errs, clt.Close())
+			err := clt.Close()
+			if err != nil {
+				span.AddEvent(
+					"close_error",
+					map[string]interface{}{
+						"protocol": protocolName,
+						"error":    err.Error(),
+					})
+			}
+
+			errs = append(errs, err)
 		}
 	}
 

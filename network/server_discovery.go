@@ -86,6 +86,9 @@ func (s *DefaultServer) AddToPeerStore(peerInfo *peer.AddrInfo) {
 
 // RemoveFromPeerStore removes peer information from the node's peer store, ignoring static nodes and bootnodes
 func (s *DefaultServer) RemoveFromPeerStore(peerID peer.ID) {
+	span := s.tracer.Start("network.RemoveFromPeerStore")
+	defer span.End()
+
 	s.host.Peerstore().RemovePeer(peerID)
 	s.host.Peerstore().ClearAddrs(peerID)
 }

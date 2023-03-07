@@ -337,7 +337,7 @@ func CreateServer(params *CreateServerParams) (*DefaultServer, error) {
 
 	tracerProvider := telemetry.NewNilTracerProvider(context.Background())
 
-	server, err := newServer(params.Logger, tracerProvider.NewTracer("test"), cfg)
+	server, err := newServer(context.Background(), params.Logger, tracerProvider.NewTracer("test"), cfg)
 	if err != nil {
 		return nil, err
 	}

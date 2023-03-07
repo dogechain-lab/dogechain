@@ -65,6 +65,9 @@ var (
 )
 
 type DefaultServer struct {
+	// TODO: switch to context.Context implementation
+	// ctx context.Context // the context for the networking server
+
 	logger hclog.Logger     // the logger
 	tracer telemetry.Tracer // the tracer for telemetry
 
@@ -106,14 +109,19 @@ type DefaultServer struct {
 }
 
 // NewServer returns a new instance of the networking server
-func NewServer(logger hclog.Logger, tracer telemetry.Tracer, config *Config) (Server, error) {
-	return newServer(logger, tracer, config)
+func NewServer(ctx context.Context, logger hclog.Logger, tracer telemetry.Tracer, config *Config) (Server, error) {
+	return newServer(ctx, logger, tracer, config)
 }
 
-func newServer(logger hclog.Logger, tracer telemetry.Tracer, config *Config) (*DefaultServer, error) {
+func newServer(
+	ctx context.Context,
+	logger hclog.Logger,
+	tracer telemetry.Tracer,
+	config *Config,
+) (*DefaultServer, error) {
 	logger = logger.Named("network")
 
-	span := tracer.Start("init")
+	span := tracer.StartWithParentFromContext(ctx, "network.newServer")
 	defer span.End()
 
 	key, err := setupLibp2pKey(config.SecretsManager)
@@ -266,7 +274,7 @@ func setupLibp2pKey(secretsManager secrets.SecretsManager) (crypto.PrivKey, erro
 
 // Start starts the networking services
 func (s *DefaultServer) Start() error {
-	span := s.tracer.Start("start")
+	span := s.tracer.Start("network.Start")
 	defer span.End()
 
 	s.logger.Info("LibP2P server running", "addr", common.AddrInfoToString(s.AddrInfo()))
@@ -303,8 +311,11 @@ func (s *DefaultServer) Start() error {
 	s.host.Network().Notify(&network.NotifyBundle{
 		DisconnectedF: func(net network.Network, conn network.Conn) {
 			s.logger.Info("peer disconnected, remove peer connect info", "id", conn.RemotePeer())
+			span := s.tracer.Start("network.DisconnectedF")
+			defer span.End()
+
 			// Update the local connection metrics
-			s.removePeerConnect(conn.RemotePeer(), conn.Stat().Direction)
+			s.removePeerConnect(context.Background(), conn.RemotePeer(), conn.Stat().Direction)
 		},
 	})
 
@@ -511,13 +522,22 @@ func (s *DefaultServer) runDial() {
 }
 
 func (s *DefaultServer) Connect(peerInfo peer.AddrInfo) error {
+	span := s.tracer.Start("network.Connect")
+	defer span.End()
+
 	if !s.HasPeer(peerInfo.ID) && s.selfID != peerInfo.ID {
+		span.AddEvent("dialing_peer", map[string]interface{}{
+			"peer": peerInfo.ID.String(),
+			"addr": peerInfo.Addrs,
+		})
+
 		// the connection process is async because it involves connection (here) +
 		// the handshake done in the identity service.
 		ctx := network.WithDialPeerTimeout(context.Background(), DefaultDialTimeout)
 
 		if err := s.host.Connect(ctx, peerInfo); err != nil {
 			s.logger.Debug("failed to dial", "addr", peerInfo.String(), "err", err.Error())
+			span.SetError(err)
 
 			s.emitEvent(peerInfo.ID, peerEvent.PeerFailedToConnect)
 
@@ -588,7 +608,18 @@ func (s *DefaultServer) GetProtocols(peerID peer.ID) ([]string, error) {
 // removePeerConnect removes a peer from the networking server's peer list,
 // and updates relevant counters and metrics. It only called from the
 // disconnection callback of the libp2p network bundle (when the connection is closed)
-func (s *DefaultServer) removePeerConnect(peerID peer.ID, direction network.Direction) {
+func (s *DefaultServer) removePeerConnect(ctx context.Context, peerID peer.ID, direction network.Direction) {
+	span := func() telemetry.Span {
+		const spanName = "network.remove_peer_connect"
+
+		if ctx == nil {
+			return s.tracer.Start(spanName)
+		} else {
+			return s.tracer.StartWithParentFromContext(ctx, spanName)
+		}
+	}()
+	defer span.End()
+
 	s.peersLock.Lock()
 	defer s.peersLock.Unlock()
 
@@ -601,6 +632,10 @@ func (s *DefaultServer) removePeerConnect(peerID peer.ID, direction network.Dire
 		s.logger.Warn(
 			fmt.Sprintf("Attempted removing missing peer info %s", peerID),
 		)
+		span.AddEvent("remove_peer_store", map[string]interface{}{
+			"peer":      peerID.String(),
+			"dorection": direction.String(),
+		})
 
 		// NOTO: Remove the peer from the peer store,
 		// if not removed, host.Network().Notify never triggered
@@ -619,13 +654,18 @@ func (s *DefaultServer) removePeerConnect(peerID peer.ID, direction network.Dire
 		// No more connections to the peer, remove it from the peers map
 		delete(s.peers, peerID)
 
-		if errs := connectionInfo.cleanProtocolStreams(); len(errs) > 0 {
+		if errs := connectionInfo.cleanProtocolStreams(span.Context(), s.tracer); len(errs) > 0 {
 			for _, err := range errs {
 				if err != nil {
 					s.logger.Error("close protocol streams failed", "err", err)
 				}
 			}
 		}
+
+		span.AddEvent("remove_peer_store", map[string]interface{}{
+			"peer":      peerID.String(),
+			"dorection": direction.String(),
+		})
 
 		// NOTO: Remove the peer from the peer store,
 		// if not removed, host.Network().Notify never triggered

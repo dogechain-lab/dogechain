@@ -110,7 +110,7 @@ func (s *DefaultServer) setupIdentity() error {
 		return fmt.Errorf("identity service already initialized")
 	}
 
-	span := s.tracer.Start("setupIdentity")
+	span := s.tracer.Start("network.setupIdentity")
 	defer span.End()
 
 	// Create an instance of the identity service

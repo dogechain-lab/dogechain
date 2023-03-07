@@ -224,7 +224,7 @@ func NewServer(config *Config) (*Server, error) {
 
 		trace := m.tracerProvider.NewTracer("network")
 
-		network, err := network.NewServer(logger, trace, netConfig)
+		network, err := network.NewServer(m.ctx, logger, trace, netConfig)
 		if err != nil {
 			return nil, err
 		}

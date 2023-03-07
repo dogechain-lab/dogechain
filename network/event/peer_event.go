@@ -1,6 +1,10 @@
 package event
 
-import "github.com/libp2p/go-libp2p/core/peer"
+import (
+	"github.com/libp2p/go-libp2p/core/peer"
+
+	"go.opentelemetry.io/otel/trace"
+)
 
 type PeerEventType uint
 
@@ -27,6 +31,9 @@ type PeerEvent struct {
 
 	// Type is the type of the event
 	Type PeerEventType
+
+	// trace context
+	SpanContext trace.SpanContext
 }
 
 func (s PeerEventType) String() string {

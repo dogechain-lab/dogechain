@@ -114,9 +114,16 @@ func (s *jaegerSpan) End() {
 	s.span.End()
 }
 
-// context returns the span context
-func (s *jaegerSpan) context() context.Context {
-	return s.ctx
+// SpanContext returns the span context
+func (s *jaegerSpan) SpanContext() trace.SpanContext {
+	return s.span.SpanContext()
+}
+
+// Context returns the span context
+func (s *jaegerSpan) Context() context.Context {
+	ctx := trace.ContextWithSpanContext(s.ctx, s.SpanContext())
+
+	return ctx
 }
 
 // jaegerTracer
@@ -139,12 +146,35 @@ func (t *jaegerTracer) Start(name string) Span {
 }
 
 // StartWithParent starts a new span with a parent
-func (t *jaegerTracer) StartWithParent(parent Span, name string) Span {
-	ctx, span := t.tracer.Start(parent.context(), name)
+func (t *jaegerTracer) StartWithParent(parent trace.SpanContext, name string) Span {
+	// create a new span context config
+	spanContextConfig := trace.SpanContextConfig{
+		TraceID:    parent.TraceID(),
+		SpanID:     parent.SpanID(),
+		TraceFlags: parent.TraceFlags(),
+		Remote:     parent.IsRemote(),
+	}
+	spanContext := trace.NewSpanContext(spanContextConfig)
+
+	// create a new context with the parent span context
+	ctx := trace.ContextWithSpanContext(t.context, spanContext)
+
+	// create a new span
+	childContext, span := t.tracer.Start(ctx, name)
 
 	return &jaegerSpan{
 		span: span,
-		ctx:  ctx,
+		ctx:  childContext,
+	}
+}
+
+// StartWithParentFromContext starts a new span with a parent from the context
+func (t *jaegerTracer) StartWithParentFromContext(ctx context.Context, name string) Span {
+	childContext, span := t.tracer.Start(ctx, name)
+
+	return &jaegerSpan{
+		span: span,
+		ctx:  childContext,
 	}
 }
 
