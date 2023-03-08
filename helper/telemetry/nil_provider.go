@@ -8,6 +8,7 @@ import (
 
 // nilSpan
 type nilSpan struct {
+	ctx context.Context
 }
 
 // SetAttribute sets an attribute
@@ -36,17 +37,20 @@ func (s *nilSpan) SpanContext() trace.SpanContext {
 }
 
 func (s *nilSpan) Context() context.Context {
-	return context.Background()
+	return s.ctx
 }
 
 // nilTracer
 type nilTracer struct {
 	provider *nilTracerProvider
+	ctx      context.Context
 }
 
 // Start starts a new span
 func (t *nilTracer) Start(name string) Span {
-	return &nilSpan{}
+	return &nilSpan{
+		ctx: t.ctx,
+	}
 }
 
 // StartWithParent starts a new span with a parent
@@ -64,12 +68,14 @@ func (t *nilTracer) GetTraceProvider() TracerProvider {
 
 // nilTracerProvider
 type nilTracerProvider struct {
+	ctx context.Context
 }
 
 // NewTracer creates a new tracer
 func (p *nilTracerProvider) NewTracer(namespace string) Tracer {
 	return &nilTracer{
 		provider: p,
+		ctx:      p.ctx,
 	}
 }
 
@@ -80,5 +86,7 @@ func (p *nilTracerProvider) Shutdown(ctx context.Context) error {
 
 // NewNilTracerProvider creates a new trace provider
 func NewNilTracerProvider(ctx context.Context) TracerProvider {
-	return &nilTracerProvider{}
+	return &nilTracerProvider{
+		ctx,
+	}
 }
