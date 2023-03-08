@@ -24,8 +24,7 @@ func (s *nilSpan) AddEvent(name string, attributes map[string]interface{}) {
 func (s *nilSpan) SetStatus(code Code, info string) {
 }
 
-// SetError sets the error
-func (s *nilSpan) SetError(err error) {
+func (s *nilSpan) RecordError(err error) {
 }
 
 // End ends the span
@@ -55,7 +54,7 @@ func (t *nilTracer) StartWithParent(parent trace.SpanContext, name string) Span 
 	return &nilSpan{}
 }
 
-func (t *nilTracer) StartWithParentFromContext(ctx context.Context, name string) Span {
+func (t *nilTracer) StartWithContext(ctx context.Context, name string) Span {
 	return &nilSpan{}
 }
 

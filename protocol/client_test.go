@@ -52,7 +52,7 @@ func newTestSyncPeerClient(network network.Network, blockchain Blockchain) *sync
 	}
 
 	// need to register protocol
-	network.RegisterProtocol(_syncerV1, grpc.NewGrpcStream())
+	network.RegisterProtocol(_syncerV1, grpc.NewGrpcStream(context.TODO()))
 
 	return client
 }
@@ -561,7 +561,7 @@ func Test_syncPeerClient_GetBlocks(t *testing.T) {
 
 // setupIncompatibleGRPCServer setups an incompatible protocol GRPC server
 func (s *syncPeerService) setupIncompatibleGRPCServer() {
-	s.stream = grpc.NewGrpcStream()
+	s.stream = grpc.NewGrpcStream(context.TODO())
 
 	proto.RegisterV1Server(s.stream.GrpcServer(), s)
 	s.stream.Serve()

@@ -212,7 +212,7 @@ func (s *DefaultServer) setupDiscovery() error {
 
 // registerDiscoveryService registers the discovery protocol to be available
 func (s *DefaultServer) registerDiscoveryService(discovery *discovery.DiscoveryService) {
-	grpcStream := grpc.NewGrpcStream()
+	grpcStream := grpc.NewGrpcStream(context.TODO())
 	proto.RegisterDiscoveryServer(grpcStream.GrpcServer(), discovery)
 	grpcStream.Serve()
 

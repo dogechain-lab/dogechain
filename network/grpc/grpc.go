@@ -5,28 +5,31 @@ import (
 	"errors"
 	"io"
 	"net"
-
-	"google.golang.org/grpc/credentials/insecure"
+	"sync"
 
 	"github.com/dogechain-lab/dogechain/helper/common"
-	manet "github.com/multiformats/go-multiaddr/net"
 
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
+
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
+	manet "github.com/multiformats/go-multiaddr/net"
 	grpcPeer "google.golang.org/grpc/peer"
 )
 
 type GrpcStream struct {
-	ctx       context.Context
-	ctxCancel context.CancelFunc
+	ctx           context.Context
+	ctxCancel     context.CancelFunc
+	ctxCancelOnce sync.Once
 
 	streamCh   chan network.Stream
 	grpcServer *grpc.Server
 }
 
-func NewGrpcStream() *GrpcStream {
-	ctx, cancel := context.WithCancel(context.Background())
+func NewGrpcStream(ctx context.Context) *GrpcStream {
+	ctx, cancel := context.WithCancel(ctx)
 
 	return &GrpcStream{
 		ctx:       ctx,
@@ -121,7 +124,7 @@ func (g *GrpcStream) Addr() net.Addr {
 }
 
 func (g *GrpcStream) Close() error {
-	g.ctxCancel()
+	g.ctxCancelOnce.Do(g.ctxCancel)
 
 	return nil
 }

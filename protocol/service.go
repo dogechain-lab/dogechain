@@ -57,7 +57,7 @@ func (s *syncPeerService) SetSyncer(syncer *noForkSyncer) {
 
 // setupGRPCServer setup GRPC server
 func (s *syncPeerService) setupGRPCServer() {
-	s.stream = grpc.NewGrpcStream()
+	s.stream = grpc.NewGrpcStream(context.TODO())
 
 	proto.RegisterV1Server(s.stream.GrpcServer(), s)
 	s.stream.Serve()

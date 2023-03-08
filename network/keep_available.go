@@ -191,7 +191,7 @@ func (ka *keepAvailable) fsm() {
 
 // checkDiscoveryServiceReady check the discovery service is ready
 func (ka *keepAvailable) checkDiscoveryServiceReady(ctx context.Context) {
-	span := ka.tracer.Start("keepAvailable.checkDiscoveryServiceReady")
+	span := ka.tracer.StartWithContext(ctx, "keepAvailable.checkDiscoveryServiceReady")
 	defer span.End()
 
 	if ka.server.discovery == nil {
@@ -210,7 +210,7 @@ func (ka *keepAvailable) checkDiscoveryServiceReady(ctx context.Context) {
 
 // markPendingConnection mark the connection as pending
 func (ka *keepAvailable) markPendingConnection(ctx context.Context) {
-	span := ka.tracer.StartWithParentFromContext(ctx, "keepAvailable.markPendingConnection")
+	span := ka.tracer.StartWithContext(ctx, "keepAvailable.markPendingConnection")
 	defer span.End()
 
 	var waitingPeersDisconnect sync.WaitGroup
@@ -302,7 +302,7 @@ func (ka *keepAvailable) markPendingConnection(ctx context.Context) {
 
 // randomDial random dialed peer
 func (ka *keepAvailable) randomDial(ctx context.Context) {
-	span := ka.tracer.StartWithParentFromContext(ctx, "keepAvailable.randomDial")
+	span := ka.tracer.StartWithContext(ctx, "keepAvailable.randomDial")
 	defer span.End()
 
 	// defer set status to sleep, and wait group done

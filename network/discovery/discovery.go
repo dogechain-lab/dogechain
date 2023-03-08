@@ -247,7 +247,7 @@ func (d *DiscoveryService) HandleNetworkEvent(peerEvent *event.PeerEvent) {
 		exist, err := d.routingTable.TryAddPeer(peerID, false, true)
 		if err != nil {
 			d.logger.Error("failed to add peer to routing table", "err", err)
-			span.SetError(err)
+			span.RecordError(err)
 			span.SetStatus(telemetry.Error, "failed to add peer to routing table")
 
 			return

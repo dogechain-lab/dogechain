@@ -160,7 +160,7 @@ func (i *IdentityService) GetNotifyBundle() *network.NotifyBundle {
 
 					i.logger.Debug("send PeerFailedToConnect event", "peer", peerID)
 
-					span.SetError(err)
+					span.RecordError(err)
 					span.SetStatus(telemetry.Error, "identity check failed")
 
 					connectEvent.Type = event.PeerFailedToConnect

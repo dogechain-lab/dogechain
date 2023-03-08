@@ -121,7 +121,7 @@ func newServer(
 ) (*DefaultServer, error) {
 	logger = logger.Named("network")
 
-	span := tracer.StartWithParentFromContext(ctx, "network.newServer")
+	span := tracer.StartWithContext(ctx, "DefaultServer.newServer")
 	defer span.End()
 
 	key, err := setupLibp2pKey(config.SecretsManager)
@@ -134,7 +134,7 @@ func newServer(
 
 	listenAddr, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", config.Addr.IP.String(), config.Addr.Port))
 	if err != nil {
-		span.SetError(err)
+		span.RecordError(err)
 		span.SetStatus(telemetry.Error, "failed to create listen address")
 
 		return nil, err
@@ -542,7 +542,7 @@ func (s *DefaultServer) Connect(peerInfo peer.AddrInfo) error {
 
 		if err := s.host.Connect(ctx, peerInfo); err != nil {
 			s.logger.Debug("failed to dial", "addr", peerInfo.String(), "err", err.Error())
-			span.SetError(err)
+			span.RecordError(err)
 			span.SetStatus(telemetry.Error, "connect failed")
 
 			s.emitEvent(span.Context(), peerInfo.ID, peerEvent.PeerFailedToConnect)
@@ -616,12 +616,12 @@ func (s *DefaultServer) GetProtocols(peerID peer.ID) ([]string, error) {
 // disconnection callback of the libp2p network bundle (when the connection is closed)
 func (s *DefaultServer) removePeerConnect(ctx context.Context, peerID peer.ID, direction network.Direction) {
 	span := func() telemetry.Span {
-		const spanName = "network.removePeerConnect"
+		const spanName = "DefaultServer.removePeerConnect"
 
 		if ctx == nil {
 			return s.tracer.Start(spanName)
 		} else {
-			return s.tracer.StartWithParentFromContext(ctx, spanName)
+			return s.tracer.StartWithContext(ctx, spanName)
 		}
 	}()
 	defer span.End()
@@ -727,7 +727,7 @@ func (s *DefaultServer) DisconnectFromPeer(peerID peer.ID, reason string) {
 	// Close the peer connection
 	if closeErr := s.host.Network().ClosePeer(peerID); closeErr != nil {
 		s.logger.Error("unable to gracefully close peer connection", "err", closeErr)
-		span.SetError(closeErr)
+		span.RecordError(closeErr)
 		span.SetStatus(telemetry.Error, "closer peer connection failed")
 	}
 }
@@ -899,7 +899,7 @@ func (s *DefaultServer) AddrInfo() *peer.AddrInfo {
 }
 
 func (s *DefaultServer) addToDialQueue(ctx context.Context, addr *peer.AddrInfo, priority common.DialPriority) {
-	span := s.tracer.StartWithParentFromContext(ctx, "network.addToDialQueue")
+	span := s.tracer.StartWithContext(ctx, "DefaultServer.addToDialQueue")
 	defer span.End()
 
 	if s.selfID == addr.ID {
@@ -911,7 +911,7 @@ func (s *DefaultServer) addToDialQueue(ctx context.Context, addr *peer.AddrInfo,
 }
 
 func (s *DefaultServer) emitEvent(ctx context.Context, peerID peer.ID, peerEventType peerEvent.PeerEventType) {
-	span := s.tracer.StartWithParentFromContext(ctx, "network.emitEvent")
+	span := s.tracer.StartWithContext(ctx, "DefaultServer.emitEvent")
 	defer span.End()
 
 	// POTENTIALLY BLOCKING

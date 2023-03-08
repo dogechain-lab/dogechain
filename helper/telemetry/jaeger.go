@@ -104,12 +104,10 @@ func (s *jaegerSpan) SetStatus(code Code, info string) {
 	s.span.SetStatus(codes.Code(code), info)
 }
 
-// SetError sets the error
-func (s *jaegerSpan) SetError(err error) {
+func (s *jaegerSpan) RecordError(err error) {
 	s.span.RecordError(err)
 }
 
-// End ends the span
 func (s *jaegerSpan) End() {
 	s.span.End()
 }
@@ -171,8 +169,8 @@ func (t *jaegerTracer) StartWithParent(parent trace.SpanContext, name string) Sp
 	}
 }
 
-// StartWithParentFromContext starts a new span with a parent from the context
-func (t *jaegerTracer) StartWithParentFromContext(ctx context.Context, name string) Span {
+// StartWithContext starts a new span with a parent from the context
+func (t *jaegerTracer) StartWithContext(ctx context.Context, name string) Span {
 	childContext, span := t.tracer.Start(ctx, name)
 
 	return &jaegerSpan{

@@ -56,7 +56,7 @@ func (pci *PeerConnInfo) addProtocolClient(protocol string, stream client.GrpcCl
 // cleanProtocolStreams clean and closes all protocol stream
 func (pci *PeerConnInfo) cleanProtocolStreams(ctx context.Context, trace telemetry.Tracer) []error {
 	errs := []error{}
-	span := trace.StartWithParentFromContext(ctx, "cleanProtocolStreams")
+	span := trace.StartWithContext(ctx, "PeerConnInfo.cleanProtocolStreams")
 
 	for protocolName, clt := range pci.protocolClient {
 		if clt != nil {

@@ -136,7 +136,7 @@ func (s *DefaultServer) setupIdentity() error {
 
 // registerIdentityService registers the identity service
 func (s *DefaultServer) registerIdentityService(identityService *identity.IdentityService) {
-	grpcStream := grpc.NewGrpcStream()
+	grpcStream := grpc.NewGrpcStream(context.TODO())
 	proto.RegisterIdentityServer(grpcStream.GrpcServer(), identityService)
 	grpcStream.Serve()
 

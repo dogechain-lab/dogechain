@@ -40,8 +40,12 @@ type Span interface {
 	// SetStatus set status
 	SetStatus(code Code, info string)
 
-	// SetError set error
-	SetError(err error)
+	// RecordError will record err as an exception span event for this span. An
+	// additional call to SetStatus is required if the Status of the Span should
+	// be set to Error, as this method does not change the Span status. If this
+	// span is not being recorded or err is nil then this method does nothing.
+	// (wrapping otel.Span.RecordError)
+	RecordError(err error)
 
 	// End ends the span
 	End()
@@ -61,8 +65,8 @@ type Tracer interface {
 	// StartWithParent starts a new span with a parent
 	StartWithParent(parent trace.SpanContext, name string) Span
 
-	// StartWithParentFromContext starts a new span with a parent from context
-	StartWithParentFromContext(ctx context.Context, name string) Span
+	// StartWithContext starts a new span with a parent from context
+	StartWithContext(ctx context.Context, name string) Span
 
 	// GetTraceProvider returns the trace provider
 	GetTraceProvider() TracerProvider
