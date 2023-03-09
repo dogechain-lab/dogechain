@@ -6,7 +6,7 @@ run:
   skip-dirs-use-default: true
 
 service:
-  golangci-lint-version: 1.49.0
+  golangci-lint-version: 1.51.2
 
 linters:
   # default false
