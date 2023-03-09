@@ -7,7 +7,7 @@ import (
 	"github.com/dogechain-lab/dogechain/command"
 	"github.com/dogechain-lab/dogechain/command/helper"
 	"github.com/dogechain-lab/dogechain/server/proto"
-	"github.com/golang/protobuf/ptypes/empty"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 var (
@@ -38,7 +38,7 @@ func (p *inoutParam) initSystemClient(grpcAddress string) error {
 func (p *inoutParam) queryDDOSList() {
 	rsp, err := p.systemClient.DDOSContractList(
 		context.Background(),
-		&empty.Empty{},
+		&emptypb.Empty{},
 	)
 	if err != nil {
 		p.err = err

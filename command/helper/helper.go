@@ -10,18 +10,19 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/dogechain-lab/dogechain/chain"
-	"github.com/dogechain-lab/dogechain/command"
-	ibftOp "github.com/dogechain-lab/dogechain/consensus/ibft/proto"
-	"github.com/dogechain-lab/dogechain/server"
-	"github.com/dogechain-lab/dogechain/server/proto"
-	txpoolOp "github.com/dogechain-lab/dogechain/txpool/proto"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	ibftOp "github.com/dogechain-lab/dogechain/consensus/ibft/proto"
+	txpoolOp "github.com/dogechain-lab/dogechain/txpool/proto"
+
+	"github.com/dogechain-lab/dogechain/chain"
+	"github.com/dogechain-lab/dogechain/command"
+	"github.com/dogechain-lab/dogechain/helper/columnize"
 	"github.com/dogechain-lab/dogechain/helper/common"
-	"github.com/ryanuber/columnize"
+	"github.com/dogechain-lab/dogechain/server"
+	"github.com/dogechain-lab/dogechain/server/proto"
 )
 
 type ClientCloseResult struct {
