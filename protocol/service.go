@@ -3,7 +3,6 @@ package protocol
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/dogechain-lab/dogechain/network"
 	"github.com/dogechain-lab/dogechain/network/grpc"
@@ -259,43 +258,4 @@ func (s *syncPeerService) GetHeaders(_ context.Context, req *proto.GetHeadersReq
 	}
 
 	return resp, nil
-}
-
-// Helper functions to decode responses from the grpc layer
-func getBodies(ctx context.Context, clt proto.V1Client, hashes []types.Hash) ([]*types.Body, error) {
-	input := make([]string, 0, len(hashes))
-
-	for _, h := range hashes {
-		input = append(input, h.String())
-	}
-
-	resp, err := clt.GetObjectsByHash(
-		ctx,
-		&proto.HashRequest{
-			Hash: input,
-			Type: proto.HashRequest_BODIES,
-		},
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	res := make([]*types.Body, 0, len(resp.Objs))
-
-	for _, obj := range resp.Objs {
-		var body types.Body
-		if obj.Spec.Value != nil {
-			if err := body.UnmarshalRLP(obj.Spec.Value); err != nil {
-				return nil, err
-			}
-		}
-
-		res = append(res, &body)
-	}
-
-	if len(res) != len(input) {
-		return nil, fmt.Errorf("not correct size")
-	}
-
-	return res, nil
 }
