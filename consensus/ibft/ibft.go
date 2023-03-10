@@ -271,32 +271,31 @@ func (i *Ibft) Start() error {
 	return nil
 }
 
+func (i *Ibft) updateValidatorAndTxpool(header *types.Header) bool {
+	blockNumber := header.Number
+
+	// insert block
+	if hookErr := i.runHook(InsertBlockHook, blockNumber, blockNumber); hookErr != nil {
+		i.logger.Error("unable to run hook", "hook", InsertBlockHook, "err", hookErr)
+	}
+
+	// update module cache
+	if err := i.updateCurrentModules(blockNumber + 1); err != nil {
+		i.logger.Error("failed to update sub modules", "height", blockNumber+1, "err", err)
+	}
+
+	// reset headers of txpool
+	i.txpool.ResetWithHeaders(header)
+
+	return false
+}
+
 // sync runs the syncer in the background to receive blocks from advanced peers
 func (i *Ibft) startSyncing() {
 	logger := i.logger.Named("syncing")
 
-	callInsertBlockHook := func(block *types.Block) bool {
-		blockNumber := block.Number()
-
-		// insert block
-		if hookErr := i.runHook(InsertBlockHook, blockNumber, blockNumber); hookErr != nil {
-			logger.Error("unable to run hook", "hook", InsertBlockHook, "err", hookErr)
-		}
-
-		// update module cache
-		if err := i.updateCurrentModules(blockNumber + 1); err != nil {
-			logger.Error("failed to update sub modules", "height", blockNumber+1, "err", err)
-		}
-
-		// reset headers of txpool
-		i.txpool.ResetWithHeaders(block.Header)
-
-		return false
-	}
-
-	if err := i.syncer.Sync(
-		callInsertBlockHook,
-	); err != nil {
+	// no need to call callback
+	if err := i.syncer.Sync(nil); err != nil {
 		logger.Error("watch sync failed", "err", err)
 	}
 }
@@ -514,9 +513,18 @@ func (i *Ibft) startConsensus() {
 				continue
 			}
 
+			if len(ev.NewChain) == 0 {
+				i.logger.Debug("received empty newchain event from blockchain subscription (ignoring)")
+				// it shouldn't be, just to prevent panic
+				continue
+			}
+
+			// update validator set and txpool content with valid header
+			i.updateValidatorAndTxpool(ev.NewChain[0])
+
+			// The blockchain notification system can eventually deliver
+			// stale block notifications. These should be ignored
 			if ev.NewChain[0].Number < i.blockchain.Header().Number {
-				// The blockchain notification system can eventually deliver
-				// stale block notifications. These should be ignored
 				continue
 			}
 
@@ -532,22 +540,14 @@ func (i *Ibft) startConsensus() {
 			pending = latest + 1
 		)
 
-		// // syncer callback update modules already
-		// if err := i.updateCurrentModules(pending); err != nil {
-		// 	i.logger.Error(
-		// 		"failed to update submodules",
-		// 		"height", pending,
-		// 		"err", err,
-		// 	)
-		// }
-
 		ctx, cancel := context.WithCancel(context.Background())
 
-		// must not be in sealing cycle and syncing mode to start a new block
-		if i.alreadyInCycle.CompareAndSwap(false, true) &&
-			!i.syncer.IsSyncing() {
+		// must not be in syncing mode to join consensus
+		if !i.syncer.IsSyncing() {
+			// jump over if not validator
 			isValidator = i.isValidSnapshot()
-			if isValidator {
+			if isValidator &&
+				i.alreadyInCycle.CompareAndSwap(false, true) { // switch to consensus cycle
 				// it is not thread safe, be careful
 				go i.runSequenceAtHeight(ctx, cancel, pending)
 			}
