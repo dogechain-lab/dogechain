@@ -529,7 +529,11 @@ func (s *noForkSyncer) bulkSyncWithPeer(
 	return result, nil
 }
 
-func (s *noForkSyncer) getBlocksFromBestPeer(p *NoForkPeer, from, to uint64, result *bulkSyncResult) ([]*types.Block, error) {
+func (s *noForkSyncer) getBlocksFromBestPeer(
+	p *NoForkPeer,
+	from, to uint64,
+	result *bulkSyncResult,
+) ([]*types.Block, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), _blockSyncTimeout)
 	defer cancel()
 
