@@ -295,9 +295,6 @@ func (client *syncPeerClient) GetBlocks(
 		return nil, fmt.Errorf("failed to create sync peer client: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, defaultTimeoutForStatus)
-	defer cancel()
-
 	rsp, err := clt.GetBlocks(ctx, &proto.GetBlocksRequest{
 		From: from,
 		To:   to,

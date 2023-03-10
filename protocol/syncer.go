@@ -440,9 +440,6 @@ func (s *noForkSyncer) bulkSyncWithPeer(
 		return result, nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), _blockSyncTimeout)
-	defer cancel()
-
 	// sync up to the current known header
 	for {
 		// set to
@@ -454,31 +451,20 @@ func (s *noForkSyncer) bulkSyncWithPeer(
 
 		s.logger.Info("sync up to block", "peer", p.ID, "from", from, "to", to)
 
-		blocks, err := s.syncPeerClient.GetBlocks(ctx, p.ID, from, to)
+		blocks, err := s.getBlocksFromBestPeer(p, from, to, result)
 		if err != nil {
-			if rpcErr, ok := grpcstatus.FromError(err); ok {
-				switch rpcErr.Code() {
-				case grpccodes.OK, grpccodes.Canceled, grpccodes.DataLoss:
-					s.logger.Debug("peer return recoverable error", "id", p.ID, "err", err)
-				default: // other errors are not acceptable
-					s.logger.Info("skip peer due to error", "id", p.ID, "err", err)
-
-					result.SkipList[p.ID] = time.Now().Add(
-						time.Duration(_skipListTTL+common.SecureRandInt(_skipListRandTTLRange)) * time.Second,
-					).Unix()
-				}
-			}
-
 			return result, err
+		} else if len(blocks) == 0 {
+			s.logger.Warn("get no blocks and no error in bulk sync")
+
+			break
 		}
 
-		if len(blocks) > 0 {
-			s.logger.Info(
-				"get all blocks",
-				"peer", p.ID,
-				"from", blocks[0].Number(),
-				"to", blocks[len(blocks)-1].Number())
-		}
+		s.logger.Info(
+			"get all blocks",
+			"peer", p.ID,
+			"from", blocks[0].Number(),
+			"to", blocks[len(blocks)-1].Number())
 
 		// write block
 		for _, block := range blocks {
@@ -541,6 +527,29 @@ func (s *noForkSyncer) bulkSyncWithPeer(
 	}
 
 	return result, nil
+}
+
+func (s *noForkSyncer) getBlocksFromBestPeer(p *NoForkPeer, from, to uint64, result *bulkSyncResult) ([]*types.Block, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), _blockSyncTimeout)
+	defer cancel()
+
+	blocks, err := s.syncPeerClient.GetBlocks(ctx, p.ID, from, to)
+	if err != nil {
+		if rpcErr, ok := grpcstatus.FromError(err); ok {
+			switch rpcErr.Code() {
+			case grpccodes.OK, grpccodes.Canceled, grpccodes.DataLoss:
+				s.logger.Debug("peer return recoverable error", "id", p.ID, "err", err)
+			default: // other errors are not acceptable
+				s.logger.Info("skip peer due to error", "id", p.ID, "err", err)
+
+				result.SkipList[p.ID] = time.Now().Add(
+					time.Duration(_skipListTTL+common.SecureRandInt(_skipListRandTTLRange)) * time.Second,
+				).Unix()
+			}
+		}
+	}
+
+	return blocks, err
 }
 
 func blockNearEnough(a, b uint64) bool {

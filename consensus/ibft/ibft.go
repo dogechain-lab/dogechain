@@ -509,15 +509,18 @@ func (i *Ibft) startConsensus() {
 				continue
 			}
 
-			if ev.Source == protocol.WriteBlockSource {
-				if ev.NewChain[0].Number < i.blockchain.Header().Number {
-					// The blockchain notification system can eventually deliver
-					// stale block notifications. These should be ignored
-					continue
-				}
-
-				syncerBlockCh <- struct{}{}
+			// would only accept write block event from syncer
+			if ev.Source != protocol.WriteBlockSource {
+				continue
 			}
+
+			if ev.NewChain[0].Number < i.blockchain.Header().Number {
+				// The blockchain notification system can eventually deliver
+				// stale block notifications. These should be ignored
+				continue
+			}
+
+			syncerBlockCh <- struct{}{}
 		}
 	}()
 
