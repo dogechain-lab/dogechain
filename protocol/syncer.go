@@ -476,6 +476,8 @@ func (s *noForkSyncer) bulkSyncWithPeer(
 			"peer", p.ID,
 			"from", blocks[0].Number(),
 			"to", blocks[len(blocks)-1].Number())
+	} else {
+		return result, nil
 	}
 
 	// write block
