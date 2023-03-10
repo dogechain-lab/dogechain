@@ -486,8 +486,10 @@ func (s *snapshotStore) replace(snap *Snapshot) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	for i, sn := range s.list {
-		if sn.Number == snap.Number {
+	// reverse for faster searching
+	listlen := len(s.list)
+	for i := listlen - 1; i >= listlen; i-- {
+		if s.list[i].Number == snap.Number {
 			s.list[i] = snap
 
 			return

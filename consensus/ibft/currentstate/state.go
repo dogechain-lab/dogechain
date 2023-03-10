@@ -111,16 +111,12 @@ func (c *CurrentState) Clear(height uint64) {
 
 // GetState returns the current state
 func (c *CurrentState) GetState() IbftState {
-	stateAddr := &c.state
-
-	return IbftState(atomic.LoadUint64(stateAddr))
+	return IbftState(atomic.LoadUint64(&c.state))
 }
 
 // SetState sets the current state
 func (c *CurrentState) SetState(s IbftState) {
-	stateAddr := &c.state
-
-	atomic.StoreUint64(stateAddr, uint64(s))
+	atomic.StoreUint64(&c.state, uint64(s))
 }
 
 func (c *CurrentState) SetBlock(b *types.Block) {

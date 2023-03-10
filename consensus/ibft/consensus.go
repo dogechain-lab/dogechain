@@ -12,44 +12,18 @@ import (
 	"github.com/dogechain-lab/dogechain/types"
 )
 
-// runSequence starts the underlying consensus mechanism for the given height.
-// It may be called by a single thread at any given time
-func (i *Ibft) runSequence(height uint64) <-chan struct{} {
-	done := make(chan struct{})
-	ctx, cancel := context.WithCancel(context.Background()) // never stop until cancel
+func (i *Ibft) runSequenceAtHeight(ctx context.Context, cancel context.CancelFunc, height uint64) {
+	defer func() {
+		// Set the starting state data
+		i.state.Clear(height)
+		i.msgQueue.PruneByHeight(height)
+		i.alreadyInCycle.CompareAndSwap(true, false)
 
-	i.cancelSequence = cancel
+		i.logger.Info("clear sequence state and jump out cycle", "height", height)
 
-	i.wg.Add(1)
-
-	go func() {
-		defer func() {
-			cancel()
-			i.wg.Done()
-			close(done)
-		}()
-
-		i.runSequenceAtHeight(ctx, height)
+		// work done or cancel by other event, thread safe to call multiple times.
+		cancel()
 	}()
-
-	return done
-}
-
-// stopSequence terminates the running IBFT sequence gracefully and waits for it to return
-func (i *Ibft) stopSequence() {
-	if i.cancelSequence != nil {
-		i.cancelSequence()
-
-		i.cancelSequence = nil
-
-		i.wg.Wait()
-	}
-}
-
-func (i *Ibft) runSequenceAtHeight(ctx context.Context, height uint64) {
-	// Set the starting state data
-	i.state.Clear(height)
-	i.msgQueue.PruneByHeight(height)
 
 	i.logger.Info("sequence started", "height", height)
 	defer i.logger.Info("sequence done", "height", height)
@@ -58,10 +32,12 @@ func (i *Ibft) runSequenceAtHeight(ctx context.Context, height uint64) {
 		select {
 		case <-i.closeCh:
 			return
+		case <-ctx.Done():
+			return
 		default:
 		}
 
-		if done := i.runCycle(ctx); done {
+		if isDone := i.runCycle(ctx); isDone {
 			return
 		}
 	}
@@ -69,13 +45,6 @@ func (i *Ibft) runSequenceAtHeight(ctx context.Context, height uint64) {
 
 // runCycle represents the IBFT state machine loop
 func (i *Ibft) runCycle(ctx context.Context) (shouldStop bool) {
-	// Log to the console
-	i.logger.Debug("cycle",
-		"state", i.getState(),
-		"sequence", i.state.Sequence(),
-		"round", i.state.Round()+1,
-	)
-
 	select {
 	case <-ctx.Done():
 		i.logger.Debug("sequence cancelled")
@@ -83,6 +52,13 @@ func (i *Ibft) runCycle(ctx context.Context) (shouldStop bool) {
 		return true
 	default: // go on
 	}
+
+	// Log to the console
+	i.logger.Debug("cycle",
+		"state", i.getState(),
+		"sequence", i.state.Sequence(),
+		"round", i.state.Round()+1,
+	)
 
 	// Based on the current state, execute the corresponding section
 	switch i.getState() {
@@ -225,10 +201,10 @@ func (i *Ibft) runAcceptState(ctx context.Context) (shouldStop bool) { // start 
 		}
 
 		// send the preprepare message as an RLP encoded block
-		i.sendPreprepareMsg()
+		i.sendPreprepareMsg(ctx)
 
 		// send the prepare message since we are ready to move the state
-		i.sendPrepareMsg()
+		i.sendPrepareMsg(ctx)
 
 		// move to validation state for new prepare messages
 		i.setState(currentstate.ValidateState)
@@ -288,7 +264,7 @@ func (i *Ibft) runAcceptState(ctx context.Context) (shouldStop bool) { // start 
 			// the state is locked, we need to receive the same block
 			if block.Hash() == i.state.Block().Hash() {
 				// fast-track and send a commit message and wait for validations
-				i.sendCommitMsg()
+				i.sendCommitMsg(ctx)
 				i.setState(currentstate.ValidateState)
 			} else {
 				i.handleStateErr(errIncorrectBlockLocked)
@@ -323,7 +299,7 @@ func (i *Ibft) runAcceptState(ctx context.Context) (shouldStop bool) { // start 
 
 			i.state.SetBlock(block)
 			// send prepare message and wait for validations
-			i.sendPrepareMsg()
+			i.sendPrepareMsg(ctx)
 			i.setState(currentstate.ValidateState)
 		}
 	}
@@ -348,7 +324,7 @@ func (i *Ibft) runValidateState(ctx context.Context) (shouldStop bool) {
 		// or commit messages so we can lock the block
 		i.state.Lock()
 		// send the commit message
-		i.sendCommitMsg()
+		i.sendCommitMsg(ctx)
 
 		hasCommitted = true
 	}
@@ -370,7 +346,7 @@ func (i *Ibft) runValidateState(ctx context.Context) (shouldStop bool) {
 		// only proposer need to send post commit
 		signer, _ := ecrecoverFromHeader(i.state.Block().Header)
 		if signer == i.validatorKeyAddr {
-			i.sendPostCommitMsg()
+			i.sendPostCommitMsg(ctx)
 		}
 	}
 
@@ -513,7 +489,7 @@ func (i *Ibft) runRoundChangeState(ctx context.Context) (shouldStop bool) {
 		// clean the round
 		i.state.CleanRound(round)
 		// send the round change message
-		i.sendRoundChange()
+		i.sendRoundChange(ctx)
 	}
 	sendNextRoundChange := func() {
 		sendRoundChange(i.state.NextRound())

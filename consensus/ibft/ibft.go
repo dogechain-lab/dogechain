@@ -77,7 +77,8 @@ type txPoolInterface interface {
 
 // Ibft represents the IBFT consensus mechanism object
 type Ibft struct {
-	sealing bool // Flag indicating if the node is a sealer
+	sealing        bool         // Flag indicating if the node is a sealer
+	alreadyInCycle *atomic.Bool // to prevent reentrent
 
 	logger hclog.Logger               // Output logger
 	config *consensus.Config          // Consensus configuration
@@ -124,10 +125,6 @@ type Ibft struct {
 	// but would not banish it until it became a real ddos attack
 	// not thread safe, but can be used sequentially
 	exhaustingContracts map[types.Address]uint64
-
-	// consensus associated
-	cancelSequence context.CancelFunc
-	wg             sync.WaitGroup
 }
 
 // runHook runs a specified hook if it is present in the hook map
@@ -192,6 +189,7 @@ func Factory(
 		network:             params.Network,
 		epochSize:           epochSize,
 		sealing:             params.Seal,
+		alreadyInCycle:      atomic.NewBool(false),
 		metrics:             params.Metrics,
 		secretsManager:      params.SecretsManager,
 		blockTime:           time.Duration(params.BlockTime) * time.Second,
@@ -490,7 +488,7 @@ const IbftKeyName = "validator.key"
 func (i *Ibft) startConsensus() {
 	var (
 		newBlockSub   = i.blockchain.SubscribeEvents()
-		syncerBlockCh = make(chan struct{})
+		syncerBlockCh = make(chan struct{}, 1)
 	)
 
 	defer newBlockSub.Unsubscribe()
@@ -523,10 +521,7 @@ func (i *Ibft) startConsensus() {
 		}
 	}()
 
-	var (
-		sequenceCh  = make(<-chan struct{})
-		isValidator bool
-	)
+	var isValidator bool
 
 	for {
 		var (
@@ -534,33 +529,36 @@ func (i *Ibft) startConsensus() {
 			pending = latest + 1
 		)
 
-		if err := i.updateCurrentModules(pending); err != nil {
-			i.logger.Error(
-				"failed to update submodules",
-				"height", pending,
-				"err", err,
-			)
-		}
+		// // syncer callback update modules already
+		// if err := i.updateCurrentModules(pending); err != nil {
+		// 	i.logger.Error(
+		// 		"failed to update submodules",
+		// 		"height", pending,
+		// 		"err", err,
+		// 	)
+		// }
 
-		isValidator = i.isValidSnapshot()
+		ctx, cancel := context.WithCancel(context.Background())
 
-		// validator must not be in syncing mode to start a new block
-		if isValidator && !i.syncer.IsSyncing() {
-			sequenceCh = i.runSequence(pending)
+		// must not be in sealing cycle and syncing mode to start a new block
+		if i.alreadyInCycle.CompareAndSwap(false, true) &&
+			!i.syncer.IsSyncing() {
+			isValidator = i.isValidSnapshot()
+			if isValidator {
+				// it is not thread safe, be careful
+				go i.runSequenceAtHeight(ctx, cancel, pending)
+			}
 		}
 
 		select {
+		case <-ctx.Done():
+			i.logger.Info("sequence done", "height", pending)
 		case <-syncerBlockCh:
-			if isValidator {
-				i.stopSequence()
-				i.logger.Info("canceled sequence", "sequence", pending)
-			}
-		case <-sequenceCh:
+			cancel()
+			i.logger.Info("sequence canceled due to new block", "sequence", pending)
 		case <-i.closeCh:
-			if isValidator {
-				i.stopSequence()
-				i.logger.Info("ibft close", "sequence", pending)
-			}
+			cancel()
+			i.logger.Info("ibft close", "sequence", pending)
 
 			return
 		}
@@ -1251,23 +1249,53 @@ func (i *Ibft) handleStateErr(err error) {
 
 // --- com wrappers ---
 
-func (i *Ibft) sendRoundChange() {
+func (i *Ibft) sendRoundChange(ctx context.Context) {
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
+
 	i.gossip(proto.MessageReq_RoundChange)
 }
 
-func (i *Ibft) sendPreprepareMsg() {
+func (i *Ibft) sendPreprepareMsg(ctx context.Context) {
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
+
 	i.gossip(proto.MessageReq_Preprepare)
 }
 
-func (i *Ibft) sendPrepareMsg() {
+func (i *Ibft) sendPrepareMsg(ctx context.Context) {
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
+
 	i.gossip(proto.MessageReq_Prepare)
 }
 
-func (i *Ibft) sendCommitMsg() {
+func (i *Ibft) sendCommitMsg(ctx context.Context) {
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
+
 	i.gossip(proto.MessageReq_Commit)
 }
 
-func (i *Ibft) sendPostCommitMsg() {
+func (i *Ibft) sendPostCommitMsg(ctx context.Context) {
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
+
 	i.gossip(proto.MessageReq_PostCommit)
 }
 
