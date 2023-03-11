@@ -117,7 +117,7 @@ func (i *Ibft) runAcceptState(ctx context.Context) (shouldStop bool) { // start 
 	number := parent.Number + 1
 
 	if number != i.state.Sequence() {
-		logger.Error("sequence not correct", "parent", parent.Number, "sequence", i.state.Sequence())
+		logger.Error("consensus sequence not correct when prepare", "parent", parent.Number, "sequence", i.state.Sequence())
 		time.Sleep(1 * time.Second)
 
 		return
@@ -252,7 +252,7 @@ func (i *Ibft) runAcceptState(ctx context.Context) (shouldStop bool) { // start 
 
 		// Make sure the proposing block height match the current sequence
 		if block.Number() != i.state.Sequence() {
-			logger.Error("sequence not correct", "block", block.Number, "sequence", i.state.Sequence())
+			logger.Error("consensu sequence not correct when accepting", "block", block.Number, "sequence", i.state.Sequence())
 			i.handleStateErr(errIncorrectBlockHeight)
 
 			return
