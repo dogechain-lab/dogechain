@@ -261,6 +261,11 @@ func (t *TestServer) GenerateGenesis() error {
 		genesisCmd.Use,
 	}
 
+	// chain id
+	if t.Config.ChainID > 0 {
+		args = append(args, "--chain-id", strconv.FormatUint(t.Config.ChainID, 10))
+	}
+
 	// add pre-mined accounts
 	for _, acct := range t.Config.PremineAccts {
 		args = append(args, "--premine", acct.Addr.String()+":0x"+acct.Balance.Text(16))

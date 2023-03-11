@@ -54,6 +54,7 @@ type TestServerConfig struct {
 	IsWSEnable        bool                 // enable websocket or not
 	RestoreFile       string               // blockchain restore file
 	BlockTime         uint64               // minimum block generation time (in s)
+	ChainID           uint64               // chainid for seperating parallel e2e test cases
 }
 
 // DataDir returns path of data directory server uses
@@ -190,4 +191,8 @@ func (t *TestServerConfig) SetRestoreFile(path string) {
 
 func (t *TestServerConfig) SetBlockTime(blockTime uint64) {
 	t.BlockTime = blockTime
+}
+
+func (t *TestServerConfig) SetChainID(chainID uint64) {
+	t.ChainID = chainID
 }
