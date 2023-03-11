@@ -14,6 +14,7 @@ import (
 
 func (i *Ibft) runSequenceAtHeight(ctx context.Context, height uint64) {
 	// Set the starting state data
+	i.startNewSequence()
 	i.setState(currentstate.AcceptState)
 	i.logger.Info("sequence started", "height", height)
 
