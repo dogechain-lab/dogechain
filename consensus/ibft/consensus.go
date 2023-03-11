@@ -12,21 +12,19 @@ import (
 	"github.com/dogechain-lab/dogechain/types"
 )
 
-func (i *Ibft) runSequenceAtHeight(ctx context.Context, cancel context.CancelFunc, height uint64) {
+func (i *Ibft) runSequenceAtHeight(ctx context.Context, height uint64) {
+	// Set the starting state data
+	i.setState(currentstate.AcceptState)
+	i.logger.Info("sequence started", "height", height)
+
 	defer func() {
-		// Set the starting state data
+		// clear up
 		i.state.Clear(height)
 		i.msgQueue.PruneByHeight(height)
 		i.alreadyInCycle.CompareAndSwap(true, false)
 
-		i.logger.Info("clear sequence state and jump out cycle", "height", height)
-
-		// work done or cancel by other event, thread safe to call multiple times.
-		cancel()
+		i.logger.Info("clear state", "height", height)
 	}()
-
-	i.logger.Info("sequence started", "height", height)
-	defer i.logger.Info("sequence done", "height", height)
 
 	for {
 		select {

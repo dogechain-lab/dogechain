@@ -538,6 +538,7 @@ func (i *Ibft) startConsensus() {
 		var (
 			latest  = i.blockchain.Header().Number
 			pending = latest + 1
+			wg      sync.WaitGroup
 		)
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -546,21 +547,35 @@ func (i *Ibft) startConsensus() {
 		if !i.syncer.IsSyncing() {
 			// jump over if not validator
 			isValidator = i.isValidSnapshot()
-			if isValidator &&
-				i.alreadyInCycle.CompareAndSwap(false, true) { // switch to consensus cycle
-				// it is not thread safe, be careful
-				go i.runSequenceAtHeight(ctx, cancel, pending)
+			// validator switch to consensus cycle
+			if isValidator && i.alreadyInCycle.CompareAndSwap(false, true) {
+				wg.Add(1)
+
+				// must use pointer to wait the same group instance, otherwise it'll
+				// panic when cancel first
+				go func(wg *sync.WaitGroup) {
+					defer func() {
+						ca	ncel()
+						wg.Done()
+					}()
+
+					// it is not thread safe, be careful
+					i.runSequenceAtHeight(ctx, pending)
+				}(&wg)
 			}
 		}
 
 		select {
 		case <-ctx.Done():
+			wg.Wait()
 			i.logger.Info("sequence done", "height", pending)
 		case <-syncerBlockCh:
 			cancel()
+			wg.Wait()
 			i.logger.Info("sequence canceled due to new block", "sequence", pending)
 		case <-i.closeCh:
 			cancel()
+			wg.Wait()
 			i.logger.Info("ibft close", "sequence", pending)
 
 			return
