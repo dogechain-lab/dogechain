@@ -5,7 +5,6 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/dogechain-lab/dogechain/network/client"
 	"github.com/dogechain-lab/dogechain/network/event"
 
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -70,15 +69,16 @@ func (s *NonetworkServer) NewTopic(protoID string, obj proto.Message) (Topic, er
 
 func (s *NonetworkServer) RegisterProtocol(string, Protocol) {}
 
-func (s *NonetworkServer) NewProtoConnection(protocol string, peerID peer.ID) (*rawGrpc.ClientConn, error) {
+func (s *NonetworkServer) NewProtoConnection(
+	ctx context.Context,
+	protocol string,
+	peerID peer.ID,
+) (*rawGrpc.ClientConn, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (s *NonetworkServer) GetProtoClient(protocol string, peerID peer.ID) client.GrpcClientCloser {
-	return nil
-}
-
-func (s *NonetworkServer) SaveProtoClient(protocol string, stream client.GrpcClientCloser, peerID peer.ID) {
+func (s *NonetworkServer) GetMetrics() *Metrics {
+	return NilMetrics()
 }
 
 func (s *NonetworkServer) ForgetPeer(peer peer.ID, reason string) {}

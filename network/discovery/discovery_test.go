@@ -249,7 +249,7 @@ func TestDiscoveryService_RegularPeerDiscoveryUnconnected(t *testing.T) {
 			})
 
 			// Define the new discovery client creation
-			server.HookNewDiscoveryClient(func(id peer.ID) (client.DiscoveryClient, error) {
+			server.HookNewDiscoveryClient(func(ctx context.Context, id peer.ID) (client.DiscoveryClient, error) {
 				return nil, errors.New("peer is not connected anymore")
 			})
 

@@ -45,17 +45,10 @@ func (s *DefaultServer) GetRandomBootnode() *peer.AddrInfo {
 }
 
 // NewDiscoveryClient returns a new or existing discovery service client connection
-func (s *DefaultServer) NewDiscoveryClient(peerID peer.ID) (client.DiscoveryClient, error) {
-	// Check if there is an active stream connection already
-	if protoStream := s.GetProtoClient(common.DiscProto, peerID); protoStream != nil {
-		if discoveryClt, ok := protoStream.(client.DiscoveryClient); ok {
-			return discoveryClt, nil
-		}
-	}
-
+func (s *DefaultServer) NewDiscoveryClient(ctx context.Context, peerID peer.ID) (client.DiscoveryClient, error) {
 	// Create a new stream connection and save, only single object
 	// close and clear only when the peer is disconnected
-	protoStream, err := s.NewProtoConnection(common.DiscProto, peerID)
+	protoStream, err := s.NewProtoConnection(ctx, common.DiscProto, peerID)
 	if err != nil {
 		return nil, err
 	}
@@ -63,10 +56,10 @@ func (s *DefaultServer) NewDiscoveryClient(peerID peer.ID) (client.DiscoveryClie
 	// Save the stream connection
 	clt := client.NewDiscoveryClient(
 		s.logger,
+		s.metrics.GetGrpcMetrics(),
 		proto.NewDiscoveryClient(protoStream),
 		protoStream,
 	)
-	s.SaveProtoClient(common.DiscProto, clt, peerID)
 
 	return clt, nil
 }

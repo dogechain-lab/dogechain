@@ -31,7 +31,7 @@ type networkingServer interface {
 	// PROTOCOL MANIPULATION //
 
 	// NewIdentityClient returns an identity gRPC client connection
-	NewIdentityClient(peerID peer.ID) (client.IdentityClient, error)
+	NewIdentityClient(ctx context.Context, peerID peer.ID) (client.IdentityClient, error)
 
 	// PEER MANIPULATION //
 
@@ -214,9 +214,12 @@ func (i *IdentityService) disconnectFromPeer(peerID peer.ID, reason string) {
 func (i *IdentityService) handleConnected(peerID peer.ID, direction network.Direction) error {
 	i.logger.Debug("handling new connection", "peer", peerID, "direction", direction)
 
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+
 	// don't save this grpc client object
 	// this is a one time use stream
-	clt, clientErr := i.baseServer.NewIdentityClient(peerID)
+	clt, clientErr := i.baseServer.NewIdentityClient(ctx, peerID)
 	if clientErr != nil {
 		return fmt.Errorf(
 			"unable to create new identity client connection, %w",
@@ -238,9 +241,6 @@ func (i *IdentityService) handleConnected(peerID peer.ID, direction network.Dire
 	status := i.constructStatus(peerID)
 
 	// Initiate the handshake
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
-	defer cancel()
-
 	i.logger.Debug("send hello", "peer", peerID)
 
 	resp, err := clt.Hello(ctx, status)

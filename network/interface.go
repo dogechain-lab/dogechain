@@ -3,7 +3,6 @@ package network
 import (
 	"context"
 
-	"github.com/dogechain-lab/dogechain/network/client"
 	"github.com/dogechain-lab/dogechain/network/event"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -48,12 +47,11 @@ type Network interface {
 	GetProtocols(peerID peer.ID) ([]string, error)
 	// NewProtoConnection opens up a new client connect on the set protocol to the peer,
 	// and returns a reference to the connection
-	NewProtoConnection(protocol string, peerID peer.ID) (*rawGrpc.ClientConn, error)
-	// GetProtoClient returns an active protocol client if present, otherwise
-	// it returns nil
-	GetProtoClient(protocol string, peerID peer.ID) client.GrpcClientCloser
-	// SaveProtoClient saves protocol client
-	SaveProtoClient(protocol string, stream client.GrpcClientCloser, peerID peer.ID)
+	NewProtoConnection(ctx context.Context, protocol string, peerID peer.ID) (*rawGrpc.ClientConn, error)
+
+	// **Metrics**
+	// GetMetrics returns the metrics of the network
+	GetMetrics() *Metrics
 }
 
 type Protocol interface {

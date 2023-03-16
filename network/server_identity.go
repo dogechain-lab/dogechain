@@ -21,13 +21,18 @@ import (
 )
 
 // NewIdentityClient returns a new identity service client connection
-func (s *DefaultServer) NewIdentityClient(peerID peer.ID) (client.IdentityClient, error) {
-	conn, err := s.NewProtoConnection(common.IdentityProto, peerID)
+func (s *DefaultServer) NewIdentityClient(ctx context.Context, peerID peer.ID) (client.IdentityClient, error) {
+	conn, err := s.NewProtoConnection(ctx, common.IdentityProto, peerID)
 	if err != nil {
 		return nil, err
 	}
 
-	return client.NewIdentityClient(s.logger, proto.NewIdentityClient(conn), conn), nil
+	return client.NewIdentityClient(
+		s.logger,
+		s.metrics.GetGrpcMetrics(),
+		proto.NewIdentityClient(conn),
+		conn,
+	), nil
 }
 
 // AddPeer adds a new peer to the networking server's peer list,
@@ -72,7 +77,6 @@ func (s *DefaultServer) addPeerInfo(id peer.ID, direction network.Direction) boo
 		connectionInfo = &PeerConnInfo{
 			Info:           s.host.Peerstore().PeerInfo(id),
 			connDirections: make(map[network.Direction]bool),
-			protocolClient: make(map[string]client.GrpcClientCloser),
 		}
 
 		// update ttl

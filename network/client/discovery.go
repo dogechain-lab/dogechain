@@ -22,10 +22,36 @@ type discoveryClient struct {
 	conn *rawGrpc.ClientConn
 
 	isClosed *atomic.Bool
+
+	metrics Metrics
 }
 
+const (
+	/**
+	from grpc.UnaryServerInfo
+
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/v1.Discovery/FindPeers",
+	}
+	**/
+	methodNameFindPeers = "/v1.Discovery/FindPeers"
+)
+
 func (i *discoveryClient) FindPeers(ctx context.Context, in *proto.FindPeersReq) (*proto.FindPeersResp, error) {
-	return i.clt.FindPeers(ctx, in, rawGrpc.WaitForReady(false))
+	i.metrics.rpcMethodCallCountInc(methodNameFindPeers)
+
+	begin := i.metrics.rpcMethodCallBegin(methodNameFindPeers)
+	defer i.metrics.rpcMethodCallEnd(methodNameFindPeers, begin)
+
+	resp, err := i.clt.FindPeers(ctx, in, rawGrpc.WaitForReady(false))
+	if err != nil {
+		i.metrics.rpcMethodCallErrorCountInc(methodNameFindPeers)
+
+		return nil, err
+	}
+
+	return resp, nil
 }
 
 func (i *discoveryClient) Close() error {
@@ -42,6 +68,7 @@ func (i *discoveryClient) IsClose() bool {
 
 func NewDiscoveryClient(
 	logger hclog.Logger,
+	metrics Metrics,
 	clt proto.DiscoveryClient,
 	conn *rawGrpc.ClientConn,
 ) DiscoveryClient {
@@ -49,6 +76,7 @@ func NewDiscoveryClient(
 		clt:      clt,
 		conn:     conn,
 		isClosed: atomic.NewBool(false),
+		metrics:  metrics,
 	}
 
 	// print a error log if the client is not closed before GC

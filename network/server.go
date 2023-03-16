@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/dogechain-lab/dogechain/helper/telemetry"
-	"github.com/dogechain-lab/dogechain/network/client"
 	"github.com/dogechain-lab/dogechain/network/common"
 	"github.com/dogechain-lab/dogechain/network/dial"
 	"github.com/dogechain-lab/dogechain/network/discovery"
@@ -660,19 +659,6 @@ func (s *DefaultServer) removePeerConnect(ctx context.Context, peerID peer.ID, d
 		// No more connections to the peer, remove it from the peers map
 		delete(s.peers, peerID)
 
-		if errs := connectionInfo.cleanProtocolStreams(span.Context(), s.tracer); len(errs) > 0 {
-			for _, err := range errs {
-				if err != nil {
-					s.logger.Error("close protocol streams failed", "err", err)
-				}
-			}
-		}
-
-		span.AddEvent("remove_peer_store", map[string]interface{}{
-			"peer":      peerID.String(),
-			"dorection": direction.String(),
-		})
-
 		// NOTO: Remove the peer from the peer store,
 		// if not removed, host.Network().Notify never triggered
 		s.RemoveFromPeerStore(peerID)
@@ -737,6 +723,7 @@ var (
 	// Github action runners are very slow, so we need to increase the timeout
 	DefaultJoinTimeout   = 100 * time.Second
 	DefaultBufferTimeout = DefaultJoinTimeout + time.Second*30
+	MaxConnectionTimeout = 5 * time.Minute
 )
 
 // JoinPeer attempts to add a new peer to the networking server
@@ -800,35 +787,13 @@ func (s *DefaultServer) Close() error {
 	return s.host.Close()
 }
 
-// SaveProtoClient saves the protocol client to the peer
-// protocol stream reference [Thread safe]
-func (s *DefaultServer) SaveProtoClient(
-	protocol string,
-	stream client.GrpcClientCloser,
-	peerID peer.ID,
-) {
-	s.peersLock.Lock()
-	defer s.peersLock.Unlock()
-
-	connectionInfo, ok := s.peers[peerID]
-	if !ok {
-		s.logger.Error(
-			fmt.Sprintf(
-				"Attempted to save protocol %s stream for non-existing peer %s",
-				protocol,
-				peerID,
-			),
-		)
-
-		return
-	}
-
-	connectionInfo.addProtocolClient(protocol, stream)
-}
-
 // NewProtoConnection opens up a new stream on the set protocol to the peer,
 // and returns a reference to the connection
-func (s *DefaultServer) NewProtoConnection(protocol string, peerID peer.ID) (*rawGrpc.ClientConn, error) {
+func (s *DefaultServer) NewProtoConnection(
+	ctx context.Context,
+	protocol string,
+	peerID peer.ID,
+) (*rawGrpc.ClientConn, error) {
 	s.protocolsLock.RLock()
 	defer s.protocolsLock.RUnlock()
 
@@ -841,37 +806,35 @@ func (s *DefaultServer) NewProtoConnection(protocol string, peerID peer.ID) (*ra
 
 	s.logger.Debug("create new libp2p stream", "protocol", protocol, "peer", peerID)
 
-	stream, err := s.NewStream(protocol, peerID)
+	beginTime := time.Now()
+
+	s.metrics.NewProtoConnectionCountInc()
+
+	stream, err := s.NewStream(ctx, protocol, peerID)
 	if err != nil {
+		s.metrics.NewProtoConnectionErrorCountInc()
+
 		return nil, err
 	}
+
+	s.metrics.NewProtoConnectionSecondObserve(time.Since(beginTime).Seconds())
 
 	s.logger.Debug("create grpc client", "protocol", protocol, "peer", peerID)
 
 	// don't need context.WithTimeout, rpc client is fake
-	return p.Client(context.Background(), stream), nil
+	return p.Client(ctx, stream), nil
 }
 
-func (s *DefaultServer) NewStream(proto string, id peer.ID) (network.Stream, error) {
+func (s *DefaultServer) GetMetrics() *Metrics {
+	return s.metrics
+}
+
+func (s *DefaultServer) NewStream(ctx context.Context, proto string, id peer.ID) (network.Stream, error) {
 	// by default NewStream will dial if not connected
 	// this bypasses connection control
-	ctx := network.WithNoDial(context.Background(), "grpc client stream")
+	streamCtx := network.WithNoDial(ctx, "grpc client stream")
 
-	return s.host.NewStream(ctx, id, protocol.ID(proto))
-}
-
-// GetProtoClient returns an active protocol client if present, otherwise
-// it returns nil
-func (s *DefaultServer) GetProtoClient(protocol string, peerID peer.ID) client.GrpcClientCloser {
-	s.peersLock.Lock()
-	defer s.peersLock.Unlock()
-
-	connectionInfo, ok := s.peers[peerID]
-	if !ok {
-		return nil
-	}
-
-	return connectionInfo.getProtocolClient(protocol)
+	return s.host.NewStream(streamCtx, id, protocol.ID(proto))
 }
 
 func (s *DefaultServer) RegisterProtocol(id string, p Protocol) {

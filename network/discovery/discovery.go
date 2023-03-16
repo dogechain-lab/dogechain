@@ -49,7 +49,7 @@ type networkingServer interface {
 	// PROTOCOL MANIPULATION //
 
 	// NewDiscoveryClient returns a discovery gRPC client connection
-	NewDiscoveryClient(peerID peer.ID) (client.DiscoveryClient, error)
+	NewDiscoveryClient(ctx context.Context, peerID peer.ID) (client.DiscoveryClient, error)
 
 	// PEER MANIPULATION //
 
@@ -400,10 +400,12 @@ func (d *DiscoveryService) findPeersCall(
 	ctx, cancel := context.WithTimeout(d.ctx, maxDiscoveryPeerReqTimeout)
 	defer cancel()
 
-	clt, clientErr := d.baseServer.NewDiscoveryClient(peerID)
+	clt, clientErr := d.baseServer.NewDiscoveryClient(ctx, peerID)
 	if clientErr != nil {
 		return nil, clientErr
 	}
+
+	defer clt.Close()
 
 	resp, err := clt.FindPeers(
 		ctx,

@@ -2,6 +2,8 @@ package network
 
 import (
 	"github.com/dogechain-lab/dogechain/helper/metrics"
+	"github.com/dogechain-lab/dogechain/network/client"
+
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -21,6 +23,18 @@ type Metrics struct {
 
 	// Number of pending inbound connections
 	pendingInboundConnectionsCount prometheus.Gauge
+
+	// Create new proto connection duration
+	newProtoConnectionSecond prometheus.Histogram
+
+	// Create new proto connection count
+	newProtoConnectionCount prometheus.Counter
+
+	// Create new proto connection error count
+	newProtoConnectionErrorCount prometheus.Counter
+
+	// Grpc client metrics
+	grpcMetrics client.Metrics
 }
 
 func (m *Metrics) SetTotalPeerCount(v float64) {
@@ -41,6 +55,22 @@ func (m *Metrics) SetPendingOutboundConnectionsCount(v float64) {
 
 func (m *Metrics) SetPendingInboundConnectionsCount(v float64) {
 	metrics.SetGauge(m.pendingInboundConnectionsCount, v)
+}
+
+func (m *Metrics) NewProtoConnectionSecondObserve(v float64) {
+	metrics.HistogramObserve(m.newProtoConnectionSecond, v)
+}
+
+func (m *Metrics) NewProtoConnectionCountInc() {
+	metrics.CounterInc(m.newProtoConnectionCount)
+}
+
+func (m *Metrics) NewProtoConnectionErrorCountInc() {
+	metrics.CounterInc(m.newProtoConnectionErrorCount)
+}
+
+func (m *Metrics) GetGrpcMetrics() client.Metrics {
+	return m.grpcMetrics
 }
 
 // GetPrometheusMetrics return the network metrics instance
@@ -83,6 +113,28 @@ func GetPrometheusMetrics(namespace string, labelsWithValues ...string) *Metrics
 			Help:        "Number of pending inbound connections",
 			ConstLabels: constLabels,
 		}),
+		newProtoConnectionSecond: prometheus.NewHistogram(prometheus.HistogramOpts{
+			Namespace:   namespace,
+			Subsystem:   "network",
+			Name:        "new_proto_connection_second",
+			Help:        "create new proto connection duration",
+			ConstLabels: constLabels,
+		}),
+		newProtoConnectionCount: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace:   namespace,
+			Subsystem:   "network",
+			Name:        "new_proto_connection_count",
+			Help:        "create new proto connection count",
+			ConstLabels: constLabels,
+		}),
+		newProtoConnectionErrorCount: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace:   namespace,
+			Subsystem:   "network",
+			Name:        "new_proto_connection_error_count",
+			Help:        "create new proto connection error count",
+			ConstLabels: constLabels,
+		}),
+		grpcMetrics: client.NewMetrics(),
 	}
 
 	prometheus.MustRegister(
@@ -91,6 +143,9 @@ func GetPrometheusMetrics(namespace string, labelsWithValues ...string) *Metrics
 		m.inboundConnectionsCount,
 		m.pendingOutboundConnectionsCount,
 		m.pendingInboundConnectionsCount,
+		m.newProtoConnectionSecond,
+		m.newProtoConnectionCount,
+		m.newProtoConnectionErrorCount,
 	)
 
 	return m
@@ -98,5 +153,7 @@ func GetPrometheusMetrics(namespace string, labelsWithValues ...string) *Metrics
 
 // NilMetrics will return the non-operational metrics
 func NilMetrics() *Metrics {
-	return &Metrics{}
+	return &Metrics{
+		grpcMetrics: client.NilMetrics(),
+	}
 }

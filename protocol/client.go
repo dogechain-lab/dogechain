@@ -23,12 +23,13 @@ const (
 	SyncPeerClientLoggerName = "sync-peer-client"
 	statusTopicName          = "/dogechain/syncer/status/0.1"
 	defaultTimeoutForStatus  = 10 * time.Second
+	defaultTimeoutForBlocks  = 30 * time.Second
 )
 
 type syncPeerClient struct {
-	logger     hclog.Logger    // logger used for console logging
+	logger hclog.Logger // logger used for console logging
+
 	network    network.Network // reference to the network module
-	connLock   sync.Mutex      // mutext for getting client connection
 	blockchain Blockchain      // reference to the blockchain module
 
 	topic                  network.Topic         // reference to the network topic
@@ -106,13 +107,15 @@ func (client *syncPeerClient) EnablePublishingPeerStatus() {
 
 // GetPeerStatus fetches peer status
 func (client *syncPeerClient) GetPeerStatus(peerID peer.ID) (*NoForkPeer, error) {
-	clt, err := client.newSyncPeerClient(peerID)
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), defaultTimeoutForStatus)
+	defer cancel()
+
+	clt, err := client.newSyncPeerClient(timeoutCtx, peerID)
 	if err != nil {
 		return nil, err
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(context.Background(), defaultTimeoutForStatus)
-	defer cancel()
+	defer clt.Close()
 
 	status, err := clt.GetStatus(timeoutCtx, &emptypb.Empty{})
 	if err != nil {
@@ -290,10 +293,15 @@ func (client *syncPeerClient) GetBlocks(
 	from uint64,
 	to uint64,
 ) ([]*types.Block, error) {
-	clt, err := client.newSyncPeerClient(peerID)
+	ctx, cancel := context.WithTimeout(ctx, defaultTimeoutForBlocks)
+	defer cancel()
+
+	clt, err := client.newSyncPeerClient(ctx, peerID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create sync peer client: %w", err)
 	}
+
+	defer clt.Close()
 
 	rsp, err := clt.GetBlocks(ctx, &proto.GetBlocksRequest{
 		From: from,
@@ -364,13 +372,15 @@ func (client *syncPeerClient) broadcastBlockTo(
 	req *proto.NotifyReq,
 ) error {
 	// The duration is not easy to evaluate, so don't count it
-	clt, err := client.newSyncPeerClient(peerID)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeoutForStatus)
+	defer cancel()
+
+	clt, err := client.newSyncPeerClient(ctx, peerID)
 	if err != nil {
 		return fmt.Errorf("failed to create sync peer client: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeoutForStatus)
-	defer cancel()
+	defer clt.Close()
 
 	_, err = clt.Notify(ctx, req)
 
@@ -378,18 +388,9 @@ func (client *syncPeerClient) broadcastBlockTo(
 }
 
 // newSyncPeerClient creates gRPC client [thread safe]
-func (client *syncPeerClient) newSyncPeerClient(peerID peer.ID) (rpcClient.SyncerV1Client, error) {
-	client.connLock.Lock()
-	defer client.connLock.Unlock()
-
-	if conn := client.network.GetProtoClient(_syncerV1, peerID); conn != nil {
-		if syncer, ok := conn.(rpcClient.SyncerV1Client); ok {
-			return syncer, nil
-		}
-	}
-
+func (client *syncPeerClient) newSyncPeerClient(ctx context.Context, peerID peer.ID) (rpcClient.SyncerV1Client, error) {
 	// create new connection
-	conn, err := client.network.NewProtoConnection(_syncerV1, peerID)
+	conn, err := client.network.NewProtoConnection(ctx, _syncerV1, peerID)
 	if err != nil {
 		client.network.ForgetPeer(peerID, "not support syncer v1 protocol")
 
@@ -397,8 +398,12 @@ func (client *syncPeerClient) newSyncPeerClient(peerID peer.ID) (rpcClient.Synce
 	}
 
 	// save protocol stream
-	clt := rpcClient.NewSyncerV1Client(client.logger, proto.NewV1Client(conn), conn)
-	client.network.SaveProtoClient(_syncerV1, clt, peerID)
+	clt := rpcClient.NewSyncerV1Client(
+		client.logger,
+		client.network.GetMetrics().GetGrpcMetrics(),
+		proto.NewV1Client(conn),
+		conn,
+	)
 
 	return clt, nil
 }

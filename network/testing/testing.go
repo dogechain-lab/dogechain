@@ -70,7 +70,7 @@ func (m *MockNetworkingServer) GetMockPeerMetrics() *MockPeerMetrics {
 
 // Define the mock hooks //
 // Required for Identity
-type newIdentityClientDelegate func(peer.ID) (client.IdentityClient, error)
+type newIdentityClientDelegate func(context.Context, peer.ID) (client.IdentityClient, error)
 type connectDelegate func(addrInfo peer.AddrInfo) error
 type disconnectFromPeerDelegate func(peer.ID, string)
 type addPeerDelegate func(peer.ID, network.Direction)
@@ -80,7 +80,7 @@ type hasFreeConnectionSlotDelegate func(network.Direction) bool
 
 // Required for Discovery
 type getRandomBootnodeDelegate func() *peer.AddrInfo
-type newDiscoveryClientDelegate func(peer.ID) (client.DiscoveryClient, error)
+type newDiscoveryClientDelegate func(context.Context, peer.ID) (client.DiscoveryClient, error)
 type addToPeerStoreDelegate func(*peer.AddrInfo)
 type removeFromPeerStoreDelegate func(peerInfo peer.ID)
 type getPeerInfoDelegate func(peer.ID) *peer.AddrInfo
@@ -93,9 +93,9 @@ type hasPeerDelegate func(peer.ID) bool
 // tracer
 type getTraceDelegate func() telemetry.Tracer
 
-func (m *MockNetworkingServer) NewIdentityClient(peerID peer.ID) (client.IdentityClient, error) {
+func (m *MockNetworkingServer) NewIdentityClient(ctx context.Context, peerID peer.ID) (client.IdentityClient, error) {
 	if m.newIdentityClientFn != nil {
-		return m.newIdentityClientFn(peerID)
+		return m.newIdentityClientFn(ctx, peerID)
 	}
 
 	return m.mockIdentityClient, nil
@@ -181,9 +181,9 @@ func (m *MockNetworkingServer) HookGetRandomBootnode(fn getRandomBootnodeDelegat
 	m.getRandomBootnodeFn = fn
 }
 
-func (m *MockNetworkingServer) NewDiscoveryClient(peerID peer.ID) (client.DiscoveryClient, error) {
+func (m *MockNetworkingServer) NewDiscoveryClient(ctx context.Context, peerID peer.ID) (client.DiscoveryClient, error) {
 	if m.newDiscoveryClientFn != nil {
-		return m.newDiscoveryClientFn(peerID)
+		return m.newDiscoveryClientFn(ctx, peerID)
 	}
 
 	return m.mockDiscoveryClient, nil
