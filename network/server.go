@@ -821,8 +821,14 @@ func (s *DefaultServer) NewProtoConnection(
 
 	s.logger.Debug("create grpc client", "protocol", protocol, "peer", peerID)
 
-	// don't need context.WithTimeout, rpc client is fake
-	return p.Client(ctx, stream), nil
+	clt, err := p.Client(ctx, stream)
+	if err != nil {
+		s.logger.Error("create grpc client failed", "protocol", protocol, "peer", peerID, "err", err)
+
+		return nil, err
+	}
+
+	return clt, nil
 }
 
 func (s *DefaultServer) GetMetrics() *Metrics {

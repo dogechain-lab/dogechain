@@ -79,7 +79,7 @@ func interceptor(
 	)
 }
 
-func (g *GrpcStream) Client(ctx context.Context, stream network.Stream) *grpc.ClientConn {
+func (g *GrpcStream) Client(ctx context.Context, stream network.Stream) (*grpc.ClientConn, error) {
 	return WrapClient(ctx, stream)
 }
 
@@ -131,7 +131,7 @@ func (g *GrpcStream) Close() error {
 
 // --- conn ---
 
-func WrapClient(ctx context.Context, s network.Stream) *grpc.ClientConn {
+func WrapClient(ctx context.Context, s network.Stream) (*grpc.ClientConn, error) {
 	opts := grpc.WithContextDialer(func(ctx context.Context, peerIdStr string) (net.Conn, error) {
 		return &streamConn{s}, nil
 	})
@@ -148,11 +148,10 @@ func WrapClient(ctx context.Context, s network.Stream) *grpc.ClientConn {
 		opts)
 
 	if err != nil {
-		// TODO: this should not fail at all
-		panic(err)
+		return nil, err
 	}
 
-	return conn
+	return conn, nil
 }
 
 // streamConn represents a net.Conn wrapped to be compatible with net.conn

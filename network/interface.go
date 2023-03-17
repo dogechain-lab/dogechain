@@ -55,7 +55,7 @@ type Network interface {
 }
 
 type Protocol interface {
-	Client(context.Context, network.Stream) *rawGrpc.ClientConn
+	Client(context.Context, network.Stream) (*rawGrpc.ClientConn, error)
 	Handler() func(network.Stream)
 }
 
