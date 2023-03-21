@@ -76,6 +76,8 @@ func GetPrometheusMetrics(namespace string, labelsWithValues ...string) *Metrics
 		}),
 	}
 
+	m.Register()
+
 	return m
 }
 
