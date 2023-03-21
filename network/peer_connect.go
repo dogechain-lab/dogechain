@@ -58,6 +58,8 @@ func (pci *PeerConnInfo) cleanProtocolStreams(ctx context.Context, trace telemet
 	errs := []error{}
 	span := trace.StartWithContext(ctx, "PeerConnInfo.cleanProtocolStreams")
 
+	defer span.End()
+
 	for protocolName, clt := range pci.protocolClient {
 		if clt != nil {
 			err := clt.Close()

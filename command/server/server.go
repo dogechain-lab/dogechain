@@ -484,8 +484,8 @@ func runCommand(cmd *cobra.Command, _ []string) {
 	params.rawConfig.EnablePprof = helper.GetPprofFlag(cmd)
 
 	// jaeger flag
-	if enable, jaegerURL := helper.GetJaegerFlag(cmd); enable {
-		params.rawConfig.Telemetry.EnableJaeger = enable
+	if enableJaeger, jaegerURL := helper.GetJaegerFlag(cmd); enableJaeger {
+		params.rawConfig.Telemetry.EnableJaeger = enableJaeger
 		params.rawConfig.Telemetry.JaegerURL = jaegerURL
 	}
 

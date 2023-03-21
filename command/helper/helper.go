@@ -276,10 +276,17 @@ func RegisterJaegerFlag(cmd *cobra.Command) {
 
 // GetJaegerFlag extracts the telemetry flag
 func GetJaegerFlag(cmd *cobra.Command) (bool, string) {
-	v, _ := cmd.Flags().GetBool(command.JaegerFlag)
-	addr, _ := cmd.Flags().GetString(command.JaegerAddressFlag)
+	enableJaeger, err := cmd.Flags().GetBool(command.JaegerFlag)
+	if err != nil && enableJaeger {
+		addr, err := cmd.Flags().GetString(command.JaegerAddressFlag)
+		if err != nil {
+			return false, ""
+		}
 
-	return v, addr
+		return true, addr
+	}
+
+	return false, ""
 }
 
 // ParseGraphQLAddress parses the passed in GraphQL address
