@@ -13,6 +13,7 @@ import (
 	"github.com/dogechain-lab/dogechain/command/helper"
 	"github.com/dogechain-lab/dogechain/crypto"
 	"github.com/dogechain-lab/dogechain/helper/daemon"
+	"github.com/dogechain-lab/dogechain/helper/gasprice"
 	"github.com/dogechain-lab/dogechain/helper/kvdb"
 	"github.com/dogechain-lab/dogechain/network"
 	"github.com/dogechain-lab/dogechain/server"
@@ -348,6 +349,36 @@ func setFlags(cmd *cobra.Command) {
 				"account in the pool not promoted for a long time would be pruned",
 			)
 		}
+	}
+
+	{ // gas price oracle flags
+		cmd.Flags().IntVar(
+			&params.rawConfig.GPO.Blocks,
+			gpoBlocksFlag,
+			gasprice.Defaults.Blocks,
+			"number of recent blocks to blocks check for gas prices",
+		)
+
+		cmd.Flags().IntVar(
+			&params.rawConfig.GPO.Percentile,
+			gpoPercentileFlag,
+			gasprice.Defaults.Percentile,
+			"the given percentile of a set of recent transaction gas prices",
+		)
+
+		cmd.Flags().Int64Var(
+			&params.gpoMaxGasPrice,
+			gpoMaxGasPriceFlag,
+			gasprice.Defaults.MaxPrice.Int64(),
+			"maximum gasprice recommended by gas price oracle",
+		)
+
+		cmd.Flags().Int64Var(
+			&params.gpoIgnoreGasPrice,
+			gpoIgnoreGasPriceFlag,
+			gasprice.Defaults.IgnorePrice.Int64(),
+			"gas price below which gpo will ignore transactions",
+		)
 	}
 
 	setDevFlags(cmd)

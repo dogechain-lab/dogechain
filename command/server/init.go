@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
 	"net"
 
 	"github.com/dogechain-lab/dogechain/network/common"
@@ -58,6 +59,8 @@ func (p *serverParams) initRawParams() error {
 
 	p.initPeerLimits()
 	p.initLogFileLocation()
+
+	p.initGPOConfig()
 
 	return p.initAddresses()
 }
@@ -343,4 +346,14 @@ func (p *serverParams) initGRPCAddress() error {
 	}
 
 	return nil
+}
+
+func (p *serverParams) initGPOConfig() {
+	if p.gpoMaxGasPrice > 0 {
+		p.rawConfig.GPO.MaxPrice = big.NewInt(p.gpoMaxGasPrice)
+	}
+
+	if p.gpoIgnoreGasPrice > 0 {
+		p.rawConfig.GPO.IgnorePrice = big.NewInt(p.gpoIgnoreGasPrice)
+	}
 }

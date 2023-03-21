@@ -53,6 +53,10 @@ const (
 	jsonrpcNamespaceFlag         = "json-rpc-namespace"
 	enableWSFlag                 = "enable-ws"
 	blockBroadcastFlag           = "block-broadcast"
+	gpoBlocksFlag                = "gpo.blocks"
+	gpoPercentileFlag            = "gpo.percentile"
+	gpoMaxGasPriceFlag           = "gpo.maxprice"
+	gpoIgnoreGasPriceFlag        = "gpo.ignoreprice"
 )
 
 const (
@@ -108,6 +112,10 @@ type serverParams struct {
 	secretsConfig *secrets.SecretsManagerConfig
 
 	logFileLocation string
+
+	// gas price oracle
+	gpoMaxGasPrice    int64
+	gpoIgnoreGasPrice int64
 }
 
 func (p *serverParams) validateFlags() error {
