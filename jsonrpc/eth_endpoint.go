@@ -474,18 +474,12 @@ func (e *Eth) GasPrice() (interface{}, error) {
 	}
 
 	// query avg gas price
-	var (
-		avgGasPrice string
-		v           = e.store.GetAvgGasPrice()
-	)
-
+	v := e.store.GetAvgGasPrice()
 	if v.Cmp(priceLimit) == -1 {
-		avgGasPrice = hex.EncodeBig(priceLimit)
-	} else {
-		avgGasPrice = hex.EncodeBig(v)
+		v = priceLimit
 	}
 
-	return avgGasPrice, nil
+	return hex.EncodeBig(v), nil
 }
 
 // Call executes a smart contract call using the transaction object data

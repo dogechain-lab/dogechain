@@ -28,6 +28,7 @@ type Config struct {
 	AccessControlAllowOrigin []string
 	BlockRangeLimit          uint64
 	EnablePProf              bool
+	PriceLimit               uint64
 }
 
 // GraphQLStore defines all the methods required
@@ -43,6 +44,7 @@ func NewGraphQLService(logger hclog.Logger, config *Config) (*GraphQLService, er
 	q := Resolver{
 		backend:       config.Store,
 		chainID:       config.ChainID,
+		priceLimit:    config.PriceLimit,
 		filterManager: rpc.NewFilterManager(hclog.NewNullLogger(), config.Store, config.BlockRangeLimit),
 	}
 

@@ -1059,6 +1059,7 @@ func (b *Block) Account(ctx context.Context, args struct {
 type Resolver struct {
 	backend       GraphQLStore
 	chainID       uint64
+	priceLimit    uint64
 	filterManager *rpc.FilterManager
 }
 
@@ -1238,22 +1239,22 @@ const (
 )
 
 func (r *Resolver) GasPrice(ctx context.Context) (argtype.Big, error) {
-	var avgGasPrice *big.Int
-
 	// Grab the average gas price and convert it to a hex value
+	priceLimit := new(big.Int).SetUint64(r.priceLimit)
 	minGasPrice, _ := new(big.Int).SetString(defaultMinGasPrice, 0)
 
-	if r.backend.GetAvgGasPrice().Cmp(minGasPrice) == -1 {
-		avgGasPrice = minGasPrice
-	} else {
-		avgGasPrice = r.backend.GetAvgGasPrice()
+	// avoid too low gas price
+	if priceLimit.Cmp(minGasPrice) == -1 {
+		priceLimit = minGasPrice
 	}
 
-	if avgGasPrice == nil {
-		return argtype.Big{}, nil
+	// down threshold
+	v := r.backend.GetAvgGasPrice()
+	if v.Cmp(priceLimit) == -1 {
+		v = priceLimit
 	}
 
-	return argtype.Big(*avgGasPrice), nil
+	return argtype.Big(*v), nil
 }
 
 func (r *Resolver) ChainID(ctx context.Context) (argtype.Big, error) {

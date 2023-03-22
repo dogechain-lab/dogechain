@@ -595,6 +595,7 @@ func (s *Server) setupGraphQL() error {
 		Store:                    hub,
 		Addr:                     s.config.GraphQL.GraphQLAddr,
 		ChainID:                  uint64(s.config.Chain.Params.ChainID),
+		PriceLimit:               s.config.PriceLimit,
 		AccessControlAllowOrigin: s.config.GraphQL.AccessControlAllowOrigin,
 		BlockRangeLimit:          s.config.GraphQL.BlockRangeLimit,
 		EnablePProf:              s.config.GraphQL.EnablePprof,
