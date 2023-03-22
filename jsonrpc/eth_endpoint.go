@@ -465,7 +465,6 @@ func (e *Eth) GetStorageAt(
 func (e *Eth) GasPrice() (interface{}, error) {
 	e.metrics.EthAPICounterInc(EthGasPriceLabel)
 
-	// var avgGasPrice string
 	// Grab the average gas price and convert it to a hex value
 	priceLimit := new(big.Int).SetUint64(e.priceLimit)
 	minGasPrice, _ := new(big.Int).SetString(defaultMinGasPrice, 0)
@@ -474,15 +473,19 @@ func (e *Eth) GasPrice() (interface{}, error) {
 		priceLimit = minGasPrice
 	}
 
-	// if e.store.GetAvgGasPrice().Cmp(minGasPrice) == -1 {
-	// 	avgGasPrice = hex.EncodeBig(minGasPrice)
-	// } else {
-	// 	avgGasPrice = hex.EncodeBig(e.store.GetAvgGasPrice())
-	// }
+	// query avg gas price
+	var (
+		avgGasPrice string
+		v           = e.store.GetAvgGasPrice()
+	)
 
-	// return avgGasPrice, nil
+	if v.Cmp(priceLimit) == -1 {
+		avgGasPrice = hex.EncodeBig(priceLimit)
+	} else {
+		avgGasPrice = hex.EncodeBig(v)
+	}
 
-	return hex.EncodeBig(priceLimit), nil
+	return avgGasPrice, nil
 }
 
 // Call executes a smart contract call using the transaction object data

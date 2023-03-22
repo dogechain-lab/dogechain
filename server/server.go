@@ -19,6 +19,7 @@ import (
 	"github.com/dogechain-lab/dogechain/crypto"
 	"github.com/dogechain-lab/dogechain/graphql"
 	"github.com/dogechain-lab/dogechain/helper/common"
+	"github.com/dogechain-lab/dogechain/helper/gasprice"
 	"github.com/dogechain-lab/dogechain/helper/kvdb"
 	"github.com/dogechain-lab/dogechain/helper/progress"
 	"github.com/dogechain-lab/dogechain/helper/telemetry"
@@ -83,6 +84,9 @@ type Server struct {
 
 	// restore
 	restoreProgression *progress.ProgressionWrapper
+
+	// gas price oracle
+	gpo *gasprice.Oracle
 }
 
 const (
@@ -275,6 +279,12 @@ func NewServer(config *Config) (*Server, error) {
 		m.executor,
 		m.serverMetrics.blockchain,
 	)
+	if err != nil {
+		return nil, err
+	}
+
+	// gas price oracle
+	m.gpo, err = gasprice.NewOracle(m.blockchain, m.config.GasPriceOracle)
 	if err != nil {
 		return nil, err
 	}
@@ -530,6 +540,7 @@ func (s *Server) setupJSONRPC() error {
 		s.consensus,
 		s.network,
 		s.serverMetrics.jsonrpcStore,
+		s.gpo,
 	)
 
 	// format the jsonrpc endpoint namespaces
@@ -577,6 +588,7 @@ func (s *Server) setupGraphQL() error {
 		s.consensus,
 		s.network,
 		s.serverMetrics.jsonrpcStore,
+		s.gpo,
 	)
 
 	conf := &graphql.Config{

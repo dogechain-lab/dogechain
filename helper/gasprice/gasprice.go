@@ -1,7 +1,6 @@
 package gasprice
 
 import (
-	"context"
 	"errors"
 	"math/big"
 	"sort"
@@ -11,7 +10,6 @@ import (
 	"github.com/dogechain-lab/dogechain/chain"
 	"github.com/dogechain-lab/dogechain/crypto"
 	"github.com/dogechain-lab/dogechain/types"
-	"github.com/hashicorp/go-hclog"
 )
 
 var (
@@ -77,7 +75,6 @@ type Oracle struct {
 func NewOracle(
 	backend OracleBackend,
 	params Config,
-	logger hclog.Logger,
 ) (*Oracle, error) {
 	blocks := params.Blocks
 	if blocks < 1 {
@@ -137,7 +134,7 @@ func (oracle *Oracle) cacheHeadAndPrice(head types.Hash, price *big.Int) {
 
 // SuggestTipCap returns a tip cap so that newly created transaction can have a
 // very high chance to be included in the following blocks.
-func (oracle *Oracle) SuggestTipCap(ctx context.Context) (*big.Int, error) {
+func (oracle *Oracle) SuggestTipCap() (*big.Int, error) {
 	var (
 		head     = oracle.backend.Header()
 		headHash = head.Hash
@@ -169,7 +166,6 @@ func (oracle *Oracle) SuggestTipCap(ctx context.Context) (*big.Int, error) {
 
 	for sent < oracle.checkBlocks && number > 0 {
 		go oracle.getBlockValues(
-			ctx,
 			crypto.NewSigner(oracle.backend.ForksInTime(number), chainid),
 			number,
 			sampleNumber,
@@ -206,7 +202,6 @@ func (oracle *Oracle) SuggestTipCap(ctx context.Context) (*big.Int, error) {
 		// is 2*checkBlocks.
 		if len(res.values) == 1 && len(results)+1+exp < oracle.checkBlocks*2 && number > 0 {
 			go oracle.getBlockValues(
-				ctx,
 				crypto.NewSigner(oracle.backend.ForksInTime(number), chainid),
 				number,
 				sampleNumber,
@@ -271,7 +266,6 @@ func (s *txSorter) Less(i, j int) bool {
 // are sent by the miner itself(it doesn't make any sense to include this kind of
 // transaction prices for sampling), nil gasprice is returned.
 func (oracle *Oracle) getBlockValues(
-	ctx context.Context,
 	signer crypto.TxSigner,
 	blockNum uint64,
 	limit int,

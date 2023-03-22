@@ -272,5 +272,6 @@ func (p *serverParams) generateConfig() *server.Config {
 		Daemon:         p.isDaemon,
 		ValidatorKey:   p.validatorKey,
 		BlockBroadcast: p.rawConfig.BlockBroadcast,
+		GasPriceOracle: p.rawConfig.GPO,
 	}
 }

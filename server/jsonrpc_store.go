@@ -8,6 +8,7 @@ import (
 	"github.com/dogechain-lab/dogechain/blockchain"
 	"github.com/dogechain-lab/dogechain/chain"
 	"github.com/dogechain-lab/dogechain/consensus"
+	"github.com/dogechain-lab/dogechain/helper/gasprice"
 	"github.com/dogechain-lab/dogechain/helper/progress"
 	"github.com/dogechain-lab/dogechain/jsonrpc"
 	"github.com/dogechain-lab/dogechain/network"
@@ -28,6 +29,8 @@ type jsonRPCStore struct {
 	state     state.State
 
 	metrics *JSONRPCStoreMetrics
+
+	gpo *gasprice.Oracle
 }
 
 func NewJSONRPCStore(
@@ -39,6 +42,7 @@ func NewJSONRPCStore(
 	consensus consensus.Consensus,
 	network network.Server,
 	metrics *JSONRPCStoreMetrics,
+	gpo *gasprice.Oracle,
 ) jsonrpc.JSONRPCStore {
 	if metrics == nil {
 		metrics = JSONRPCStoreNilMetrics()
@@ -53,6 +57,7 @@ func NewJSONRPCStore(
 		server:             network,
 		state:              state,
 		metrics:            metrics,
+		gpo:                gpo,
 	}
 }
 
@@ -187,7 +192,12 @@ func (j *jsonRPCStore) GetReceiptsByHash(hash types.Hash) ([]*types.Receipt, err
 func (j *jsonRPCStore) GetAvgGasPrice() *big.Int {
 	j.metrics.GetAvgGasPriceInc()
 
-	return j.blockchain.GetAvgGasPrice()
+	v, _ := j.gpo.SuggestTipCap()
+	if v == nil {
+		v = new(big.Int)
+	}
+
+	return v
 }
 
 // ApplyTxn applies a transaction object to the blockchain
