@@ -57,22 +57,16 @@ type OracleBackend interface {
 	SubscribeEvents() blockchain.Subscription
 }
 
-// TxpoolBackend includes txpool api for calculating suggestions
-type TxpoolBackend interface {
-	Pending() map[types.Address][]*types.Transaction
-}
-
 // Oracle recommends gas prices based on the content of recent
 // blocks. Suitable for both light and full clients.
 type Oracle struct {
-	backend       OracleBackend
-	txpoolBackend TxpoolBackend
-	lastHead      types.Hash
-	lastPrice     *big.Int
-	maxPrice      *big.Int
-	ignorePrice   *big.Int
-	cacheLock     sync.RWMutex
-	fetchLock     sync.Mutex
+	backend     OracleBackend
+	lastHead    types.Hash
+	lastPrice   *big.Int
+	maxPrice    *big.Int
+	ignorePrice *big.Int
+	cacheLock   sync.RWMutex
+	fetchLock   sync.Mutex
 
 	checkBlocks, percentile           int
 	maxHeaderHistory, maxBlockHistory int
@@ -82,7 +76,6 @@ type Oracle struct {
 // gasprice for newly created transaction.
 func NewOracle(
 	backend OracleBackend,
-	txpoolBackend TxpoolBackend,
 	params Config,
 	logger hclog.Logger,
 ) (*Oracle, error) {
@@ -118,7 +111,6 @@ func NewOracle(
 
 	return &Oracle{
 		backend:          backend,
-		txpoolBackend:    txpoolBackend,
 		lastPrice:        params.Default,
 		maxPrice:         maxPrice,
 		ignorePrice:      ignorePrice,
