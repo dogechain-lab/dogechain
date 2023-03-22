@@ -3,7 +3,6 @@ package gasprice
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math/big"
 	"sort"
 	"sync"
@@ -13,7 +12,6 @@ import (
 	"github.com/dogechain-lab/dogechain/crypto"
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/hashicorp/go-hclog"
-	lru "github.com/hashicorp/golang-lru"
 )
 
 var (
@@ -28,14 +26,14 @@ var (
 )
 
 const (
-	GWei = 1e9
+	gwei = 1e9
 
 	sampleNumber = 3 // Number of transactions sampled in a block
 )
 
 var (
-	defaultMaxPrice    = big.NewInt(750 * GWei)
-	defaultIgnorePrice = big.NewInt(50 * GWei)
+	defaultMaxPrice    = big.NewInt(750 * gwei)
+	defaultIgnorePrice = big.NewInt(50 * gwei)
 )
 
 type Config struct {
@@ -78,8 +76,6 @@ type Oracle struct {
 
 	checkBlocks, percentile           int
 	maxHeaderHistory, maxBlockHistory int
-
-	historyCache *lru.Cache
 }
 
 // NewOracle returns a new gasprice oracle which can recommend suitable
@@ -120,35 +116,6 @@ func NewOracle(
 		return nil, errors.New("invalid gasprice oracle max block history")
 	}
 
-	cache, err := lru.New(2048)
-	if err != nil {
-		return nil, fmt.Errorf("gasprice oracle create cache failed: %w", err)
-	}
-
-	sub := backend.SubscribeEvents()
-
-	// headEvent := make(chan core.ChainHeadEvent, 1)
-	// backend.SubscribeChainHeadEvent(headEvent)
-
-	go func() {
-		defer sub.Unsubscribe()
-
-		var lastHead types.Hash
-
-		for ev := range sub.GetEvent() {
-			if len(ev.NewChain) == 0 {
-				continue
-			}
-
-			// it should be only 1 block
-			if ev.NewChain[0].ParentHash != lastHead {
-				cache.Purge()
-			}
-
-			lastHead = ev.NewChain[0].Hash
-		}
-	}()
-
 	return &Oracle{
 		backend:          backend,
 		txpoolBackend:    txpoolBackend,
@@ -159,7 +126,6 @@ func NewOracle(
 		percentile:       percent,
 		maxHeaderHistory: maxHeaderHistory,
 		maxBlockHistory:  maxBlockHistory,
-		historyCache:     cache,
 	}, nil
 }
 
@@ -234,6 +200,7 @@ func (oracle *Oracle) SuggestTipCap(ctx context.Context) (*big.Int, error) {
 		}
 
 		exp--
+
 		// Nothing returned. There are two special cases here:
 		// - The block is empty
 		// - All the transactions included are sent by the miner itself.
@@ -241,6 +208,7 @@ func (oracle *Oracle) SuggestTipCap(ctx context.Context) (*big.Int, error) {
 		if len(res.values) == 0 {
 			res.values = []*big.Int{lastPrice}
 		}
+
 		// Besides, in order to collect enough data for sampling, if nothing
 		// meaningful returned, try to query more blocks. But the maximum
 		// is 2*checkBlocks.
@@ -263,17 +231,14 @@ func (oracle *Oracle) SuggestTipCap(ctx context.Context) (*big.Int, error) {
 		results = append(results, res.values...)
 	}
 
-	// first update
+	// First update
 	price := lastPrice
 
 	if len(results) > 0 {
 		sort.Sort(bigIntArray(results))
-		// update with percentile
+		// Update with percentile
 		price = results[(len(results)-1)*oracle.percentile/100]
 	}
-
-	// query current pending txs, if it is overwhelming, give a suggested
-	// tx gas price
 
 	// price should not exceed max limit
 	if price.Cmp(oracle.maxPrice) > 0 {
@@ -339,7 +304,7 @@ func (oracle *Oracle) getBlockValues(
 	sorter := newSorter(txs)
 	sort.Sort(sorter)
 
-	prices := make([]*big.Int, 0, limit)
+	var prices = make([]*big.Int, 0, limit)
 
 	for _, tx := range sorter.txs {
 		tip := tx.GasPrice
