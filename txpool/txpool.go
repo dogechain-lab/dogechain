@@ -51,6 +51,7 @@ var (
 	ErrBlackList           = errors.New("address in blacklist")
 	ErrContractDDOSList    = errors.New("contract in ddos list")
 	ErrTxPoolClosed        = errors.New("txpool is close")
+	ErrContractDestructive = errors.New("contract is destructive")
 )
 
 // indicates origin of a transaction
@@ -95,6 +96,7 @@ type Config struct {
 	PromoteOutdateSeconds uint64
 	BlackList             []types.Address
 	DDOSProtection        bool
+	DestructiveContracts  []types.Address
 }
 
 /* All requests are passed to the main loop
@@ -198,10 +200,11 @@ type TxPool struct {
 	// some very bad guys whose txs should never be included
 	blacklist map[types.Address]struct{}
 	// ddos protection fields
-	ddosProtection      bool         // enable ddos protection
-	ddosReductionTicker *time.Ticker // ddos reduction ticker for releasing from imprisonment
-	ddosContracts       sync.Map     // ddos contract caching
-	ddosWhiteList       sync.Map     // ddos contract white list escaping
+	ddosProtection       bool         // enable ddos protection
+	ddosReductionTicker  *time.Ticker // ddos reduction ticker for releasing from imprisonment
+	ddosContracts        sync.Map     // ddos contract caching
+	ddosWhiteList        sync.Map     // ddos contract white list escaping
+	destructiveContracts sync.Map     // destructive contract list
 
 	// close flag
 	isClosed *atomic.Bool
@@ -284,6 +287,11 @@ func NewTxPool(
 	pool.blacklist = make(map[types.Address]struct{})
 	for _, addr := range config.BlackList {
 		pool.blacklist[addr] = struct{}{}
+	}
+
+	// destructive contracts
+	for _, addr := range config.DestructiveContracts {
+		pool.destructiveContracts.Store(addr, _ddosThreshold) // lock it
 	}
 
 	return pool, nil
@@ -720,6 +728,10 @@ func (p *TxPool) validateTx(tx *types.Transaction) error {
 // successful, an account is created for this address
 // (only once) and an enqueueRequest is signaled.
 func (p *TxPool) addTx(origin txOrigin, tx *types.Transaction) error {
+	if p.IsDestructiveTx(tx) {
+		return ErrContractDestructive
+	}
+
 	if p.IsDDOSTx(tx) {
 		return ErrContractDDOSList
 	}

@@ -4,6 +4,16 @@ import (
 	"github.com/dogechain-lab/dogechain/types"
 )
 
+func (p *TxPool) IsDestructiveTx(tx *types.Transaction) bool {
+	if tx.To == nil {
+		return false
+	}
+
+	_, exists := p.destructiveContracts.Load(*tx.To)
+
+	return exists
+}
+
 // IsDDOSTx returns whether a contract transaction marks as ddos attack
 func (p *TxPool) IsDDOSTx(tx *types.Transaction) bool {
 	if !p.ddosProtection || tx.To == nil {

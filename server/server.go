@@ -268,6 +268,11 @@ func NewServer(config *Config) (*Server, error) {
 			blackList[i] = types.StringToAddress(a)
 		}
 
+		destructiveContracts := make([]types.Address, len(m.config.Chain.Params.DestructiveContracts))
+		for i, a := range m.config.Chain.Params.DestructiveContracts {
+			destructiveContracts[i] = types.StringToAddress(a)
+		}
+
 		// start transaction pool
 		m.txpool, err = txpool.NewTxPool(
 			logger,
@@ -284,6 +289,7 @@ func NewServer(config *Config) (*Server, error) {
 				PromoteOutdateSeconds: m.config.PromoteOutdateSeconds,
 				BlackList:             blackList,
 				DDOSProtection:        m.config.Chain.Params.DDOSProtection,
+				DestructiveContracts:  destructiveContracts,
 			},
 		)
 		if err != nil {
