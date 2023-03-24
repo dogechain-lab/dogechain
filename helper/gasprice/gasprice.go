@@ -90,6 +90,7 @@ func NewOracle(
 	if ignorePrice == nil || ignorePrice.Int64() <= 0 {
 		return nil, errors.New("invalid gasprice oracle ignore price")
 	}
+
 	return &Oracle{
 		backend:     backend,
 		lastPrice:   params.Default,
