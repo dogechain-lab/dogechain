@@ -56,6 +56,7 @@ type OracleBackend interface {
 type Oracle struct {
 	backend     OracleBackend
 	lastHead    types.Hash
+	priceLimit  *big.Int
 	lastPrice   *big.Int
 	maxPrice    *big.Int
 	ignorePrice *big.Int
@@ -93,6 +94,7 @@ func NewOracle(
 
 	return &Oracle{
 		backend:     backend,
+		priceLimit:  params.Default,
 		lastPrice:   params.Default,
 		maxPrice:    maxPrice,
 		ignorePrice: ignorePrice,
@@ -175,9 +177,9 @@ func (oracle *Oracle) SuggestTipCap() (*big.Int, error) {
 		// Nothing returned. There are two special cases here:
 		// - The block is empty
 		// - All the transactions included are sent by the miner itself.
-		// In these cases, use the latest calculated price for sampling.
+		// In these cases, use the price limit for sampling.
 		if len(res.values) == 0 {
-			res.values = []*big.Int{lastPrice}
+			res.values = []*big.Int{oracle.priceLimit}
 		}
 
 		// Besides, in order to collect enough data for sampling, if nothing
