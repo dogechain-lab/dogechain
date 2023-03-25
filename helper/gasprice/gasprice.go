@@ -204,7 +204,7 @@ func (oracle *Oracle) SuggestTipCap() (*big.Int, error) {
 	}
 
 	// First update
-	price := lastPrice
+	price := oracle.priceLimit
 
 	if len(results) > 0 {
 		sort.Sort(bigIntArray(results))
