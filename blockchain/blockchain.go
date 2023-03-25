@@ -1099,7 +1099,7 @@ func (b *Blockchain) updateGasPriceAvgWithBlock(block *types.Block) {
 		return
 	}
 
-	gasPrices := make([]*big.Int, 0, len(block.Transactions))
+	gasPrices := make([]*big.Int, len(block.Transactions))
 	for i, transaction := range block.Transactions {
 		gasPrices[i] = transaction.GasPrice
 	}
