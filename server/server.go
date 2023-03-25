@@ -283,10 +283,15 @@ func NewServer(config *Config) (*Server, error) {
 		return nil, err
 	}
 
-	// gas price oracle
-	m.gpo, err = gasprice.NewOracle(m.blockchain, m.config.GasPriceOracle)
-	if err != nil {
-		return nil, err
+	{ // gas price oracle
+		if m.config.GasPriceOracle.Default == nil {
+			m.config.GasPriceOracle.Default = big.NewInt(int64(m.config.PriceLimit))
+		}
+
+		m.gpo, err = gasprice.NewOracle(m.blockchain, m.config.GasPriceOracle)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// TODO: refactor the design. Executor and blockchain should not rely on each other.
