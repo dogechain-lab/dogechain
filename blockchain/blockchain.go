@@ -14,6 +14,7 @@ import (
 	"github.com/dogechain-lab/dogechain/chain"
 	"github.com/dogechain-lab/dogechain/contracts/upgrader"
 	"github.com/dogechain-lab/dogechain/contracts/validatorset"
+	"github.com/dogechain-lab/dogechain/crypto"
 	"github.com/dogechain-lab/dogechain/helper/common"
 	"github.com/dogechain-lab/dogechain/state"
 	"github.com/dogechain-lab/dogechain/types"
@@ -75,6 +76,7 @@ type Blockchain struct {
 
 	stream *eventStream // Event subscriptions
 
+	// average gas price of current block, only used for metrics.
 	gpAverage *gasPriceAverage // A reference to the average gas price
 
 	metrics *Metrics
@@ -87,6 +89,7 @@ type Blockchain struct {
 type gasPriceAverage struct {
 	sync.RWMutex
 
+	max   *big.Int // The maximum gas price
 	price *big.Int // The average gas price that gets queried
 	count *big.Int // Param used in the avg. gas price calculation
 }
@@ -112,74 +115,42 @@ type BlockResult struct {
 	TotalGas uint64
 }
 
-// updateGasPriceAvg updates the rolling average value of the gas price
+// updateGasPriceAvg updates the current average value of the gas price
 func (b *Blockchain) updateGasPriceAvg(newValues []*big.Int) {
 	b.gpAverage.Lock()
 	defer b.gpAverage.Unlock()
 
-	//	Sum the values for quick reference
-	sum := big.NewInt(0)
-	for _, val := range newValues {
-		sum = sum.Add(sum, val)
-	}
-
-	// There is no previous average data,
-	// so this new value set will instantiate it
-	if b.gpAverage.count.Uint64() == 0 {
-		b.calcArithmeticAverage(newValues, sum)
+	// short circuit
+	if len(newValues) == 0 {
+		// no need to update zero value
+		if b.gpAverage.count.Sign() != 0 {
+			b.gpAverage.max = new(big.Int)
+			b.gpAverage.price = new(big.Int)
+			b.gpAverage.count = new(big.Int)
+		}
 
 		return
 	}
 
-	// There is existing average data,
-	// use it to generate a new average
-	b.calcRollingAverage(newValues, sum)
-}
+	sum := new(big.Int)
+	max := new(big.Int)
 
-// calcArithmeticAverage calculates and sets the arithmetic average
-// of the passed in data set
-func (b *Blockchain) calcArithmeticAverage(newValues []*big.Int, sum *big.Int) {
+	// Iterate the values for sum and max
+	for _, val := range newValues {
+		sum = sum.Add(sum, val)
+
+		if max.Cmp(val) < 0 {
+			max.Set(val)
+		}
+	}
+
+	// Calculate arithmetic average
 	newAverageCount := big.NewInt(int64(len(newValues)))
 	newAverage := sum.Div(sum, newAverageCount)
 
+	b.gpAverage.max = max
 	b.gpAverage.price = newAverage
 	b.gpAverage.count = newAverageCount
-}
-
-// calcRollingAverage calculates the new average based on the
-// moving average formula:
-// new average = old average * (n-len(M))/n + (sum of values in M)/n)
-// where n is the old average data count, and M is the new data set
-func (b *Blockchain) calcRollingAverage(newValues []*big.Int, sum *big.Int) {
-	var (
-		// Save references to old counts
-		oldCount   = b.gpAverage.count
-		oldAverage = b.gpAverage.price
-
-		inputSetCount = big.NewInt(0).SetInt64(int64(len(newValues)))
-	)
-
-	// old average * (n-len(M))/n
-	newAverage := big.NewInt(0).Div(
-		big.NewInt(0).Mul(
-			oldAverage,
-			big.NewInt(0).Sub(oldCount, inputSetCount),
-		),
-		oldCount,
-	)
-
-	// + (sum of values in M)/n
-	newAverage.Add(
-		newAverage,
-		big.NewInt(0).Div(
-			sum,
-			oldCount,
-		),
-	)
-
-	// Update the references
-	b.gpAverage.price = newAverage
-	b.gpAverage.count = inputSetCount.Add(inputSetCount, b.gpAverage.count)
 }
 
 // GetAvgGasPrice returns the average gas price for the chain
@@ -210,8 +181,9 @@ func NewBlockchain(
 		executor:  executor,
 		stream:    newEventStream(context.Background()),
 		gpAverage: &gasPriceAverage{
-			price: big.NewInt(0),
-			count: big.NewInt(0),
+			max:   new(big.Int),
+			price: new(big.Int),
+			count: new(big.Int),
 		},
 		metrics: NewDummyMetrics(metrics),
 	}
@@ -1099,9 +1071,16 @@ func (b *Blockchain) updateGasPriceAvgWithBlock(block *types.Block) {
 		return
 	}
 
-	gasPrices := make([]*big.Int, len(block.Transactions))
-	for i, transaction := range block.Transactions {
-		gasPrices[i] = transaction.GasPrice
+	signer := crypto.NewSigner(b.ForksInTime(block.Number()), b.ChainID())
+	gasPrices := make([]*big.Int, 0, len(block.Transactions))
+
+	for _, tx := range block.Transactions {
+		// Ignore transactions from miner, since they will always be included
+		if from, _ := signer.Sender(tx); from == block.Header.Miner {
+			continue
+		}
+
+		gasPrices = append(gasPrices, tx.GasPrice)
 	}
 
 	b.updateGasPriceAvg(gasPrices)
@@ -1494,4 +1473,12 @@ func (b *Blockchain) stop() {
 
 func (b *Blockchain) isStopped() bool {
 	return b.stopped.Load()
+}
+
+func (b *Blockchain) ForksInTime(number uint64) chain.ForksInTime {
+	return b.Config().Forks.At(number)
+}
+
+func (b *Blockchain) ChainID() uint64 {
+	return uint64(b.Config().ChainID)
 }
