@@ -1023,20 +1023,22 @@ func (b *Blockchain) WriteBlock(block *types.Block, source string) error {
 	b.logger.Info("new block", logArgs...)
 
 	if header != nil {
-		b.gpAverage.RLock()
-		defer b.gpAverage.RUnlock()
-
-		bigPrice := new(big.Float).SetInt(b.gpAverage.price)
-		price, _ := bigPrice.Float64()
-
-		b.metrics.GasPriceAverageObserve(price)
-
-		b.metrics.GasUsedObserve(float64(header.GasUsed))
-		b.metrics.SetBlockHeight(float64(header.Number))
-		b.metrics.TransactionNumObserve(float64(len(block.Transactions)))
+		b.collectMetrics(header.Number, header.GasUsed, len(block.Transactions))
 	}
 
 	return nil
+}
+
+func (b *Blockchain) collectMetrics(number, gasused uint64, txcount int) {
+	b.metrics.GasUsedObserve(float64(gasused))
+	b.metrics.SetBlockHeight(float64(number))
+	b.metrics.TransactionNumObserve(float64(txcount))
+
+	b.gpAverage.RLock()
+	defer b.gpAverage.RUnlock()
+
+	b.metrics.MaxGasPriceObserve(float64(b.gpAverage.max.Uint64()))
+	b.metrics.GasPriceAverageObserve(float64(b.gpAverage.price.Uint64()))
 }
 
 // extractBlockReceipts extracts the receipts from the passed in block

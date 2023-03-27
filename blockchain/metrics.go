@@ -5,8 +5,12 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+const subsystem = "blockchain"
+
 // Metrics represents the blockchain metrics
 type Metrics struct {
+	// Max gas price
+	maxGasPrice prometheus.Histogram
 	// Gas Price Average
 	gasPriceAverage prometheus.Histogram
 	// Gas used
@@ -19,6 +23,10 @@ type Metrics struct {
 	blockExecutionSeconds prometheus.Histogram
 	// Transaction number
 	transactionNum prometheus.Histogram
+}
+
+func (m *Metrics) MaxGasPriceObserve(v float64) {
+	metrics.HistogramObserve(m.maxGasPrice, v)
 }
 
 func (m *Metrics) GasPriceAverageObserve(v float64) {
@@ -50,44 +58,51 @@ func GetPrometheusMetrics(namespace string, labelsWithValues ...string) *Metrics
 	constLabels := metrics.ParseLables(labelsWithValues...)
 
 	m := &Metrics{
+		maxGasPrice: prometheus.NewHistogram(prometheus.HistogramOpts{
+			Namespace:   namespace,
+			Subsystem:   subsystem,
+			Name:        "max_gas_price",
+			Help:        "max gas price within the block exclude miner transactions",
+			ConstLabels: constLabels,
+		}),
 		gasPriceAverage: prometheus.NewHistogram(prometheus.HistogramOpts{
 			Namespace:   namespace,
-			Subsystem:   "blockchain",
+			Subsystem:   subsystem,
 			Name:        "gas_avg_price",
-			Help:        "Gas Price Average",
+			Help:        "avg gas price within the block exclude miner transactions",
 			ConstLabels: constLabels,
 		}),
 		gasUsed: prometheus.NewHistogram(prometheus.HistogramOpts{
 			Namespace:   namespace,
-			Subsystem:   "blockchain",
+			Subsystem:   subsystem,
 			Name:        "gas_used",
-			Help:        "Gas Used",
+			Help:        "total gas used within the block",
 			ConstLabels: constLabels,
 		}),
 		blockHeight: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace:   namespace,
-			Subsystem:   "blockchain",
+			Subsystem:   subsystem,
 			Name:        "block_height",
-			Help:        "Block height",
+			Help:        "current block height",
 			ConstLabels: constLabels,
 		}),
 		blockWrittenSeconds: prometheus.NewHistogram(prometheus.HistogramOpts{
 			Namespace:   namespace,
-			Subsystem:   "blockchain",
+			Subsystem:   subsystem,
 			Name:        "block_write_seconds",
 			Help:        "block write time (seconds)",
 			ConstLabels: constLabels,
 		}),
 		blockExecutionSeconds: prometheus.NewHistogram(prometheus.HistogramOpts{
 			Namespace:   namespace,
-			Subsystem:   "blockchain",
+			Subsystem:   subsystem,
 			Name:        "block_execution_seconds",
 			Help:        "block execution time (seconds)",
 			ConstLabels: constLabels,
 		}),
 		transactionNum: prometheus.NewHistogram(prometheus.HistogramOpts{
 			Namespace:   namespace,
-			Subsystem:   "blockchain",
+			Subsystem:   subsystem,
 			Name:        "transaction_number",
 			Help:        "Transaction number",
 			ConstLabels: constLabels,
@@ -95,6 +110,7 @@ func GetPrometheusMetrics(namespace string, labelsWithValues ...string) *Metrics
 	}
 
 	prometheus.MustRegister(
+		m.maxGasPrice,
 		m.gasPriceAverage,
 		m.gasUsed,
 		m.blockHeight,
