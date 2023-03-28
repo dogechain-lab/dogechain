@@ -670,8 +670,8 @@ func TestGasPriceAverage(t *testing.T) {
 				big.NewInt(2),
 				big.NewInt(3),
 			},
-			// (5 * 5 + 1 + 2 + 3) / 8
-			big.NewInt(3),
+			// (1 + 2 + 3) / 3
+			big.NewInt(2),
 		},
 	}
 
@@ -688,7 +688,7 @@ func TestGasPriceAverage(t *testing.T) {
 			// Make sure the average gas price count is correct
 			assert.Equal(
 				t,
-				int64(len(testCase.newValues))+testCase.previousCount.Int64(),
+				int64(len(testCase.newValues)),
 				blockchain.gpAverage.count.Int64(),
 			)
 
