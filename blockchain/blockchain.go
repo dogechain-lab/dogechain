@@ -153,14 +153,6 @@ func (b *Blockchain) updateGasPriceAvg(newValues []*big.Int) {
 	b.gpAverage.count = newAverageCount
 }
 
-// GetAvgGasPrice returns the average gas price for the chain
-func (b *Blockchain) GetAvgGasPrice() *big.Int {
-	b.gpAverage.RLock()
-	defer b.gpAverage.RUnlock()
-
-	return b.gpAverage.price
-}
-
 // NewBlockchain creates a new blockchain object
 func NewBlockchain(
 	logger hclog.Logger,

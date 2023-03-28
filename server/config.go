@@ -3,11 +3,11 @@ package server
 import (
 	"net"
 
-	"github.com/hashicorp/go-hclog"
-
 	"github.com/dogechain-lab/dogechain/chain"
+	"github.com/dogechain-lab/dogechain/helper/gasprice"
 	"github.com/dogechain-lab/dogechain/network"
 	"github.com/dogechain-lab/dogechain/secrets"
+	"github.com/hashicorp/go-hclog"
 )
 
 const DefaultGRPCPort int = 9632
@@ -50,6 +50,8 @@ type Config struct {
 	ValidatorKey string
 
 	BlockBroadcast bool
+
+	GasPriceOracle gasprice.Config
 }
 
 // LeveldbOptions holds the leveldb options

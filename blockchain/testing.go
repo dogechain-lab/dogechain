@@ -207,6 +207,7 @@ func NewMockBlockchain(
 		config:    config,
 		stream:    newEventStream(context.Background()),
 		gpAverage: &gasPriceAverage{
+			max:   big.NewInt(0),
 			price: big.NewInt(0),
 			count: big.NewInt(0),
 		},

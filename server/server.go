@@ -19,6 +19,7 @@ import (
 	"github.com/dogechain-lab/dogechain/crypto"
 	"github.com/dogechain-lab/dogechain/graphql"
 	"github.com/dogechain-lab/dogechain/helper/common"
+	"github.com/dogechain-lab/dogechain/helper/gasprice"
 	"github.com/dogechain-lab/dogechain/helper/kvdb"
 	"github.com/dogechain-lab/dogechain/helper/progress"
 	"github.com/dogechain-lab/dogechain/helper/telemetry"
@@ -83,6 +84,9 @@ type Server struct {
 
 	// restore
 	restoreProgression *progress.ProgressionWrapper
+
+	// gas price oracle
+	gpo *gasprice.Oracle
 }
 
 const (
@@ -277,6 +281,17 @@ func NewServer(config *Config) (*Server, error) {
 	)
 	if err != nil {
 		return nil, err
+	}
+
+	{ // gas price oracle
+		if m.config.GasPriceOracle.Default == nil {
+			m.config.GasPriceOracle.Default = big.NewInt(int64(m.config.PriceLimit))
+		}
+
+		m.gpo, err = gasprice.NewOracle(m.blockchain, m.config.GasPriceOracle)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// TODO: refactor the design. Executor and blockchain should not rely on each other.
@@ -530,6 +545,7 @@ func (s *Server) setupJSONRPC() error {
 		s.consensus,
 		s.network,
 		s.serverMetrics.jsonrpcStore,
+		s.gpo,
 	)
 
 	// format the jsonrpc endpoint namespaces
@@ -577,12 +593,14 @@ func (s *Server) setupGraphQL() error {
 		s.consensus,
 		s.network,
 		s.serverMetrics.jsonrpcStore,
+		s.gpo,
 	)
 
 	conf := &graphql.Config{
 		Store:                    hub,
 		Addr:                     s.config.GraphQL.GraphQLAddr,
 		ChainID:                  uint64(s.config.Chain.Params.ChainID),
+		PriceLimit:               s.config.PriceLimit,
 		AccessControlAllowOrigin: s.config.GraphQL.AccessControlAllowOrigin,
 		BlockRangeLimit:          s.config.GraphQL.BlockRangeLimit,
 		EnablePProf:              s.config.GraphQL.EnablePprof,
