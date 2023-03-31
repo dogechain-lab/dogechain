@@ -1029,8 +1029,11 @@ func (b *Blockchain) collectMetrics(number, gasused uint64, txcount int) {
 	b.gpAverage.RLock()
 	defer b.gpAverage.RUnlock()
 
-	b.metrics.MaxGasPriceObserve(float64(b.gpAverage.max.Uint64()))
-	b.metrics.GasPriceAverageObserve(float64(b.gpAverage.price.Uint64()))
+	// only collect price value with value
+	if b.gpAverage.max.Sign() > 0 {
+		b.metrics.MaxGasPriceObserve(float64(b.gpAverage.max.Uint64()))
+		b.metrics.GasPriceAverageObserve(float64(b.gpAverage.price.Uint64()))
+	}
 }
 
 // extractBlockReceipts extracts the receipts from the passed in block
