@@ -274,6 +274,7 @@ func NewServer(config *Config) (*Server, error) {
 	m.blockchain, err = blockchain.NewBlockchain(
 		logger,
 		config.Chain,
+		m.config.PriceLimit,
 		kvstorage.NewLevelDBStorageBuilder(logger, leveldbBuilder),
 		nil,
 		m.executor,

@@ -54,8 +54,9 @@ type Blockchain struct {
 	executor  Executor
 	stopped   atomic.Bool // used in executor halting
 
-	config  *chain.Chain // Config containing chain information
-	genesis types.Hash   // The hash of the genesis block
+	config           *chain.Chain // Config containing chain information
+	priceBottomLimit uint64       // bottom limit of gas price
+	genesis          types.Hash   // The hash of the genesis block
 
 	headersCache    *lru.Cache // LRU cache for the headers
 	difficultyCache *lru.Cache // LRU cache for the difficulty
@@ -157,6 +158,7 @@ func (b *Blockchain) updateGasPriceAvg(newValues []*big.Int) {
 func NewBlockchain(
 	logger hclog.Logger,
 	config *chain.Chain,
+	priceBottomLimit uint64, // to correctly collect gas price metrics
 	storageBuilder storage.StorageBuilder,
 	consensus Verifier,
 	executor Executor,
@@ -167,11 +169,12 @@ func NewBlockchain(
 	}
 
 	b := &Blockchain{
-		logger:    logger.Named("blockchain"),
-		config:    config,
-		consensus: consensus,
-		executor:  executor,
-		stream:    newEventStream(context.Background()),
+		logger:           logger.Named("blockchain"),
+		config:           config,
+		priceBottomLimit: priceBottomLimit,
+		consensus:        consensus,
+		executor:         executor,
+		stream:           newEventStream(context.Background()),
 		gpAverage: &gasPriceAverage{
 			max:   new(big.Int),
 			price: new(big.Int),
@@ -1015,24 +1018,30 @@ func (b *Blockchain) WriteBlock(block *types.Block, source string) error {
 	b.logger.Info("new block", logArgs...)
 
 	if header != nil {
-		b.collectMetrics(header.Number, header.GasUsed, len(block.Transactions))
+		b.collectMetrics(header.Number, header.GasUsed)
 	}
 
 	return nil
 }
 
-func (b *Blockchain) collectMetrics(number, gasused uint64, txcount int) {
+func (b *Blockchain) collectMetrics(number, gasused uint64) {
 	b.metrics.GasUsedObserve(float64(gasused))
 	b.metrics.SetBlockHeight(float64(number))
-	b.metrics.TransactionNumObserve(float64(txcount))
 
 	b.gpAverage.RLock()
 	defer b.gpAverage.RUnlock()
+
+	// collect non-miner transaction count
+	b.metrics.TransactionNumObserve(float64(b.gpAverage.count.Uint64()))
 
 	// only collect price value with value
 	if b.gpAverage.max.Sign() > 0 {
 		b.metrics.MaxGasPriceObserve(float64(b.gpAverage.max.Uint64()))
 		b.metrics.GasPriceAverageObserve(float64(b.gpAverage.price.Uint64()))
+	} else {
+		// use price bottom limit
+		b.metrics.MaxGasPriceObserve(float64(b.priceBottomLimit))
+		b.metrics.GasPriceAverageObserve(float64(b.priceBottomLimit))
 	}
 }
 

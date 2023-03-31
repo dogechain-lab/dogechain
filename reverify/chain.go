@@ -120,6 +120,7 @@ func createBlockchain(
 	chain, err := blockchain.NewBlockchain(
 		logger,
 		genesis,
+		0, // don't care price bottom limit when reverify.
 		kvstorage.NewLevelDBStorageBuilder(
 			logger,
 			newLevelDBBuilder(logger, filepath.Join(dataDir, "blockchain")),

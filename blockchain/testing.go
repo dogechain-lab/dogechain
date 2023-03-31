@@ -350,6 +350,7 @@ func newBlockChain(config *chain.Chain, executor Executor) (*Blockchain, error) 
 	b, err := NewBlockchain(
 		hclog.NewNullLogger(),
 		config,
+		0,
 		kvstorage.NewMemoryStorageBuilder(hclog.NewNullLogger()),
 		&MockVerifier{},
 		executor,

@@ -21,7 +21,7 @@ type Metrics struct {
 	blockWrittenSeconds prometheus.Histogram
 	// Block execution duration
 	blockExecutionSeconds prometheus.Histogram
-	// Transaction number
+	// Non-miner transaction number
 	transactionNum prometheus.Histogram
 }
 
@@ -104,7 +104,7 @@ func GetPrometheusMetrics(namespace string, labelsWithValues ...string) *Metrics
 			Namespace:   namespace,
 			Subsystem:   subsystem,
 			Name:        "transaction_number",
-			Help:        "Transaction number",
+			Help:        "Non-miner transaction number",
 			ConstLabels: constLabels,
 		}),
 	}
