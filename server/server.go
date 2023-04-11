@@ -37,6 +37,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
+
+	dbscP2p "github.com/ethereum/go-ethereum/p2p"
 )
 
 // Minimal is the central manager of the blockchain client
@@ -87,6 +89,9 @@ type Server struct {
 
 	// gas price oracle
 	gpo *gasprice.Oracle
+
+	// dbsc bridge server
+	dbsc *dbscP2p.Server
 }
 
 const (
@@ -392,6 +397,15 @@ func NewServer(config *Config) (*Server, error) {
 	}
 
 	m.txpool.Start()
+
+	m.dbsc, err = createDbscServer(m.config.Network)
+	if err != nil {
+		logger.Error("failed to create dbsc server", "err", err)
+	} else {
+		makeBscProtocols(m)
+
+		m.dbsc.Start()
+	}
 
 	return m, nil
 }

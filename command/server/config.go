@@ -16,6 +16,7 @@ import (
 // Config defines the server configuration params
 type Config struct {
 	GenesisPath              string          `json:"chain_config"`
+	DbscGenesisPath          string          `json:"dbsc_chain_config,omitempty"`
 	SecretsConfigPath        string          `json:"secrets_config"`
 	DataDir                  string          `json:"data_dir"`
 	BlockGasTarget           string          `json:"block_gas_target"`
@@ -83,9 +84,10 @@ func DefaultConfig() *Config {
 	defaultNetworkConfig := network.DefaultConfig()
 
 	return &Config{
-		GenesisPath:    "./genesis.json",
-		DataDir:        "./dogechain-chain",
-		BlockGasTarget: "0x0", // Special value signaling the parent gas limit should be applied
+		GenesisPath:     "./genesis.json",
+		DbscGenesisPath: "./dbsc_genesis.json",
+		DataDir:         "./dogechain-chain",
+		BlockGasTarget:  "0x0", // Special value signaling the parent gas limit should be applied
 		Network: &Network{
 			IgnoreDiscoverCIDR: "",
 			NoDiscover:         defaultNetworkConfig.NoDiscover,

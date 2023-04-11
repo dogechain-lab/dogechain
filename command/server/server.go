@@ -67,6 +67,13 @@ func setFlags(cmd *cobra.Command) {
 		)
 
 		cmd.Flags().StringVar(
+			&params.rawConfig.DbscGenesisPath,
+			dbscGenesisPathFlag,
+			defaultConfig.DbscGenesisPath,
+			"the dbsc genesis file used for transfer to the chain",
+		)
+
+		cmd.Flags().StringVar(
 			&params.rawConfig.RestoreFile,
 			restoreFlag,
 			"",

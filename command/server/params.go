@@ -13,11 +13,14 @@ import (
 	"github.com/dogechain-lab/dogechain/secrets"
 	"github.com/dogechain-lab/dogechain/server"
 	"github.com/multiformats/go-multiaddr"
+
+	dbscParams "github.com/ethereum/go-ethereum/params"
 )
 
 const (
 	configFlag                   = "config"
 	genesisPathFlag              = "chain"
+	dbscGenesisPathFlag          = "dbsc-chain"
 	dataDirFlag                  = "data-dir"
 	leveldbCacheFlag             = "leveldb.cache-size"
 	leveldbHandlesFlag           = "leveldb.handles"
@@ -109,6 +112,9 @@ type serverParams struct {
 	corsAllowedOrigins []string
 
 	genesisConfig *chain.Chain
+
+	dbscChainConfig *dbscParams.ChainConfig
+
 	secretsConfig *secrets.SecretsManagerConfig
 
 	logFileLocation string
@@ -266,12 +272,13 @@ func (p *serverParams) generateConfig() *server.Config {
 			CompactionTotalSize: p.leveldbTotalTableSize,
 			NoSync:              p.leveldbNoSync,
 		},
-		BlockTime:      p.rawConfig.BlockTime,
-		LogLevel:       hclog.LevelFromString(p.rawConfig.LogLevel),
-		LogFilePath:    p.logFileLocation,
-		Daemon:         p.isDaemon,
-		ValidatorKey:   p.validatorKey,
-		BlockBroadcast: p.rawConfig.BlockBroadcast,
-		GasPriceOracle: p.rawConfig.GPO,
+		BlockTime:       p.rawConfig.BlockTime,
+		LogLevel:        hclog.LevelFromString(p.rawConfig.LogLevel),
+		LogFilePath:     p.logFileLocation,
+		Daemon:          p.isDaemon,
+		ValidatorKey:    p.validatorKey,
+		BlockBroadcast:  p.rawConfig.BlockBroadcast,
+		GasPriceOracle:  p.rawConfig.GPO,
+		DbscChainConfig: p.dbscChainConfig,
 	}
 }

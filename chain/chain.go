@@ -4,12 +4,14 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math/big"
+	"os"
 
 	"github.com/dogechain-lab/dogechain/helper/hex"
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/hashicorp/go-multierror"
+
+	dbscParams "github.com/ethereum/go-ethereum/params"
 )
 
 var (
@@ -344,6 +346,20 @@ func Import(chain string) (*Chain, error) {
 	return ImportFromFile(chain)
 }
 
+func ImportDbsc(filename string) (*dbscParams.ChainConfig, error) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	var chain *dbscParams.ChainConfig
+	if err := json.Unmarshal(data, &chain); err != nil {
+		return nil, err
+	}
+
+	return chain, nil
+}
+
 // ImportFromName imports a chain from the precompiled json chains (i.e. foundation)
 func ImportFromName(chain string) (*Chain, error) {
 	data, err := Asset("chain/chains/" + chain + ".json")
@@ -356,7 +372,7 @@ func ImportFromName(chain string) (*Chain, error) {
 
 // ImportFromFile imports a chain from a filepath
 func ImportFromFile(filename string) (*Chain, error) {
-	data, err := ioutil.ReadFile(filename)
+	data, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}

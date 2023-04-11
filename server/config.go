@@ -8,6 +8,8 @@ import (
 	"github.com/dogechain-lab/dogechain/network"
 	"github.com/dogechain-lab/dogechain/secrets"
 	"github.com/hashicorp/go-hclog"
+
+	dbscParams "github.com/ethereum/go-ethereum/params"
 )
 
 const DefaultGRPCPort int = 9632
@@ -52,6 +54,8 @@ type Config struct {
 	BlockBroadcast bool
 
 	GasPriceOracle gasprice.Config
+
+	DbscChainConfig *dbscParams.ChainConfig
 }
 
 // LeveldbOptions holds the leveldb options

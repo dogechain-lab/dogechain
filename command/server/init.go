@@ -45,6 +45,10 @@ func (p *serverParams) initRawParams() error {
 		return err
 	}
 
+	if err := p.initDbscChainConfigConfig(); err != nil {
+		return err
+	}
+
 	if err := p.initDataDirLocation(); err != nil {
 		return err
 	}
@@ -120,6 +124,18 @@ func (p *serverParams) initGenesisConfig() error {
 
 	if p.genesisConfig, parseErr = chain.Import(
 		p.rawConfig.GenesisPath,
+	); parseErr != nil {
+		return parseErr
+	}
+
+	return nil
+}
+
+func (p *serverParams) initDbscChainConfigConfig() error {
+	var parseErr error
+
+	if p.dbscChainConfig, parseErr = chain.ImportDbsc(
+		p.rawConfig.DbscGenesisPath,
 	); parseErr != nil {
 		return parseErr
 	}
