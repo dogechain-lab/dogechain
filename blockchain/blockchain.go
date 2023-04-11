@@ -336,6 +336,99 @@ func (b *Blockchain) GetParent(header *types.Header) (*types.Header, bool) {
 	return b.readHeader(header.ParentHash)
 }
 
+// GetAncestor retrieves the Nth ancestor of a given block. It assumes that either the given block or
+// a close ancestor of it is canonical. maxNonCanonical points to a downwards counter limiting the
+// number of blocks to be individually checked before we reach the canonical chain.
+//
+// Note: ancestor == 0 returns the same block, 1 returns its parent and so on.
+func (b *Blockchain) GetAncestor(
+	hash types.Hash,
+	number, ancestor uint64,
+	maxNonCanonical *uint64,
+) (types.Hash, uint64) {
+	if ancestor > number {
+		return types.Hash{}, 0
+	}
+
+	if ancestor == 1 {
+		// in this case it is cheaper to just read the header
+		if header, ok := b.GetHeader(hash, number); header != nil && ok {
+			return header.ParentHash, number - 1
+		}
+
+		return types.Hash{}, 0
+	}
+
+	for ancestor != 0 {
+		if chash, ok := b.db.ReadCanonicalHash(number); chash == hash && ok {
+			ancestorHash, ok := b.db.ReadCanonicalHash(number - ancestor)
+
+			if ok && chash == hash {
+				number -= ancestor
+
+				return ancestorHash, number
+			}
+		}
+
+		if *maxNonCanonical == 0 {
+			return types.Hash{}, 0
+		}
+
+		*maxNonCanonical--
+		ancestor--
+
+		header, ok := b.GetHeader(hash, number)
+
+		if header == nil || !ok {
+			return types.Hash{}, 0
+		}
+
+		hash = header.ParentHash
+		number--
+	}
+
+	return hash, number
+}
+
+// GetHeadersFrom returns a contiguous segment of headers, in rlp-form, going
+// backwards from the given number.
+// If the 'number' is higher than the highest local header, this method will
+// return a best-effort response, containing the headers that we do have.
+func (b *Blockchain) GetHeadersFrom(number, count uint64) []*types.Header {
+	// If the request is for future headers, we still return the portion of
+	// headers that we are able to serve
+	if current := b.Header().Number; current < number {
+		if count > number-current {
+			count -= number - current
+			number = current
+		} else {
+			return nil
+		}
+	}
+
+	var headers []*types.Header
+	// If we have some of the headers in cache already, use that before going to db.
+
+	hash, ok := b.db.ReadCanonicalHash(number)
+	if hash == types.ZeroHash || !ok {
+		return nil
+	}
+
+	for count > 0 {
+		header, ok := b.GetHeaderByHash(hash)
+		if !ok {
+			break
+		}
+
+		headers = append(headers, header)
+		hash = header.ParentHash
+		count--
+		number--
+	}
+
+	return headers
+}
+
 // Genesis returns the genesis block
 func (b *Blockchain) Genesis() types.Hash {
 	return b.genesis
@@ -1455,6 +1548,11 @@ func (b *Blockchain) GetBlockByNumber(blockNumber uint64, full bool) (*types.Blo
 	}
 
 	return b.GetBlockByHash(blockHash, full)
+}
+
+// GetCanonicalHash
+func (b *Blockchain) GetCanonicalHash(blockNumber uint64) (types.Hash, bool) {
+	return b.db.ReadCanonicalHash(blockNumber)
 }
 
 // SubscribeEvents returns a blockchain event subscription

@@ -1,11 +1,15 @@
 package server
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/dogechain-lab/dogechain/blockchain"
+	"github.com/dogechain-lab/dogechain/types"
+
 	helperCommon "github.com/dogechain-lab/dogechain/helper/common"
 
 	"github.com/dogechain-lab/dogechain/network"
@@ -13,11 +17,33 @@ import (
 
 	dbscCommon "github.com/ethereum/go-ethereum/common"
 	dbscForkId "github.com/ethereum/go-ethereum/core/forkid"
+	dbscTypes "github.com/ethereum/go-ethereum/core/types"
 	dbscCrypto "github.com/ethereum/go-ethereum/crypto"
 	dbscP2p "github.com/ethereum/go-ethereum/p2p"
 	dbscNat "github.com/ethereum/go-ethereum/p2p/nat"
+	dbscRlp "github.com/ethereum/go-ethereum/rlp"
 
 	dbscEthProto "github.com/ethereum/go-ethereum/eth/protocols/eth"
+)
+
+const (
+	softResponseLimit = 2 * 1024 * 1024
+	maxHeadersServe   = 1024
+	maxReceiptsServe  = 1024
+
+	// maxBodiesServe is the maximum number of block bodies to serve. This number
+	// is mostly there to limit the number of disk lookups. With 24KB block sizes
+	// nowadays, the practical limit will always be softResponseLimit.
+	maxBodiesServe = 1024
+
+	// maxMessageSize is the maximum cap on the size of a protocol message.
+	maxMessageSize = 10 * 1024 * 1024
+)
+
+var (
+	errMsgTooLarge    = errors.New("message too long")
+	errInvalidMsgCode = errors.New("invalid message code")
+	errDecode         = errors.New("invalid message")
 )
 
 func createDbscServer(config *network.Config) (*dbscP2p.Server, error) {
@@ -105,7 +131,7 @@ func (s *Server) broadcastBlocksToDbscPeer(p *dbscP2p.Peer, rw dbscP2p.MsgReadWr
 
 		request := make(dbscEthProto.NewBlockHashesPacket, 1)
 
-		request[0].Hash = (dbscCommon.Hash)(hash)
+		request[0].Hash = hashToDbscHash(hash)
 		request[0].Number = number
 
 		err := dbscP2p.Send(rw, dbscEthProto.NewBlockHashesMsg, request)
@@ -117,8 +143,90 @@ func (s *Server) broadcastBlocksToDbscPeer(p *dbscP2p.Peer, rw dbscP2p.MsgReadWr
 	}
 }
 
-// maxMessageSize is the maximum cap on the size of a protocol message.
-const maxMessageSize = 10 * 1024 * 1024
+func hashToDbscHash(hash types.Hash) dbscCommon.Hash {
+	return dbscCommon.BytesToHash(hash.Bytes())
+}
+
+func dbscHashToHash(hash dbscCommon.Hash) types.Hash {
+	return types.BytesToHash(hash.Bytes())
+}
+
+func addressToDbscAddress(address types.Address) dbscCommon.Address {
+	return dbscCommon.BytesToAddress(address.Bytes())
+}
+
+func txToDbscTx(tx *types.Transaction) *dbscTypes.Transaction {
+	var toAddress *dbscCommon.Address = nil
+
+	if tx.To != nil {
+		add := addressToDbscAddress(*tx.To)
+		toAddress = &add
+	}
+
+	return dbscTypes.NewTx(&dbscTypes.LegacyTx{
+		Nonce:    tx.Nonce,
+		GasPrice: tx.GasPrice,
+		Gas:      tx.Gas,
+		To:       toAddress,
+		Value:    tx.Value,
+		Data:     tx.Input,
+		V:        tx.V,
+		R:        tx.R,
+		S:        tx.S,
+	})
+}
+
+func txsToDbscTxs(txs []*types.Transaction) []*dbscTypes.Transaction {
+	result := make([]*dbscTypes.Transaction, 0, len(txs))
+
+	for _, tx := range txs {
+		result = append(result, txToDbscTx(tx))
+	}
+
+	return result
+}
+
+func blockToDbscBlockRlp(block *types.Block) (dbscRlp.RawValue, error) {
+	header := headerToDbscHeader(block.Header)
+
+	dbscUncles := make([]*dbscTypes.Header, 0, len(block.Uncles))
+
+	for _, uncle := range block.Uncles {
+		dbscUncles = append(dbscUncles, headerToDbscHeader(uncle))
+	}
+
+	extBlk := struct {
+		Header *dbscTypes.Header
+		Txs    []*dbscTypes.Transaction
+		Uncles []*dbscTypes.Header
+	}{
+		Header: header,
+		Txs:    txsToDbscTxs(block.Transactions),
+		Uncles: dbscUncles,
+	}
+
+	return dbscRlp.EncodeToBytes(extBlk)
+}
+
+func headerToDbscHeader(header *types.Header) *dbscTypes.Header {
+	return &dbscTypes.Header{
+		ParentHash:  hashToDbscHash(header.ParentHash),
+		UncleHash:   hashToDbscHash(header.Sha3Uncles),
+		Coinbase:    addressToDbscAddress(header.Miner),
+		Root:        hashToDbscHash(header.StateRoot),
+		TxHash:      hashToDbscHash(header.TxRoot),
+		ReceiptHash: hashToDbscHash(header.ReceiptsRoot),
+		Bloom:       dbscTypes.BytesToBloom(header.LogsBloom[:]),
+		Difficulty:  new(big.Int).SetUint64(header.Difficulty),
+		Number:      new(big.Int).SetUint64(header.Number),
+		GasLimit:    header.GasLimit,
+		GasUsed:     header.GasUsed,
+		Time:        header.Timestamp,
+		Extra:       header.ExtraData,
+		MixDigest:   hashToDbscHash(header.MixHash),
+		Nonce:       dbscTypes.BlockNonce(header.Nonce),
+	}
+}
 
 type msgHandler func(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error
 type Decoder interface {
@@ -144,6 +252,293 @@ var eth66Handler = map[uint64]msgHandler{
 	dbscEthProto.StatusMsg:                     handleDbscStatus,
 }
 
+func replyBlockHeadersRLP(rw dbscP2p.MsgReadWriter, id uint64, headers []dbscRlp.RawValue) error {
+	return dbscP2p.Send(rw, dbscEthProto.BlockHeadersMsg, &dbscEthProto.BlockHeadersRLPPacket66{
+		RequestId:             id,
+		BlockHeadersRLPPacket: headers,
+	})
+}
+
+func serviceGetBlockHeadersQuery(
+	s *Server,
+	query *dbscEthProto.GetBlockHeadersPacket,
+	peer *dbscP2p.Peer,
+	rw dbscP2p.MsgReadWriter,
+) []dbscRlp.RawValue {
+	if query.Skip == 0 {
+		// The fast path
+		return serviceContiguousBlockHeaderQuery(s, query, peer, rw)
+	} else {
+		return serviceNonContiguousBlockHeaderQuery(s, query, peer, rw)
+	}
+}
+
+func serviceNonContiguousBlockHeaderQuery(
+	s *Server,
+	query *dbscEthProto.GetBlockHeadersPacket,
+	peer *dbscP2p.Peer,
+	rw dbscP2p.MsgReadWriter,
+) []dbscRlp.RawValue {
+	chain := s.blockchain
+	hashMode := query.Origin.Hash != (dbscCommon.Hash{})
+	first := true
+	maxNonCanonical := uint64(100)
+
+	// Gather headers until the fetch or network limits is reached
+	var (
+		bytes   dbscCommon.StorageSize
+		headers []dbscRlp.RawValue
+		unknown bool
+		lookups int
+	)
+
+	for !unknown &&
+		len(headers) < int(query.Amount) &&
+		bytes < softResponseLimit &&
+		len(headers) < maxHeadersServe &&
+		lookups < 2*maxHeadersServe {
+		// Retrieve the next header satisfying the query
+		var origin *dbscTypes.Header
+		lookups++
+
+		if hashMode {
+			if first {
+				first = false
+
+				header, ok := chain.GetHeaderByHash(dbscHashToHash(query.Origin.Hash))
+				if ok {
+					origin = headerToDbscHeader(header)
+				}
+
+				// origin = chain.GetHeaderByHash(query.Origin.Hash)
+				if origin != nil {
+					query.Origin.Number = origin.Number.Uint64()
+				}
+			} else {
+				header, ok := chain.GetHeader(dbscHashToHash(query.Origin.Hash), query.Origin.Number)
+				if ok {
+					origin = headerToDbscHeader(header)
+				}
+			}
+		} else {
+			header, ok := chain.GetHeaderByNumber(query.Origin.Number)
+			if ok {
+				origin = headerToDbscHeader(header)
+			}
+		}
+
+		if origin == nil {
+			break
+		}
+
+		if rlpData, err := dbscRlp.EncodeToBytes(origin); err != nil {
+			s.logger.Error("Unable to decode our own headers", "err", err)
+		} else {
+			headers = append(headers, dbscRlp.RawValue(rlpData))
+			bytes += dbscCommon.StorageSize(len(rlpData))
+		}
+
+		// Advance to the next header of the query
+		switch {
+		case hashMode && query.Reverse:
+			// Hash based traversal towards the genesis block
+			ancestor := query.Skip + 1
+			if ancestor == 0 {
+				unknown = true
+			} else {
+				h, n := chain.GetAncestor(
+					dbscHashToHash(query.Origin.Hash),
+					query.Origin.Number,
+					ancestor,
+					&maxNonCanonical,
+				)
+
+				query.Origin.Hash = hashToDbscHash(h)
+				query.Origin.Number = n
+
+				unknown = (query.Origin.Hash == dbscCommon.Hash{})
+			}
+		case hashMode && !query.Reverse:
+			// Hash based traversal towards the leaf block
+			var (
+				current = origin.Number.Uint64()
+				next    = current + query.Skip + 1
+			)
+
+			if next <= current {
+				infos, _ := json.MarshalIndent(peer.Info(), "", "  ")
+				peer.Log().Warn(
+					"GetBlockHeaders skip overflow attack",
+					"current", current,
+					"skip", query.Skip,
+					"next", next,
+					"attacker", infos,
+				)
+
+				unknown = true
+			} else {
+				if header, ok := chain.GetHeaderByNumber(next); header != nil && ok {
+					nextHash := header.Hash
+					expOldHash, _ := chain.GetAncestor(nextHash, next, query.Skip+1, &maxNonCanonical)
+					dbscExpOldHash := hashToDbscHash(expOldHash)
+
+					if dbscExpOldHash == query.Origin.Hash {
+						query.Origin.Hash, query.Origin.Number = hashToDbscHash(nextHash), next
+					} else {
+						unknown = true
+					}
+				} else {
+					unknown = true
+				}
+			}
+		case query.Reverse:
+			// Number based traversal towards the genesis block
+			if query.Origin.Number >= query.Skip+1 {
+				query.Origin.Number -= query.Skip + 1
+			} else {
+				unknown = true
+			}
+
+		case !query.Reverse:
+			// Number based traversal towards the leaf block
+			query.Origin.Number += query.Skip + 1
+		}
+	}
+
+	return headers
+}
+
+func serviceContiguousBlockHeaderQuery(
+	s *Server,
+	query *dbscEthProto.GetBlockHeadersPacket,
+	peer *dbscP2p.Peer,
+	rw dbscP2p.MsgReadWriter,
+) []dbscRlp.RawValue {
+	chain := s.blockchain
+	count := query.Amount
+
+	if count > maxHeadersServe {
+		count = maxHeadersServe
+	}
+
+	if query.Origin.Hash == (dbscCommon.Hash{}) {
+		// Number mode, just return the canon chain segment. The backend
+		// delivers in [N, N-1, N-2..] descending order, so we need to
+		// accommodate for that.
+		from := query.Origin.Number
+		if !query.Reverse {
+			from = from + count - 1
+		}
+
+		headers := chain.GetHeadersFrom(from, count)
+
+		if !query.Reverse {
+			for i, j := 0, len(headers)-1; i < j; i, j = i+1, j-1 {
+				headers[i], headers[j] = headers[j], headers[i]
+			}
+		}
+
+		var rlpHeaders []dbscRlp.RawValue
+
+		for _, header := range headers {
+			rlpData, _ := dbscRlp.EncodeToBytes(header)
+			rlpHeaders = append(rlpHeaders, rlpData)
+		}
+
+		return rlpHeaders
+	}
+
+	// Hash mode.
+	var (
+		headers []dbscRlp.RawValue
+		hash    = dbscHashToHash(query.Origin.Hash)
+	)
+
+	header, ok := chain.GetHeaderByHash(hash)
+
+	if header != nil && ok {
+		rlpData, _ := dbscRlp.EncodeToBytes(header)
+		headers = append(headers, rlpData)
+	} else {
+		// We don't even have the origin header
+		return headers
+	}
+
+	num := header.Number
+
+	if !query.Reverse {
+		// Theoretically, we are tasked to deliver header by hash H, and onwards.
+		// However, if H is not canon, we will be unable to deliver any descendants of
+		// H.
+		if canonHash, ok := chain.GetCanonicalHash(num); canonHash != hash && ok {
+			// Not canon, we can't deliver descendants
+			return headers
+		}
+
+		descendants := chain.GetHeadersFrom(num+count-1, count-1)
+
+		for i, j := 0, len(descendants)-1; i < j; i, j = i+1, j-1 {
+			descendants[i], descendants[j] = descendants[j], descendants[i]
+		}
+
+		for _, header := range descendants {
+			rlpData, _ := dbscRlp.EncodeToBytes(header)
+			headers = append(headers, rlpData)
+		}
+
+		return headers
+	}
+
+	{ // Last mode: deliver ancestors of H
+		for i := uint64(1); header != nil && i < count; i++ {
+			header, ok = chain.GetHeaderByHash(header.ParentHash)
+			if header == nil || !ok {
+				break
+			}
+			rlpData, _ := dbscRlp.EncodeToBytes(header)
+			headers = append(headers, rlpData)
+		}
+
+		return headers
+	}
+}
+
+func serviceGetBlockBodiesQuery(
+	s *Server,
+	query dbscEthProto.GetBlockBodiesPacket,
+	peer *dbscP2p.Peer,
+	rw dbscP2p.MsgReadWriter,
+) ([]dbscRlp.RawValue, error) {
+	chain := s.blockchain
+
+	// Gather blocks until the fetch or network limits is reached
+	var (
+		bytes  int
+		bodies []dbscRlp.RawValue
+	)
+
+	for lookups, hash := range query {
+		if bytes >= softResponseLimit ||
+			len(bodies) >= maxBodiesServe ||
+			lookups >= 2*maxBodiesServe {
+			break
+		}
+
+		if block, ok := chain.GetBlockByHash(dbscHashToHash(hash), true); ok {
+			rlpData, err := blockToDbscBlockRlp(block)
+
+			if err != nil {
+				return nil, err
+			}
+
+			bodies = append(bodies, rlpData)
+			bytes += len(rlpData)
+		}
+	}
+
+	return bodies, nil
+}
+
 func handleDbscNewBlockhashes(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error {
 	return nil
 }
@@ -161,7 +556,15 @@ func handleDbscNewPooledTransactionHashes(s *Server, msg Decoder, peer *dbscP2p.
 }
 
 func handleDbscGetBlockHeaders(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error {
-	return nil
+	// Decode the complex header query
+	var query dbscEthProto.GetBlockHeadersPacket66
+	if err := msg.Decode(&query); err != nil {
+		return fmt.Errorf("%w: message %v: %v", errDecode, msg, err)
+	}
+
+	response := serviceGetBlockHeadersQuery(s, query.GetBlockHeadersPacket, peer, rw)
+
+	return replyBlockHeadersRLP(rw, query.RequestId, response)
 }
 
 func handleDbscBlockHeaders(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error {
@@ -169,7 +572,18 @@ func handleDbscBlockHeaders(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP
 }
 
 func handleDbscGetBlockBodies(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error {
-	return nil
+	// Decode the block body retrieval message
+	var query dbscEthProto.GetBlockBodiesPacket66
+	if err := msg.Decode(&query); err != nil {
+		return fmt.Errorf("%w: message %v: %v", errDecode, msg, err)
+	}
+
+	response, err := serviceGetBlockBodiesQuery(s, query.GetBlockBodiesPacket, peer, rw)
+	if err != nil {
+		return err
+	}
+
+	return replyBlockHeadersRLP(rw, query.RequestId, response)
 }
 
 func handleDbscBlockBodies(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error {
@@ -203,7 +617,7 @@ func handleDbscPooledTransactions(s *Server, msg Decoder, peer *dbscP2p.Peer, rw
 func handleDbscStatus(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error {
 	currentHeader := s.blockchain.Header()
 	diff, _ := s.blockchain.GetTD(currentHeader.Hash)
-	genesisHash := (dbscCommon.Hash)(s.blockchain.Genesis())
+	genesisHash := hashToDbscHash(s.blockchain.Genesis())
 
 	forkID := dbscForkId.NewID(
 		s.config.DbscChainConfig,
@@ -215,18 +629,13 @@ func handleDbscStatus(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2p.Msg
 		ProtocolVersion: dbscEthProto.ETH66,
 		NetworkID:       s.config.DbscChainConfig.ChainID.Uint64(),
 		TD:              diff,
-		Head:            (dbscCommon.Hash)(currentHeader.Hash),
+		Head:            hashToDbscHash(currentHeader.Hash),
 		Genesis:         genesisHash,
 		ForkID:          forkID,
 	})
 
 	return nil
 }
-
-var (
-	errMsgTooLarge    = errors.New("message too long")
-	errInvalidMsgCode = errors.New("invalid message code")
-)
 
 func (s *Server) handleDbscMessage(peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error {
 	msg, err := rw.ReadMsg()
