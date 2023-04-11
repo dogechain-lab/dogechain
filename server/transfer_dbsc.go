@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
 	"time"
 
@@ -85,7 +86,7 @@ func createDbscServer(config *network.Config) (*dbscP2p.Server, error) {
 
 // makeBscProtocols creates the P2P protocols used by the BSC service.
 func makeBscProtocols(s *Server) []dbscP2p.Protocol {
-	protocolVersions := []uint{dbscEthProto.ETH66}
+	protocolVersions := []uint{dbscEthProto.ETH66, dbscEthProto.ETH67}
 	protocols := make([]dbscP2p.Protocol, len(protocolVersions))
 	protocolLengths := map[uint]uint64{dbscEthProto.ETH67: 18, dbscEthProto.ETH66: 17}
 
@@ -101,11 +102,17 @@ func makeBscProtocols(s *Server) []dbscP2p.Protocol {
 
 				for {
 					if err := s.handleDbscMessage(p, rw); err != nil {
+						if errors.Is(err, io.EOF) {
+							break
+						}
+
 						s.logger.Error("Message handling failed in `eth`", "err", err)
 
 						return err
 					}
 				}
+
+				return nil
 			},
 			NodeInfo:       nil,
 			PeerInfo:       nil,
