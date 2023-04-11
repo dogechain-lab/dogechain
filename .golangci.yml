@@ -6,7 +6,7 @@ run:
   skip-dirs-use-default: true
 
 service:
-  golangci-lint-version: 1.51.2
+  golangci-lint-version: "1.51.2"
 
 linters:
   # default false
@@ -35,7 +35,6 @@ linters:
     - thelper # Detects golang test helpers without t.Helper() call and checks the consistency of test helpers
     - tparallel # Detects inappropriate usage of t.Parallel() method in your Go test codes
     - unconvert # Unnecessary type conversions
-    - wastedassign # Finds wasted assignment statements
     - whitespace # Tool for detection of leading and trailing whitespace
     - wsl # Forces you to use empty lines
 
