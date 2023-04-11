@@ -1,9 +1,11 @@
 package chain
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"log"
 	"math/big"
 	"os"
 
@@ -11,6 +13,7 @@ import (
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/hashicorp/go-multierror"
 
+	dbscCore "github.com/ethereum/go-ethereum/core"
 	dbscParams "github.com/ethereum/go-ethereum/params"
 )
 
@@ -352,12 +355,14 @@ func ImportDbsc(filename string) (*dbscParams.ChainConfig, error) {
 		return nil, err
 	}
 
-	var chain *dbscParams.ChainConfig
-	if err := json.Unmarshal(data, &chain); err != nil {
+	genesis := new(dbscCore.Genesis)
+	if err := json.NewDecoder(bytes.NewBuffer(data)).Decode(genesis); err != nil {
 		return nil, err
 	}
 
-	return chain, nil
+	log.Printf("bsc chain config: %v\n", genesis.Config)
+
+	return genesis.Config, nil
 }
 
 // ImportFromName imports a chain from the precompiled json chains (i.e. foundation)

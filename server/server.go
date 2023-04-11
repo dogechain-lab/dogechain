@@ -402,9 +402,13 @@ func NewServer(config *Config) (*Server, error) {
 	if err != nil {
 		logger.Error("failed to create dbsc server", "err", err)
 	} else {
-		makeBscProtocols(m)
+		logger.Debug("dbsc chan config", "config", m.config.DbscChainConfig)
+
+		m.dbsc.Protocols = makeBscProtocols(m)
 
 		m.dbsc.Start()
+
+		logger.Info("dbsc server", "node", m.dbsc.Self().URLv4())
 	}
 
 	return m, nil

@@ -19,6 +19,7 @@ import (
 	dbscForkId "github.com/ethereum/go-ethereum/core/forkid"
 	dbscTypes "github.com/ethereum/go-ethereum/core/types"
 	dbscCrypto "github.com/ethereum/go-ethereum/crypto"
+	dbscLog "github.com/ethereum/go-ethereum/log"
 	dbscP2p "github.com/ethereum/go-ethereum/p2p"
 	dbscNat "github.com/ethereum/go-ethereum/p2p/nat"
 	dbscRlp "github.com/ethereum/go-ethereum/rlp"
@@ -49,12 +50,22 @@ var (
 func createDbscServer(config *network.Config) (*dbscP2p.Server, error) {
 	maxPeers := config.MaxInboundPeers + config.MaxOutboundPeers
 
-	prikeyBin, err := config.SecretsManager.GetSecret(secrets.NetworkKey)
+	prikeyBytes, err := config.SecretsManager.GetSecret(secrets.NetworkKey)
 	if err != nil {
 		return nil, err
 	}
 
-	prikey, err := dbscCrypto.ToECDSA(prikeyBin)
+	libp2pKey, err := network.ParseLibp2pKey(prikeyBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	rawPri, err := libp2pKey.Raw()
+	if err != nil {
+		return nil, err
+	}
+
+	prikey, err := dbscCrypto.ToECDSA(rawPri)
 	if err != nil {
 		return nil, err
 	}
@@ -66,6 +77,8 @@ func createDbscServer(config *network.Config) (*dbscP2p.Server, error) {
 			NAT:         dbscNat.Any(),
 			NoDial:      true,
 			NoDiscovery: true,
+			ListenAddr:  fmt.Sprintf(":%d", config.Addr.Port+100),
+			Logger:      dbscLog.Root(),
 		},
 	}, nil
 }
