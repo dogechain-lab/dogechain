@@ -206,6 +206,6 @@ require (
 	golang.org/x/time v0.3.0 // indirect
 )
 
-replace github.com/ethereum/go-ethereum => github.com/dogechain-lab/dbsc v0.0.0-20230408024836-d68e36f6969d
+replace github.com/ethereum/go-ethereum => github.com/dogechain-lab/dbsc v0.0.0-20230412074102-8abcc93cd3c8
 
 replace github.com/tendermint/tendermint => github.com/bnb-chain/tendermint v0.31.15
