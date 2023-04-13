@@ -167,6 +167,16 @@ func hashToDbscHash(hash types.Hash) dbscCommon.Hash {
 	return dbscCommon.BytesToHash(hash.Bytes())
 }
 
+func hashsToDbscHashs(hashs []types.Hash) []dbscCommon.Hash {
+	dbscHashs := make([]dbscCommon.Hash, len(hashs))
+
+	for i, hash := range hashs {
+		dbscHashs[i] = hashToDbscHash(hash)
+	}
+
+	return dbscHashs
+}
+
 func dbscHashToHash(hash dbscCommon.Hash) types.Hash {
 	return types.BytesToHash(hash.Bytes())
 }
@@ -248,6 +258,47 @@ func headerToDbscHeader(header *types.Header) *dbscTypes.Header {
 	}
 }
 
+func logToDbscLog(log *types.Log) *dbscTypes.Log {
+	return &dbscTypes.Log{
+		Address: addressToDbscAddress(log.Address),
+		Topics:  hashsToDbscHashs(log.Topics),
+		Data:    log.Data,
+	}
+}
+
+func logsToDbscLogs(logs []*types.Log) []*dbscTypes.Log {
+	result := make([]*dbscTypes.Log, 0, len(logs))
+
+	for _, log := range logs {
+		result = append(result, logToDbscLog(log))
+	}
+
+	return result
+}
+
+func receiptToDbscReceipt(receipt *types.Receipt) *dbscTypes.Receipt {
+	return &dbscTypes.Receipt{
+		PostState:         receipt.Root[:],
+		Status:            (uint64)(*receipt.Status),
+		CumulativeGasUsed: receipt.CumulativeGasUsed,
+		Bloom:             dbscTypes.BytesToBloom(receipt.LogsBloom[:]),
+		Logs:              logsToDbscLogs(receipt.Logs),
+		TxHash:            hashToDbscHash(receipt.TxHash),
+		ContractAddress:   addressToDbscAddress(*receipt.ContractAddress),
+		GasUsed:           receipt.GasUsed,
+	}
+}
+
+func receiptsToDbscReceipts(receipts []*types.Receipt) []*dbscTypes.Receipt {
+	result := make([]*dbscTypes.Receipt, 0, len(receipts))
+
+	for _, receipt := range receipts {
+		result = append(result, receiptToDbscReceipt(receipt))
+	}
+
+	return result
+}
+
 type msgHandler func(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error
 type Decoder interface {
 	Decode(val interface{}) error
@@ -255,21 +306,10 @@ type Decoder interface {
 }
 
 var eth66Handler = map[uint64]msgHandler{
-	dbscEthProto.NewBlockHashesMsg:             handleDbscNewBlockhashes,
-	dbscEthProto.NewBlockMsg:                   handleDbscNewBlock,
-	dbscEthProto.TransactionsMsg:               handleDbscTransactions,
-	dbscEthProto.NewPooledTransactionHashesMsg: handleDbscNewPooledTransactionHashes,
-	dbscEthProto.GetBlockHeadersMsg:            handleDbscGetBlockHeaders,
-	dbscEthProto.BlockHeadersMsg:               handleDbscBlockHeaders,
-	dbscEthProto.GetBlockBodiesMsg:             handleDbscGetBlockBodies,
-	dbscEthProto.BlockBodiesMsg:                handleDbscBlockBodies,
-	dbscEthProto.GetNodeDataMsg:                handleDbscGetNodeData,
-	dbscEthProto.NodeDataMsg:                   handleDbscNodeData,
-	dbscEthProto.GetReceiptsMsg:                handleDbscGetReceipts,
-	dbscEthProto.ReceiptsMsg:                   handleDbscReceipts,
-	dbscEthProto.GetPooledTransactionsMsg:      handleDbscGetPooledTransactions,
-	dbscEthProto.PooledTransactionsMsg:         handleDbscPooledTransactions,
-	dbscEthProto.StatusMsg:                     handleDbscStatus,
+	dbscEthProto.GetBlockHeadersMsg: handleDbscGetBlockHeaders,
+	dbscEthProto.GetBlockBodiesMsg:  handleDbscGetBlockBodies,
+	dbscEthProto.GetReceiptsMsg:     handleDbscGetReceipts,
+	dbscEthProto.StatusMsg:          handleDbscStatus,
 }
 
 func replyBlockHeadersRLP(rw dbscP2p.MsgReadWriter, id uint64, headers []dbscRlp.RawValue) error {
@@ -428,6 +468,18 @@ func serviceNonContiguousBlockHeaderQuery(
 	return headers
 }
 
+func handleDbscGetBlockHeaders(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error {
+	// Decode the complex header query
+	var query dbscEthProto.GetBlockHeadersPacket66
+	if err := msg.Decode(&query); err != nil {
+		return fmt.Errorf("%w: message %v: %v", errDecode, msg, err)
+	}
+
+	response := serviceGetBlockHeadersQuery(s, query.GetBlockHeadersPacket, peer, rw)
+
+	return replyBlockHeadersRLP(rw, query.RequestId, response)
+}
+
 func serviceContiguousBlockHeaderQuery(
 	s *Server,
 	query *dbscEthProto.GetBlockHeadersPacket,
@@ -523,6 +575,21 @@ func serviceContiguousBlockHeaderQuery(
 	}
 }
 
+func handleDbscGetBlockBodies(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error {
+	// Decode the block body retrieval message
+	var query dbscEthProto.GetBlockBodiesPacket66
+	if err := msg.Decode(&query); err != nil {
+		return fmt.Errorf("%w: message %v: %v", errDecode, msg, err)
+	}
+
+	response, err := serviceGetBlockBodiesQuery(s, query.GetBlockBodiesPacket, peer, rw)
+	if err != nil {
+		return err
+	}
+
+	return replyBlockHeadersRLP(rw, query.RequestId, response)
+}
+
 func serviceGetBlockBodiesQuery(
 	s *Server,
 	query dbscEthProto.GetBlockBodiesPacket,
@@ -559,46 +626,14 @@ func serviceGetBlockBodiesQuery(
 	return bodies, nil
 }
 
-func handleDbscNewBlockhashes(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error {
-	return nil
-}
-
-func handleDbscNewBlock(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error {
-	return nil
-}
-
-func handleDbscTransactions(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error {
-	return nil
-}
-
-func handleDbscNewPooledTransactionHashes(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error {
-	return nil
-}
-
-func handleDbscGetBlockHeaders(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error {
-	// Decode the complex header query
-	var query dbscEthProto.GetBlockHeadersPacket66
+func handleDbscGetReceipts(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error {
+	// Decode the block receipts retrieval message
+	var query dbscEthProto.GetReceiptsPacket66
 	if err := msg.Decode(&query); err != nil {
 		return fmt.Errorf("%w: message %v: %v", errDecode, msg, err)
 	}
 
-	response := serviceGetBlockHeadersQuery(s, query.GetBlockHeadersPacket, peer, rw)
-
-	return replyBlockHeadersRLP(rw, query.RequestId, response)
-}
-
-func handleDbscBlockHeaders(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error {
-	return nil
-}
-
-func handleDbscGetBlockBodies(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error {
-	// Decode the block body retrieval message
-	var query dbscEthProto.GetBlockBodiesPacket66
-	if err := msg.Decode(&query); err != nil {
-		return fmt.Errorf("%w: message %v: %v", errDecode, msg, err)
-	}
-
-	response, err := serviceGetBlockBodiesQuery(s, query.GetBlockBodiesPacket, peer, rw)
+	response, err := serviceGetReceiptsQuery(s, query.GetReceiptsPacket, peer, rw)
 	if err != nil {
 		return err
 	}
@@ -606,32 +641,53 @@ func handleDbscGetBlockBodies(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbs
 	return replyBlockHeadersRLP(rw, query.RequestId, response)
 }
 
-func handleDbscBlockBodies(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error {
-	return nil
-}
+func serviceGetReceiptsQuery(
+	s *Server,
+	query dbscEthProto.GetReceiptsPacket,
+	peer *dbscP2p.Peer,
+	rw dbscP2p.MsgReadWriter,
+) ([]dbscRlp.RawValue, error) {
+	chain := s.blockchain
 
-func handleDbscGetNodeData(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error {
-	return nil
-}
+	var (
+		bytes    int
+		receipts []dbscRlp.RawValue
+	)
 
-func handleDbscNodeData(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error {
-	return nil
-}
+	for lookups, hash := range query {
+		if bytes >= softResponseLimit || len(receipts) >= maxReceiptsServe ||
+			lookups >= 2*maxReceiptsServe {
+			break
+		}
 
-func handleDbscGetReceipts(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error {
-	return nil
-}
+		hash := dbscHashToHash(hash)
 
-func handleDbscReceipts(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error {
-	return nil
-}
+		// Retrieve the requested block's receipts
+		results, err := chain.GetReceiptsByHash(hash)
+		if err != nil {
+			s.logger.Error("Failed to retrieve receipts", "err", err)
 
-func handleDbscGetPooledTransactions(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error {
-	return nil
-}
+			continue
+		}
 
-func handleDbscPooledTransactions(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error {
-	return nil
+		if results == nil {
+			header, nofind := chain.GetHeaderByHash(hash)
+
+			if nofind || header == nil || header.ReceiptsRoot != types.EmptyRootHash {
+				continue
+			}
+		}
+
+		// If known, encode and queue for response packet
+		if encoded, err := dbscRlp.EncodeToBytes(receiptsToDbscReceipts(results)); err != nil {
+			s.logger.Error("Failed to encode receipt", "err", err)
+		} else {
+			receipts = append(receipts, encoded)
+			bytes += len(encoded)
+		}
+	}
+
+	return receipts, nil
 }
 
 func handleDbscStatus(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error {
