@@ -224,11 +224,9 @@ func blockToDbscBlockRlp(block *types.Block) (dbscRlp.RawValue, error) {
 	}
 
 	extBlk := struct {
-		Header *dbscTypes.Header
 		Txs    []*dbscTypes.Transaction
 		Uncles []*dbscTypes.Header
 	}{
-		Header: headerToDbscHeader(block.Header),
 		Txs:    txsToDbscTxs(block.Transactions),
 		Uncles: dbscUncles,
 	}
@@ -276,6 +274,7 @@ func logsToDbscLogs(logs []*types.Log) []*dbscTypes.Log {
 
 func receiptToDbscReceipt(receipt *types.Receipt) *dbscTypes.Receipt {
 	return &dbscTypes.Receipt{
+		Type:              dbscTypes.LegacyTxType,
 		PostState:         receipt.Root[:],
 		Status:            (uint64)(*receipt.Status),
 		CumulativeGasUsed: receipt.CumulativeGasUsed,
