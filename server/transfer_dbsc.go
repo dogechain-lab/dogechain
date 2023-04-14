@@ -317,6 +317,21 @@ func replyBlockHeadersRLP(rw dbscP2p.MsgReadWriter, id uint64, headers []dbscRlp
 	})
 }
 
+func replyBlockBodiesRLP(rw dbscP2p.MsgReadWriter, id uint64, bodies []dbscRlp.RawValue) error {
+	// Not packed into BlockBodiesPacket to avoid RLP decoding
+	return dbscP2p.Send(rw, dbscEthProto.BlockBodiesMsg, &dbscEthProto.BlockBodiesRLPPacket66{
+		RequestId:            id,
+		BlockBodiesRLPPacket: bodies,
+	})
+}
+
+func replyReceiptsRLP(rw dbscP2p.MsgReadWriter, id uint64, receipts []dbscRlp.RawValue) error {
+	return dbscP2p.Send(rw, dbscEthProto.ReceiptsMsg, &dbscEthProto.ReceiptsRLPPacket66{
+		RequestId:         id,
+		ReceiptsRLPPacket: receipts,
+	})
+}
+
 func serviceGetBlockHeadersQuery(
 	s *Server,
 	query *dbscEthProto.GetBlockHeadersPacket,
@@ -586,7 +601,7 @@ func handleDbscGetBlockBodies(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbs
 		return err
 	}
 
-	return replyBlockHeadersRLP(rw, query.RequestId, response)
+	return replyBlockBodiesRLP(rw, query.RequestId, response)
 }
 
 func serviceGetBlockBodiesQuery(
@@ -637,7 +652,7 @@ func handleDbscGetReceipts(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2
 		return err
 	}
 
-	return replyBlockHeadersRLP(rw, query.RequestId, response)
+	return replyReceiptsRLP(rw, query.RequestId, response)
 }
 
 func serviceGetReceiptsQuery(
