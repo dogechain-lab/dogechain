@@ -407,21 +407,15 @@ func (b *Blockchain) GetHeadersFrom(number, count uint64) []*types.Header {
 	}
 
 	var headers []*types.Header
-	// If we have some of the headers in cache already, use that before going to db.
-
-	hash, ok := b.db.ReadCanonicalHash(number)
-	if hash == types.ZeroHash || !ok {
-		return nil
-	}
 
 	for count > 0 {
-		header, ok := b.GetHeaderByHash(hash)
+		header, ok := b.GetHeaderByNumber(number)
 		if !ok {
 			break
 		}
 
 		headers = append(headers, header)
-		hash = header.ParentHash
+
 		count--
 		number--
 	}

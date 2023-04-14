@@ -217,8 +217,6 @@ func txsToDbscTxs(txs []*types.Transaction) []*dbscTypes.Transaction {
 }
 
 func blockToDbscBlockRlp(block *types.Block) (dbscRlp.RawValue, error) {
-	header := headerToDbscHeader(block.Header)
-
 	dbscUncles := make([]*dbscTypes.Header, 0, len(block.Uncles))
 
 	for _, uncle := range block.Uncles {
@@ -230,7 +228,7 @@ func blockToDbscBlockRlp(block *types.Block) (dbscRlp.RawValue, error) {
 		Txs    []*dbscTypes.Transaction
 		Uncles []*dbscTypes.Header
 	}{
-		Header: header,
+		Header: headerToDbscHeader(block.Header),
 		Txs:    txsToDbscTxs(block.Transactions),
 		Uncles: dbscUncles,
 	}
@@ -567,6 +565,7 @@ func serviceContiguousBlockHeaderQuery(
 			if header == nil || !ok {
 				break
 			}
+
 			rlpData, _ := dbscRlp.EncodeToBytes(headerToDbscHeader(header))
 			headers = append(headers, rlpData)
 		}
