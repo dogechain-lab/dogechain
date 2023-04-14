@@ -513,7 +513,7 @@ func serviceContiguousBlockHeaderQuery(
 		var rlpHeaders []dbscRlp.RawValue
 
 		for _, header := range headers {
-			rlpData, _ := dbscRlp.EncodeToBytes(header)
+			rlpData, _ := dbscRlp.EncodeToBytes(headerToDbscHeader(header))
 			rlpHeaders = append(rlpHeaders, rlpData)
 		}
 
@@ -529,7 +529,7 @@ func serviceContiguousBlockHeaderQuery(
 	header, ok := chain.GetHeaderByHash(hash)
 
 	if header != nil && ok {
-		rlpData, _ := dbscRlp.EncodeToBytes(header)
+		rlpData, _ := dbscRlp.EncodeToBytes(headerToDbscHeader(header))
 		headers = append(headers, rlpData)
 	} else {
 		// We don't even have the origin header
@@ -554,7 +554,7 @@ func serviceContiguousBlockHeaderQuery(
 		}
 
 		for _, header := range descendants {
-			rlpData, _ := dbscRlp.EncodeToBytes(header)
+			rlpData, _ := dbscRlp.EncodeToBytes(headerToDbscHeader(header))
 			headers = append(headers, rlpData)
 		}
 
@@ -567,7 +567,7 @@ func serviceContiguousBlockHeaderQuery(
 			if header == nil || !ok {
 				break
 			}
-			rlpData, _ := dbscRlp.EncodeToBytes(header)
+			rlpData, _ := dbscRlp.EncodeToBytes(headerToDbscHeader(header))
 			headers = append(headers, rlpData)
 		}
 
