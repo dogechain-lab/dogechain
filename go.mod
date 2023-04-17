@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/btcsuite/btcd v0.22.3
 	//github.com/umbracle/fastrlp v0.0.0-20220529195328-c1416904ae17
-	github.com/dogechain-lab/fastrlp v0.0.0-20220523073019-b0c60fc6bb7a
+	github.com/dogechain-lab/fastrlp v0.1.0
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/websocket v1.5.0
