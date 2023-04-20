@@ -206,6 +206,36 @@ func txToDbscTx(tx *types.Transaction) *dbscTypes.Transaction {
 	})
 }
 
+func dbscTxToTx(signer dbscTypes.Signer, tx *dbscTypes.Transaction) (*types.Transaction, error) {
+	var toAddress *types.Address = nil
+
+	if tx.To() != nil {
+		add := types.Address(*tx.To())
+		toAddress = &add
+	}
+
+	v, r, s := tx.RawSignatureValues()
+	send, err := dbscTypes.Sender(signer, tx)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.Transaction{
+		Nonce:        tx.Nonce(),
+		GasPrice:     tx.GasPrice(),
+		Gas:          tx.Gas(),
+		To:           toAddress,
+		Value:        tx.Value(),
+		Input:        tx.Data(),
+		V:            v,
+		R:            r,
+		S:            s,
+		From:         types.Address(send),
+		ReceivedTime: tx.Time(),
+	}, nil
+}
+
 func txsToDbscTxs(txs []*types.Transaction) []*dbscTypes.Transaction {
 	result := make([]*dbscTypes.Transaction, 0, len(txs))
 
@@ -307,6 +337,8 @@ var eth66Handler = map[uint64]msgHandler{
 	dbscEthProto.GetBlockBodiesMsg:  handleDbscGetBlockBodies,
 	dbscEthProto.GetReceiptsMsg:     handleDbscGetReceipts,
 	dbscEthProto.StatusMsg:          handleDbscStatus,
+	// receive dbsc network transaction message
+	dbscEthProto.TransactionsMsg: handleDbscTransactions,
 }
 
 func replyBlockHeadersRLP(rw dbscP2p.MsgReadWriter, id uint64, headers []dbscRlp.RawValue) error {
@@ -722,6 +754,38 @@ func handleDbscStatus(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2p.Msg
 		Genesis:         genesisHash,
 		ForkID:          forkID,
 	})
+
+	return nil
+}
+
+func handleDbscTransactions(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error {
+	var txs dbscEthProto.TransactionsPacket
+
+	currentHeader := s.blockchain.Header()
+	number := currentHeader.Number
+
+	if err := msg.Decode(&txs); err != nil {
+		return fmt.Errorf("%w: message %v: %v", errDecode, msg, err)
+	}
+
+	for i, tx := range txs {
+		// Validate and mark the remote transaction
+		if tx == nil {
+			return fmt.Errorf("%w: transaction %d is nil", errDecode, i)
+		}
+
+		signer := dbscTypes.MakeSigner(
+			s.config.DbscChainConfig,
+			new(big.Int).SetUint64(number),
+		)
+
+		tx, err := dbscTxToTx(signer, tx)
+		if err != nil {
+			s.logger.Error("Failed to convert transaction", "err", err)
+		}
+
+		s.txpool.AddTx(tx)
+	}
 
 	return nil
 }
