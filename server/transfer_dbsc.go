@@ -762,7 +762,7 @@ func handleDbscTransactions(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP
 	var txs dbscEthProto.TransactionsPacket
 
 	currentHeader := s.blockchain.Header()
-	number := currentHeader.Number
+	number := new(big.Int).SetUint64(currentHeader.Number)
 
 	if err := msg.Decode(&txs); err != nil {
 		return fmt.Errorf("%w: message %v: %v", errDecode, msg, err)
@@ -774,9 +774,14 @@ func handleDbscTransactions(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP
 			return fmt.Errorf("%w: transaction %d is nil", errDecode, i)
 		}
 
+		// Skip non-legacy transactions
+		if tx.Type() != dbscTypes.LegacyTxType {
+			continue
+		}
+
 		signer := dbscTypes.MakeSigner(
 			s.config.DbscChainConfig,
-			new(big.Int).SetUint64(number),
+			number,
 		)
 
 		tx, err := dbscTxToTx(signer, tx)
