@@ -25,7 +25,7 @@ require (
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/umbracle/go-eth-bn256 v0.0.0-20190607160430-b36caf4e0f6b
 	github.com/umbracle/go-web3 v0.0.0-20220224145938-aaa1038c1b69
-	golang.org/x/crypto v0.7.0
+	golang.org/x/crypto v0.9.0
 	google.golang.org/grpc v1.45.0
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce
@@ -163,9 +163,9 @@ require (
 	go.uber.org/multierr v1.8.0 // indirect
 	go.uber.org/zap v1.22.0 // indirect
 	golang.org/x/mod v0.8.0 // indirect
-	golang.org/x/sys v0.6.0 // indirect
-	golang.org/x/term v0.6.0 // indirect
-	golang.org/x/text v0.8.0 // indirect
+	golang.org/x/sys v0.8.0 // indirect
+	golang.org/x/term v0.8.0 // indirect
+	golang.org/x/text v0.9.0 // indirect
 	golang.org/x/tools v0.6.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.6.0 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
@@ -177,6 +177,6 @@ require (
 	github.com/VictoriaMetrics/fastcache v1.6.0
 	github.com/libp2p/go-cidranger v1.1.0
 	github.com/valyala/fasthttp v1.44.0 // indirect
-	golang.org/x/net v0.8.0 // indirect
+	golang.org/x/net v0.10.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 )
