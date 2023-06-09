@@ -196,7 +196,7 @@ func (client *syncPeerClient) startGossip() error {
 }
 
 // handleStatusUpdate is a handler of gossip
-func (client *syncPeerClient) handleStatusUpdate(obj interface{}, from peer.ID) {
+func (client *syncPeerClient) handleStatusUpdate(obj interface{}, from string) {
 	status, ok := obj.(*proto.SyncPeerStatus)
 	if !ok {
 		client.logger.Error("failed to cast gossiped message to txn")
@@ -204,7 +204,7 @@ func (client *syncPeerClient) handleStatusUpdate(obj interface{}, from peer.ID) 
 		return
 	}
 
-	if !client.network.HasPeer(from) {
+	if !client.network.HasPeer(peer.ID(from)) {
 		return
 	}
 
@@ -219,7 +219,7 @@ func (client *syncPeerClient) handleStatusUpdate(obj interface{}, from peer.ID) 
 	client.logger.Debug("send peerStatusUpdateCh")
 
 	peer := &NoForkPeer{
-		ID:     from,
+		ID:     peer.ID(from),
 		Number: status.Number,
 	}
 

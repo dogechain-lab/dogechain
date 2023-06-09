@@ -12,7 +12,6 @@ import (
 	"go.uber.org/atomic"
 
 	testproto "github.com/dogechain-lab/dogechain/network/proto"
-	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -93,7 +92,7 @@ func TestSimpleGossip(t *testing.T) {
 
 		serverTopics[i] = topic
 
-		if subscribeErr := topic.Subscribe(func(obj interface{}, _ peer.ID) {
+		if subscribeErr := topic.Subscribe(func(obj interface{}, _ string) {
 			// Everyone should relay they got the message
 			genericMessage, ok := obj.(*testproto.GenericMessage)
 			if !ok {
@@ -176,7 +175,7 @@ func TestTopicBackpressure(t *testing.T) {
 
 		serverTopics[i] = topic
 
-		if subscribeErr := topic.Subscribe(func(obj interface{}, _ peer.ID) {
+		if subscribeErr := topic.Subscribe(func(obj interface{}, _ string) {
 			subscribeGoroutineCount.Add(1)
 
 			// wait for the channel to close
@@ -241,7 +240,7 @@ func TestTopicClose(t *testing.T) {
 
 		serverTopics[i] = topic
 
-		if subscribeErr := topic.Subscribe(func(obj interface{}, _ peer.ID) {
+		if subscribeErr := topic.Subscribe(func(obj interface{}, _ string) {
 			count.Add(1)
 
 			// wait for the channel to close

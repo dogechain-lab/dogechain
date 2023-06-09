@@ -22,7 +22,7 @@ func (t *NonetworkTopic) Publish(obj proto.Message) error {
 	return nil
 }
 
-func (t *NonetworkTopic) Subscribe(handler func(obj interface{}, from peer.ID)) error {
+func (t *NonetworkTopic) Subscribe(handler func(obj interface{}, _ string)) error {
 	return nil
 }
 

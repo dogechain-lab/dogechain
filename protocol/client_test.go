@@ -13,7 +13,6 @@ import (
 	"github.com/dogechain-lab/dogechain/protocol/proto"
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/hashicorp/go-hclog"
-	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/atomic"
 )
@@ -325,7 +324,7 @@ func TestPeerConnectionUpdateEventCh(t *testing.T) {
 	// 2 messages should be gossipped
 	wgForGossip.Add(2)
 
-	handler := func(_ interface{}, _ peer.ID) {
+	handler := func(_ interface{}, _ string) {
 		wgForGossip.Done()
 	}
 
@@ -471,7 +470,7 @@ func Test_shouldEmitBlocks(t *testing.T) {
 		receiveContext, cancelContext := context.WithCancel(context.Background())
 		defer cancelContext()
 
-		assert.NoError(t, topic.Subscribe(func(_ interface{}, id peer.ID) {
+		assert.NoError(t, topic.Subscribe(func(_ interface{}, _ string) {
 			cancelContext()
 		}))
 

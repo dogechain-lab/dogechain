@@ -10,8 +10,9 @@ import (
 	"github.com/dogechain-lab/dogechain/helper/common"
 
 	"github.com/hashicorp/go-hclog"
+
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	"github.com/libp2p/go-libp2p/core/peer"
+
 	"google.golang.org/protobuf/proto"
 )
 
@@ -31,7 +32,7 @@ type Topic interface {
 	// Publish publishes a message to the topic
 	Publish(obj proto.Message) error
 	// Subscribe subscribes to the topic
-	Subscribe(handler func(obj interface{}, from peer.ID)) error
+	Subscribe(handler func(obj interface{}, from string)) error
 	// Close closes the topic
 	Close() error
 }
@@ -64,7 +65,7 @@ func (t *topicImp) Publish(obj proto.Message) error {
 	return t.subTopic.Publish(context.Background(), data)
 }
 
-func (t *topicImp) Subscribe(handler func(obj interface{}, from peer.ID)) error {
+func (t *topicImp) Subscribe(handler func(obj interface{}, from string)) error {
 	sub, err := t.subTopic.Subscribe(pubsub.WithBufferSize(subscribeOutputBufferSize))
 	if err != nil {
 		return err
@@ -82,10 +83,10 @@ func (t *topicImp) Close() error {
 	return t.subTopic.Close()
 }
 
-func (t *topicImp) readLoop(sub *pubsub.Subscription, handler func(obj interface{}, from peer.ID)) {
+func (t *topicImp) readLoop(sub *pubsub.Subscription, handler func(obj interface{}, from string)) {
 	type task struct {
 		Message proto.Message
-		From    peer.ID
+		From    string
 	}
 
 	// wait group for better close?
@@ -156,7 +157,7 @@ func (t *topicImp) readLoop(sub *pubsub.Subscription, handler func(obj interface
 
 			workqueue <- &task{
 				Message: obj,
-				From:    msg.GetFrom(),
+				From:    msg.GetFrom().String(),
 			}
 		}
 	}

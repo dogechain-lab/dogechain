@@ -16,7 +16,6 @@ import (
 	"github.com/dogechain-lab/dogechain/txpool/proto"
 	"github.com/dogechain-lab/dogechain/types"
 	"github.com/hashicorp/go-hclog"
-	"github.com/libp2p/go-libp2p/core/peer"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -916,7 +915,7 @@ func (p *TxPool) pruneEnqueuedTxs(pruned []*types.Transaction) {
 }
 
 // addGossipTx handles receiving transactions gossiped by the network.
-func (p *TxPool) addGossipTx(obj interface{}, from peer.ID) {
+func (p *TxPool) addGossipTx(obj interface{}, from string) {
 	if p.isClosed.Load() {
 		p.logger.Error("txpool is Closed")
 
