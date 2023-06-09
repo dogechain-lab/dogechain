@@ -303,6 +303,13 @@ func logsToDbscLogs(logs []*types.Log) []*dbscTypes.Log {
 }
 
 func receiptToDbscReceipt(receipt *types.Receipt) *dbscTypes.Receipt {
+	var contractAddress dbscCommon.Address
+	if receipt.ContractAddress == nil {
+		contractAddress = dbscCommon.Address{}
+	} else {
+		contractAddress = addressToDbscAddress(*receipt.ContractAddress)
+	}
+
 	return &dbscTypes.Receipt{
 		Type:              dbscTypes.LegacyTxType,
 		PostState:         receipt.Root[:],
@@ -311,7 +318,7 @@ func receiptToDbscReceipt(receipt *types.Receipt) *dbscTypes.Receipt {
 		Bloom:             dbscTypes.BytesToBloom(receipt.LogsBloom[:]),
 		Logs:              logsToDbscLogs(receipt.Logs),
 		TxHash:            hashToDbscHash(receipt.TxHash),
-		ContractAddress:   addressToDbscAddress(*receipt.ContractAddress),
+		ContractAddress:   contractAddress,
 		GasUsed:           receipt.GasUsed,
 	}
 }
