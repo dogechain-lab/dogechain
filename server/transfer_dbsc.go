@@ -310,10 +310,24 @@ func receiptToDbscReceipt(receipt *types.Receipt) *dbscTypes.Receipt {
 		contractAddress = addressToDbscAddress(*receipt.ContractAddress)
 	}
 
+	postState := []byte{}
+	status := dbscTypes.ReceiptStatusFailed
+
+	if receipt.Status != nil {
+		switch *receipt.Status {
+		case types.ReceiptSuccess:
+			status = dbscTypes.ReceiptStatusSuccessful
+		case types.ReceiptFailed:
+			status = dbscTypes.ReceiptStatusFailed
+		}
+	} else {
+		postState = receipt.Root.Bytes()
+	}
+
 	return &dbscTypes.Receipt{
 		Type:              dbscTypes.LegacyTxType,
-		PostState:         receipt.Root[:],
-		Status:            (uint64)(*receipt.Status),
+		PostState:         postState,
+		Status:            status,
 		CumulativeGasUsed: receipt.CumulativeGasUsed,
 		Bloom:             dbscTypes.BytesToBloom(receipt.LogsBloom[:]),
 		Logs:              logsToDbscLogs(receipt.Logs),
