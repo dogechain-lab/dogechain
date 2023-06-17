@@ -3,7 +3,7 @@ package server
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"os"
 	"strconv"
@@ -493,7 +493,7 @@ func runCommand(cmd *cobra.Command, _ []string) {
 		if len(daemonIdx) == 0 {
 			params.validatorKey = askForConfirmation()
 		} else {
-			data, err := ioutil.ReadAll(os.Stdin)
+			data, err := io.ReadAll(os.Stdin)
 			if err != nil {
 				log.Println("Child process ", os.Getpid(), " read pipe data err: ", err)
 			} else {

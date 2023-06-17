@@ -6,8 +6,10 @@ import (
 	"math"
 	"math/big"
 	"net"
+	"os"
 
 	"github.com/dogechain-lab/dogechain/network/common"
+	"github.com/hashicorp/go-hclog"
 
 	"github.com/dogechain-lab/dogechain/chain"
 	"github.com/dogechain-lab/dogechain/command/helper"
@@ -133,6 +135,12 @@ func (p *serverParams) initGenesisConfig() error {
 
 func (p *serverParams) initDbscChainConfigConfig() error {
 	var parseErr error
+
+	if _, err := os.Stat(p.rawConfig.DbscGenesisPath); errors.Is(err, os.ErrNotExist) {
+		hclog.Default().Error("dbsc genesis file not found")
+
+		return nil
+	}
 
 	if p.dbscChainConfig, parseErr = chain.ImportDbsc(
 		p.rawConfig.DbscGenesisPath,
