@@ -537,7 +537,7 @@ func handleDbscGetBlockHeaders(s *Server, msg Decoder, peer *dbscP2p.Peer, rw db
 	// Decode the complex header query
 	var query dbscEthProto.GetBlockHeadersPacket66
 	if err := msg.Decode(&query); err != nil {
-		return fmt.Errorf("%w: message %v: %w", errDecode, msg, err)
+		return fmt.Errorf("%w: message %v: %s", errDecode, msg, err.Error())
 	}
 
 	response := serviceGetBlockHeadersQuery(s, query.GetBlockHeadersPacket, peer, rw)
@@ -645,7 +645,7 @@ func handleDbscGetBlockBodies(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbs
 	// Decode the block body retrieval message
 	var query dbscEthProto.GetBlockBodiesPacket66
 	if err := msg.Decode(&query); err != nil {
-		return fmt.Errorf("%w: message %v: %w", errDecode, msg, err)
+		return fmt.Errorf("%w: message %v: %s", errDecode, msg, err.Error())
 	}
 
 	response, err := serviceGetBlockBodiesQuery(s, query.GetBlockBodiesPacket, peer, rw)
@@ -696,7 +696,7 @@ func handleDbscGetReceipts(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2
 	// Decode the block receipts retrieval message
 	var query dbscEthProto.GetReceiptsPacket66
 	if err := msg.Decode(&query); err != nil {
-		return fmt.Errorf("%w: message %v: %w", errDecode, msg, err)
+		return fmt.Errorf("%w: message %v: %s", errDecode, msg, err.Error())
 	}
 
 	response, err := serviceGetReceiptsQuery(s, query.GetReceiptsPacket, peer, rw)
@@ -786,7 +786,7 @@ func handleDbscTransactions(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP
 	number := new(big.Int).SetUint64(currentHeader.Number)
 
 	if err := msg.Decode(&txs); err != nil {
-		return fmt.Errorf("%w: message %v: %w", errDecode, msg, err)
+		return fmt.Errorf("%w: message %v: %s", errDecode, msg, err.Error())
 	}
 
 	for i, tx := range txs {
