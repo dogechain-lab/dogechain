@@ -11,7 +11,6 @@ import (
 	"github.com/dogechain-lab/dogechain/state"
 	"github.com/dogechain-lab/dogechain/state/runtime"
 	"github.com/dogechain-lab/dogechain/types"
-	"github.com/dogechain-lab/fastrlp"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -557,10 +556,7 @@ func TestEth_State_GetStorageAt(t *testing.T) {
 				}
 				account := store.account
 				for index, data := range storage {
-					a := &fastrlp.Arena{}
-					value := a.NewBytes(data.Bytes())
-					newData := value.MarshalTo(nil)
-					account.Storage(index, newData)
+					account.Storage(index, data.Bytes())
 				}
 			}
 
