@@ -519,7 +519,7 @@ func (e *Eth) Call(arg *txnArgs, filter BlockNumberOrHash) (interface{}, error) 
 
 	// Check if an EVM revert happened
 	if result.Reverted() {
-		return nil, constructErrorFromRevert(result)
+		return []byte(hex.EncodeToString(result.ReturnValue)), constructErrorFromRevert(result)
 	}
 
 	if result.Failed() {
