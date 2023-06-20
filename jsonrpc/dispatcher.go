@@ -405,7 +405,11 @@ func (d *Dispatcher) handleReq(req Request) ([]byte, Error) {
 }
 
 func (d *Dispatcher) logInternalError(method string, err error) {
-	d.logger.Error("failed to dispatch", "method", method, "err", err)
+	// replacement non utf-8 characters
+	errStr := strings.ToValidUTF8(err.Error(), "\uFFFD")
+	errStr = strings.ReplaceAll(errStr, "\x00", "")
+
+	d.logger.Error("failed to dispatch", "method", method, "err", errStr)
 }
 
 func (d *Dispatcher) registerService(serviceName string, service interface{}) {
