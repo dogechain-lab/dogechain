@@ -194,7 +194,7 @@ func (s *Snapshot) Commit(objs []*state.Object) (state.Snapshot, []byte, error) 
 		var err error
 
 		// observe root hash time
-		observe := metrics.transactionAccountHashSecondsObserve()
+		observe := metrics.transactionRootHashSecondsObserve()
 
 		root, err = tt.Hash(st)
 		if err != nil {
