@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"math/rand"
 	"time"
 
+	"github.com/VictoriaMetrics/fastcache"
 	"github.com/dogechain-lab/dogechain/blockchain"
 	"github.com/dogechain-lab/dogechain/types"
 
@@ -43,10 +45,17 @@ const (
 )
 
 var (
-	errMsgTooLarge    = errors.New("message too long")
-	errInvalidMsgCode = errors.New("invalid message code")
-	errDecode         = errors.New("invalid message")
+	errMsgTooLarge = errors.New("message too long")
+	errDecode      = errors.New("invalid message")
 )
+
+var txHashCache *fastcache.Cache
+
+func init() {
+	rand.Seed(time.Now().Unix())
+
+	txHashCache = fastcache.New(64 * 1024 * 1024) // cache size 64Mib
+}
 
 func createDbscServer(config *network.Config) (*dbscP2p.Server, error) {
 	maxPeers := config.MaxInboundPeers + config.MaxOutboundPeers
@@ -359,7 +368,9 @@ var eth66Handler = map[uint64]msgHandler{
 	dbscEthProto.GetReceiptsMsg:     handleDbscGetReceipts,
 	dbscEthProto.StatusMsg:          handleDbscStatus,
 	// receive dbsc network transaction message
-	dbscEthProto.TransactionsMsg: handleDbscTransactions,
+	dbscEthProto.TransactionsMsg:               handleDbscTransactions,
+	dbscEthProto.PooledTransactionsMsg:         handleDbscPooledTransactions,
+	dbscEthProto.NewPooledTransactionHashesMsg: handleDbscNewPooledTransactionHashes,
 }
 
 func replyBlockHeadersRLP(rw dbscP2p.MsgReadWriter, id uint64, headers []dbscRlp.RawValue) error {
@@ -816,6 +827,92 @@ func handleDbscTransactions(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP
 	return nil
 }
 
+func handleDbscPooledTransactions(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error {
+	if s.txpool == nil {
+		return nil
+	}
+
+	var txs dbscEthProto.PooledTransactionsPacket66
+	if err := msg.Decode(&txs); err != nil {
+		return fmt.Errorf("%w: message %v: %w", errDecode, msg, err)
+	}
+
+	if len(txs.PooledTransactionsPacket) <= 0 {
+		return nil
+	}
+
+	currentHeader := s.blockchain.Header()
+	number := new(big.Int).SetUint64(currentHeader.Number)
+
+	for i, tx := range txs.PooledTransactionsPacket {
+		// Validate and mark the remote transaction
+		if tx == nil {
+			return fmt.Errorf("%w: transaction %d is nil", errDecode, i)
+		}
+
+		// Skip non-legacy transactions
+		if tx.Type() != dbscTypes.LegacyTxType {
+			continue
+		}
+
+		signer := dbscTypes.MakeSigner(
+			s.config.DbscChainConfig,
+			number,
+		)
+
+		tx, err := dbscTxToTx(signer, tx)
+		if err != nil {
+			s.logger.Error("Failed to convert transaction", "err", err)
+		}
+
+		s.txpool.AddTx(tx)
+	}
+
+	return nil
+}
+
+func handleDbscNewPooledTransactionHashes(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error {
+	if s.txpool == nil {
+		return nil
+	}
+
+	ann := new(dbscEthProto.NewPooledTransactionHashesPacket)
+	if err := msg.Decode(ann); err != nil {
+		return fmt.Errorf("%w: message %v: %w", errDecode, msg, err)
+	}
+
+	if ann == nil || len(*ann) <= 0 {
+		return nil
+	}
+
+	pendingTxHashes := make([]types.Hash, 0, len(*ann))
+	// check tx hash cache to avoid duplicate tx
+	for _, hash := range *ann {
+		hash := dbscHashToHash(hash)
+
+		if txHashCache.Has(hash.Bytes()) {
+			continue
+		}
+
+		pendingTxHashes = append(pendingTxHashes, hash)
+		txHashCache.Set(hash.Bytes(), []byte{0x01})
+	}
+
+	if len(pendingTxHashes) <= 0 {
+		return nil
+	}
+
+	// fetch txs from txpool
+	dbscP2p.Send(rw, dbscEthProto.GetPooledTransactionsMsg, &dbscEthProto.GetPooledTransactionsPacket{})
+	//nolint:gosec
+	id := rand.Uint64()
+
+	return dbscP2p.Send(rw, dbscEthProto.GetPooledTransactionsMsg, &dbscEthProto.GetPooledTransactionsPacket66{
+		RequestId:                   id,
+		GetPooledTransactionsPacket: hashsToDbscHashs(pendingTxHashes),
+	})
+}
+
 func (s *Server) handleDbscMessage(peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error {
 	msg, err := rw.ReadMsg()
 	if err != nil {
@@ -827,9 +924,11 @@ func (s *Server) handleDbscMessage(peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter)
 	}
 	defer msg.Discard()
 
-	if handler := eth66Handler[msg.Code]; handler != nil {
+	if handler, ok := eth66Handler[msg.Code]; ok && handler != nil {
 		return handler(s, msg, peer, rw)
 	}
 
-	return fmt.Errorf("%w: %v", errInvalidMsgCode, msg.Code)
+	s.logger.Error("no implementation for message", "code", msg.Code)
+
+	return nil
 }
