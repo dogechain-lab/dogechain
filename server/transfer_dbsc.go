@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -107,7 +108,10 @@ func makeBscProtocols(s *Server) []dbscP2p.Protocol {
 			Version: version,
 			Length:  protocolLengths[version],
 			Run: func(p *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error {
-				go s.broadcastBlocksToDbscPeer(p, rw)
+				ctx, cancel := context.WithCancel(s.ctx)
+				defer cancel()
+
+				go s.broadcastBlocksToDbscPeer(ctx, p, rw)
 
 				for {
 					if err := s.handleDbscMessage(p, rw); err != nil {
@@ -132,13 +136,19 @@ func makeBscProtocols(s *Server) []dbscP2p.Protocol {
 	return protocols
 }
 
-func (s *Server) broadcastBlocksToDbscPeer(p *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) {
+func (s *Server) broadcastBlocksToDbscPeer(ctx context.Context, p *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) {
 	newBlockSub := s.blockchain.SubscribeEvents()
 	defer newBlockSub.Unsubscribe()
 
 	for {
 		if newBlockSub.IsClosed() {
 			return
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+		default:
 		}
 
 		e, ok := <-newBlockSub.GetEvent()
@@ -166,8 +176,6 @@ func (s *Server) broadcastBlocksToDbscPeer(p *dbscP2p.Peer, rw dbscP2p.MsgReadWr
 		err := dbscP2p.Send(rw, dbscEthProto.NewBlockHashesMsg, request)
 		if err != nil {
 			s.logger.Error("Failed to send NewBlockHashes to dbsc peer", "peer", p, "err", err)
-
-			return
 		}
 	}
 }
@@ -363,6 +371,8 @@ type Decoder interface {
 }
 
 var eth66Handler = map[uint64]msgHandler{
+	dbscEthProto.NewBlockHashesMsg:  handleNewBlockhashes,
+	dbscEthProto.NewBlockMsg:        handleNewBlock,
 	dbscEthProto.GetBlockHeadersMsg: handleDbscGetBlockHeaders,
 	dbscEthProto.GetBlockBodiesMsg:  handleDbscGetBlockBodies,
 	dbscEthProto.GetReceiptsMsg:     handleDbscGetReceipts,
@@ -542,6 +552,26 @@ func serviceNonContiguousBlockHeaderQuery(
 	}
 
 	return headers
+}
+
+func handleNewBlockhashes(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error {
+	// A batch of new block announcements just arrived
+	ann := new(dbscEthProto.NewBlockHashesPacket)
+	if err := msg.Decode(ann); err != nil {
+		return fmt.Errorf("%w: message %v: %w", errDecode, msg, err)
+	}
+
+	return nil
+}
+
+func handleNewBlock(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error {
+	// Retrieve and decode the propagated block
+	ann := new(dbscEthProto.NewBlockPacket)
+	if err := msg.Decode(ann); err != nil {
+		return fmt.Errorf("%w: message %v: %w", errDecode, msg, err)
+	}
+
+	return nil
 }
 
 func handleDbscGetBlockHeaders(s *Server, msg Decoder, peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error {
