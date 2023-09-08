@@ -146,7 +146,11 @@ func makeBscProtocols(s *Server) []dbscP2p.Protocol {
 				}()
 
 				for {
-					sig <- struct{}{}
+					// non-block
+					select {
+					case sig <- struct{}{}:
+					default:
+					}
 
 					// Read the next message, timeout drop the peer
 					if err := s.handleDbscMessage(ctx, p, rw); err != nil {
