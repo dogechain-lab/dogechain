@@ -43,6 +43,9 @@ const (
 
 	// maxMessageSize is the maximum cap on the size of a protocol message.
 	maxMessageSize = 10 * 1024 * 1024
+
+	// dbscEthHandlerTimeout is the timeout for the eth handler.
+	dbscEthHandlerTimeout = time.Minute
 )
 
 var (
@@ -113,19 +116,45 @@ func makeBscProtocols(s *Server) []dbscP2p.Protocol {
 
 				go s.broadcastBlocksToDbscPeer(ctx, p, rw)
 
-				for {
-					if err := s.handleDbscMessage(p, rw); err != nil {
-						if errors.Is(err, io.EOF) {
-							break
-						}
+				//watchdoge
+				sig := make(chan struct{}, 1)
 
+				go func() {
+					defer close(sig)
+					timer := time.NewTimer(dbscEthHandlerTimeout)
+
+					for {
+						select {
+						case <-sig:
+							timer.Stop()
+
+							select {
+							case <-timer.C:
+							default:
+							}
+
+							timer.Reset(dbscEthHandlerTimeout)
+
+							continue
+						case <-timer.C:
+							s.logger.Error("Eth protocol handler timeout", "peer", p)
+							p.Disconnect(dbscP2p.DiscReadTimeout)
+
+							return
+						}
+					}
+				}()
+
+				for {
+					sig <- struct{}{}
+
+					// Read the next message, timeout drop the peer
+					if err := s.handleDbscMessage(ctx, p, rw); err != nil {
 						s.logger.Error("Message handling failed in `eth`", "err", err)
 
 						return err
 					}
 				}
-
-				return nil
 			},
 			NodeInfo:       nil,
 			PeerInfo:       nil,
@@ -943,7 +972,10 @@ func handleDbscNewPooledTransactionHashes(s *Server, msg Decoder, peer *dbscP2p.
 	})
 }
 
-func (s *Server) handleDbscMessage(peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error {
+func (s *Server) handleDbscMessage(ctx context.Context, peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter) error {
+	timeoutCtx, cancel := context.WithTimeout(ctx, dbscEthHandlerTimeout)
+	defer cancel()
+
 	msg, err := rw.ReadMsg()
 	if err != nil {
 		return err
@@ -960,5 +992,10 @@ func (s *Server) handleDbscMessage(peer *dbscP2p.Peer, rw dbscP2p.MsgReadWriter)
 
 	s.logger.Error("no implementation for message", "code", msg.Code)
 
-	return nil
+	select {
+	case <-timeoutCtx.Done():
+		return io.EOF
+	default:
+		return nil
+	}
 }
