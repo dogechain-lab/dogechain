@@ -26,7 +26,7 @@ require (
 	github.com/umbracle/go-eth-bn256 v0.0.0-20190607160430-b36caf4e0f6b
 	github.com/umbracle/go-web3 v0.0.0-20220224145938-aaa1038c1b69
 	golang.org/x/crypto v0.7.0
-	google.golang.org/grpc v1.45.0
+	google.golang.org/grpc v1.53.0
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce
 )
@@ -38,7 +38,7 @@ require (
 	github.com/umbracle/fastrlp v0.0.0-20220527094140-59d5dd30e722 // indirect
 	github.com/valyala/fastjson v1.6.3 // indirect
 	golang.org/x/sync v0.1.0
-	google.golang.org/genproto v0.0.0-20211208223120-3a66f561d7aa // indirect
+	google.golang.org/genproto v0.0.0-20230110181048-76db0878b65f // indirect
 )
 
 require (
@@ -70,7 +70,7 @@ require (
 	github.com/bnb-chain/ics23 v0.1.0 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
 	github.com/cenkalti/backoff/v3 v3.2.2 // indirect
-	github.com/cespare/xxhash/v2 v2.1.2 // indirect
+	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/cheekybits/genny v1.0.0 // indirect
 	github.com/containerd/cgroups v1.0.4 // indirect
 	github.com/coreos/go-systemd/v22 v22.3.2 // indirect
@@ -206,6 +206,6 @@ require (
 	golang.org/x/time v0.3.0 // indirect
 )
 
-replace github.com/ethereum/go-ethereum => github.com/dogechain-lab/dbsc v0.0.0-20230412102239-4f01e1f6ef02
+replace github.com/ethereum/go-ethereum => github.com/dogechain-lab/dbsc v0.0.0-20230906104603-79d237bfb028
 
 replace github.com/tendermint/tendermint => github.com/bnb-chain/tendermint v0.31.15
