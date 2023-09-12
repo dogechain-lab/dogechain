@@ -162,7 +162,7 @@ require (
 	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/opencontainers/runtime-spec v1.0.2 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
-	github.com/panjf2000/ants/v2 v2.4.5 // indirect
+	github.com/panjf2000/ants/v2 v2.8.0 // indirect
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
@@ -206,6 +206,6 @@ require (
 	golang.org/x/time v0.3.0 // indirect
 )
 
-replace github.com/ethereum/go-ethereum => github.com/dogechain-lab/dbsc v0.0.0-20230906104603-79d237bfb028
+replace github.com/ethereum/go-ethereum => github.com/dogechain-lab/dbsc v0.0.0-20230911095207-deb9f2d43b61
 
 replace github.com/tendermint/tendermint => github.com/bnb-chain/tendermint v0.31.15
