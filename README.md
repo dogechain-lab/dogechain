@@ -1,3 +1,9 @@
+## Important Notification
+
+This repository will be archived in the near future as the Dogechain Network Hawaii hard fork is completed and the client is replaced by the [new dbsc client](https://github.com/dogechain-lab/dbsc).
+
+Thanks to all contributors for questions, suggestions, and code. Hope you can enjoy new fun in the new version.
+
 [![codecov](https://codecov.io/gh/dogechain-lab/dogechain/branch/dev/graph/badge.svg?token=EKFM6S9478)](https://codecov.io/gh/dogechain-lab/dogechain)
 [![QA](https://github.com/dogechain-lab/dogechain/actions/workflows/actions.yml/badge.svg)](https://github.com/dogechain-lab/dogechain/actions/workflows/actions.yml)
 
