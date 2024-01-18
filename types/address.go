@@ -4,6 +4,8 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
+	"strings"
+	"sync"
 	"unicode"
 
 	"github.com/dogechain-lab/dogechain/helper/hex"
@@ -18,16 +20,42 @@ const (
 
 type Address [AddressLength]byte
 
+var runePool = sync.Pool{
+	New: func() interface{} {
+		return make([]rune, 0, AddressLength*2)
+	},
+}
+
 // checksumEncode returns the checksummed address with 0x prefix, as by EIP-55
 // https://github.com/ethereum/EIPs/blob/master/EIPS/eip-55.md
 func (a Address) checksumEncode() string {
 	addrBytes := a.Bytes() // 20 bytes
 
-	// Encode to hex without the 0x prefix
-	lowercaseHex := hex.EncodeToHex(addrBytes)[2:]
-	hashedAddress := hex.EncodeToHex(keccak.Keccak256(nil, []byte(lowercaseHex)))[2:]
+	// Encode to hex
+	lowercaseHex := hex.EncodeToString(addrBytes)
+	hashedAddress := hex.EncodeToString(keccak.Keccak256(nil, []byte(lowercaseHex)))
 
-	result := make([]rune, len(lowercaseHex))
+	var result []rune = nil
+
+	{
+		resultPtr, ok := runePool.Get().(*[]rune)
+		if !ok {
+			result := make([]rune, 0, AddressLength*2)
+			resultPtr = &result
+		}
+
+		result = *resultPtr
+	}
+
+	defer func() {
+		// cleanup the result slice
+		result = result[0:0]
+		runePool.Put(&result)
+	}()
+
+	// resize the result slice
+	result = result[:len(lowercaseHex)]
+
 	// Iterate over each character in the lowercase hex address
 	for idx, ch := range lowercaseHex {
 		if ch >= '0' && ch <= '9' || hashedAddress[idx] >= '0' && hashedAddress[idx] <= '7' {
@@ -40,7 +68,11 @@ func (a Address) checksumEncode() string {
 		}
 	}
 
-	return "0x" + string(result)
+	builder := new(strings.Builder)
+	builder.WriteString(hex.HexPrefix)
+	builder.WriteString(string(result))
+
+	return builder.String()
 }
 
 func (a Address) Ptr() *Address {

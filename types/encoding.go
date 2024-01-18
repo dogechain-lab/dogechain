@@ -17,8 +17,8 @@ func ParseUint64orHex(val *string) (uint64, error) {
 	str := *val
 	base := 10
 
-	if strings.HasPrefix(str, "0x") {
-		str = str[2:]
+	if strings.HasPrefix(str, hex.HexPrefix) {
+		str = strings.TrimPrefix(str, hex.HexPrefix)
 		base = 16
 	}
 
@@ -33,7 +33,7 @@ func ParseUint256orHex(val *string) (*big.Int, error) {
 	str := *val
 	base := 10
 
-	if strings.HasPrefix(str, "0x") {
+	if strings.HasPrefix(str, hex.HexPrefix) {
 		str = str[2:]
 		base = 16
 	}
@@ -53,30 +53,44 @@ func ParseInt64orHex(val *string) (int64, error) {
 	return int64(i), err
 }
 
+func EncodeUint64(b uint64) *string {
+	res := fmt.Sprintf(hex.HexPrefix+"%x", b)
+
+	return &res
+}
+
 func ParseBytes(val *string) ([]byte, error) {
 	if val == nil {
 		return []byte{}, nil
 	}
 
-	str := strings.TrimPrefix(*val, "0x")
+	str := strings.TrimPrefix(*val, hex.HexPrefix)
 
 	return hex.DecodeString(str)
 }
 
-func EncodeUint64(b uint64) *string {
-	res := fmt.Sprintf("0x%x", b)
-
-	return &res
-}
-
 func EncodeBytes(b []byte) *string {
-	res := "0x" + hex.EncodeToString(b)
+	if b == nil {
+		return nil
+	}
+
+	res := hex.EncodeToHex(b)
 
 	return &res
 }
 
 func EncodeBigInt(b *big.Int) *string {
-	res := "0x" + b.Text(16)
+	if b == nil {
+		return nil
+	}
+
+	builder := new(strings.Builder)
+	builder.Grow(b.BitLen()*2 + len(hex.HexPrefix))
+
+	builder.WriteString(hex.HexPrefix)
+	builder.WriteString(b.Text(16))
+
+	res := builder.String()
 
 	return &res
 }
