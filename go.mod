@@ -18,7 +18,7 @@ require (
 	github.com/libp2p/go-libp2p v0.22.0
 	github.com/libp2p/go-libp2p-kbucket v0.5.0
 	github.com/libp2p/go-libp2p-pubsub v0.8.3
-	github.com/multiformats/go-multiaddr v0.7.0
+	github.com/multiformats/go-multiaddr v0.9.0
 	github.com/prometheus/client_golang v1.13.0
 	github.com/spf13/cobra v1.6.1
 	github.com/stretchr/testify v1.8.2
