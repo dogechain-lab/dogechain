@@ -67,7 +67,7 @@ require (
 	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v3 v3.2.2 // indirect
-	github.com/cespare/xxhash/v2 v2.1.2 // indirect
+	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/cheekybits/genny v1.0.0 // indirect
 	github.com/containerd/cgroups v1.0.4 // indirect
 	github.com/coreos/go-systemd/v22 v22.3.2 // indirect
@@ -174,7 +174,7 @@ require (
 )
 
 require (
-	github.com/VictoriaMetrics/fastcache v1.6.0
+	github.com/VictoriaMetrics/fastcache v1.12.1
 	github.com/libp2p/go-cidranger v1.1.0
 	github.com/valyala/fasthttp v1.44.0 // indirect
 	golang.org/x/net v0.8.0 // indirect
